@@ -1,0 +1,11 @@
+# DriveDrop Generated Secrets
+# IMPORTANT: These are automatically generated secure values.
+# You should review and transfer them to your actual .env file.
+# Generated on: 2025-07-11T13:31:35.481Z
+
+JWT_SECRET=933c5b12b628af1e98b0aa44ad7803f831f3579f287f11c9b25a6de236aebd9a
+JWT_REFRESH_SECRET=7dacd2e43c7fae67dadd3f279f76d84c9717b33bceb265071d0bd20e42ce56bc
+DB_PASSWORD=r3tfEUzPTphWjasd4ANQ@33!
+STRIPE_SECRET_KEY=sk_test_et4JAY9P0VXdncgS1Rzd8dYdrI9G7J
+SENDGRID_API_KEY=SG.xQSyjKntSbWFCdsvBSUD9apw6dUxHAQKJy6Idzws74
+AWS_SECRET_ACCESS_KEY=qv49YrGTMXeCqtjsGgqUmNYo6qs0XHjsMe5ZTXcFijdsCMdScSXN0g
