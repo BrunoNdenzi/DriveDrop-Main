@@ -1,0 +1,144 @@
+name: CI/CD Pipeline with Secure Secrets
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+# Define environment-specific behaviors
+env:
+  NODE_VERSION: '18'
+
+jobs:
+  # Backend tests and build
+  backend:
+    name: Backend CI
+    runs-on: ubuntu-latest
+    environment: development # Use environment-specific secrets
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+        
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: 'backend/package-lock.json'
+          
+      - name: Install dependencies
+        working-directory: ./backend
+        run: npm ci
+      
+      # Create a secure .env file for testing using GitHub secrets
+      - name: Setup environment
+        working-directory: ./backend
+        run: |
+          cat > .env << EOF
+          NODE_ENV=test
+          PORT=3000
+          JWT_SECRET=${{ secrets.JWT_SECRET }}
+          JWT_EXPIRES_IN=7d
+          CORS_ORIGIN=http://localhost:3000,http://localhost:8081
+          EOF
+      
+      - name: Run linters
+        working-directory: ./backend
+        run: npm run lint
+        
+      - name: Run type check
+        working-directory: ./backend
+        run: npm run type-check
+      
+      - name: Build
+        working-directory: ./backend
+        run: npm run build
+  
+  # Mobile tests and build
+  mobile:
+    name: Mobile CI
+    runs-on: ubuntu-latest
+    environment: development # Use environment-specific secrets
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+        
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: 'mobile/package-lock.json'
+          
+      - name: Install dependencies
+        working-directory: ./mobile
+        run: npm ci
+      
+      # Create a secure .env file for testing using GitHub secrets
+      - name: Setup environment
+        working-directory: ./mobile
+        run: |
+          cat > .env << EOF
+          EXPO_PUBLIC_API_URL=http://localhost:3000/api/v1
+          EXPO_PUBLIC_ENV=test
+          EOF
+      
+      - name: Run linters
+        working-directory: ./mobile
+        run: npm run lint
+        
+      - name: Run type check
+        working-directory: ./mobile
+        run: npm run type-check
+  
+  # Example deployment job (only runs on main branch)
+  deploy:
+    name: Deploy to production
+    needs: [backend, mobile]
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    environment: production # Use production-specific secrets
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      
+      # Example of how to securely handle deployment credentials
+      # Notice we're using production environment secrets
+      - name: Deploy backend
+        working-directory: ./backend
+        env:
+          # These secrets are defined in the GitHub production environment
+          NODE_ENV: production
+          JWT_SECRET: ${{ secrets.JWT_SECRET }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          # AWS deployment credentials
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_REGION: ${{ secrets.AWS_REGION }}
+        run: |
+          echo "Setting up secure deployment environment..."
+          # This is where you would add your actual deployment commands
+          echo "Deploying backend to production..."
+          # npm run deploy
+      
+      - name: Deploy mobile app
+        working-directory: ./mobile
+        env:
+          # These are defined in the GitHub production environment
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: |
+          echo "Setting up secure mobile deployment environment..."
+          # This is where you would add your actual deployment commands
+          echo "Building and submitting mobile app..."
+          # npm run build:android
+          # npm run build:ios
