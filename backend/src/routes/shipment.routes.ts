@@ -10,7 +10,9 @@ import {
   updateShipmentStatus,
   getShipmentsNearby,
   getShipmentTracking,
-  createTrackingEvent
+  createTrackingEvent,
+  assignDriverToShipment,
+  getShipmentApplicants
 } from '@controllers/shipment.controller';
 
 const router = Router();
@@ -63,5 +65,19 @@ router.get('/:id/tracking', authenticate, getShipmentTracking);
  * @access Private (Driver or Admin)
  */
 router.post('/:id/events', authenticate, authorize(['driver', 'admin']), createTrackingEvent);
+
+/**
+ * @route PUT /api/v1/shipments/:id/assign
+ * @desc Assign a driver to a shipment
+ * @access Private (Admin only)
+ */
+router.put('/:id/assign', authenticate, authorize(['admin']), assignDriverToShipment);
+
+/**
+ * @route GET /api/v1/shipments/:id/applicants
+ * @desc Get shipment applicants
+ * @access Private (Admin only)
+ */
+router.get('/:id/applicants', authenticate, authorize(['admin']), getShipmentApplicants);
 
 export default router;

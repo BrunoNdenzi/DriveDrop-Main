@@ -27,7 +27,7 @@ export interface NotificationPreferences {
   promotions: boolean;
 }
 
-const defaultPreferences: NotificationPreferences = {
+export const defaultPreferences: NotificationPreferences = {
   pushEnabled: true,
   emailEnabled: true,
   smsEnabled: false,
@@ -57,49 +57,67 @@ export class NotificationService {
   }
 
   /**
+   * Safely check if a user session exists
+   * @returns boolean indicating if a session exists
+   */
+  private async hasActiveSession(): Promise<boolean> {
+    try {
+      const { data } = await supabase.auth.getSession();
+      return !!data.session;
+    } catch (error) {
+      console.warn('Error checking session:', error);
+      return false;
+    }
+  }
+  /**
    * Initialize notification listeners and register for push notifications
    */
   async initialize(): Promise<void> {
-    if (!Device.isDevice) {
-      console.log('Push notifications are not supported in the simulator');
-      return;
-    }
-
-    // Check if we have permission to send notifications
-    const { status: existingStatus } = await Notifications.getPermissionsAsync();
-    let finalStatus = existingStatus;
-
-    // If we don't have permission, ask for it
-    if (existingStatus !== 'granted') {
-      const { status } = await Notifications.requestPermissionsAsync();
-      finalStatus = status;
-    }
-
-    if (finalStatus !== 'granted') {
-      console.log('Failed to get permission for push notifications');
-      return;
-    }
-
-    // Get the Expo push token
     try {
-      const token = await this.registerForPushNotifications();
-      
-      // If we got a valid token, save it
-      if (token !== 'INVALID_PROJECT_ID') {
-        this._expoPushToken = token;
-        console.log('Expo push token:', token);
-        
-        // Store the token in Supabase
-        await this.savePushToken(token);
-      } else {
-        console.log('Skipping push token storage due to invalid project ID');
+      if (!Device.isDevice) {
+        console.log('Push notifications are not supported in the simulator');
+        return;
       }
-    } catch (error) {
-      console.error('Error getting push token:', error);
-    }
 
-    // Set up notification listeners
-    this.setupNotificationListeners();
+      // Check if we have permission to send notifications
+      const { status: existingStatus } = await Notifications.getPermissionsAsync();
+      let finalStatus = existingStatus;
+
+      // If we don't have permission, ask for it
+      if (existingStatus !== 'granted') {
+        const { status } = await Notifications.requestPermissionsAsync();
+        finalStatus = status;
+      }
+
+      if (finalStatus !== 'granted') {
+        console.log('Failed to get permission for push notifications');
+        return;
+      }
+
+      // Get the Expo push token
+      try {
+        const token = await this.registerForPushNotifications();
+        
+        // If we got a valid token, save it
+        if (token !== 'INVALID_PROJECT_ID') {
+          this._expoPushToken = token;
+          console.log('Expo push token:', token);
+          
+          // Store the token in Supabase
+          await this.savePushToken(token);
+        } else {
+          console.log('Skipping push token storage due to invalid project ID');
+        }
+      } catch (error) {
+        console.error('Error getting push token:', error);
+      }
+
+      // Set up notification listeners
+      this.setupNotificationListeners();
+    } catch (error) {
+      console.error('Error initializing notifications:', error);
+      throw error; // Rethrow to allow the caller to handle it
+    }
   }
 
   /**
@@ -187,6 +205,12 @@ export class NotificationService {
    */
   async savePushToken(token: string): Promise<void> {
     try {
+      // Check if session exists first
+      if (!await this.hasActiveSession()) {
+        console.log('No active session, skipping push token save');
+        return;
+      }
+
       const { data: user, error: userError } = await supabase.auth.getUser();
       
       if (userError || !user) {
@@ -230,6 +254,12 @@ export class NotificationService {
    */
   async getNotificationPreferences(): Promise<NotificationPreferences> {
     try {
+      // Check if session exists first
+      if (!await this.hasActiveSession()) {
+        console.log('No active session, returning default preferences');
+        return defaultPreferences;
+      }
+      
       const { data: user, error: userError } = await supabase.auth.getUser();
       
       if (userError || !user) {
@@ -269,6 +299,12 @@ export class NotificationService {
    */
   async saveNotificationPreferences(preferences: NotificationPreferences): Promise<void> {
     try {
+      // Check if session exists first
+      if (!await this.hasActiveSession()) {
+        console.log('No active session, skipping preferences save');
+        return;
+      }
+      
       const { data: user, error: userError } = await supabase.auth.getUser();
       
       if (userError || !user) {

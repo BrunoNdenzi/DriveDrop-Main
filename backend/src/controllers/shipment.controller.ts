@@ -239,3 +239,61 @@ export const getShipmentTracking = asyncHandler(async (req: Request, res: Respon
 
   res.status(200).json(successResponse(trackingEvents));
 });
+
+/**
+ * Assign driver to shipment (admin only)
+ * @route PUT /api/v1/shipments/:id/assign
+ * @access Admin
+ */
+export const assignDriverToShipment = asyncHandler(async (req: Request, res: Response) => {
+  const { id } = req.params;
+  const { driverId } = req.body;
+
+  if (!id || !isValidUuid(id)) {
+    throw createError('Invalid shipment ID', 400, 'INVALID_ID');
+  }
+
+  if (!driverId || !isValidUuid(driverId)) {
+    throw createError('Invalid driver ID', 400, 'INVALID_DRIVER_ID');
+  }
+
+  if (!req.user?.id) {
+    throw createError('Authentication required', 401, 'UNAUTHORIZED');
+  }
+
+  if (req.user.role !== 'admin') {
+    throw createError('Admin access required', 403, 'FORBIDDEN');
+  }
+
+  const assignedShipment = await shipmentService.assignDriverToShipment(id, driverId);
+
+  res.status(200).json(successResponse({
+    message: 'Driver assigned successfully',
+    shipment: assignedShipment
+  }));
+});
+
+/**
+ * Get shipment applicants (admin only)
+ * @route GET /api/v1/shipments/:id/applicants
+ * @access Admin
+ */
+export const getShipmentApplicants = asyncHandler(async (req: Request, res: Response) => {
+  const { id } = req.params;
+
+  if (!id || !isValidUuid(id)) {
+    throw createError('Invalid shipment ID', 400, 'INVALID_ID');
+  }
+
+  if (!req.user?.id) {
+    throw createError('Authentication required', 401, 'UNAUTHORIZED');
+  }
+
+  if (req.user.role !== 'admin') {
+    throw createError('Admin access required', 403, 'FORBIDDEN');
+  }
+
+  const applicants = await shipmentService.getShipmentApplicants(id);
+
+  res.status(200).json(successResponse(applicants));
+});
