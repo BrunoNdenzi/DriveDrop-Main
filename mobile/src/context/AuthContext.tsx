@@ -7,7 +7,7 @@ export interface UserProfile {
   first_name: string;
   last_name: string;
   email: string;
-  role: 'client' | 'driver';
+  role: 'client' | 'driver' | 'admin';
   phone?: string;
   avatar_url?: string;
   is_verified: boolean;

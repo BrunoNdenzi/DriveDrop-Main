@@ -18,7 +18,9 @@
     "predev": "npm run env:check && npm run check:node",
     "prestart": "npm run env:check",
     "secrets:rotate:dev": "echo \"This would rotate development secrets in a real application.\"",
-    "verify:env": "node scripts/verify-env.js"
+    "verify:env": "node scripts/verify-env.js",
+    "create:admin": "node scripts/create-admin-user.js",
+    "setup": "npm run build && npm run create:admin && npm run start"
   },
   "keywords": [],
   "author": "",

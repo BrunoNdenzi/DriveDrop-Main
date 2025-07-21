@@ -13,13 +13,11 @@ import { StatusBar } from 'expo-status-bar';
 import { MaterialIcons } from '@expo/vector-icons';
 
 import { Colors } from '../../constants/Colors';
-import { RootStackParamList, ClientTabParamList } from '../../navigation/types';
+import { ClientTabParamList } from '../../navigation/types';
 import { useAuth } from '../../context/AuthContext';
 import { auth } from '../../lib/supabase';
 
-type ProfileScreenProps = NativeStackScreenProps<ClientTabParamList, 'Profile'> & {
-  navigation: NativeStackScreenProps<RootStackParamList>['navigation'];
-};
+type ProfileScreenProps = NativeStackScreenProps<ClientTabParamList, 'Profile'>;
 
 export default function ProfileScreen({ navigation }: ProfileScreenProps) {
   const { userProfile, refreshProfile } = useAuth();
@@ -100,17 +98,6 @@ export default function ProfileScreen({ navigation }: ProfileScreenProps) {
             <Text style={styles.infoValue}>{getUserName()}</Text>
           </View>
 
-          {/* Admin Assignment Option - Only shown to admin users */}
-          {userProfile?.role === 'admin' && (
-            <TouchableOpacity
-              style={styles.adminButton}
-              onPress={() => navigation.navigate('AdminAssignment')}
-            >
-              <MaterialIcons name="assignment" size={20} color={Colors.primary} />
-              <Text style={styles.adminButtonText}>Admin Assignment</Text>
-            </TouchableOpacity>
-          )}
-
           <View style={styles.infoRow}>
             <MaterialIcons name="email" size={20} color={Colors.text.secondary} />
             <Text style={styles.infoLabel}>Email:</Text>
@@ -159,28 +146,6 @@ export default function ProfileScreen({ navigation }: ProfileScreenProps) {
               thumbColor={pushNotifications ? Colors.primary : Colors.text.disabled}
             />
           </View>
-          
-          <TouchableOpacity 
-            style={{
-              flexDirection: 'row',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              paddingVertical: 12,
-              marginTop: 8,
-              borderTopWidth: 1,
-              borderTopColor: Colors.border,
-            }}
-            onPress={() => {
-              navigation.getParent()?.navigate('Settings');
-            }}
-          >
-            <Text style={{
-              fontSize: 14,
-              color: Colors.primary,
-              fontWeight: '500',
-            }}>Manage All Notification Settings</Text>
-            <MaterialIcons name="chevron-right" size={20} color={Colors.primary} />
-          </TouchableOpacity>
         </View>
 
         {/* Sign Out Button */}
@@ -318,21 +283,5 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: Colors.error,
     marginLeft: 8,
-  },
-  adminButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#E3F2FD',
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: 8,
-    marginTop: 16,
-    marginBottom: 8,
-  },
-  adminButtonText: {
-    fontSize: 14,
-    color: Colors.primary,
-    fontWeight: '600',
-    marginLeft: 12,
   },
 });

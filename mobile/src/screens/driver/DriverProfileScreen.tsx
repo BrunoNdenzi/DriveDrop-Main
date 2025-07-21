@@ -16,6 +16,7 @@ import { MaterialIcons } from '@expo/vector-icons';
 import { Colors } from '../../constants/Colors';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../context/AuthContext';
+import { RootStackParamList } from '../../navigation/types';
 
 interface DriverStats {
   completedJobs: number;
@@ -431,7 +432,31 @@ export default function DriverProfileScreen({ navigation }: any) {
             </TouchableOpacity>
           </View>
         </View>
-        
+
+        {/* Admin Assignment Option - Only shown to admin users */}
+        {userProfile?.role === 'admin' && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Admin Functions</Text>
+            <View style={styles.settingsCard}>
+              <TouchableOpacity 
+                style={styles.adminButton}
+                onPress={() => navigation.navigate('AdminDashboard')}
+              >
+                <MaterialIcons name="dashboard" size={20} color={Colors.primary} />
+                <Text style={styles.adminButtonText}>Admin Dashboard</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity 
+                style={[styles.adminButton, { marginTop: 12 }]}
+                onPress={() => navigation.navigate('AdminAssignment')}
+              >
+                <MaterialIcons name="assignment" size={20} color={Colors.primary} />
+                <Text style={styles.adminButtonText}>Driver Assignment</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        )}
+
         {/* Version */}
         <Text style={styles.versionText}>DriveDrop v1.0.0</Text>
         
@@ -717,6 +742,24 @@ const styles = StyleSheet.create({
     color: Colors.text.primary,
     marginLeft: 12,
     flex: 1,
+  },
+  adminButton: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: Colors.primary + '15',
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    marginVertical: 4,
+    borderWidth: 1,
+    borderColor: Colors.primary + '30',
+  },
+  adminButtonText: {
+    color: Colors.primary,
+    fontWeight: '600',
+    fontSize: 16,
+    marginLeft: 8,
   },
   versionText: {
     fontSize: 12,

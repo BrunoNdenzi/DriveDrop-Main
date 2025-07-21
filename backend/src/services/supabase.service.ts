@@ -399,4 +399,130 @@ export const shipmentService = {
       throw error;
     }
   },
+
+  /**
+   * Assign driver to shipment (admin only)
+   */
+  async assignDriverToShipment(shipmentId: string, driverId: string) {
+    try {
+      // First, verify shipment exists and is available
+      const { data: shipment, error: shipmentError } = await supabase
+        .from('shipments')
+        .select('id, status, driver_id')
+        .eq('id', shipmentId)
+        .single();
+
+      if (shipmentError) {
+        throw createError(shipmentError.message, 404, 'SHIPMENT_NOT_FOUND');
+      }
+
+      if (shipment.status !== 'pending') {
+        throw createError('Shipment is not available for assignment', 400, 'INVALID_STATUS');
+      }
+
+      if (shipment.driver_id) {
+        throw createError('Shipment already has a driver assigned', 400, 'ALREADY_ASSIGNED');
+      }
+
+      // Verify driver exists
+      const { data: driver, error: driverError } = await supabase
+        .from('profiles')
+        .select('id, role')
+        .eq('id', driverId)
+        .eq('role', 'driver')
+        .single();
+
+      if (driverError) {
+        throw createError('Driver not found', 404, 'DRIVER_NOT_FOUND');
+      }
+
+      // Verify driver has applied for this shipment
+      const { data: application, error: applicationError } = await supabase
+        .from('job_applications')
+        .select('id')
+        .eq('shipment_id', shipmentId)
+        .eq('driver_id', driverId)
+        .single();
+
+      if (applicationError) {
+        throw createError('Driver has not applied for this shipment', 400, 'NO_APPLICATION');
+      }
+
+      // Update shipment with assigned driver
+      const { data: updatedShipment, error: updateError } = await supabase
+        .from('shipments')
+        .update({
+          driver_id: driverId,
+          status: 'assigned',
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', shipmentId)
+        .select()
+        .single();
+
+      if (updateError) {
+        throw createError(updateError.message, 500, 'UPDATE_FAILED');
+      }
+
+      // Update application status
+      await supabase
+        .from('job_applications')
+        .update({
+          status: 'accepted',
+          updated_at: new Date().toISOString(),
+        })
+        .eq('shipment_id', shipmentId)
+        .eq('driver_id', driverId);
+
+      // Reject other applications
+      await supabase
+        .from('job_applications')
+        .update({
+          status: 'rejected',
+          updated_at: new Date().toISOString(),
+        })
+        .eq('shipment_id', shipmentId)
+        .neq('driver_id', driverId);
+
+      return updatedShipment;
+    } catch (error) {
+      logger.error('Error assigning driver to shipment', { error, shipmentId, driverId });
+      throw error;
+    }
+  },
+
+  /**
+   * Get applicants for a shipment
+   */
+  async getShipmentApplicants(shipmentId: string) {
+    try {
+      const { data, error } = await supabase
+        .from('job_applications')
+        .select(`
+          *,
+          driver:driver_id(
+            id, 
+            first_name, 
+            last_name, 
+            email, 
+            phone, 
+            avatar_url, 
+            ratings(score, created_at),
+            driver_details(*)
+          )
+        `)
+        .eq('shipment_id', shipmentId)
+        .eq('status', 'pending')
+        .order('applied_at', { ascending: true });
+
+      if (error) {
+        throw createError(error.message, 500, 'FETCH_FAILED');
+      }
+
+      return data || [];
+    } catch (error) {
+      logger.error('Error getting shipment applicants', { error, shipmentId });
+      throw error;
+    }
+  },
 };

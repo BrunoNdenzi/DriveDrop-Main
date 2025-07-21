@@ -43,6 +43,10 @@ import BookingStepTermsScreen from '../screens/booking/BookingStepTermsScreen';
 import BookingStepPaymentScreen from '../screens/booking/BookingStepPaymentScreen';
 import BookingConfirmationScreen from '../screens/booking/BookingConfirmationScreen';
 
+// Import admin screens
+import AdminAssignmentScreen from '../screens/admin/AdminAssignmentScreen';
+import AdminDashboardScreen from '../screens/admin/AdminDashboardScreen';
+
 // Create navigators
 const Stack = createNativeStackNavigator<RootStackParamList>();
 const ClientTab = createBottomTabNavigator<ClientTabParamList>();
@@ -236,13 +240,27 @@ export default function Navigation() {
                 component={ClientTabNavigator}
                 options={{ headerShown: false }}
               />
-            ) : (
+            ) : userProfile.role === 'driver' ? (
               <Stack.Screen
                 name="DriverTabs"
                 component={DriverTabNavigator}
                 options={{ headerShown: false }}
               />
+            ) : (
+              // Admin users start with the dashboard screen
+              <Stack.Screen
+                name="AdminDashboard"
+                component={AdminDashboardScreen}
+                options={{ title: 'Admin Dashboard' }}
+              />
             )}
+            
+            <Stack.Screen
+              name="AdminAssignment"
+              component={AdminAssignmentScreen}
+              options={{ title: 'Driver Assignment' }}
+            />
+            
             <Stack.Screen
               name="ShipmentDetails"
               component={ShipmentDetailsScreen}

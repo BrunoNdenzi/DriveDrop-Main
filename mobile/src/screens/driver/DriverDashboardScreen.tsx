@@ -47,18 +47,31 @@ export default function DriverDashboardScreen({ navigation }: any) {
       ]);
 
       // Get available jobs using ShipmentService
-      const availableJobsData = await ShipmentService.getAvailableShipments();
+      const availableJobsData = await ShipmentService.getAvailableShipments(userProfile.id);
 
-      const totalEarnings = completedJobsResult.data?.reduce((sum, job) => sum + (job.estimated_price || 0), 0) || 0;
+      // Get all applications for this driver for tracking purposes
+      const { data: applications, error: appsError } = await supabase
+        .from('job_applications')
+        .select('shipment_id, status')
+        .eq('driver_id', userProfile.id);
+
+      if (appsError) {
+        console.error('Error fetching driver applications:', appsError);
+      } else {
+        console.log(`DriverScreen: Found ${applications?.length || 0} applications for driver ${userProfile.id}:`, applications);
+        
+        // Update the pendingJobs count in stats
+        setStats({
+          activeJobs: activeJobsResult.count || 0,
+          pendingJobs: applications?.filter(app => app.status === 'pending').length || 0,
+          completedJobs: completedJobsResult.data?.length || 0,
+          totalEarnings: completedJobsResult.data?.reduce((sum, job) => sum + (job.estimated_price || 0), 0) || 0,
+        });
+      }
       
-      setStats({
-        activeJobs: activeJobsResult.count || 0,
-        pendingJobs: 0, // Could be job applications pending
-        completedJobs: completedJobsResult.data?.length || 0,
-        totalEarnings,
-      });
-      
-      setAvailableJobs(availableJobsData || []);
+      // availableJobsData already excludes jobs the driver has applied for
+      console.log(`DriverScreen: Showing ${availableJobsData.length} jobs, with ${0} marked as applied`);
+      setAvailableJobs(availableJobsData);
     } catch (error) {
       console.error('Error fetching dashboard data:', error);
     } finally {
@@ -96,7 +109,7 @@ export default function DriverDashboardScreen({ navigation }: any) {
 
     try {
       await ShipmentService.applyForShipment(jobId, userProfile.id);
-      Alert.alert('Success', 'Job accepted successfully! Check your active jobs.');
+      Alert.alert('Success', 'Application submitted successfully! You will be notified when the client makes a decision.');
       fetchDashboardData(); // Refresh data to show updated job lists
     } catch (error: any) {
       console.error('Error applying to job:', error);
@@ -202,6 +215,13 @@ export default function DriverDashboardScreen({ navigation }: any) {
                   </View>
                 </View>
                 
+                {job.hasApplied && (
+                  <View style={styles.appliedBadge}>
+                    <MaterialIcons name="check-circle" size={16} color={Colors.success} />
+                    <Text style={styles.appliedText}>Applied</Text>
+                  </View>
+                )}
+                
                 <View style={styles.jobDetails}>
                   <View style={styles.jobDetailRow}>
                     <MaterialIcons name="location-on" size={16} color={Colors.primary} />
@@ -226,10 +246,13 @@ export default function DriverDashboardScreen({ navigation }: any) {
                 </View>
                 
                 <TouchableOpacity 
-                  style={styles.quickApplyButton}
+                  style={[styles.quickApplyButton, job.hasApplied && styles.quickApplyButtonDisabled]}
                   onPress={() => handleQuickApply(job.id)}
+                  disabled={job.hasApplied}
                 >
-                  <Text style={styles.quickApplyText}>Accept Job</Text>
+                  <Text style={[styles.quickApplyText, job.hasApplied && styles.quickApplyTextDisabled]}>
+                    {job.hasApplied ? 'Applied' : 'Accept Job'}
+                  </Text>
                 </TouchableOpacity>
               </View>
             ))
@@ -510,10 +533,32 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     alignItems: 'center',
   },
+  quickApplyButtonDisabled: {
+    backgroundColor: Colors.text.disabled,
+  },
   quickApplyText: {
     color: '#FFFFFF',
     fontWeight: '600',
     fontSize: 14,
+  },
+  quickApplyTextDisabled: {
+    color: Colors.surface,
+  },
+  appliedBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#E8F5E8',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+    marginBottom: 8,
+    alignSelf: 'flex-start',
+  },
+  appliedText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: Colors.success,
+    marginLeft: 4,
   },
   shiftButton: {
     backgroundColor: Colors.success,

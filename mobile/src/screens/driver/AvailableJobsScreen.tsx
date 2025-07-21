@@ -49,11 +49,15 @@ export default function AvailableJobsScreen({ navigation }: any) {
       if (userProfile?.id) {
         const { data: applications, error: appError } = await supabase
           .from('job_applications')
-          .select('shipment_id')
+          .select('shipment_id, status')
           .eq('driver_id', userProfile.id);
 
         if (!appError && applications) {
+          console.log(`DriverScreen: Found ${applications.length} applications for driver ${userProfile.id}:`, 
+            applications.map(a => ({shipment_id: a.shipment_id, status: a.status})));
           appliedJobIds = applications.map(app => app.shipment_id);
+        } else if (appError) {
+          console.error('Error fetching driver applications:', appError);
         }
       }
       
@@ -72,6 +76,8 @@ export default function AvailableJobsScreen({ navigation }: any) {
         hasApplied: appliedJobIds.includes(job.id), // Check if driver has applied
       }));
 
+      console.log(`DriverScreen: Showing ${formattedJobs.length} jobs, with ${formattedJobs.filter(j => j.hasApplied).length} marked as applied`);
+      
       setAvailableJobs(formattedJobs);
     } catch (error) {
       console.error('Error fetching available jobs:', error);
@@ -99,12 +105,49 @@ export default function AvailableJobsScreen({ navigation }: any) {
         return;
       }
 
+      console.log(`DriverScreen: Driver ${userProfile.id} applying for job ${jobId}`);
+      
+      // DIAGNOSTIC: Check if any applications already exist for this job/driver combo
+      const { data: existingApps, error: checkError } = await supabase
+        .from('job_applications')
+        .select('*')
+        .eq('shipment_id', jobId)
+        .eq('driver_id', userProfile.id);
+        
+      if (checkError) {
+        console.error('Error checking existing applications:', checkError);
+      } else {
+        console.log(`DriverScreen DIAGNOSTIC: Existing applications for job ${jobId} and driver ${userProfile.id}:`, 
+          existingApps?.length ? existingApps : 'None found');
+      }
+
       // Use the enhanced ShipmentService method
-      await ShipmentService.applyForShipment(jobId, userProfile.id);
+      const application = await ShipmentService.applyForShipment(jobId, userProfile.id);
+      
+      console.log(`DriverScreen: Successfully applied for job ${jobId}`, application);
+      
+      // VERIFICATION: Double check the application was created
+      const { data: verifyApp, error: verifyError } = await supabase
+        .from('job_applications')
+        .select('*')
+        .eq('shipment_id', jobId)
+        .eq('driver_id', userProfile.id);
+        
+      if (verifyError) {
+        console.error('Error verifying application was created:', verifyError);
+      } else {
+        console.log(`DriverScreen VERIFICATION: Applications after applying for job ${jobId}:`, 
+          verifyApp?.length ? verifyApp : 'None found - POSSIBLE DATA ISSUE');
+        
+        if (!verifyApp?.length) {
+          Alert.alert('Warning', 'Your application may not have been properly recorded. Please try again.');
+          return;
+        }
+      }
 
       Alert.alert(
         'Success',
-        'You have successfully applied for this job!',
+        'Application submitted successfully! You will be notified when the client makes a decision.',
         [{ text: 'OK', onPress: () => fetchAvailableJobs() }] // Refresh the list
       );
     } catch (error: any) {

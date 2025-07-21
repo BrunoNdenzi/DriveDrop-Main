@@ -1,7 +1,11 @@
 // src/contexts/NotificationContext.tsx
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { Alert } from 'react-native';
-import { notificationService, NotificationPreferences } from '../services/NotificationService';
+import { NotificationService, NotificationPreferences, defaultPreferences } from '../services/NotificationService';
+import { useAuth } from '../context/AuthContext';
+
+// Create a singleton instance
+export const notificationService = NotificationService.getInstance();
 
 interface NotificationContextType {
   isInitialized: boolean;
@@ -26,23 +30,23 @@ export const useNotifications = () => {
 export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
   children 
 }) => {
+  const { session } = useAuth(); // Add access to auth session
   const [isInitialized, setIsInitialized] = useState(false);
   const [pushToken, setPushToken] = useState<string | null>(null);
   const [hasPermission, setHasPermission] = useState(false);
-  const [preferences, setPreferences] = useState<NotificationPreferences>({
-    pushEnabled: true,
-    emailEnabled: true,
-    smsEnabled: false,
-    shipmentUpdates: true,
-    driverAssigned: true,
-    paymentUpdates: true,
-    promotions: false,
-  });
+  const [preferences, setPreferences] = useState<NotificationPreferences>(defaultPreferences);
 
   // Initialize the notification service
   useEffect(() => {
     const initNotifications = async () => {
       try {
+        // Safely check if the notification service is properly initialized
+        if (!notificationService) {
+          console.error('NotificationService is not properly initialized');
+          setIsInitialized(true); // Mark as initialized to prevent infinite loading
+          return;
+        }
+        
         await notificationService.initialize();
         
         // Update state with the current token
@@ -79,7 +83,7 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({
     return () => {
       notificationService.cleanup();
     };
-  }, []);
+  }, [session]); // Add session as a dependency to reinitialize when auth state changes
 
   // Request notification permissions
   const requestPermissions = async (): Promise<boolean> => {

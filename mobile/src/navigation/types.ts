@@ -23,6 +23,10 @@ export type RootStackParamList = {
   Settings: undefined;
   NotificationTest: undefined;
   
+  // Admin Screens
+  AdminAssignment: undefined;
+  AdminDashboard: undefined;
+  
   // Booking Flow Screens
   BookingStepCustomer: { quoteId?: string };
   BookingStepVehicle: undefined;

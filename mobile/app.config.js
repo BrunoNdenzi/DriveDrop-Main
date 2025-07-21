@@ -39,9 +39,9 @@ module.exports = ({ config }) => {
       enableAnalytics: process.env.EXPO_PUBLIC_ENABLE_ANALYTICS === 'true',
       enablePushNotifications: process.env.EXPO_PUBLIC_ENABLE_PUSH_NOTIFICATIONS === 'true',
       enableCrashReporting: process.env.EXPO_PUBLIC_ENABLE_CRASH_REPORTING === 'true',
-      projectId: "00000000-0000-0000-0000-000000000000", // This should be replaced with your actual Expo project ID
+      projectId: "ce011283-21f8-4f0d-adb1-206f02d37e65", // This should be replaced with your actual Expo project ID
       eas: {
-        projectId: "00000000-0000-0000-0000-000000000000" // This should be replaced with your actual EAS project ID
+        projectId: "ce011283-21f8-4f0d-adb1-206f02d37e65" // This should be replaced with your actual EAS project ID
       }
     },
     plugins: [
