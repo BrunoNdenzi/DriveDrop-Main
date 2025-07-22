@@ -76,7 +76,7 @@ jobs:
           
       - name: Install dependencies
         working-directory: ./mobile
-        run: npm ci
+        run: npm ci --legacy-peer-deps
       
       # Create a secure .env file for testing using GitHub secrets
       - name: Setup environment
