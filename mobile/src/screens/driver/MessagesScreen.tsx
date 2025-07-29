@@ -16,6 +16,7 @@ import { MaterialIcons } from '@expo/vector-icons';
 import { Colors } from '../../constants/Colors';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../context/AuthContext';
+import { realtimeService } from '../../services/RealtimeService';
 
 interface Contact {
   id: string;
@@ -49,14 +50,22 @@ export default function MessagesScreen({ route, navigation }: any) {
   
   const messageListRef = useRef<FlatList>(null);
   const messageSubscriptionRef = useRef<any>(null);
+  const contactSubscriptionRef = useRef<any>(null);
 
   useEffect(() => {
     fetchContacts();
     
+    // Set up real-time subscription for new contacts/messages
+    setupContactsSubscription();
+    
     return () => {
-      // Clean up subscription on unmount
+      // Clean up subscriptions on unmount
       if (messageSubscriptionRef.current) {
-        messageSubscriptionRef.current.unsubscribe();
+        supabase.removeChannel(messageSubscriptionRef.current);
+      }
+      
+      if (contactSubscriptionRef.current) {
+        supabase.removeChannel(contactSubscriptionRef.current);
       }
     };
   }, []);
@@ -69,6 +78,28 @@ export default function MessagesScreen({ route, navigation }: any) {
       }
     }
   }, [initialContactId, contacts]);
+
+  const setupContactsSubscription = () => {
+    if (!userProfile) return;
+    
+    // Set up real-time subscription for new messages that might create new contacts
+    contactSubscriptionRef.current = supabase
+      .channel('new-contacts')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'messages',
+          filter: `receiver_id=eq.${userProfile.id}`,
+        },
+        () => {
+          // When a new message comes in, refresh contacts
+          fetchContacts();
+        }
+      )
+      .subscribe();
+  };
 
   const fetchContacts = async () => {
     if (!userProfile) return;
@@ -102,33 +133,48 @@ export default function MessagesScreen({ route, navigation }: any) {
       
       // Also fetch any system contacts or support staff (could be added later)
       
-      setContacts(Object.values(uniqueClients));
+      // Get last messages and unread counts for each contact in parallel for better performance
+      const contactsArray = Object.values(uniqueClients);
+      await Promise.all(
+        contactsArray.map(async (contact) => {
+          try {
+            // Get last message for this contact
+            const { data: lastMessage } = await supabase
+              .from('messages')
+              .select('*')
+              .or(`and(sender_id.eq.${userProfile.id},receiver_id.eq.${contact.id}),and(sender_id.eq.${contact.id},receiver_id.eq.${userProfile.id})`)
+              .order('created_at', { ascending: false })
+              .limit(1);
+            
+            // Get unread count for this contact using our new function
+            const { data: unreadCountData } = await supabase
+              .rpc('count_unread_messages', {
+                p_user_id: userProfile.id, 
+                p_contact_id: contact.id
+              });
+            
+            const unreadCount = unreadCountData || 0;
+            
+            if (lastMessage && lastMessage.length > 0) {
+              contact.lastMessage = lastMessage[0].content;
+              contact.lastMessageTime = lastMessage[0].created_at;
+              contact.unreadCount = unreadCount;
+            }
+          } catch (error) {
+            console.error('Error fetching contact details:', error);
+          }
+        })
+      );
       
-      // Get last messages and unread counts for each contact
-      for (const contactId of Object.keys(uniqueClients)) {
-        const { data: lastMessage } = await supabase
-          .from('messages')
-          .select('*')
-          .or(`sender_id.eq.${contactId},receiver_id.eq.${contactId}`)
-          .order('created_at', { ascending: false })
-          .limit(1);
-        
-        const { count: unreadCount } = await supabase
-          .from('messages')
-          .select('*', { count: 'exact', head: true })
-          .eq('sender_id', contactId)
-          .eq('receiver_id', userProfile.id)
-          .eq('is_read', false);
-        
-        if (lastMessage && lastMessage.length > 0) {
-          uniqueClients[contactId].lastMessage = lastMessage[0].content;
-          uniqueClients[contactId].lastMessageTime = lastMessage[0].created_at;
-          uniqueClients[contactId].unreadCount = unreadCount || 0;
-        }
-      }
+      // Sort contacts by last message time (most recent first)
+      contactsArray.sort((a, b) => {
+        if (!a.lastMessageTime) return 1;
+        if (!b.lastMessageTime) return -1;
+        return new Date(b.lastMessageTime).getTime() - new Date(a.lastMessageTime).getTime();
+      });
       
       // Update state with the enhanced contacts information
-      setContacts(Object.values(uniqueClients));
+      setContacts(contactsArray);
     } catch (error) {
       console.error('Error fetching contacts:', error);
       Alert.alert('Error', 'Failed to load your contacts. Please try again.');
@@ -152,43 +198,54 @@ export default function MessagesScreen({ route, navigation }: any) {
       
       setMessages(data || []);
       
-      // Mark unread messages as read
-      await supabase
-        .from('messages')
-        .update({ is_read: true })
-        .eq('sender_id', contactId)
-        .eq('receiver_id', userProfile.id)
-        .eq('is_read', false);
-      
-      // Set up real-time subscription for new messages
-      if (messageSubscriptionRef.current) {
-        messageSubscriptionRef.current.unsubscribe();
+      // Mark unread messages as read using our new function
+      if (data) {
+        const unreadMessages = data.filter(
+          msg => msg.sender_id === contactId && !msg.is_read
+        );
+        
+        for (const msg of unreadMessages) {
+          await supabase.rpc('mark_message_as_read', {
+            p_message_id: msg.id,
+            p_user_id: userProfile.id
+          });
+        }
       }
       
+      // Set up real-time subscription for new messages using our RealtimeService
+      if (messageSubscriptionRef.current) {
+        supabase.removeChannel(messageSubscriptionRef.current);
+      }
+      
+      // Create a new real-time channel for messages between these users
       messageSubscriptionRef.current = supabase
-        .channel('messages-channel')
-        .on('postgres_changes', {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'messages',
-          filter: `or(and(sender_id=eq.${userProfile.id},receiver_id=eq.${contactId}),and(sender_id=eq.${contactId},receiver_id=eq.${userProfile.id}))`,
-        }, (payload) => {
-          // Add new message to the list
-          setMessages((prev) => [...prev, payload.new as Message]);
-          
-          // Mark message as read if it's from the contact
-          if (payload.new.sender_id === contactId && payload.new.receiver_id === userProfile.id) {
-            supabase
-              .from('messages')
-              .update({ is_read: true })
-              .eq('id', payload.new.id);
+        .channel(`messages-${userProfile.id}-${contactId}`)
+        .on(
+          'postgres_changes',
+          {
+            event: 'INSERT',
+            schema: 'public',
+            table: 'messages',
+            filter: `or(and(sender_id.eq.${userProfile.id},receiver_id.eq.${contactId}),and(sender_id.eq.${contactId},receiver_id.eq.${userProfile.id}))`,
+          },
+          (payload) => {
+            // Add new message to the list
+            setMessages((prev) => [...prev, payload.new as Message]);
+            
+            // Mark message as read if it's from the contact
+            if (payload.new.sender_id === contactId && payload.new.receiver_id === userProfile.id) {
+              supabase.rpc('mark_message_as_read', {
+                p_message_id: payload.new.id,
+                p_user_id: userProfile.id
+              });
+            }
+            
+            // Scroll to bottom
+            setTimeout(() => {
+              messageListRef.current?.scrollToEnd({ animated: true });
+            }, 100);
           }
-          
-          // Scroll to bottom
-          setTimeout(() => {
-            messageListRef.current?.scrollToEnd({ animated: true });
-          }, 100);
-        })
+        )
         .subscribe();
       
       // Scroll to bottom of message list
@@ -212,23 +269,39 @@ export default function MessagesScreen({ route, navigation }: any) {
     try {
       setSendingMessage(true);
       
+      // Create message data
+      const messageData = {
+        sender_id: userProfile.id,
+        receiver_id: selectedContact.id,
+        shipment_id: null, // Optional: can be linked to a specific shipment
+        content: newMessage.trim(),
+        is_read: false,
+        created_at: new Date().toISOString(),
+      };
+      
       // Insert the new message
       const { error } = await supabase
         .from('messages')
-        .insert([
-          {
-            sender_id: userProfile.id,
-            receiver_id: selectedContact.id,
-            content: newMessage.trim(),
-            created_at: new Date().toISOString(),
-            is_read: false,
-          },
-        ]);
+        .insert([messageData]);
 
       if (error) throw error;
       
       // Clear the input
       setNewMessage('');
+      
+      // Update the contact's last message in the contacts list
+      setContacts(prevContacts => {
+        return prevContacts.map(contact => {
+          if (contact.id === selectedContact.id) {
+            return {
+              ...contact,
+              lastMessage: messageData.content,
+              lastMessageTime: messageData.created_at,
+            };
+          }
+          return contact;
+        });
+      });
     } catch (error) {
       console.error('Error sending message:', error);
       Alert.alert('Error', 'Failed to send message. Please try again.');

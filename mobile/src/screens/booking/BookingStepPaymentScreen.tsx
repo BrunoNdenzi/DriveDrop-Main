@@ -11,10 +11,14 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { StatusBar } from 'expo-status-bar';
 import { MaterialIcons, Ionicons } from '@expo/vector-icons';
 
-import { Colors, Typography, Spacing } from '../../constants/DesignSystem';
+// Import the entire design system and use it from there
+import DesignSystem from '../../constants/DesignSystem';
+const { Colors, Typography, Spacing } = DesignSystem;
+
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
 import { Input } from '../../components/ui/Input';
+import { PaymentPolicyCard } from '../../components/payment/PaymentPolicyCard';
 import { RootStackParamList } from '../../navigation/types';
 import { useBooking } from '../../context/BookingContext';
 
@@ -22,7 +26,6 @@ type BookingStepPaymentProps = NativeStackScreenProps<RootStackParamList, 'Booki
 
 export default function BookingStepPaymentScreen({ navigation }: BookingStepPaymentProps) {
   const { state, updateFormData, setStepValidity } = useBooking();
-  const { paymentDetails } = state.formData;
   const [selectedQuote, setSelectedQuote] = useState<'standard' | 'express' | 'premium'>('standard');
 
   // Mock quote data - in real app this would come from API
@@ -32,97 +35,42 @@ export default function BookingStepPaymentScreen({ navigation }: BookingStepPaym
     premium: { price: 2100, days: '1-2', title: 'Premium Shipping' }
   };
 
-  // Validate form data
+  // Validate form data - only check if quote is selected
   useEffect(() => {
-    const isValid = !!(
-      paymentDetails.paymentMethod &&
-      paymentDetails.cardNumber &&
-      paymentDetails.expiryDate &&
-      paymentDetails.cvv &&
-      paymentDetails.cardholderName &&
-      paymentDetails.billingAddress?.street &&
-      paymentDetails.billingAddress?.city &&
-      paymentDetails.billingAddress?.state &&
-      paymentDetails.billingAddress?.zipCode
-    );
+    // Only require quote selection since we're using Stripe for payment
+    const isValid = true;
     setStepValidity('payment', isValid);
-  }, [paymentDetails, setStepValidity]);
-
-  const handlePaymentMethodChange = (method: 'credit_card' | 'debit_card' | 'bank_transfer') => {
-    const updatedData = {
-      ...paymentDetails,
-      paymentMethod: method,
-    };
-    updateFormData('payment', updatedData);
-  };
-
-  const handleCardDetailsChange = (field: string, value: string) => {
-    const updatedData = {
-      ...paymentDetails,
-      [field]: value,
-    };
-    updateFormData('payment', updatedData);
-  };
-
-  const handleBillingAddressChange = (field: string, value: string) => {
-    const updatedData = {
-      ...paymentDetails,
-      billingAddress: {
-        ...paymentDetails.billingAddress,
-        [field]: value,
-      },
-    };
-    updateFormData('payment', updatedData);
-  };
+  }, [selectedQuote, setStepValidity]);
 
   const handleQuoteSelection = (quote: 'standard' | 'express' | 'premium') => {
     setSelectedQuote(quote);
   };
 
   const handleSubmit = () => {
-    if (state.isValid.payment) {
-      Alert.alert(
-        'Confirm Payment',
-        `You are about to pay $${quotes[selectedQuote].price} for ${quotes[selectedQuote].title}. This will submit your shipment request.`,
-        [
-          { text: 'Cancel', style: 'cancel' },
-          { 
-            text: 'Pay Now', 
-            onPress: () => {
-              // Here would be the actual payment processing logic
-              Alert.alert(
-                'Payment Successful!',
-                'Your shipment request has been submitted. You will receive a confirmation email shortly.',
-                [
-                  {
-                    text: 'View Confirmation',
-                    onPress: () => navigation.navigate('BookingConfirmation')
-                  }
-                ]
-              );
+    const quotePrice = quotes[selectedQuote].price * 100; // Convert to cents for Stripe
+    
+    Alert.alert(
+      'Confirm Booking',
+      `You selected ${quotes[selectedQuote].title} for $${quotes[selectedQuote].price}. Continue to payment?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { 
+          text: 'Continue to Payment', 
+          onPress: () => navigation.navigate('BookingPaymentProcessing', {
+            amount: quotePrice,
+            quote: {
+              service: quotes[selectedQuote].title,
+              price: quotes[selectedQuote].price,
+              days: quotes[selectedQuote].days
             }
-          },
-        ]
-      );
-    }
+          })
+        },
+      ]
+    );
   };
 
   const handleBack = () => {
     navigation.goBack();
-  };
-
-  const formatCardNumber = (value: string) => {
-    const cleaned = value.replace(/\s/g, '');
-    const formatted = cleaned.replace(/(.{4})/g, '$1 ').trim();
-    return formatted;
-  };
-
-  const formatExpiryDate = (value: string) => {
-    const cleaned = value.replace(/\D/g, '');
-    if (cleaned.length >= 2) {
-      return cleaned.substring(0, 2) + '/' + cleaned.substring(2, 4);
-    }
-    return cleaned;
   };
 
   return (
@@ -131,7 +79,7 @@ export default function BookingStepPaymentScreen({ navigation }: BookingStepPaym
       
       {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.title}>Payment & Booking Summary</Text>
+        <Text style={styles.title}>Booking Summary</Text>
         <Text style={styles.subtitle}>Step 9 of 9</Text>
         <View style={styles.progressBar}>
           <View style={[styles.progressFill, { width: '100%' }]} />
@@ -226,155 +174,26 @@ export default function BookingStepPaymentScreen({ navigation }: BookingStepPaym
             ))}
           </Card>
 
-          {/* Payment Method */}
-          <Card variant="default" padding="lg" style={styles.paymentCard}>
-            <Text style={styles.sectionTitle}>Payment Method</Text>
-            
-            <View style={styles.paymentMethods}>
-              {[
-                { key: 'credit_card', label: 'Credit Card', icon: 'credit-card' },
-                { key: 'debit_card', label: 'Debit Card', icon: 'credit-card' },
-                { key: 'bank_transfer', label: 'Bank Transfer', icon: 'payment' }
-              ].map((method) => (
-                <TouchableOpacity
-                  key={method.key}
-                  style={[
-                    styles.paymentMethodOption,
-                    paymentDetails.paymentMethod === method.key && styles.selectedPaymentMethod
-                  ]}
-                  onPress={() => handlePaymentMethodChange(method.key as 'credit_card' | 'debit_card' | 'bank_transfer')}
-                >
-                  <MaterialIcons 
-                    name={method.icon as any} 
-                    size={24} 
-                    color={paymentDetails.paymentMethod === method.key ? Colors.primary : Colors.text.secondary}
-                  />
-                  <Text style={[
-                    styles.paymentMethodText,
-                    paymentDetails.paymentMethod === method.key && styles.selectedPaymentMethodText
-                  ]}>
-                    {method.label}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-
-            {paymentDetails.paymentMethod && paymentDetails.paymentMethod !== 'bank_transfer' && (
-              <View style={styles.cardForm}>
-                <Input
-                  label="Cardholder Name"
-                  value={paymentDetails.cardholderName || ''}
-                  onChangeText={(value) => handleCardDetailsChange('cardholderName', value)}
-                  placeholder="John Doe"
-                  autoCapitalize="words"
-                />
-
-                <Input
-                  label="Card Number"
-                  value={paymentDetails.cardNumber || ''}
-                  onChangeText={(value) => {
-                    const formatted = formatCardNumber(value);
-                    if (formatted.replace(/\s/g, '').length <= 16) {
-                      handleCardDetailsChange('cardNumber', formatted);
-                    }
-                  }}
-                  placeholder="1234 5678 9012 3456"
-                  keyboardType="numeric"
-                  maxLength={19}
-                />
-
-                <View style={styles.cardRow}>
-                  <View style={styles.cardRowItem}>
-                    <Input
-                      label="Expiry Date"
-                      value={paymentDetails.expiryDate || ''}
-                      onChangeText={(value) => {
-                        const formatted = formatExpiryDate(value);
-                        if (formatted.length <= 5) {
-                          handleCardDetailsChange('expiryDate', formatted);
-                        }
-                      }}
-                      placeholder="MM/YY"
-                      keyboardType="numeric"
-                      maxLength={5}
-                    />
-                  </View>
-                  <View style={styles.cardRowItem}>
-                    <Input
-                      label="CVV"
-                      value={paymentDetails.cvv || ''}
-                      onChangeText={(value) => {
-                        if (value.length <= 4 && /^\d*$/.test(value)) {
-                          handleCardDetailsChange('cvv', value);
-                        }
-                      }}
-                      placeholder="123"
-                      keyboardType="numeric"
-                      maxLength={4}
-                      secureTextEntry
-                    />
-                  </View>
-                </View>
-              </View>
-            )}
-          </Card>
-
-          {/* Billing Address */}
-          {paymentDetails.paymentMethod && paymentDetails.paymentMethod !== 'bank_transfer' && (
-            <Card variant="default" padding="lg" style={styles.billingCard}>
-              <Text style={styles.sectionTitle}>Billing Address</Text>
-              
-              <Input
-                label="Street Address"
-                value={paymentDetails.billingAddress?.street || ''}
-                onChangeText={(value) => handleBillingAddressChange('street', value)}
-                placeholder="123 Main Street"
-              />
-
-              <View style={styles.addressRow}>
-                <View style={styles.addressRowItem}>
-                  <Input
-                    label="City"
-                    value={paymentDetails.billingAddress?.city || ''}
-                    onChangeText={(value) => handleBillingAddressChange('city', value)}
-                    placeholder="Los Angeles"
-                  />
-                </View>
-                <View style={styles.addressRowItemSmall}>
-                  <Input
-                    label="State"
-                    value={paymentDetails.billingAddress?.state || ''}
-                    onChangeText={(value) => handleBillingAddressChange('state', value)}
-                    placeholder="CA"
-                    autoCapitalize="characters"
-                    maxLength={2}
-                  />
-                </View>
-              </View>
-
-              <Input
-                label="ZIP Code"
-                value={paymentDetails.billingAddress?.zipCode || ''}
-                onChangeText={(value) => {
-                  if (/^\d*$/.test(value) && value.length <= 5) {
-                    handleBillingAddressChange('zipCode', value);
-                  }
-                }}
-                placeholder="90210"
-                keyboardType="numeric"
-                maxLength={5}
-              />
-            </Card>
-          )}
+          {/* Payment Policy Card */}
+          <PaymentPolicyCard
+            totalAmount={quotes[selectedQuote].price * 100}
+            paymentType="initial"
+            isRefundable={true}
+            refundDeadline={new Date(Date.now() + 60 * 60 * 1000).toISOString()}
+          />
 
           {/* Order Total */}
           <Card variant="outlined" padding="lg" style={styles.totalCard}>
             <View style={styles.totalRow}>
-              <Text style={styles.totalLabel}>Total Amount:</Text>
-              <Text style={styles.totalAmount}>${quotes[selectedQuote].price}</Text>
+              <Text style={styles.totalLabel}>Initial Payment (20%):</Text>
+              <Text style={styles.totalAmount}>${(quotes[selectedQuote].price * 0.2).toFixed(2)}</Text>
+            </View>
+            <View style={styles.totalRow}>
+              <Text style={styles.totalLabel}>Total Shipment Value:</Text>
+              <Text style={styles.totalValue}>${quotes[selectedQuote].price.toFixed(2)}</Text>
             </View>
             <Text style={styles.totalNote}>
-              Payment will be processed securely. You will receive a confirmation email after successful payment.
+              After confirming, you will be redirected to our secure payment processor to complete your booking.
             </Text>
           </Card>
         </View>
@@ -391,9 +210,8 @@ export default function BookingStepPaymentScreen({ navigation }: BookingStepPaym
         <Button
           variant="primary"
           onPress={handleSubmit}
-          disabled={!state.isValid.payment}
           style={styles.submitButton}
-          title={`Pay $${quotes[selectedQuote].price}`}
+          title={`Continue to Payment ($${quotes[selectedQuote].price})`}
         />
       </View>
     </View>
@@ -483,7 +301,7 @@ const styles = StyleSheet.create({
   },
   summaryValue: {
     fontSize: Typography.fontSize.base,
-    fontWeight: Typography.fontWeight.medium,
+    fontWeight: '500', // Use literal value instead of Typography.fontWeight.medium
     color: Colors.text.primary,
     flex: 2,
     textAlign: 'right',
@@ -594,6 +412,11 @@ const styles = StyleSheet.create({
     fontSize: Typography.fontSize['2xl'],
     fontWeight: Typography.fontWeight.bold,
     color: Colors.primary,
+  },
+  totalValue: {
+    fontSize: Typography.fontSize.lg,
+    fontWeight: Typography.fontWeight.bold,
+    color: Colors.text.primary,
   },
   totalNote: {
     fontSize: Typography.fontSize.sm,

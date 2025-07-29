@@ -1,123 +1,141 @@
 /**
- * Payment routes (Stripe)
+ * Payment routes for Stripe integration
  */
-import { Router } from 'express';
-import { authenticate, authorize } from '@middlewares/auth.middleware';
-import {
-  createPaymentIntent,
-  getPaymentIntent,
-  confirmPaymentIntent,
-  createCustomer,
-  createRefund,
-  handleWebhook,
-  addPaymentMethod,
-  listPaymentMethods,
-  removePaymentMethod,
-  createSubscription,
-  cancelSubscription,
-  getTransactionHistory,
-  getPaymentAnalytics,
-  createSetupIntent,
-} from '@controllers/payments.controller';
+import express from 'express';
+import { paymentsController } from '@controllers/payments.controller';
+import { authenticate } from '@middlewares/auth.middleware';
 
-const router = Router();
+const router = express.Router();
 
-/**
- * @route POST /api/v1/payments/create-intent
- * @desc Create a payment intent for shipment payment
- * @access Private
- */
-router.post('/create-intent', authenticate, createPaymentIntent);
+// Payment intent routes
+router.post(
+  '/create-intent',
+  authenticate,
+  paymentsController.createPaymentIntent
+);
 
-/**
- * @route GET /api/v1/payments/intent/:id
- * @desc Get payment intent by ID
- * @access Private
- */
-router.get('/intent/:id', authenticate, getPaymentIntent);
+router.get(
+  '/intent/:id',
+  authenticate,
+  paymentsController.getPaymentIntent
+);
 
-/**
- * @route POST /api/v1/payments/confirm/:id
- * @desc Confirm a payment intent
- * @access Private
- */
-router.post('/confirm/:id', authenticate, confirmPaymentIntent);
+router.post(
+  '/confirm/:id',
+  authenticate,
+  paymentsController.confirmPaymentIntent
+);
 
-/**
- * @route POST /api/v1/payments/customer
- * @desc Create a Stripe customer
- * @access Private
- */
-router.post('/customer', authenticate, createCustomer);
+// Customer routes
+router.post(
+  '/customer',
+  authenticate,
+  paymentsController.createCustomer
+);
 
-/**
- * @route POST /api/v1/payments/refund
- * @desc Create a refund (Admin only)
- * @access Private (Admin)
- */
-router.post('/refund', authenticate, authorize(['admin']), createRefund);
+// Payment method routes
+router.post(
+  '/methods',
+  authenticate,
+  paymentsController.addPaymentMethod
+);
 
-/**
- * @route POST /api/v1/payments/webhook
- * @desc Stripe webhook endpoint
- * @access Public (Stripe webhook)
- */
-router.post('/webhook', handleWebhook);
+router.get(
+  '/methods/:customerId',
+  authenticate,
+  paymentsController.listPaymentMethods
+);
 
-/**
- * @route POST /api/v1/payments/methods
- * @desc Add a payment method to customer
- * @access Private
- */
-router.post('/methods', authenticate, addPaymentMethod);
+router.delete(
+  '/methods/:id',
+  authenticate,
+  paymentsController.removePaymentMethod
+);
 
-/**
- * @route GET /api/v1/payments/methods/:customerId
- * @desc List customer payment methods
- * @access Private
- */
-router.get('/methods/:customerId', authenticate, listPaymentMethods);
+// Refund routes (admin only)
+router.post(
+  '/refund',
+  authenticate,
+  paymentsController.createRefund
+);
 
-/**
- * @route DELETE /api/v1/payments/methods/:id
- * @desc Remove a payment method
- * @access Private
- */
-router.delete('/methods/:id', authenticate, removePaymentMethod);
+// New split payment routes
+router.get(
+  '/:id/refund-eligibility',
+  authenticate,
+  paymentsController.checkRefundEligibility
+);
 
-/**
- * @route POST /api/v1/payments/subscriptions
- * @desc Create a subscription
- * @access Private
- */
-router.post('/subscriptions', authenticate, createSubscription);
+router.post(
+  '/:id/refund',
+  authenticate,
+  paymentsController.processRefund
+);
 
-/**
- * @route POST /api/v1/payments/subscriptions/:id/cancel
- * @desc Cancel a subscription
- * @access Private
- */
-router.post('/subscriptions/:id/cancel', authenticate, cancelSubscription);
+router.post(
+  '/:id/final-payment',
+  authenticate,
+  paymentsController.createFinalPayment
+);
 
-/**
- * @route GET /api/v1/payments/history/:customerId
- * @desc Get customer transaction history
- * @access Private
- */
-router.get('/history/:customerId', authenticate, getTransactionHistory);
+// Webhook endpoint (no authentication)
+router.post(
+  '/webhook',
+  express.raw({ type: 'application/json' }),
+  paymentsController.handleWebhook
+);
 
-/**
- * @route GET /api/v1/payments/analytics
- * @desc Get payment analytics (Admin only)
- * @access Private (Admin)
- */
-router.get('/analytics', authenticate, authorize(['admin']), getPaymentAnalytics);
+// Setup intent for future payments
+router.post(
+  '/setup-intent',
+  authenticate,
+  paymentsController.createSetupIntent
+);
 
-/**
- * @route POST /api/v1/payments/setup-intent
- * @desc Create a setup intent for future payments
- * @access Private
- */
-router.post('/setup-intent', authenticate, createSetupIntent);
+// Subscription routes
+router.post(
+  '/subscriptions',
+  authenticate,
+  paymentsController.createSubscription
+);
+
+router.post(
+  '/subscriptions/:id/cancel',
+  authenticate,
+  paymentsController.cancelSubscription
+);
+
+// Transaction history
+router.get(
+  '/history/:customerId',
+  authenticate,
+  paymentsController.getTransactionHistory
+);
+
+// Analytics (admin only)
+router.get(
+  '/analytics',
+  authenticate,
+  paymentsController.getPaymentAnalytics
+);
+
+// Payment config - public endpoint for mobile app initialization
+router.get(
+  '/config',
+  paymentsController.getConfig
+);
+
+// Diagnostic routes
+router.get(
+  '/stripe-status',
+  authenticate,
+  paymentsController.checkStripeStatus
+);
+
+router.get(
+  '/status',
+  authenticate,
+  paymentsController.getPaymentStatus
+);
 
 export default router;

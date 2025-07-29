@@ -1,13 +1,13 @@
 /**
  * Authentication middleware
+ * Uses Supabase Auth tokens directly for authentication
  */
 import { Request, Response, NextFunction } from 'express';
-import jwt from 'jsonwebtoken';
-import config from '@config/index';
 import { supabase } from '@lib/supabase';
 import { createError } from '@utils/error';
+import { logger } from '@utils/logger';
 
-// Extend Express Request type to include user
+// Extend Express Request type to include user and full profile
 declare global {
   namespace Express {
     interface Request {
@@ -16,12 +16,14 @@ declare global {
         email: string;
         role: string;
       };
+      userProfile?: any; // Full profile information
     }
   }
 }
 
 /**
  * Authentication middleware to protect routes
+ * Uses Supabase Auth to validate tokens
  */
 export const authenticate = async (
   req: Request,
@@ -39,32 +41,45 @@ export const authenticate = async (
       throw createError('Authentication token is required', 401, 'UNAUTHORIZED');
     }
 
-    // Verify token
-    const decoded = jwt.verify(token, config.auth.jwtSecret) as { id: string };
+    // Verify token with Supabase
+    const { data: { user }, error } = await supabase.auth.getUser(token);
 
-    // Get user from Supabase
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('id, email, role')
-      .eq('id', decoded.id)
-      .single();
-
-    if (error || !data) {
-      throw createError('User not found', 401, 'UNAUTHORIZED');
+    if (error || !user) {
+      logger.warn('Invalid Supabase token', { error: error?.message });
+      throw createError('Invalid authentication token', 401, 'UNAUTHORIZED');
     }
 
-    // Attach user to request
+    // Get user profile from profiles table (including all needed fields)
+    const { data: profile, error: profileError } = await supabase
+      .from('profiles')
+      .select('id, email, role, first_name, last_name, is_verified, avatar_url, rating')
+      .eq('id', user.id)
+      .single();
+
+    if (profileError || !profile) {
+      logger.error('User profile not found', { userId: user.id, error: profileError });
+      throw createError('User profile not found', 401, 'UNAUTHORIZED');
+    }
+
+    // Optional: Check if account is verified when necessary
+    // Uncomment if you want this check to be universal
+    // if (!profile.is_verified) {
+    //   throw createError('Account not verified', 401, 'UNVERIFIED_ACCOUNT');
+    // }
+
+    // Attach user to request (minimal info)
     req.user = {
-      id: data.id,
-      email: data.email,
-      role: data.role,
+      id: profile.id,
+      email: profile.email,
+      role: profile.role,
     };
+
+    // Attach full profile for convenience
+    req.userProfile = profile;
 
     next();
   } catch (error) {
-    next(error instanceof jwt.JsonWebTokenError 
-      ? createError('Invalid token', 401, 'UNAUTHORIZED')
-      : error);
+    next(error);
   }
 };
 

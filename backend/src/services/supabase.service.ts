@@ -4,7 +4,7 @@
 import { supabase } from '@lib/supabase';
 import { createError } from '@utils/error';
 import { logger } from '@utils/logger';
-import { ShipmentStatus, UserRole } from '@types/api.types';
+import { ShipmentStatus, UserRole } from '../types/api.types';
 import { Database } from '@lib/database.types';
 
 /**
@@ -425,7 +425,7 @@ export const shipmentService = {
       }
 
       // Verify driver exists
-      const { data: driver, error: driverError } = await supabase
+      const { error: driverError } = await supabase
         .from('profiles')
         .select('id, role')
         .eq('id', driverId)
@@ -437,7 +437,7 @@ export const shipmentService = {
       }
 
       // Verify driver has applied for this shipment
-      const { data: application, error: applicationError } = await supabase
+      const { error: applicationError } = await supabase
         .from('job_applications')
         .select('id')
         .eq('shipment_id', shipmentId)

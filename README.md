@@ -276,9 +276,11 @@ The project uses Supabase as its primary database, authentication provider, and 
 - **driver_applications**: Driver verification and onboarding
 - **vehicle_photos**: Photos of driver vehicles for verification
 - **shipments**: Package delivery jobs with locations and details
+- **job_applications**: Driver applications for shipments (consolidated table)
 - **tracking_events**: Events that track shipment progress
 - **messages**: Communication between clients and drivers
 - **payments**: Payment records for shipments
+- **shipment_applications_view**: View that provides compatibility with older code
 
 ### Setup Instructions
 1. **Create a Supabase project**

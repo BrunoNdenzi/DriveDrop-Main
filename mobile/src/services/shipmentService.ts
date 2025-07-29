@@ -5,6 +5,11 @@ import { Database } from '../lib/database.types';
 // Define tracking event type based on database type
 type TrackingEventType = Database['public']['Enums']['tracking_event_type'];
 
+/**
+ * Interface for creating a new shipment
+ * Note: client_id is NOT included here as it should always be derived from 
+ * the authenticated user's session for security reasons
+ */
 export interface CreateShipmentData {
   title: string;
   description?: string;
@@ -22,6 +27,7 @@ export interface CreateShipmentData {
   is_fragile?: boolean;
   estimated_distance_km?: number;
   estimated_price: number;
+  status?: string; // Optionally allow status to be set
 }
 
 export class ShipmentService {
@@ -30,33 +36,61 @@ export class ShipmentService {
    */
   static async createShipment(data: CreateShipmentData, userId: string) {
     try {
-      console.log('Creating shipment with data:', data);
+      console.log('ShipmentService.createShipment - Starting with userId:', userId);
+      console.log('ShipmentService.createShipment - Complete payload:', JSON.stringify(data));
       
+      // Verify auth state before insert
+      const { data: authData, error: authError } = await supabase.auth.getSession();
+      if (authError) {
+        console.error('Authentication error before shipment insert:', authError);
+        throw new Error(`Authentication failed: ${authError.message}`);
+      }
+      
+      console.log('Current auth session:', JSON.stringify(authData));
+      if (!authData.session) {
+        throw new Error('No active session found - user must be logged in to create shipments');
+      }
+      
+      console.log(`Session user ID: ${authData.session.user.id}, Using client_id: ${userId}`);
+      if (authData.session.user.id !== userId) {
+        console.warn('Warning: Session user ID does not match provided userId');
+      }
+      
+      // Create insert payload with client_id explicitly set to the session user's ID
+      const insertPayload = {
+        client_id: authData.session.user.id, // Always use the authenticated user's ID
+        status: 'pending',
+        title: data.title,
+        description: data.description,
+        pickup_address: data.pickup_address,
+        pickup_notes: data.pickup_notes,
+        delivery_address: data.delivery_address,
+        delivery_notes: data.delivery_notes,
+        weight_kg: data.weight_kg,
+        dimensions_cm: data.dimensions_cm,
+        item_value: data.item_value,
+        is_fragile: data.is_fragile || false,
+        estimated_distance_km: data.estimated_distance_km,
+        estimated_price: data.estimated_price,
+      };
+      console.log('Insert payload:', JSON.stringify(insertPayload));
+      
+      // Perform the insert with the verified payload
       const { data: shipment, error } = await supabase
         .from('shipments')
-        .insert([
-          {
-            client_id: userId,
-            status: 'pending',
-            title: data.title,
-            description: data.description,
-            pickup_address: data.pickup_address,
-            pickup_notes: data.pickup_notes,
-            delivery_address: data.delivery_address,
-            delivery_notes: data.delivery_notes,
-            weight_kg: data.weight_kg,
-            dimensions_cm: data.dimensions_cm,
-            item_value: data.item_value,
-            is_fragile: data.is_fragile || false,
-            estimated_distance_km: data.estimated_distance_km,
-            estimated_price: data.estimated_price,
-          }
-        ])
+        .insert([insertPayload])
         .select()
         .single();
 
       if (error) {
-        console.error('Error creating shipment:', error);
+        console.error('Error creating shipment in Supabase:', error);
+        // Attempt to diagnose RLS issues
+        if (error.code === '42501') {
+          console.error('Row-level security policy violation - this is likely a permission issue:');
+          console.error('1. Verify the user is authenticated');
+          console.error('2. Verify the RLS policy allows insert where client_id = auth.uid()');
+          console.error('3. Verify auth.uid() matches the client_id being inserted:', insertPayload.client_id);
+        }
         throw error;
       }
 
@@ -449,6 +483,28 @@ export class ShipmentService {
     } catch (error) {
       console.error('ShipmentService.resetShipmentToPending error:', error);
       throw error;
+    }
+  }
+
+  /**
+   * Get all available drivers in the system
+   */
+  static async getAllAvailableDrivers() {
+    try {
+      const { data: drivers, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('role', 'driver');
+
+      if (error) {
+        console.error('Error fetching available drivers:', error);
+        return [];
+      }
+
+      return drivers || [];
+    } catch (error) {
+      console.error('ShipmentService.getAllAvailableDrivers error:', error);
+      return [];
     }
   }
 }

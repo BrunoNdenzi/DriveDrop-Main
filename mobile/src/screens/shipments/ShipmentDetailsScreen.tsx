@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import {
   StyleSheet,
   View,
@@ -11,11 +11,13 @@ import {
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { StatusBar } from 'expo-status-bar';
 import { MaterialIcons } from '@expo/vector-icons';
+import { RealtimeChannel } from '@supabase/supabase-js';
 
 import { Colors } from '../../constants/Colors';
 import { RootStackParamList } from '../../navigation/types';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../context/AuthContext';
+import { realtimeService, DriverLocation } from '../../services/RealtimeService';
 
 type ShipmentDetailsScreenProps = NativeStackScreenProps<RootStackParamList, 'ShipmentDetails'>;
 
@@ -24,11 +26,62 @@ export default function ShipmentDetailsScreen({ route, navigation }: ShipmentDet
   const [shipment, setShipment] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [driverLocation, setDriverLocation] = useState<DriverLocation | null>(null);
   const { user } = useAuth();
+  const realtimeChannelRef = useRef<RealtimeChannel | null>(null);
+  const locationChannelRef = useRef<RealtimeChannel | null>(null);
 
   useEffect(() => {
     loadShipmentDetails();
+    
+    // Set up real-time subscription
+    if (shipmentId) {
+      setupRealtimeSubscription();
+    }
+    
+    // Clean up on unmount
+    return () => {
+      if (realtimeChannelRef.current) {
+        realtimeService.unsubscribeFromShipment(shipmentId);
+        realtimeChannelRef.current = null;
+      }
+      
+      if (locationChannelRef.current) {
+        realtimeService.unsubscribeFromDriverLocation();
+        locationChannelRef.current = null;
+      }
+    };
   }, [shipmentId]);
+  
+  const setupRealtimeSubscription = () => {
+    // Subscribe to real-time updates for this shipment
+    realtimeChannelRef.current = realtimeService.subscribeToShipment(
+      shipmentId,
+      // Shipment update handler
+      (updatedShipment) => {
+        console.log('Received real-time shipment update:', updatedShipment);
+        setShipment((current: any) => ({
+          ...current,
+          ...updatedShipment
+        }));
+      },
+      // New message handler (not used in this screen)
+      () => {},
+      // Tracking event handler (not used in this screen)
+      () => {}
+    );
+    
+    // Subscribe to driver location updates if shipment is in progress
+    if (shipment && ['picked_up', 'in_transit'].includes(shipment.status)) {
+      locationChannelRef.current = realtimeService.subscribeToDriverLocation(
+        shipmentId,
+        (location) => {
+          console.log('Received driver location update:', location);
+          setDriverLocation(location);
+        }
+      );
+    }
+  };
 
   async function loadShipmentDetails() {
     try {
@@ -72,7 +125,10 @@ export default function ShipmentDetailsScreen({ route, navigation }: ShipmentDet
             try {
               const { error: updateError } = await supabase
                 .from('shipments')
-                .update({ status: 'cancelled' })
+                .update({ 
+                  status: 'cancelled',
+                  updated_at: new Date().toISOString()
+                })
                 .eq('id', shipmentId);
               
               if (updateError) {
@@ -81,8 +137,8 @@ export default function ShipmentDetailsScreen({ route, navigation }: ShipmentDet
                 return;
               }
 
+              // Local state will be updated by real-time subscription
               Alert.alert('Success', 'Shipment cancelled successfully');
-              loadShipmentDetails(); // Reload with updated status
             } catch (err) {
               console.error('Error cancelling shipment:', err);
               Alert.alert('Error', 'Failed to cancel shipment');
@@ -243,6 +299,29 @@ export default function ShipmentDetailsScreen({ route, navigation }: ShipmentDet
             </TouchableOpacity>
           </View>
         )}
+        
+        {shipment.status === 'in_transit' && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Track Delivery</Text>
+            
+            <TouchableOpacity
+              style={styles.actionButton}
+              onPress={() => navigation.navigate('RouteMap', { shipmentId: shipment.id })}
+            >
+              <MaterialIcons name="map" size={20} color={Colors.background} />
+              <Text style={styles.actionButtonText}>Track on Map</Text>
+            </TouchableOpacity>
+            
+            {driverLocation && (
+              <View style={styles.detailRow}>
+                <Text style={styles.detailLabel}>Last updated</Text>
+                <Text style={styles.detailValue}>
+                  {formatDate(driverLocation.location_timestamp)}
+                </Text>
+              </View>
+            )}
+          </View>
+        )}
       </ScrollView>
     </View>
   );
@@ -373,5 +452,21 @@ const styles = StyleSheet.create({
     color: 'white',
     fontSize: 16,
     fontWeight: '600',
+  },
+  actionButton: {
+    backgroundColor: Colors.primary,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'center',
+    marginVertical: 12,
+  },
+  actionButtonText: {
+    color: 'white',
+    fontWeight: '600',
+    fontSize: 16,
+    marginLeft: 8,
   },
 });

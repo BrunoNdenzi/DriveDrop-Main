@@ -51,6 +51,41 @@ export interface Database {
           updated_at?: string
         }
       }
+      job_applications: {
+        Row: {
+          id: string
+          shipment_id: string
+          driver_id: string
+          status: 'pending' | 'accepted' | 'rejected'
+          applied_at: string
+          responded_at: string | null
+          notes: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          shipment_id: string
+          driver_id: string
+          status?: 'pending' | 'accepted' | 'rejected'
+          applied_at?: string
+          responded_at?: string | null
+          notes?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          shipment_id?: string
+          driver_id?: string
+          status?: 'pending' | 'accepted' | 'rejected'
+          applied_at?: string
+          responded_at?: string | null
+          notes?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+      }
       driver_applications: {
         Row: {
           id: string
@@ -308,7 +343,17 @@ export interface Database {
       }
     }
     Views: {
-      [_ in never]: never
+      shipment_applications_view: {
+        Row: {
+          id: string
+          shipment_id: string
+          driver_id: string
+          status: string
+          applied_at: string
+          created_at: string
+          updated_at: string
+        }
+      }
     }
     Functions: {
       accept_shipment: {
@@ -424,6 +469,7 @@ export interface Database {
       vehicle_type: 'car' | 'van' | 'truck' | 'motorcycle'
       payment_status: 'pending' | 'processing' | 'completed' | 'failed' | 'refunded'
       tracking_event_type: 'created' | 'accepted' | 'pickup' | 'in_transit' | 'delivery' | 'cancelled' | 'delayed'
+      application_status: 'pending' | 'accepted' | 'rejected'
     }
     CompositeTypes: {
       [_ in never]: never

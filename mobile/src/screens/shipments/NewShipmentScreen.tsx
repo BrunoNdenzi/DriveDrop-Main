@@ -9,18 +9,14 @@ import {
   Alert,
 } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { CompositeNavigationProp } from '@react-navigation/native';
 import { StatusBar } from 'expo-status-bar';
 import { MaterialIcons } from '@expo/vector-icons';
 
 import { Colors } from '../../constants/Colors';
-import { ClientTabParamList, RootStackParamList } from '../../navigation/types';
+import { RootStackParamList } from '../../navigation/types';
 import { useAuth } from '../../context/AuthContext';
 
-type NewShipmentNavigationProp = CompositeNavigationProp<
-  NativeStackScreenProps<ClientTabParamList, 'NewShipment'>['navigation'],
-  NativeStackScreenProps<RootStackParamList>['navigation']
->;
+type NewShipmentNavigationProp = NativeStackScreenProps<RootStackParamList, 'CreateShipment'>['navigation'];
 
 type NewShipmentScreenProps = {
   navigation: NewShipmentNavigationProp;
@@ -82,7 +78,7 @@ export default function NewShipmentScreen({ navigation }: NewShipmentScreenProps
       estimatedCost: 250, // This would come from the actual quote API
     };
     
-    // In a real app, you'd save the quote and pass the ID
+    // Navigate to the booking flow
     navigation.navigate('BookingStepCustomer', { 
       quoteId: `quote_${Date.now()}` 
     });

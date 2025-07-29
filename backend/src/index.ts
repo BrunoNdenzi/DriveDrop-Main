@@ -43,6 +43,7 @@ app.use(express.urlencoded({ extended: true }));
 
 // Routes
 app.use('/health', healthRoutes);
+app.use('/api/health', healthRoutes); // Additional mounting for /api/health
 app.use(`${config.server.apiPrefix}`, apiRoutes);
 
 // Error handler
@@ -60,8 +61,10 @@ app.use((_req, res) => {
 });
 
 // Start the server
-app.listen(PORT, () => {
-  logger.info(`🚀 DriveDrop API server running on port ${PORT}`);
-  logger.info(`📱 Health check: http://localhost:${PORT}/health`);
-  logger.info(`🔗 API: http://localhost:${PORT}${config.server.apiPrefix}`);
+const port = Number(PORT);
+app.listen(port, '0.0.0.0', () => {
+  logger.info(`🚀 DriveDrop API server running on port ${port}`);
+  logger.info(`📱 Health check: http://localhost:${port}/health`);
+  logger.info(`🔗 API: http://localhost:${port}${config.server.apiPrefix}`);
+  logger.info(`🌐 Network: http://0.0.0.0:${port}${config.server.apiPrefix}`);
 });

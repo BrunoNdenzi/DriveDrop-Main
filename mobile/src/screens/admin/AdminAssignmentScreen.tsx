@@ -9,6 +9,7 @@ import {
   Alert,
   RefreshControl,
   ScrollView,
+  Modal,
 } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { StatusBar } from 'expo-status-bar';
@@ -18,6 +19,7 @@ import { useAuth } from '../../context/AuthContext';
 import { RootStackParamList } from '../../navigation/types';
 import { Colors } from '../../constants/Colors';
 import { ShipmentService } from '../../services/shipmentService';
+import { getApiUrl } from '../../utils/environment';
 import { ApplicationService } from '../../services/applicationService';
 
 type AdminAssignmentScreenProps = NativeStackScreenProps<RootStackParamList, 'AdminAssignment'>;
@@ -63,6 +65,9 @@ export default function AdminAssignmentScreen({ navigation }: AdminAssignmentScr
   const [shipments, setShipments] = useState<Shipment[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [availableDrivers, setAvailableDrivers] = useState<any[]>([]);
+  const [selectedShipmentId, setSelectedShipmentId] = useState<string | null>(null);
+  const [isDriverModalVisible, setIsDriverModalVisible] = useState(false);
 
   // Check if user is admin, redirect if not
   useEffect(() => {
@@ -75,7 +80,18 @@ export default function AdminAssignmentScreen({ navigation }: AdminAssignmentScr
   // Load pending shipments on mount
   useEffect(() => {
     loadPendingShipments();
+    loadAvailableDrivers();
   }, []);
+
+  const loadAvailableDrivers = async () => {
+    try {
+      const drivers = await ShipmentService.getAllAvailableDrivers();
+      setAvailableDrivers(drivers);
+    } catch (error) {
+      console.error('Error loading available drivers:', error);
+      Alert.alert('Error', 'Failed to load available drivers');
+    }
+  };
 
   const loadPendingShipments = async () => {
     try {
@@ -98,19 +114,13 @@ export default function AdminAssignmentScreen({ navigation }: AdminAssignmentScr
 
       console.log(`AdminScreen: Found ${pendingShipments?.length || 0} pending shipments`);
       
-      // Initialize shipments with empty applications arrays
-      const shipmentsWithApplications = pendingShipments?.map(shipment => ({
-        ...shipment,
-        applications: [],
-        expandedApplications: false
-      })) || [];
-
-      setShipments(shipmentsWithApplications);
-      
-      // For each shipment, load its applications
-      for (const shipment of shipmentsWithApplications) {
-        await loadShipmentApplications(shipment.id);
+      if (!pendingShipments || pendingShipments.length === 0) {
+        setShipments([]);
+        return;
       }
+      
+      // Load all applications at once instead of one by one
+      await loadAllApplicationsAtOnce(pendingShipments);
     } catch (err) {
       console.error('Error in loadPendingShipments:', err);
       Alert.alert('Error', 'An unexpected error occurred while loading shipments');
@@ -119,12 +129,77 @@ export default function AdminAssignmentScreen({ navigation }: AdminAssignmentScr
     }
   };
 
-  const loadShipmentApplications = async (shipmentId: string) => {
+  const loadAllApplicationsAtOnce = async (pendingShipments: any[]) => {
     try {
-      console.log(`AdminScreen: Loading applications for shipment ${shipmentId}`);
+      // First try to use the new backend endpoint for all applications
+      try {
+        const session = await supabase.auth.getSession();
+        if (session.data.session?.access_token) {
+          console.log('AdminScreen: Fetching all applications from backend...');
+          
+          const apiUrl = getApiUrl();
+          const response = await fetch(`${apiUrl}/api/v1/applications`, {
+            method: 'GET',
+            headers: {
+              'Authorization': `Bearer ${session.data.session.access_token}`,
+              'Content-Type': 'application/json',
+            },
+          });
+
+          if (response.ok) {
+            const result = await response.json();
+            if (result.success && result.data) {
+              console.log(`AdminScreen: Successfully loaded ${result.data.length} applications from backend`);
+              
+              // Group applications by shipment_id
+              const applicationsByShipment = result.data.reduce((acc: any, app: any) => {
+                if (!acc[app.shipment_id]) {
+                  acc[app.shipment_id] = [];
+                }
+                acc[app.shipment_id].push({
+                  id: app.id,
+                  driver_id: app.driver_id,
+                  shipment_id: app.shipment_id,
+                  status: app.status,
+                  applied_at: app.applied_at,
+                  updated_at: app.updated_at,
+                  driver: app.driver ? {
+                    id: app.driver.id,
+                    first_name: app.driver.first_name,
+                    last_name: app.driver.last_name,
+                    email: app.driver.email,
+                    phone: app.driver.phone,
+                    avatar_url: app.driver.avatar_url,
+                    rating: app.driver.rating
+                  } : undefined
+                });
+                return acc;
+              }, {});
+
+              // Initialize shipments with their applications
+              const shipmentsWithApplications = pendingShipments.map(shipment => ({
+                ...shipment,
+                applications: applicationsByShipment[shipment.id] || [],
+                expandedApplications: false
+              }));
+
+              setShipments(shipmentsWithApplications);
+              console.log('AdminScreen: Successfully updated shipments with applications');
+              return;
+            }
+          }
+        }
+      } catch (backendError) {
+        console.log('AdminScreen: Backend endpoint failed, falling back to direct database queries');
+      }
+
+      // Fallback: Load applications using direct database queries (but more efficiently)
+      console.log('AdminScreen: Loading applications via direct database queries...');
       
-      // First try to get from job_applications table using a type-safe approach
-      const { data: jobApplications, error: jobAppError } = await supabase
+      const shipmentIds = pendingShipments.map(s => s.id);
+      
+      // Get all applications for all shipments in one query
+      const { data: allApplications, error } = await supabase
         .from('job_applications')
         .select(`
           id, 
@@ -144,17 +219,19 @@ export default function AdminAssignmentScreen({ navigation }: AdminAssignmentScr
             rating
           )
         `)
-        .eq('shipment_id', shipmentId);
+        .in('shipment_id', shipmentIds);
+
+      // Group applications by shipment
+      const applicationsByShipment: { [key: string]: Application[] } = {};
       
-      let applications: Application[] = [];
-      
-      // Process data from direct query
-      if (!jobAppError && jobApplications?.length) {
-        applications = jobApplications.map(app => {
-          // Extract the profile data
-          const profileData = app.profiles as any;
+      if (!error && allApplications) {
+        allApplications.forEach(app => {
+          if (!applicationsByShipment[app.shipment_id]) {
+            applicationsByShipment[app.shipment_id] = [];
+          }
           
-          return {
+          const profileData = app.profiles as any;
+          applicationsByShipment[app.shipment_id].push({
             id: app.id,
             driver_id: app.driver_id,
             shipment_id: app.shipment_id,
@@ -170,71 +247,29 @@ export default function AdminAssignmentScreen({ navigation }: AdminAssignmentScr
               avatar_url: profileData.avatar_url || undefined,
               rating: profileData.rating || undefined
             } : undefined
-          };
-        });
-        
-        console.log(`AdminScreen: Found ${applications.length} applications via direct query`);
-      }
-      // Try ApplicationService as fallback if direct query failed or returned no results
-      else if (ApplicationService) {
-        console.log(`Falling back to ApplicationService for shipment ${shipmentId}`);
-        const serviceApplications = await ApplicationService.getApplicationsForShipment(shipmentId);
-        
-        if (serviceApplications?.length) {
-          // Convert service applications to our Application type
-          applications = serviceApplications.map(app => {
-            return {
-              id: app.id,
-              driver_id: app.driver_id,
-              shipment_id: app.shipment_id,
-              status: app.status as 'pending' | 'accepted' | 'rejected',
-              applied_at: app.applied_at,
-              updated_at: app.updated_at || null,
-              driver: app.driver ? {
-                id: app.driver.id,
-                first_name: app.driver.first_name,
-                last_name: app.driver.last_name,
-                email: app.driver.email,
-                phone: app.driver.phone || undefined,
-                avatar_url: app.driver.avatar_url || undefined,
-                rating: app.driver.rating || undefined
-              } : undefined
-            };
           });
-          
-          console.log(`Found ${applications.length} applications via ApplicationService`);
-        }
-      }
-      
-      if (!applications.length) {
-        console.log(`No applications found for shipment ${shipmentId}`);
+        });
       }
 
-      // Update the shipment with its applications
-      setShipments(prevShipments => 
-        prevShipments.map(shipment => {
-          if (shipment.id === shipmentId) {
-            return { 
-              ...shipment, 
-              applications: applications 
-            };
-          }
-          return shipment;
-        })
-      );
-      
-      // Get the updated state for logging
-      setTimeout(() => {
-        console.log(`AdminScreen: Updated shipments state:`, 
-          shipments.map(s => ({
-            id: s.id, 
-            title: s.title,
-            applicationCount: s.applications?.length || 0
-          }))
-        );
-      }, 100);
+      // Initialize shipments with their applications
+      const shipmentsWithApplications = pendingShipments.map(shipment => ({
+        ...shipment,
+        applications: applicationsByShipment[shipment.id] || [],
+        expandedApplications: false
+      }));
+
+      setShipments(shipmentsWithApplications);
+      console.log(`AdminScreen: Loaded applications for ${Object.keys(applicationsByShipment).length} shipments`);
     } catch (err) {
-      console.error(`Error loading applications for shipment ${shipmentId}:`, err);
+      console.error('Error loading applications:', err);
+      
+      // Final fallback: Initialize shipments without applications
+      const shipmentsWithoutApplications = pendingShipments.map(shipment => ({
+        ...shipment,
+        applications: [],
+        expandedApplications: false
+      }));
+      setShipments(shipmentsWithoutApplications);
     }
   };
 
@@ -278,6 +313,43 @@ export default function AdminAssignmentScreen({ navigation }: AdminAssignmentScr
       ]
     );
   };
+
+  const openQuickAssignModal = (shipmentId: string) => {
+    setSelectedShipmentId(shipmentId);
+    setIsDriverModalVisible(true);
+  };
+
+  const renderDriverItem = ({ item }: { item: any }) => (
+    <TouchableOpacity 
+      style={styles.driverModalItem}
+      onPress={() => {
+        setIsDriverModalVisible(false);
+        if (selectedShipmentId) {
+          confirmAssignment(
+            selectedShipmentId, 
+            item.id, 
+            `${item.first_name} ${item.last_name}`
+          );
+        }
+      }}
+    >
+      <View style={styles.driverAvatar}>
+        <Text style={styles.avatarText}>
+          {item.first_name.charAt(0)}{item.last_name.charAt(0)}
+        </Text>
+      </View>
+      <View style={styles.driverInfo}>
+        <Text style={styles.driverName}>{item.first_name} {item.last_name}</Text>
+        {item.rating && (
+          <View style={styles.ratingContainer}>
+            <MaterialIcons name="star" size={16} color="#FFD700" />
+            <Text style={styles.ratingText}>{item.rating.toFixed(1)}</Text>
+          </View>
+        )}
+      </View>
+      <MaterialIcons name="arrow-forward-ios" size={16} color={Colors.text.secondary} />
+    </TouchableOpacity>
+  );
 
   const toggleApplications = (shipmentId: string) => {
     setShipments(prevShipments => 
@@ -428,6 +500,13 @@ export default function AdminAssignmentScreen({ navigation }: AdminAssignmentScr
                   <Text style={styles.noApplicationsSubText}>
                     Drivers will appear here once they apply for this shipment.
                   </Text>
+                  <TouchableOpacity
+                    style={styles.quickAssignButton}
+                    onPress={() => openQuickAssignModal(item.id)}
+                  >
+                    <MaterialIcons name="person-add" size={20} color="#FFFFFF" />
+                    <Text style={styles.quickAssignButtonText}>Quick Assign</Text>
+                  </TouchableOpacity>
                 </View>
               )}
             </View>
@@ -476,6 +555,40 @@ export default function AdminAssignmentScreen({ navigation }: AdminAssignmentScr
           </View>
         }
       />
+      
+      {/* Driver Selection Modal */}
+      <Modal
+        visible={isDriverModalVisible}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setIsDriverModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Select a Driver</Text>
+              <TouchableOpacity 
+                onPress={() => setIsDriverModalVisible(false)}
+                style={styles.closeButton}
+              >
+                <MaterialIcons name="close" size={24} color={Colors.text.primary} />
+              </TouchableOpacity>
+            </View>
+            
+            <FlatList
+              data={availableDrivers}
+              renderItem={renderDriverItem}
+              keyExtractor={item => item.id}
+              contentContainerStyle={styles.driversList}
+              ListEmptyComponent={
+                <View style={styles.noDriversContainer}>
+                  <Text style={styles.noDriversText}>No drivers available</Text>
+                </View>
+              }
+            />
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -701,5 +814,83 @@ const styles = StyleSheet.create({
     color: Colors.text.disabled,
     textAlign: 'center',
     paddingHorizontal: 20,
+  },
+  quickAssignButton: {
+    backgroundColor: Colors.primary,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 6,
+    marginTop: 16,
+  },
+  quickAssignButtonText: {
+    color: '#FFFFFF',
+    fontWeight: '600',
+    fontSize: 14,
+    marginLeft: 4,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'flex-end',
+  },
+  modalContent: {
+    backgroundColor: Colors.background,
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
+    height: '70%',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.border,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: Colors.text.primary,
+  },
+  closeButton: {
+    padding: 4,
+  },
+  driversList: {
+    padding: 16,
+  },
+  driverModalItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.border,
+  },
+  driverAvatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: Colors.primary,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  driverInfo: {
+    flex: 1,
+  },
+  driverName: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: Colors.text.primary,
+  },
+  noDriversContainer: {
+    padding: 20,
+    alignItems: 'center',
+  },
+  noDriversText: {
+    fontSize: 16,
+    color: Colors.text.secondary,
   },
 });

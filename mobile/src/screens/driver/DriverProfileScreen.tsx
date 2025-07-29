@@ -161,18 +161,49 @@ export default function DriverProfileScreen({ navigation }: any) {
     try {
       setSavingSettings(true);
       
-      // Try to save the settings
-      const { error } = await supabase
+      // Check if settings exist first
+      const { data: existingSettings, error: checkError } = await supabase
         .from('driver_settings')
-        .upsert({
-          driver_id: userProfile.id,
-          available_for_jobs: settings.availableForJobs,
-          notifications_enabled: settings.notificationsEnabled,
-          preferred_radius: settings.preferredRadius,
-          allow_location_tracking: settings.allowLocationTracking,
-          preferred_job_types: settings.preferredJobTypes,
-          updated_at: new Date().toISOString(),
-        });
+        .select('id')
+        .eq('driver_id', userProfile.id)
+        .maybeSingle();
+        
+      if (checkError && checkError.code !== 'PGRST116') {
+        throw checkError;
+      }
+      
+      let result;
+      
+      if (existingSettings) {
+        // Update existing settings
+        result = await supabase
+          .from('driver_settings')
+          .update({
+            available_for_jobs: settings.availableForJobs,
+            notifications_enabled: settings.notificationsEnabled,
+            preferred_radius: settings.preferredRadius,
+            allow_location_tracking: settings.allowLocationTracking,
+            preferred_job_types: settings.preferredJobTypes,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('driver_id', userProfile.id);
+      } else {
+        // Insert new settings
+        result = await supabase
+          .from('driver_settings')
+          .insert({
+            driver_id: userProfile.id,
+            available_for_jobs: settings.availableForJobs,
+            notifications_enabled: settings.notificationsEnabled,
+            preferred_radius: settings.preferredRadius,
+            allow_location_tracking: settings.allowLocationTracking,
+            preferred_job_types: settings.preferredJobTypes,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          });
+      }
+      
+      const { error } = result;
       
       if (error) {
         // If the table doesn't exist, show a specific message
@@ -419,6 +450,15 @@ export default function DriverProfileScreen({ navigation }: any) {
             <TouchableOpacity style={styles.optionItem}>
               <MaterialIcons name="help" size={20} color={Colors.primary} />
               <Text style={styles.optionText}>Help & Support</Text>
+              <MaterialIcons name="chevron-right" size={20} color={Colors.text.secondary} />
+            </TouchableOpacity>
+            
+            <TouchableOpacity 
+              style={styles.optionItem}
+              onPress={() => navigation.navigate('NetworkDiagnostic')}
+            >
+              <MaterialIcons name="wifi-tethering" size={20} color={Colors.primary} />
+              <Text style={styles.optionText}>Network Diagnostics</Text>
               <MaterialIcons name="chevron-right" size={20} color={Colors.text.secondary} />
             </TouchableOpacity>
             

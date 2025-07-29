@@ -30,15 +30,22 @@ export const errorHandler = (
       error: err.stack,
       errorCode,
       statusCode,
+      errors,
     });
   }
 
-  // Hide error details in production
+  // For payment-related errors, always include full details for debugging
+  const isPaymentError = errorCode.includes('PAYMENT') || 
+                         errorCode.includes('STRIPE') || 
+                         message.includes('payment') || 
+                         message.includes('Stripe');
+
+  // Hide error details in production only for non-payment errors
   const responseBody = {
     success: false,
     error: {
       code: errorCode,
-      message: process.env['NODE_ENV'] === 'production' && statusCode === 500 
+      message: process.env['NODE_ENV'] === 'production' && statusCode === 500 && !isPaymentError
         ? 'Internal Server Error' 
         : message,
       ...(errors.length > 0 && { errors }),

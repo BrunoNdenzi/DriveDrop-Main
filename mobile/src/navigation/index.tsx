@@ -24,12 +24,15 @@ import NotificationTestScreen from '../screens/NotificationTestScreen';
 
 // Driver Screens
 import DriverDashboardScreen from '../screens/driver/DriverDashboardScreen';
-import AvailableJobsScreen from '../screens/driver/AvailableJobsScreen';
-import MyJobsScreen from '../screens/driver/MyJobsScreen';
-import JobDetailsScreen from '../screens/driver/JobDetailsScreen';
+import AvailableShipmentsScreen from '../screens/driver/AvailableShipmentsScreen';
+import MyShipmentsScreen from '../screens/driver/MyShipmentsScreen';
+import DriverShipmentDetailsScreen from '../screens/driver/ShipmentDetailsScreen';
 import RouteMapScreen from '../screens/driver/RouteMapScreen';
 import MessagesScreen from '../screens/driver/MessagesScreen';
 import DriverProfileScreen from '../screens/driver/DriverProfileScreen';
+
+// Diagnostic Screens
+import NetworkDiagnosticScreen from '../screens/NetworkDiagnosticScreen';
 
 // Booking Screens
 import BookingStepCustomerScreen from '../screens/booking/BookingStepCustomerScreen';
@@ -41,6 +44,7 @@ import BookingStepInsuranceScreen from '../screens/booking/BookingStepInsuranceS
 import BookingStepVisualScreen from '../screens/booking/BookingStepVisualScreen';
 import BookingStepTermsScreen from '../screens/booking/BookingStepTermsScreen';
 import BookingStepPaymentScreen from '../screens/booking/BookingStepPaymentScreen';
+import BookingPaymentProcessingScreen from '../screens/booking/BookingPaymentProcessingScreen';
 import BookingConfirmationScreen from '../screens/booking/BookingConfirmationScreen';
 
 // Import admin screens
@@ -80,12 +84,12 @@ function ClientTabNavigator() {
         }}
       />
       <ClientTab.Screen
-        name="NewShipment"
-        component={NewShipmentScreen}
+        name="Messages"
+        component={MessagesScreen}
         options={{
-          tabBarLabel: 'New Shipment',
+          tabBarLabel: 'Messages',
           tabBarIcon: ({ color, size }: { color: string; size: number }) => (
-            <MaterialIcons name="add-box" color={color} size={size} />
+            <MaterialIcons name="chat" color={color} size={size} />
           ),
         }}
       />
@@ -151,9 +155,9 @@ function DriverTabNavigator() {
       />
       <DriverTab.Screen
         name="AvailableShipments"
-        component={AvailableJobsScreen}
+        component={AvailableShipmentsScreen}
         options={{
-          tabBarLabel: 'Available Jobs',
+          tabBarLabel: 'Available Shipments',
           tabBarIcon: ({ color, size }: { color: string; size: number }) => (
             <MaterialIcons name="search" color={color} size={size} />
           ),
@@ -161,9 +165,9 @@ function DriverTabNavigator() {
       />
       <DriverTab.Screen
         name="MyShipments"
-        component={MyJobsScreen}
+        component={MyShipmentsScreen}
         options={{
-          tabBarLabel: 'Jobs',
+          tabBarLabel: 'My Shipments',
           tabBarIcon: ({ color, size }: { color: string; size: number }) => (
             <MaterialIcons name="assignment" color={color} size={size} />
           ),
@@ -234,6 +238,7 @@ export default function Navigation() {
         {user && userProfile ? (
           // User is signed in - route based on role
           <>
+            {/* Route based on role from userProfile - all authentication using Supabase Auth */}
             {userProfile.role === 'client' ? (
               <Stack.Screen
                 name="ClientTabs"
@@ -246,12 +251,18 @@ export default function Navigation() {
                 component={DriverTabNavigator}
                 options={{ headerShown: false }}
               />
-            ) : (
-              // Admin users start with the dashboard screen
+            ) : userProfile.role === 'admin' ? (
               <Stack.Screen
                 name="AdminDashboard"
                 component={AdminDashboardScreen}
-                options={{ title: 'Admin Dashboard' }}
+                options={{ title: 'Admin Dashboard', headerShown: false }}
+              />
+            ) : (
+              // Fallback to client if role is unknown
+              <Stack.Screen
+                name="ClientTabs"
+                component={ClientTabNavigator}
+                options={{ headerShown: false }}
               />
             )}
             
@@ -268,15 +279,21 @@ export default function Navigation() {
             />
             
             <Stack.Screen
-              name="JobDetails"
-              component={JobDetailsScreen}
-              options={{ title: 'Job Details' }}
+              name="ShipmentDetails_Driver"
+              component={DriverShipmentDetailsScreen}
+              options={{ title: 'Shipment Details' }}
             />
             
             <Stack.Screen
               name="RouteMap"
               component={RouteMapScreen}
               options={{ title: 'Route Map', headerShown: false }}
+            />
+            
+            <Stack.Screen
+              name="CreateShipment"
+              component={NewShipmentScreen}
+              options={{ title: 'Create New Shipment' }}
             />
             
             <Stack.Screen
@@ -338,6 +355,11 @@ export default function Navigation() {
               options={{ title: 'Payment & Summary' }}
             />
             <Stack.Screen
+              name="BookingPaymentProcessing"
+              component={BookingPaymentProcessingScreen}
+              options={{ title: 'Processing Payment' }}
+            />
+            <Stack.Screen
               name="BookingConfirmation"
               component={BookingConfirmationScreen}
               options={{ 
@@ -345,6 +367,13 @@ export default function Navigation() {
                 headerLeft: () => null, // Prevent going back
                 gestureEnabled: false, // Disable swipe back
               }}
+            />
+            
+            {/* Diagnostic screens */}
+            <Stack.Screen
+              name="NetworkDiagnostic"
+              component={NetworkDiagnosticScreen}
+              options={{ title: 'Network Diagnostics' }}
             />
             
             {/* Add other authenticated screens here */}

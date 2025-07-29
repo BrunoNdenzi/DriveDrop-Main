@@ -1,10 +1,7 @@
 /**
  * Authentication service
  */
-import jwt from 'jsonwebtoken';
-import bcrypt from 'bcryptjs';
 import { supabase } from '@lib/supabase';
-import config from '@config/index';
 import { createError } from '@utils/error';
 import { logger } from '@utils/logger';
 import { UserRole } from '../types/api.types';
@@ -16,6 +13,7 @@ export interface AuthTokens {
 
 /**
  * Authentication service for user login, registration, etc.
+ * Uses Supabase Auth tokens directly
  */
 export const authService = {
   /**
@@ -24,12 +22,12 @@ export const authService = {
   async login(email: string, password: string): Promise<AuthTokens> {
     try {
       // Get user from Supabase
-      const { data: user, error } = await supabase.auth.signInWithPassword({
+      const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
 
-      if (error || !user) {
+      if (error || !data.session) {
         throw createError('Invalid credentials', 401, 'INVALID_CREDENTIALS');
       }
 
@@ -37,27 +35,18 @@ export const authService = {
       const { data: profile, error: profileError } = await supabase
         .from('profiles')
         .select('*')
-        .eq('id', user.user.id)
+        .eq('id', data.user.id)
         .single();
 
       if (profileError || !profile) {
         throw createError('User profile not found', 404, 'USER_NOT_FOUND');
       }
 
-      // Generate JWT tokens - using a simpler approach
-      const accessToken = jwt.sign(
-        { id: user.user.id },
-        config.auth.jwtSecret,
-        { expiresIn: '1d' } // Hardcoded for now
-      );
-      
-      const refreshToken = jwt.sign(
-        { id: user.user.id },
-        config.auth.jwtSecret,
-        { expiresIn: '30d' } // Hardcoded for now
-      );
-
-      return { accessToken, refreshToken };
+      // Return Supabase auth tokens directly
+      return { 
+        accessToken: data.session.access_token,
+        refreshToken: data.session.refresh_token
+      };
     } catch (error) {
       logger.error('Login error', { error, email });
       throw error;
@@ -129,20 +118,29 @@ export const authService = {
         throw createError('Database error creating user profile', 500, 'PROFILE_CREATION_FAILED');
       }
 
-      // Generate JWT tokens - using a simpler approach
-      const accessToken = jwt.sign(
-        { id: data.user.id },
-        config.auth.jwtSecret,
-        { expiresIn: '1d' } // Hardcoded for now
-      );
-      
-      const refreshToken = jwt.sign(
-        { id: data.user.id },
-        config.auth.jwtSecret,
-        { expiresIn: '30d' } // Hardcoded for now
-      );
+      // Return Supabase auth tokens directly
+      if (!data.session) {
+        // If session is not available (e.g., email confirmation required)
+        // Sign in the user to get tokens
+        const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+          email,
+          password,
+        });
 
-      return { accessToken, refreshToken };
+        if (signInError || !signInData.session) {
+          throw createError('Registration succeeded but login failed', 400, 'LOGIN_AFTER_REGISTER_FAILED');
+        }
+
+        return { 
+          accessToken: signInData.session.access_token,
+          refreshToken: signInData.session.refresh_token
+        };
+      }
+
+      return { 
+        accessToken: data.session.access_token,
+        refreshToken: data.session.refresh_token
+      };
     } catch (error) {
       logger.error('Registration error', { error, email });
       throw error;
@@ -154,40 +152,28 @@ export const authService = {
    */
   async refreshToken(refreshToken: string): Promise<{ accessToken: string }> {
     try {
-      // Verify refresh token
-      const decoded = jwt.verify(refreshToken, config.auth.jwtSecret) as { id: string };
+      // Use Supabase's refreshSession method
+      const { data, error } = await supabase.auth.refreshSession({
+        refresh_token: refreshToken,
+      });
 
-      // Check if user exists
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('id')
-        .eq('id', decoded.id)
-        .single();
-
-      if (error || !data) {
+      if (error || !data.session) {
         throw createError('Invalid refresh token', 401, 'INVALID_TOKEN');
       }
 
-      // Generate new access token
-      const accessToken = jwt.sign(
-        { id: decoded.id },
-        config.auth.jwtSecret,
-        { expiresIn: '1d' } // Hardcoded for now
-      );
-
-      return { accessToken };
+      return { accessToken: data.session.access_token };
     } catch (error) {
       logger.error('Refresh token error', { error });
-      throw error instanceof jwt.JsonWebTokenError
-        ? createError('Invalid refresh token', 401, 'INVALID_TOKEN')
-        : error;
+      throw createError('Invalid refresh token', 401, 'INVALID_TOKEN');
     }
   },
 
   /**
-   * Validate password
+   * Validate password - now uses Supabase directly for auth
+   * This method is kept for backward compatibility but may not be needed
    */
-  async validatePassword(plainPassword: string, hashedPassword: string): Promise<boolean> {
-    return bcrypt.compare(plainPassword, hashedPassword);
+  async validatePassword(_plainPassword: string, _hashedPassword: string): Promise<boolean> {
+    logger.warn('validatePassword was called directly - this should be avoided');
+    return false; // Always return false as we shouldn't be using this method directly
   },
 };
