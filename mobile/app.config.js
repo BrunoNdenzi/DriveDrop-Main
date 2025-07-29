@@ -23,7 +23,7 @@ module.exports = ({ config }) => {
     },
     android: {
       adaptiveIcon: {
-        foregroundImage: "./assets/adaptive-icon.png",
+        foregroundImage: "./assets/adaptive_icon.png",
         backgroundColor: "#ffffff"
       },
       package: "com.drivedrop.mobile"
@@ -56,10 +56,10 @@ module.exports = ({ config }) => {
       [
         "expo-notifications",
         {
-          icon: "./assets/notification-icon.png",
+          icon: "./assets/notification_icon.png",
           color: "#1E88E5",
           sounds: [
-            "./assets/notification-sound.wav"
+            "./assets/notification_sound.wav"
           ]
         }
       ]
