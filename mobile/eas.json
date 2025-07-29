@@ -12,13 +12,13 @@
       "channel": "preview"
     },
     "production": {
-      "channel": "production"
+      "channel": "production",
+      "android": {
+        "buildType": "app-bundle"
+      }
     }
   },
   "submit": {
     "production": {}
-  },
-  "hooks": {
-    "pre-install": "scripts/preinstall.sh"
   }
 }
