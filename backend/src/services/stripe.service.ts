@@ -5,11 +5,25 @@ import Stripe from 'stripe';
 import config from '@config/index';
 import { createError } from '@utils/error';
 import { logger } from '@utils/logger';
+import { supabase } from '@lib/supabase';
+// import { Database } from '../lib/database.types';
 
-// Initialize Stripe with API key
-const stripe = new Stripe(config.stripe.secretKey, {
-  apiVersion: '2024-06-20',
-});
+// Initialize Stripe with API key and validate it's configured
+let stripe: Stripe;
+try {
+  if (!config.stripe.secretKey) {
+    logger.error('Stripe secret key is not configured');
+    throw new Error('Stripe configuration is missing');
+  }
+  stripe = new Stripe(config.stripe.secretKey, {
+    apiVersion: '2025-06-30.basil',
+  });
+  logger.info('Stripe service initialized successfully');
+} catch (error) {
+  logger.error('Failed to initialize Stripe service', { error });
+  // Don't throw here, let the service methods handle the error
+  // when they try to use the uninitialized stripe client
+}
 
 export interface PaymentIntentData {
   amount: number; // Amount in cents
@@ -35,6 +49,31 @@ export const stripeService = {
    */
   async createPaymentIntent(data: PaymentIntentData): Promise<Stripe.PaymentIntent> {
     try {
+      // Validate Stripe API key is configured
+      if (!stripe) {
+        logger.error('Stripe is not initialized');
+        throw new Error('Stripe service is not available');
+      }
+
+      // Validate required data
+      if (!data.amount || data.amount <= 0) {
+        logger.error('Invalid payment amount', { amount: data.amount });
+        throw new Error('Payment amount must be greater than 0');
+      }
+
+      if (!data.clientId) {
+        logger.error('Missing client ID for payment intent');
+        throw new Error('Client ID is required for payment intent');
+      }
+
+      // Log request data (sanitized)
+      logger.info('Creating payment intent', {
+        amount: data.amount,
+        currency: data.currency || 'usd',
+        clientId: data.clientId,
+        shipmentId: data.shipmentId,
+      });
+
       const paymentIntent = await stripe.paymentIntents.create({
         amount: data.amount,
         currency: data.currency || 'usd',
@@ -46,6 +85,7 @@ export const stripeService = {
         description: data.description || 'DriveDrop shipment payment',
         automatic_payment_methods: {
           enabled: true,
+          allow_redirects: 'never',
         },
       });
 
@@ -53,15 +93,35 @@ export const stripeService = {
         paymentIntentId: paymentIntent.id,
         amount: data.amount,
         clientId: data.clientId,
+        status: paymentIntent.status,
       });
 
       return paymentIntent;
     } catch (error) {
-      logger.error('Error creating payment intent', { error, data });
+      // Extract detailed error information from Stripe error
+      const errorMessage = error instanceof Stripe.errors.StripeError
+        ? `Stripe error: ${error.type} - ${error.message}`
+        : error instanceof Error
+          ? error.message
+          : 'Unknown payment intent creation error';
+      
+      const errorCode = error instanceof Stripe.errors.StripeError
+        ? error.code || error.type
+        : 'PAYMENT_INTENT_FAILED';
+        
+      // Log detailed error for debugging
+      logger.error('Error creating payment intent', { 
+        error,
+        errorMessage,
+        errorCode,
+        data,
+        stack: error instanceof Error ? error.stack : undefined,
+      });
+      
       throw createError(
-        error instanceof Error ? error.message : 'Payment intent creation failed',
+        errorMessage,
         400,
-        'PAYMENT_INTENT_FAILED'
+        errorCode
       );
     }
   },
@@ -255,8 +315,50 @@ export const stripeService = {
         shipmentId,
       });
 
-      // Here you would update the shipment status in your database
-      // Example: await shipmentService.updatePaymentStatus(shipmentId, 'paid');
+      if (shipmentId) {
+        // Update the payment record in the database
+        const { error: paymentError } = await supabase
+          .from('payments')
+          .update({
+            status: 'completed',
+            payment_intent_id: paymentIntent.id,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('shipment_id', shipmentId)
+          .select()
+          .single();
+
+        if (paymentError) {
+          logger.error('Error updating payment record', { 
+            error: paymentError, 
+            shipmentId, 
+            paymentIntentId: paymentIntent.id 
+          });
+          throw createError('Failed to update payment record', 500, 'PAYMENT_UPDATE_FAILED');
+        }
+
+        // Update the shipment status
+        const { error: shipmentError } = await supabase
+          .from('shipments')
+          .update({
+            payment_status: 'paid',
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', shipmentId);
+
+        if (shipmentError) {
+          logger.error('Error updating shipment payment status', { 
+            error: shipmentError, 
+            shipmentId 
+          });
+          throw createError('Failed to update shipment status', 500, 'SHIPMENT_UPDATE_FAILED');
+        }
+
+        // Create a payment notification
+        if (clientId) {
+          await this.createPaymentNotification(clientId, shipmentId, 'success', paymentIntent.amount);
+        }
+      }
     } catch (error) {
       logger.error('Error handling payment success', { error, paymentIntentId: paymentIntent.id });
       throw error;
@@ -277,11 +379,87 @@ export const stripeService = {
         lastPaymentError: paymentIntent.last_payment_error,
       });
 
-      // Here you would update the shipment status in your database
-      // Example: await shipmentService.updatePaymentStatus(shipmentId, 'failed');
+      if (shipmentId) {
+        // Update the payment record in the database
+        const { error: paymentError } = await supabase
+          .from('payments')
+          .update({
+            status: 'failed',
+            payment_intent_id: paymentIntent.id,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('shipment_id', shipmentId);
+
+        if (paymentError) {
+          logger.error('Error updating payment record for failed payment', { 
+            error: paymentError, 
+            shipmentId, 
+            paymentIntentId: paymentIntent.id 
+          });
+          throw createError('Failed to update payment record', 500, 'PAYMENT_UPDATE_FAILED');
+        }
+
+        // Update the shipment status
+        const { error: shipmentError } = await supabase
+          .from('shipments')
+          .update({
+            payment_status: 'failed',
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', shipmentId);
+
+        if (shipmentError) {
+          logger.error('Error updating shipment payment status for failed payment', { 
+            error: shipmentError, 
+            shipmentId 
+          });
+          throw createError('Failed to update shipment status', 500, 'SHIPMENT_UPDATE_FAILED');
+        }
+
+        // Create a payment notification
+        if (clientId) {
+          await this.createPaymentNotification(clientId, shipmentId, 'failure', paymentIntent.amount);
+        }
+      }
     } catch (error) {
       logger.error('Error handling payment failure', { error, paymentIntentId: paymentIntent.id });
       throw error;
+    }
+  },
+
+  /**
+   * Create a payment notification in the database
+   */
+  async createPaymentNotification(
+    userId: string,
+    shipmentId: string,
+    type: 'success' | 'failure' | 'refund',
+    amount: number
+  ): Promise<void> {
+    try {
+      const { error } = await supabase.from('notifications').insert({
+        user_id: userId,
+        type: 'payment',
+        title: type === 'success' ? 'Payment Successful' : type === 'failure' ? 'Payment Failed' : 'Refund Processed',
+        message: type === 'success' 
+          ? `Your payment of $${(amount / 100).toFixed(2)} for shipment was successful.` 
+          : type === 'failure'
+          ? `Your payment of $${(amount / 100).toFixed(2)} for shipment failed. Please try again.`
+          : `A refund of $${(amount / 100).toFixed(2)} has been processed for your shipment.`,
+        data: { 
+          shipmentId,
+          amount,
+          type
+        },
+        is_read: false,
+        created_at: new Date().toISOString(),
+      });
+
+      if (error) {
+        logger.error('Error creating payment notification', { error, userId, shipmentId, type });
+      }
+    } catch (error) {
+      logger.error('Error creating payment notification', { error, userId, shipmentId, type });
     }
   },
 
@@ -298,8 +476,48 @@ export const stripeService = {
         shipmentId,
       });
 
-      // Here you would update the shipment status in your database
-      // Example: await shipmentService.updatePaymentStatus(shipmentId, 'canceled');
+      if (shipmentId) {
+        // Update the payment record in the database
+        const { error: paymentError } = await supabase
+          .from('payments')
+          .update({
+            status: 'canceled',
+            payment_intent_id: paymentIntent.id,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('shipment_id', shipmentId);
+
+        if (paymentError) {
+          logger.error('Error updating payment record for canceled payment', { 
+            error: paymentError, 
+            shipmentId, 
+            paymentIntentId: paymentIntent.id 
+          });
+          throw createError('Failed to update payment record', 500, 'PAYMENT_UPDATE_FAILED');
+        }
+
+        // Update the shipment status
+        const { error: shipmentError } = await supabase
+          .from('shipments')
+          .update({
+            payment_status: 'canceled',
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', shipmentId);
+
+        if (shipmentError) {
+          logger.error('Error updating shipment payment status for canceled payment', { 
+            error: shipmentError, 
+            shipmentId 
+          });
+          throw createError('Failed to update shipment status', 500, 'SHIPMENT_UPDATE_FAILED');
+        }
+
+        // Create a payment notification
+        if (clientId) {
+          await this.createPaymentNotification(clientId, shipmentId, 'failure', paymentIntent.amount);
+        }
+      }
     } catch (error) {
       logger.error('Error handling payment cancellation', { error, paymentIntentId: paymentIntent.id });
       throw error;
@@ -744,6 +962,31 @@ export const stripeService = {
         400,
         'SETUP_INTENT_FAILED'
       );
+    }
+  },
+  
+  /**
+   * Verify Stripe connectivity
+   * Use this to check if Stripe API is reachable
+   */
+  async verifyConnectivity(): Promise<boolean> {
+    try {
+      if (!stripe) {
+        logger.error('Cannot verify Stripe connectivity - service not initialized');
+        return false;
+      }
+      
+      // Make a simple API call that doesn't affect any resources
+      // Using countrySpecs.list as it's a lightweight call
+      await stripe.countrySpecs.list({ limit: 1 });
+      logger.info('Stripe API connectivity verified successfully');
+      return true;
+    } catch (error) {
+      logger.error('Stripe API connectivity check failed', { 
+        error, 
+        message: error instanceof Error ? error.message : 'Unknown error' 
+      });
+      return false;
     }
   },
 };

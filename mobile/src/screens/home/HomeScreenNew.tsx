@@ -37,7 +37,8 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
   };
 
   const handleCreateShipment = () => {
-    navigation.navigate('NewShipment');
+    // Navigate to parent stack navigator to access CreateShipment screen
+    navigation.getParent()?.navigate('CreateShipment');
   };
 
   const handleTrackShipment = () => {

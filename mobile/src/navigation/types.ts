@@ -15,8 +15,8 @@ export type RootStackParamList = {
   
   // Screens accessible from tabs
   ShipmentDetails: { shipmentId: string };
-  JobDetails: { jobId: string };
-  RouteMap: { jobId: string };
+  ShipmentDetails_Driver: { shipmentId: string }; // Driver view of shipment details
+  RouteMap: { shipmentId: string };
   CreateShipment: undefined;
   EditProfile: undefined;
   Notifications: undefined;
@@ -26,6 +26,9 @@ export type RootStackParamList = {
   // Admin Screens
   AdminAssignment: undefined;
   AdminDashboard: undefined;
+  
+  // Diagnostic Screens
+  NetworkDiagnostic: undefined;
   
   // Booking Flow Screens
   BookingStepCustomer: { quoteId?: string };
@@ -37,12 +40,20 @@ export type RootStackParamList = {
   BookingStepVisual: undefined;
   BookingStepTerms: undefined;
   BookingStepPayment: undefined;
-  BookingConfirmation: undefined;
+  BookingPaymentProcessing: { 
+    amount: number;
+    quote: {
+      service: string;
+      price: number;
+      days: string;
+    }
+  };
+  BookingConfirmation: { shipmentId: string };
 };
 
 export type ClientTabParamList = {
   Home: undefined;
-  NewShipment: undefined;
+  Messages: { contactId?: string };
   Shipments: undefined;
   Profile: undefined;
 };

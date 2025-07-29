@@ -15,6 +15,40 @@ import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../context/AuthContext';
 import { RootStackParamList } from '../../navigation/types';
 import { Colors } from '../../constants/Colors';
+// Import useNavigation for our custom HOC
+import { useNavigation } from '@react-navigation/native';
+
+// Create a simple admin-only HOC
+function withAdminOnly<P extends object>(WrappedComponent: React.ComponentType<P>) {
+  return function WithAdminCheck(props: P) {
+    const { userProfile, loading } = useAuth();
+    const navigation = useNavigation();
+
+    useEffect(() => {
+      if (!loading && userProfile) {
+        // Check if user is an admin
+        if (userProfile.role !== 'admin') {
+          Alert.alert(
+            'Access Denied',
+            'You do not have permission to access this screen',
+            [{ text: 'OK', onPress: () => navigation.goBack() }],
+            { cancelable: false }
+          );
+        }
+      }
+    }, [userProfile, loading, navigation]);
+
+    if (loading) {
+      return (
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+          <ActivityIndicator size="large" color={Colors.primary} />
+        </View>
+      );
+    }
+
+    return <WrappedComponent {...props} />;
+  };
+}
 
 type AdminDashboardScreenProps = NativeStackScreenProps<RootStackParamList, 'AdminDashboard'>;
 
@@ -27,7 +61,7 @@ interface DashboardStats {
   totalClients: number;
 }
 
-export default function AdminDashboardScreen({ navigation }: AdminDashboardScreenProps) {
+function AdminDashboardScreen({ navigation }: AdminDashboardScreenProps) {
   const { userProfile } = useAuth();
   const [stats, setStats] = useState<DashboardStats>({
     pendingShipments: 0,
@@ -69,14 +103,6 @@ export default function AdminDashboardScreen({ navigation }: AdminDashboardScree
       ]
     );
   };
-
-  // Check if user is admin, redirect if not
-  useEffect(() => {
-    if (userProfile && userProfile.role !== 'admin') {
-      Alert.alert('Access Denied', 'You need admin privileges to access this screen.');
-      navigation.goBack();
-    }
-  }, [userProfile, navigation]);
 
   // Load dashboard stats on mount
   useEffect(() => {
@@ -395,3 +421,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
 });
+
+// Export the component wrapped with admin role check
+const AdminDashboardWithRoleCheck = withAdminOnly(AdminDashboardScreen);
+export default AdminDashboardWithRoleCheck;

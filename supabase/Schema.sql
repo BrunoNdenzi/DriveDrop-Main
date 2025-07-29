@@ -21,6 +21,20 @@ CREATE TABLE public.driver_applications (
   CONSTRAINT driver_applications_pkey PRIMARY KEY (id),
   CONSTRAINT driver_applications_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.profiles(id)
 );
+CREATE TABLE public.driver_locations (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  shipment_id uuid NOT NULL,
+  driver_id uuid NOT NULL,
+  latitude double precision NOT NULL,
+  longitude double precision NOT NULL,
+  heading double precision,
+  speed double precision,
+  accuracy double precision,
+  location_timestamp timestamp with time zone NOT NULL DEFAULT now(),
+  CONSTRAINT driver_locations_pkey PRIMARY KEY (id),
+  CONSTRAINT driver_locations_shipment_id_fkey FOREIGN KEY (shipment_id) REFERENCES public.shipments(id),
+  CONSTRAINT driver_locations_driver_id_fkey FOREIGN KEY (driver_id) REFERENCES public.profiles(id)
+);
 CREATE TABLE public.driver_ratings (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
   shipment_id uuid NOT NULL UNIQUE,
@@ -30,9 +44,9 @@ CREATE TABLE public.driver_ratings (
   comment text,
   created_at timestamp with time zone DEFAULT now(),
   CONSTRAINT driver_ratings_pkey PRIMARY KEY (id),
+  CONSTRAINT driver_ratings_client_id_fkey FOREIGN KEY (client_id) REFERENCES public.profiles(id),
   CONSTRAINT driver_ratings_driver_id_fkey FOREIGN KEY (driver_id) REFERENCES public.profiles(id),
-  CONSTRAINT driver_ratings_shipment_id_fkey FOREIGN KEY (shipment_id) REFERENCES public.shipments(id),
-  CONSTRAINT driver_ratings_client_id_fkey FOREIGN KEY (client_id) REFERENCES public.profiles(id)
+  CONSTRAINT driver_ratings_shipment_id_fkey FOREIGN KEY (shipment_id) REFERENCES public.shipments(id)
 );
 CREATE TABLE public.driver_settings (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
@@ -61,6 +75,17 @@ CREATE TABLE public.job_applications (
   CONSTRAINT job_applications_driver_id_fkey FOREIGN KEY (driver_id) REFERENCES public.profiles(id),
   CONSTRAINT job_applications_shipment_id_fkey FOREIGN KEY (shipment_id) REFERENCES public.shipments(id)
 );
+CREATE TABLE public.message_read_status (
+  id bigint NOT NULL DEFAULT nextval('messages_read_status_id_seq'::regclass),
+  message_id uuid NOT NULL,
+  user_id uuid NOT NULL,
+  is_read boolean NOT NULL DEFAULT false,
+  read_at timestamp with time zone,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  CONSTRAINT message_read_status_pkey PRIMARY KEY (id),
+  CONSTRAINT message_read_status_message_id_fkey FOREIGN KEY (message_id) REFERENCES public.messages(id),
+  CONSTRAINT message_read_status_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.profiles(id)
+);
 CREATE TABLE public.messages (
   id uuid NOT NULL DEFAULT uuid_generate_v4(),
   shipment_id uuid NOT NULL,
@@ -68,9 +93,10 @@ CREATE TABLE public.messages (
   content text NOT NULL,
   is_read boolean NOT NULL DEFAULT false,
   created_at timestamp with time zone NOT NULL DEFAULT now(),
+  receiver_id uuid,
   CONSTRAINT messages_pkey PRIMARY KEY (id),
-  CONSTRAINT messages_sender_id_fkey FOREIGN KEY (sender_id) REFERENCES public.profiles(id),
-  CONSTRAINT messages_shipment_id_fkey FOREIGN KEY (shipment_id) REFERENCES public.shipments(id)
+  CONSTRAINT messages_shipment_id_fkey FOREIGN KEY (shipment_id) REFERENCES public.shipments(id),
+  CONSTRAINT messages_sender_id_fkey FOREIGN KEY (sender_id) REFERENCES public.profiles(id)
 );
 CREATE TABLE public.notification_preferences (
   id uuid NOT NULL DEFAULT uuid_generate_v4(),
@@ -101,8 +127,8 @@ CREATE TABLE public.payments (
   created_at timestamp with time zone NOT NULL DEFAULT now(),
   updated_at timestamp with time zone NOT NULL DEFAULT now(),
   CONSTRAINT payments_pkey PRIMARY KEY (id),
-  CONSTRAINT payments_shipment_id_fkey FOREIGN KEY (shipment_id) REFERENCES public.shipments(id),
-  CONSTRAINT payments_client_id_fkey FOREIGN KEY (client_id) REFERENCES public.profiles(id)
+  CONSTRAINT payments_client_id_fkey FOREIGN KEY (client_id) REFERENCES public.profiles(id),
+  CONSTRAINT payments_shipment_id_fkey FOREIGN KEY (shipment_id) REFERENCES public.shipments(id)
 );
 CREATE TABLE public.profiles (
   id uuid NOT NULL,
@@ -129,17 +155,6 @@ CREATE TABLE public.push_tokens (
   updated_at timestamp with time zone,
   CONSTRAINT push_tokens_pkey PRIMARY KEY (id),
   CONSTRAINT push_tokens_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
-);
-CREATE TABLE public.shipment_applications (
-  id uuid NOT NULL DEFAULT uuid_generate_v4(),
-  shipment_id uuid NOT NULL,
-  driver_id uuid NOT NULL,
-  status text NOT NULL DEFAULT 'pending'::text,
-  applied_at timestamp with time zone NOT NULL DEFAULT now(),
-  created_at timestamp with time zone NOT NULL DEFAULT now(),
-  CONSTRAINT shipment_applications_pkey PRIMARY KEY (id),
-  CONSTRAINT shipment_applications_driver_id_fkey FOREIGN KEY (driver_id) REFERENCES public.profiles(id),
-  CONSTRAINT shipment_applications_shipment_id_fkey FOREIGN KEY (shipment_id) REFERENCES public.shipments(id)
 );
 CREATE TABLE public.shipment_status_history (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
@@ -193,9 +208,11 @@ CREATE TABLE public.shipments (
   price numeric,
   weight numeric,
   dimensions text,
+  updated_by uuid,
   CONSTRAINT shipments_pkey PRIMARY KEY (id),
-  CONSTRAINT shipments_client_id_fkey FOREIGN KEY (client_id) REFERENCES public.profiles(id),
-  CONSTRAINT shipments_driver_id_fkey FOREIGN KEY (driver_id) REFERENCES public.profiles(id)
+  CONSTRAINT shipments_updated_by_fkey FOREIGN KEY (updated_by) REFERENCES public.profiles(id),
+  CONSTRAINT shipments_driver_id_fkey FOREIGN KEY (driver_id) REFERENCES public.profiles(id),
+  CONSTRAINT shipments_client_id_fkey FOREIGN KEY (client_id) REFERENCES public.profiles(id)
 );
 CREATE TABLE public.spatial_ref_sys (
   srid integer NOT NULL CHECK (srid > 0 AND srid <= 998999),
@@ -214,8 +231,8 @@ CREATE TABLE public.tracking_events (
   notes text,
   created_at timestamp with time zone NOT NULL DEFAULT now(),
   CONSTRAINT tracking_events_pkey PRIMARY KEY (id),
-  CONSTRAINT tracking_events_created_by_fkey FOREIGN KEY (created_by) REFERENCES public.profiles(id),
-  CONSTRAINT tracking_events_shipment_id_fkey FOREIGN KEY (shipment_id) REFERENCES public.shipments(id)
+  CONSTRAINT tracking_events_shipment_id_fkey FOREIGN KEY (shipment_id) REFERENCES public.shipments(id),
+  CONSTRAINT tracking_events_created_by_fkey FOREIGN KEY (created_by) REFERENCES public.profiles(id)
 );
 CREATE TABLE public.vehicle_photos (
   id uuid NOT NULL DEFAULT uuid_generate_v4(),

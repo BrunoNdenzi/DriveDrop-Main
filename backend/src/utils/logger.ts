@@ -30,7 +30,7 @@ export const logger = {
 };
 
 // Add request logging middleware
-export const requestLogger = (req: Request, res: Response, next: NextFunction) => {
+export const requestLogger = (req: Request, _res: Response, next: NextFunction) => {
   logger.info(`${req.method} ${req.url}`, {
     ip: req.ip,
     userAgent: req.headers['user-agent'],

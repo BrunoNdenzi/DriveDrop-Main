@@ -8,6 +8,9 @@ import authRoutes from './auth.routes';
 import paymentsRoutes from './payments.routes';
 import smsRoutes from './sms.routes';
 import mapsRoutes from './maps.routes';
+import applicationRoutes from './application.routes';
+import driverRoutes from './driver.routes';
+import { diagnosticsRoutes } from './diagnostics.routes';
 
 const router = Router();
 
@@ -24,6 +27,8 @@ router.get('/', (_req, res) => {
       payments: '/api/v1/payments',
       sms: '/api/v1/sms',
       maps: '/api/v1/maps',
+      applications: '/api/v1/applications',
+      drivers: '/api/v1/drivers',
     },
   });
 });
@@ -35,5 +40,8 @@ router.use('/shipments', shipmentRoutes);
 router.use('/payments', paymentsRoutes);
 router.use('/sms', smsRoutes);
 router.use('/maps', mapsRoutes);
+router.use('/applications', applicationRoutes);
+router.use('/drivers', driverRoutes);
+router.use('/diagnostics', diagnosticsRoutes);
 
 export default router;

@@ -14,6 +14,7 @@ import {
   assignDriverToShipment,
   getShipmentApplicants
 } from '@controllers/shipment.controller';
+import { applyForShipment } from '@controllers/application.controller';
 
 const router = Router();
 
@@ -79,5 +80,12 @@ router.put('/:id/assign', authenticate, authorize(['admin']), assignDriverToShip
  * @access Private (Admin only)
  */
 router.get('/:id/applicants', authenticate, authorize(['admin']), getShipmentApplicants);
+
+/**
+ * @route POST /api/v1/shipments/:id/apply
+ * @desc Apply for a shipment (Driver only)
+ * @access Private (Driver only)
+ */
+router.post('/:id/apply', authenticate, authorize(['driver']), applyForShipment);
 
 export default router;

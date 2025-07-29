@@ -39,6 +39,8 @@ module.exports = ({ config }) => {
       enableAnalytics: process.env.EXPO_PUBLIC_ENABLE_ANALYTICS === 'true',
       enablePushNotifications: process.env.EXPO_PUBLIC_ENABLE_PUSH_NOTIFICATIONS === 'true',
       enableCrashReporting: process.env.EXPO_PUBLIC_ENABLE_CRASH_REPORTING === 'true',
+      googleMapsApiKey: process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY || '',
+      stripePublishableKey: process.env.EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY || '',
       projectId: "ce011283-21f8-4f0d-adb1-206f02d37e65", // This should be replaced with your actual Expo project ID
       eas: {
         projectId: "ce011283-21f8-4f0d-adb1-206f02d37e65" // This should be replaced with your actual EAS project ID

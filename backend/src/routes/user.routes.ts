@@ -11,6 +11,7 @@ import {
   updateUserRating,
   getDriversNearby
 } from '@controllers/user.controller';
+import { getDriverApplications } from '@controllers/application.controller';
 
 const router = Router();
 
@@ -34,6 +35,13 @@ router.put('/me', authenticate, updateCurrentUser);
  * @access Private (Client)
  */
 router.get('/drivers/nearby', authenticate, authorize(['client']), getDriversNearby);
+
+/**
+ * @route GET /api/v1/users/drivers/applications
+ * @desc Get driver's applications
+ * @access Private (Driver)
+ */
+router.get('/drivers/applications', authenticate, authorize(['driver']), getDriverApplications);
 
 /**
  * @route GET /api/v1/users/:id

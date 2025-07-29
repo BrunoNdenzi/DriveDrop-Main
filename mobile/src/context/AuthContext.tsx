@@ -34,111 +34,119 @@ const AuthContext = createContext<AuthContextType>({
   refreshProfile: async () => {},
 });
 
+// In-memory cache for profile creation status, shared across all instances
+const profileCreationStatus = new Map<string, Promise<UserProfile | null>>();
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [profileCreationInProgress, setProfileCreationInProgress] = useState<Set<string>>(new Set());
 
-  // Function to fetch user profile or create one if it doesn't exist
+  // Function to fetch or create user profile - uses a mutex pattern to prevent race conditions
   const fetchUserProfile = async (userId: string): Promise<UserProfile | null> => {
     try {
-      // Check if profile creation is already in progress for this user
-      if (profileCreationInProgress.has(userId)) {
-        console.log('Profile creation already in progress for user:', userId);
-        // Wait a bit and try to fetch again
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        return await fetchUserProfile(userId);
+      // Check if there's already an ongoing fetch/creation operation for this user
+      if (profileCreationStatus.has(userId)) {
+        console.log('Profile fetch/creation already in progress for user:', userId);
+        // Wait for the existing operation to complete
+        return await profileCreationStatus.get(userId)!;
       }
 
-      // First try to fetch existing profile
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', userId)
-        .single();
-
-      if (error && error.code === 'PGRST116') {
-        // Profile doesn't exist, create one
-        console.log('Profile not found, creating new profile for user:', userId);
-        
-        // Mark profile creation as in progress
-        setProfileCreationInProgress(prev => new Set(prev).add(userId));
-        
+      // Create a new promise for this operation
+      const profilePromise = (async () => {
         try {
-          // Get user metadata from auth
-          const { data: authData } = await auth.getUser();
-          const userMetadata = authData.user?.user_metadata || {};
-          
-          // Create new profile
-          const newProfile = {
-            id: userId,
-            first_name: userMetadata.first_name || 'User',
-            last_name: userMetadata.last_name || '',
-            email: authData.user?.email || '',
-            role: userMetadata.role || 'client',
-            phone: userMetadata.phone || null,
-            avatar_url: null,
-            is_verified: false,
-            rating: null,
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-          };
-
-          const { data: insertedData, error: insertError } = await supabase
+          // First try to fetch existing profile
+          const { data, error } = await supabase
             .from('profiles')
-            .insert([newProfile])
-            .select()
+            .select('*')
+            .eq('id', userId)
             .single();
 
-          if (insertError) {
-            // If it's a duplicate key error, try to fetch the existing profile
-            if (insertError.code === '23505') {
-              console.log('Profile already exists, fetching existing profile');
-              const { data: existingData, error: fetchError } = await supabase
-                .from('profiles')
-                .select('*')
-                .eq('id', userId)
-                .single();
+          if (error && error.code === 'PGRST116') {
+            // Profile doesn't exist, create one
+            console.log('Profile not found, creating new profile for user:', userId);
+            
+            try {
+              // Get user metadata from auth
+              const { data: authData } = await auth.getUser();
+              const userMetadata = authData.user?.user_metadata || {};
               
-              if (fetchError) {
-                console.error('Error fetching existing profile:', fetchError);
+              // Create new profile
+              const newProfile = {
+                id: userId,
+                first_name: userMetadata.first_name || 'User',
+                last_name: userMetadata.last_name || '',
+                email: authData.user?.email || '',
+                role: userMetadata.role || 'client',
+                phone: userMetadata.phone || null,
+                avatar_url: null,
+                is_verified: false,
+                rating: null,
+                created_at: new Date().toISOString(),
+                updated_at: new Date().toISOString(),
+              };
+
+              const { data: insertedData, error: insertError } = await supabase
+                .from('profiles')
+                .insert([newProfile])
+                .select()
+                .single();
+
+              if (insertError) {
+                // If it's a duplicate key error, try to fetch the existing profile
+                if (insertError.code === '23505') {
+                  console.log('Profile already exists (race condition), fetching existing profile');
+                  const { data: existingData, error: fetchError } = await supabase
+                    .from('profiles')
+                    .select('*')
+                    .eq('id', userId)
+                    .single();
+                  
+                  if (fetchError) {
+                    console.error('Error fetching existing profile:', fetchError);
+                    return null;
+                  }
+                  
+                  return existingData as UserProfile;
+                }
+                
+                console.error('Error creating user profile:', insertError);
                 return null;
               }
-              
-              return existingData as UserProfile;
+
+              console.log('Profile created successfully');
+              return insertedData as UserProfile;
+            } catch (e) {
+              console.error('Error in profile creation:', e);
+              return null;
             }
-            
-            console.error('Error creating user profile:', insertError);
+          } else if (error) {
+            console.error('Error fetching user profile:', error);
             return null;
           }
 
-          console.log('Profile created successfully');
-          return insertedData as UserProfile;
-        } finally {
-          // Remove from in-progress set
-          setProfileCreationInProgress(prev => {
-            const newSet = new Set(prev);
-            newSet.delete(userId);
-            return newSet;
-          });
+          return data as UserProfile;
+        } catch (e) {
+          console.error('Error in fetchUserProfile:', e);
+          return null;
         }
-      } else if (error) {
-        console.error('Error fetching user profile:', error);
-        return null;
-      }
+      })();
 
-      return data as UserProfile;
+      // Store the promise in our map
+      profileCreationStatus.set(userId, profilePromise);
+
+      // Wait for completion
+      const result = await profilePromise;
+
+      // Clean up after completion
+      profileCreationStatus.delete(userId);
+
+      return result;
     } catch (e) {
-      console.error('Error in fetchUserProfile:', e);
-      // Make sure to clean up in-progress state
-      setProfileCreationInProgress(prev => {
-        const newSet = new Set(prev);
-        newSet.delete(userId);
-        return newSet;
-      });
+      console.error('Unexpected error in profile fetch/creation:', e);
+      profileCreationStatus.delete(userId);
       return null;
     }
   };

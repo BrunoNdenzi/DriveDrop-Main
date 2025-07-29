@@ -1,0 +1,20 @@
+{
+  "name": "drivedrop-scripts",
+  "version": "1.0.0",
+  "description": "Scripts for testing and debugging DriveDrop application",
+  "private": true,
+  "scripts": {
+    "test-api": "node test-api-endpoint.js",
+    "test-api-robust": "node test-api-robust.js",
+    "test-api-auth": "node test-api-with-auth.js",
+    "test-health": "node test-health-only.js",
+    "auth-helper": "node auth-helper.js",
+    "check-driver-api": "node ../backend/scripts/check-driver-api.js",
+    "install-deps": "npm install"
+  },
+  "dependencies": {
+    "axios": "^1.4.0",
+    "dotenv": "^17.2.1",
+    "node-fetch": "^2.7.0"
+  }
+}
