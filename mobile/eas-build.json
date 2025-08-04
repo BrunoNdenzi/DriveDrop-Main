@@ -1,0 +1,5 @@
+{
+  "build": {
+    "pre-install": "scripts/preinstall.sh"
+  }
+}
