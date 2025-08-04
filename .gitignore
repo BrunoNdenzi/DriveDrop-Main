@@ -57,6 +57,7 @@ Thumbs.db
 *.orig.*
 web-build/
 .expo/
+/android
 
 # Backend specific
 *.tsbuildinfo
