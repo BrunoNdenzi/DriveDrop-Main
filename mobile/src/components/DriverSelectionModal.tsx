@@ -64,7 +64,7 @@ const DriverSelectionModal: React.FC<DriverSelectionModalProps> = ({
         </Text>
         {item.rating && (
           <View style={styles.ratingContainer}>
-            <MaterialIcons name="star" size={16} color="#FFD700" />
+            <MaterialIcons name="star" size={16} color={Colors.warning} />
             <Text style={styles.ratingText}>{item.rating.toFixed(1)}</Text>
           </View>
         )}
@@ -165,7 +165,7 @@ const styles = StyleSheet.create({
     marginRight: 12,
   },
   avatarText: {
-    color: '#FFFFFF',
+    color: Colors.text.inverse,
     fontSize: 16,
     fontWeight: 'bold',
   },
