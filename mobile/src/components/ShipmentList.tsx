@@ -204,7 +204,7 @@ const ShipmentList: React.FC<ShipmentListProps> = ({
                               <MaterialIcons
                                 name="star"
                                 size={16}
-                                color="#FFD700"
+                                color={Colors.warning}
                               />
                               <Text style={styles.ratingText}>
                                 {application.driver.rating.toFixed(1)}
@@ -255,7 +255,7 @@ const ShipmentList: React.FC<ShipmentListProps> = ({
                     <MaterialIcons
                       name="person-add"
                       size={20}
-                      color="#FFFFFF"
+                      color={Colors.white}
                     />
                     <Text style={styles.quickAssignButtonText}>
                       Quick Assign
@@ -305,11 +305,11 @@ const styles = StyleSheet.create({
     padding: 16,
   },
   shipmentCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: Colors.surface,
     borderRadius: 12,
     padding: 16,
     marginBottom: 16,
-    shadowColor: '#000',
+    shadowColor: Colors.black,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
@@ -337,7 +337,7 @@ const styles = StyleSheet.create({
   priceText: {
     fontSize: 14,
     fontWeight: 'bold',
-    color: '#FFFFFF',
+    color: Colors.text.inverse,
   },
   shipmentDetails: {
     marginBottom: 16,
@@ -398,7 +398,7 @@ const styles = StyleSheet.create({
     marginRight: 12,
   },
   avatarText: {
-    color: '#FFFFFF',
+    color: Colors.text.inverse,
     fontSize: 16,
     fontWeight: 'bold',
   },
@@ -433,7 +433,7 @@ const styles = StyleSheet.create({
     borderRadius: 6,
   },
   assignButtonText: {
-    color: '#FFFFFF',
+    color: Colors.text.inverse,
     fontWeight: '600',
     fontSize: 14,
   },
@@ -467,7 +467,7 @@ const styles = StyleSheet.create({
   },
   statusText: {
     fontSize: 12,
-    color: '#FFFFFF',
+    color: Colors.text.inverse,
     fontWeight: '500',
   },
   disabledButton: {
@@ -477,7 +477,7 @@ const styles = StyleSheet.create({
     padding: 24,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#f8f8f8',
+    backgroundColor: Colors.background,
     borderRadius: 8,
     margin: 8,
   },
@@ -506,7 +506,7 @@ const styles = StyleSheet.create({
     marginTop: 16,
   },
   quickAssignButtonText: {
-    color: '#FFFFFF',
+    color: Colors.text.inverse,
     fontWeight: '600',
     fontSize: 14,
     marginLeft: 4,
