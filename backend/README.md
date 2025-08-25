@@ -60,16 +60,16 @@ JWT_REFRESH_EXPIRES_IN=30d
 npm install
 
 # Run environment checks
-npm run check:node
+yarn run check:node
 
 # Build TypeScript
-npm run build
+yarn run build
 
 # Run in development mode
-npm run dev
+yarn run dev
 
 # Run in production mode
-npm run start
+yarn run start
 ```
 
 ### Supabase Setup
@@ -84,7 +84,7 @@ npm run start
 
 2. **Test Integration**:
    ```bash
-   npm run build && node scripts/test-supabase.js
+   yarn run build && node scripts/test-supabase.js
    ```
 
 ## API Documentation

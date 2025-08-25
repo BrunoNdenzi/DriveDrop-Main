@@ -60,7 +60,7 @@
 - **Stripe**: ✅ Service initialized successfully
 
 ### Mobile App
-- **Configuration**: ✅ Updated to connect to http://192.168.1.66:3000
+- **Configuration**: ✅ Updated to connect to http://192.168.1.64:3000
 - **Admin Panel**: ✅ Fixed application loading performance issues
 - **Payment UI**: ✅ Enhanced with policy display component
 - **Driver Panel**: ✅ Network connectivity restored

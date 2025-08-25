@@ -13,7 +13,7 @@ interface Environment {
 }
 
 // Change this to your computer's LAN IP when testing on a real device!
-const DEV_API_URL = 'http://192.168.1.66:3000'; // <--- YOUR IP HERE
+const DEV_API_URL = 'http://192.168.1.64:3000'; // <--- YOUR IP HERE
 
 const getEnvironment = (): Environment => {
   // Use type assertion to access releaseChannel since it's available at runtime

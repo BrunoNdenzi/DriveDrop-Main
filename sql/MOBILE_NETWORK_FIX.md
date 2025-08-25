@@ -14,7 +14,7 @@ Modified the environment.ts file to use the correct IP address:
 
 ```typescript
 // Change this to your computer's LAN IP when testing on a real device!
-const DEV_API_URL = 'http://192.168.1.66:3000'; // <--- YOUR IP HERE
+const DEV_API_URL = 'http://192.168.1.64:3000'; // <--- YOUR IP HERE
 ```
 
 ### 2. Fixed API URL References

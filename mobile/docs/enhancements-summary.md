@@ -34,4 +34,3 @@
 1. Test push notifications on real devices
 2. Implement the real-time subscriptions in the shipment details screen
 3. Add offline indicators and sync status UI
-4. Create a notification history screen
