@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+﻿import React, { useEffect, useState } from 'react';
 import {
   StyleSheet,
   View,
@@ -21,6 +21,7 @@ import { Colors } from '../../constants/Colors';
 import { ShipmentService } from '../../services/shipmentService';
 import { getApiUrl } from '../../utils/environment';
 import { ApplicationService } from '../../services/applicationService';
+import AdminAssignmentHeader from "../../components/AdminAssignmentHeader";
 
 type AdminAssignmentScreenProps = NativeStackScreenProps<
   RootStackParamList,
@@ -427,6 +428,12 @@ export default function AdminAssignmentScreen({
     const hasApplications = item.applications && item.applications.length > 0;
 
     return (
+    {/* --- EXTRACTED: AdminAssignmentHeader --- */}
+    <AdminAssignmentHeader
+      title="Assignments"
+      onBack={() => navigation.goBack()}
+    />
+    {/* --- /EXTRACTED HEADER --- */}
       <View style={styles.shipmentCard}>
         <View style={styles.shipmentHeader}>
           <Text style={styles.shipmentTitle}>
@@ -1016,3 +1023,4 @@ const styles = StyleSheet.create({
     color: Colors.text.secondary,
   },
 });
+
