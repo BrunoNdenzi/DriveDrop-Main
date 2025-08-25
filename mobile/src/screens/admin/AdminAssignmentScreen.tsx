@@ -140,7 +140,7 @@ export default function AdminAssignmentScreen({
     }
   };
 
-  const loadAllApplicationsAtOnce = async (pendingShipments: any[]) => {
+  const loadAllApplicationsAtOnce = async (pendingShipments: Shipment[]) => {
     try {
       // First try to use the new backend endpoint for all applications
       try {
@@ -166,7 +166,7 @@ export default function AdminAssignmentScreen({
 
               // Group applications by shipment_id
               const applicationsByShipment = result.data.reduce(
-                (acc: any, app: any) => {
+                (acc: Record<string, Application[]>, app: Application) => {
                   if (!acc[app.shipment_id]) {
                     acc[app.shipment_id] = [];
                   }
@@ -214,6 +214,8 @@ export default function AdminAssignmentScreen({
         console.log(
           'AdminScreen: Backend endpoint failed, falling back to direct database queries'
         );
+      } catch {
+        console.log('AdminScreen: Backend API call failed, using fallback');
       }
 
       // Fallback: Load applications using direct database queries (but more efficiently)
