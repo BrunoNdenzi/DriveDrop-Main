@@ -22,7 +22,10 @@ import { ShipmentService } from '../../services/shipmentService';
 import { getApiUrl } from '../../utils/environment';
 import { ApplicationService } from '../../services/applicationService';
 
-type AdminAssignmentScreenProps = NativeStackScreenProps<RootStackParamList, 'AdminAssignment'>;
+type AdminAssignmentScreenProps = NativeStackScreenProps<
+  RootStackParamList,
+  'AdminAssignment'
+>;
 
 // Define the types needed for our data
 interface Driver {
@@ -60,19 +63,26 @@ interface Shipment {
   expandedApplications?: boolean;
 }
 
-export default function AdminAssignmentScreen({ navigation }: AdminAssignmentScreenProps) {
+export default function AdminAssignmentScreen({
+  navigation,
+}: AdminAssignmentScreenProps) {
   const { userProfile } = useAuth();
   const [shipments, setShipments] = useState<Shipment[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [availableDrivers, setAvailableDrivers] = useState<any[]>([]);
-  const [selectedShipmentId, setSelectedShipmentId] = useState<string | null>(null);
+  const [selectedShipmentId, setSelectedShipmentId] = useState<string | null>(
+    null
+  );
   const [isDriverModalVisible, setIsDriverModalVisible] = useState(false);
 
   // Check if user is admin, redirect if not
   useEffect(() => {
     if (userProfile && userProfile.role !== 'admin') {
-      Alert.alert('Access Denied', 'You need admin privileges to access this screen.');
+      Alert.alert(
+        'Access Denied',
+        'You need admin privileges to access this screen.'
+      );
       navigation.goBack();
     }
   }, [userProfile, navigation]);
@@ -97,7 +107,7 @@ export default function AdminAssignmentScreen({ navigation }: AdminAssignmentScr
     try {
       setLoading(true);
       console.log('AdminScreen: Loading pending shipments...');
-      
+
       // Get pending shipments that don't have a driver assigned
       const { data: pendingShipments, error } = await supabase
         .from('shipments')
@@ -112,18 +122,23 @@ export default function AdminAssignmentScreen({ navigation }: AdminAssignmentScr
         return;
       }
 
-      console.log(`AdminScreen: Found ${pendingShipments?.length || 0} pending shipments`);
-      
+      console.log(
+        `AdminScreen: Found ${pendingShipments?.length || 0} pending shipments`
+      );
+
       if (!pendingShipments || pendingShipments.length === 0) {
         setShipments([]);
         return;
       }
-      
+
       // Load all applications at once instead of one by one
       await loadAllApplicationsAtOnce(pendingShipments);
     } catch (err) {
       console.error('Error in loadPendingShipments:', err);
-      Alert.alert('Error', 'An unexpected error occurred while loading shipments');
+      Alert.alert(
+        'Error',
+        'An unexpected error occurred while loading shipments'
+      );
     } finally {
       setLoading(false);
     }
@@ -136,12 +151,12 @@ export default function AdminAssignmentScreen({ navigation }: AdminAssignmentScr
         const session = await supabase.auth.getSession();
         if (session.data.session?.access_token) {
           console.log('AdminScreen: Fetching all applications from backend...');
-          
+
           const apiUrl = getApiUrl();
           const response = await fetch(`${apiUrl}/api/v1/applications`, {
             method: 'GET',
             headers: {
-              'Authorization': `Bearer ${session.data.session.access_token}`,
+              Authorization: `Bearer ${session.data.session.access_token}`,
               'Content-Type': 'application/json',
             },
           });
@@ -149,59 +164,75 @@ export default function AdminAssignmentScreen({ navigation }: AdminAssignmentScr
           if (response.ok) {
             const result = await response.json();
             if (result.success && result.data) {
-              console.log(`AdminScreen: Successfully loaded ${result.data.length} applications from backend`);
-              
+              console.log(
+                `AdminScreen: Successfully loaded ${result.data.length} applications from backend`
+              );
+
               // Group applications by shipment_id
-              const applicationsByShipment = result.data.reduce((acc: any, app: any) => {
-                if (!acc[app.shipment_id]) {
-                  acc[app.shipment_id] = [];
-                }
-                acc[app.shipment_id].push({
-                  id: app.id,
-                  driver_id: app.driver_id,
-                  shipment_id: app.shipment_id,
-                  status: app.status,
-                  applied_at: app.applied_at,
-                  updated_at: app.updated_at,
-                  driver: app.driver ? {
-                    id: app.driver.id,
-                    first_name: app.driver.first_name,
-                    last_name: app.driver.last_name,
-                    email: app.driver.email,
-                    phone: app.driver.phone,
-                    avatar_url: app.driver.avatar_url,
-                    rating: app.driver.rating
-                  } : undefined
-                });
-                return acc;
-              }, {});
+              const applicationsByShipment = result.data.reduce(
+                (acc: any, app: any) => {
+                  if (!acc[app.shipment_id]) {
+                    acc[app.shipment_id] = [];
+                  }
+                  acc[app.shipment_id].push({
+                    id: app.id,
+                    driver_id: app.driver_id,
+                    shipment_id: app.shipment_id,
+                    status: app.status,
+                    applied_at: app.applied_at,
+                    updated_at: app.updated_at,
+                    driver: app.driver
+                      ? {
+                          id: app.driver.id,
+                          first_name: app.driver.first_name,
+                          last_name: app.driver.last_name,
+                          email: app.driver.email,
+                          phone: app.driver.phone,
+                          avatar_url: app.driver.avatar_url,
+                          rating: app.driver.rating,
+                        }
+                      : undefined,
+                  });
+                  return acc;
+                },
+                {}
+              );
 
               // Initialize shipments with their applications
-              const shipmentsWithApplications = pendingShipments.map(shipment => ({
-                ...shipment,
-                applications: applicationsByShipment[shipment.id] || [],
-                expandedApplications: false
-              }));
+              const shipmentsWithApplications = pendingShipments.map(
+                shipment => ({
+                  ...shipment,
+                  applications: applicationsByShipment[shipment.id] || [],
+                  expandedApplications: false,
+                })
+              );
 
               setShipments(shipmentsWithApplications);
-              console.log('AdminScreen: Successfully updated shipments with applications');
+              console.log(
+                'AdminScreen: Successfully updated shipments with applications'
+              );
               return;
             }
           }
         }
       } catch (backendError) {
-        console.log('AdminScreen: Backend endpoint failed, falling back to direct database queries');
+        console.log(
+          'AdminScreen: Backend endpoint failed, falling back to direct database queries'
+        );
       }
 
       // Fallback: Load applications using direct database queries (but more efficiently)
-      console.log('AdminScreen: Loading applications via direct database queries...');
-      
+      console.log(
+        'AdminScreen: Loading applications via direct database queries...'
+      );
+
       const shipmentIds = pendingShipments.map(s => s.id);
-      
+
       // Get all applications for all shipments in one query
       const { data: allApplications, error } = await supabase
         .from('job_applications')
-        .select(`
+        .select(
+          `
           id, 
           shipment_id, 
           driver_id, 
@@ -218,18 +249,19 @@ export default function AdminAssignmentScreen({ navigation }: AdminAssignmentScr
             avatar_url, 
             rating
           )
-        `)
+        `
+        )
         .in('shipment_id', shipmentIds);
 
       // Group applications by shipment
       const applicationsByShipment: { [key: string]: Application[] } = {};
-      
+
       if (!error && allApplications) {
         allApplications.forEach(app => {
           if (!applicationsByShipment[app.shipment_id]) {
             applicationsByShipment[app.shipment_id] = [];
           }
-          
+
           const profileData = app.profiles as any;
           applicationsByShipment[app.shipment_id].push({
             id: app.id,
@@ -238,15 +270,17 @@ export default function AdminAssignmentScreen({ navigation }: AdminAssignmentScr
             status: app.status as 'pending' | 'accepted' | 'rejected',
             applied_at: app.applied_at,
             updated_at: app.updated_at || app.responded_at || null,
-            driver: profileData ? {
-              id: profileData.id,
-              first_name: profileData.first_name,
-              last_name: profileData.last_name,
-              email: profileData.email,
-              phone: profileData.phone,
-              avatar_url: profileData.avatar_url || undefined,
-              rating: profileData.rating || undefined
-            } : undefined
+            driver: profileData
+              ? {
+                  id: profileData.id,
+                  first_name: profileData.first_name,
+                  last_name: profileData.last_name,
+                  email: profileData.email,
+                  phone: profileData.phone,
+                  avatar_url: profileData.avatar_url || undefined,
+                  rating: profileData.rating || undefined,
+                }
+              : undefined,
           });
         });
       }
@@ -255,19 +289,21 @@ export default function AdminAssignmentScreen({ navigation }: AdminAssignmentScr
       const shipmentsWithApplications = pendingShipments.map(shipment => ({
         ...shipment,
         applications: applicationsByShipment[shipment.id] || [],
-        expandedApplications: false
+        expandedApplications: false,
       }));
 
       setShipments(shipmentsWithApplications);
-      console.log(`AdminScreen: Loaded applications for ${Object.keys(applicationsByShipment).length} shipments`);
+      console.log(
+        `AdminScreen: Loaded applications for ${Object.keys(applicationsByShipment).length} shipments`
+      );
     } catch (err) {
       console.error('Error loading applications:', err);
-      
+
       // Final fallback: Initialize shipments without applications
       const shipmentsWithoutApplications = pendingShipments.map(shipment => ({
         ...shipment,
         applications: [],
-        expandedApplications: false
+        expandedApplications: false,
       }));
       setShipments(shipmentsWithoutApplications);
     }
@@ -276,28 +312,38 @@ export default function AdminAssignmentScreen({ navigation }: AdminAssignmentScr
   const assignDriver = async (shipmentId: string, driverId: string) => {
     try {
       setLoading(true);
-      
+
       // Update the shipment with the selected driver
-      const result = await ShipmentService.assignDriverToShipment(shipmentId, driverId);
-      
+      const result = await ShipmentService.assignDriverToShipment(
+        shipmentId,
+        driverId
+      );
+
       if (!result) {
         Alert.alert('Error', 'Failed to assign driver to shipment');
         return;
       }
 
       Alert.alert('Success', 'Driver assigned successfully!');
-      
+
       // Refresh the shipments list
       loadPendingShipments();
     } catch (err) {
       console.error('Error in assignDriver:', err);
-      Alert.alert('Error', 'An unexpected error occurred while assigning driver');
+      Alert.alert(
+        'Error',
+        'An unexpected error occurred while assigning driver'
+      );
     } finally {
       setLoading(false);
     }
   };
 
-  const confirmAssignment = (shipmentId: string, driverId: string, driverName: string) => {
+  const confirmAssignment = (
+    shipmentId: string,
+    driverId: string,
+    driverName: string
+  ) => {
     Alert.alert(
       'Confirm Assignment',
       `Are you sure you want to assign ${driverName} to this shipment?`,
@@ -320,14 +366,14 @@ export default function AdminAssignmentScreen({ navigation }: AdminAssignmentScr
   };
 
   const renderDriverItem = ({ item }: { item: any }) => (
-    <TouchableOpacity 
+    <TouchableOpacity
       style={styles.driverModalItem}
       onPress={() => {
         setIsDriverModalVisible(false);
         if (selectedShipmentId) {
           confirmAssignment(
-            selectedShipmentId, 
-            item.id, 
+            selectedShipmentId,
+            item.id,
             `${item.first_name} ${item.last_name}`
           );
         }
@@ -335,11 +381,14 @@ export default function AdminAssignmentScreen({ navigation }: AdminAssignmentScr
     >
       <View style={styles.driverAvatar}>
         <Text style={styles.avatarText}>
-          {item.first_name.charAt(0)}{item.last_name.charAt(0)}
+          {item.first_name.charAt(0)}
+          {item.last_name.charAt(0)}
         </Text>
       </View>
       <View style={styles.driverInfo}>
-        <Text style={styles.driverName}>{item.first_name} {item.last_name}</Text>
+        <Text style={styles.driverName}>
+          {item.first_name} {item.last_name}
+        </Text>
         {item.rating && (
           <View style={styles.ratingContainer}>
             <MaterialIcons name="star" size={16} color="#FFD700" />
@@ -347,15 +396,22 @@ export default function AdminAssignmentScreen({ navigation }: AdminAssignmentScr
           </View>
         )}
       </View>
-      <MaterialIcons name="arrow-forward-ios" size={16} color={Colors.text.secondary} />
+      <MaterialIcons
+        name="arrow-forward-ios"
+        size={16}
+        color={Colors.text.secondary}
+      />
     </TouchableOpacity>
   );
 
   const toggleApplications = (shipmentId: string) => {
-    setShipments(prevShipments => 
-      prevShipments.map(shipment => 
+    setShipments(prevShipments =>
+      prevShipments.map(shipment =>
         shipment.id === shipmentId
-          ? { ...shipment, expandedApplications: !shipment.expandedApplications }
+          ? {
+              ...shipment,
+              expandedApplications: !shipment.expandedApplications,
+            }
           : shipment
       )
     );
@@ -369,19 +425,25 @@ export default function AdminAssignmentScreen({ navigation }: AdminAssignmentScr
 
   const renderShipmentItem = ({ item }: { item: Shipment }) => {
     const hasApplications = item.applications && item.applications.length > 0;
-    
+
     return (
       <View style={styles.shipmentCard}>
         <View style={styles.shipmentHeader}>
-          <Text style={styles.shipmentTitle}>{item.title || `Shipment #${item.id.substring(0, 8)}`}</Text>
+          <Text style={styles.shipmentTitle}>
+            {item.title || `Shipment #${item.id.substring(0, 8)}`}
+          </Text>
           <View style={styles.priceBadge}>
             <Text style={styles.priceText}>${item.estimated_price}</Text>
           </View>
         </View>
-        
+
         <View style={styles.shipmentDetails}>
           <View style={styles.detailRow}>
-            <MaterialIcons name="location-on" size={16} color={Colors.primary} />
+            <MaterialIcons
+              name="location-on"
+              size={16}
+              color={Colors.primary}
+            />
             <Text style={styles.detailText}>{item.pickup_address}</Text>
           </View>
           <View style={styles.detailRow}>
@@ -390,110 +452,156 @@ export default function AdminAssignmentScreen({ navigation }: AdminAssignmentScr
           </View>
           {item.description && (
             <View style={styles.detailRow}>
-              <MaterialIcons name="info" size={16} color={Colors.text.secondary} />
+              <MaterialIcons
+                name="info"
+                size={16}
+                color={Colors.text.secondary}
+              />
               <Text style={styles.detailText}>{item.description}</Text>
             </View>
           )}
           <View style={styles.detailRow}>
-            <MaterialIcons name="event" size={16} color={Colors.text.secondary} />
+            <MaterialIcons
+              name="event"
+              size={16}
+              color={Colors.text.secondary}
+            />
             <Text style={styles.detailText}>
               {new Date(item.created_at).toLocaleDateString()} • Pending
             </Text>
           </View>
         </View>
-        
+
         <View style={styles.applicantsSection}>
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.applicantsToggle}
             onPress={() => toggleApplications(item.id)}
           >
-            <Text style={[
-              styles.applicantsToggleText, 
-              !hasApplications && styles.applicantsToggleTextDisabled
-            ]}>
-              {hasApplications 
-                ? `${item.applications!.length} Driver Application${item.applications!.length !== 1 ? 's' : ''}` 
+            <Text
+              style={[
+                styles.applicantsToggleText,
+                !hasApplications && styles.applicantsToggleTextDisabled,
+              ]}
+            >
+              {hasApplications
+                ? `${item.applications!.length} Driver Application${item.applications!.length !== 1 ? 's' : ''}`
                 : 'No Applications Yet'}
             </Text>
-            <MaterialIcons 
-              name={item.expandedApplications ? "expand-less" : "expand-more"} 
-              size={24} 
-              color={Colors.primary} 
+            <MaterialIcons
+              name={item.expandedApplications ? 'expand-less' : 'expand-more'}
+              size={24}
+              color={Colors.primary}
             />
           </TouchableOpacity>
-          
+
           {item.expandedApplications && (
             <View style={styles.applicantsList}>
               {hasApplications ? (
                 (() => {
                   // Filter pending applications to show first
-                  const pendingApplications = item.applications!.filter(app => app.status === 'pending');
-                  const otherApplications = item.applications!.filter(app => app.status !== 'pending');
-                  
-                  console.log(`AdminScreen: Rendering ${pendingApplications.length} pending and ${otherApplications.length} other applications for shipment ${item.id}`);
-                  
+                  const pendingApplications = item.applications!.filter(
+                    app => app.status === 'pending'
+                  );
+                  const otherApplications = item.applications!.filter(
+                    app => app.status !== 'pending'
+                  );
+
+                  console.log(
+                    `AdminScreen: Rendering ${pendingApplications.length} pending and ${otherApplications.length} other applications for shipment ${item.id}`
+                  );
+
                   // Combine arrays with pending first
-                  const sortedApplications = [...pendingApplications, ...otherApplications];
-                  
+                  const sortedApplications = [
+                    ...pendingApplications,
+                    ...otherApplications,
+                  ];
+
                   return sortedApplications.map(application => (
-                  <View key={application.id} style={styles.applicantItem}>
-                    <View style={styles.applicantInfo}>
-                      <View style={styles.applicantAvatar}>
-                        {application.driver?.avatar_url ? (
-                          <Text>Avatar</Text> // Replace with actual Avatar component if available
-                        ) : (
-                          <Text style={styles.avatarText}>
-                            {application.driver?.first_name?.charAt(0).toUpperCase() || 'D'}
-                          </Text>
-                        )}
-                      </View>
-                      <View style={styles.applicantDetails}>
-                        <Text style={styles.applicantName}>
-                          {application.driver 
-                            ? `${application.driver.first_name} ${application.driver.last_name}`
-                            : `Driver ID: ${application.driver_id.substring(0, 8)}...`}
-                        </Text>
-                        <View style={styles.statusRow}>
-                          <Text style={styles.applicantMeta}>
-                            Applied: {new Date(application.applied_at).toLocaleDateString()}
-                          </Text>
-                          <View style={[
-                            styles.statusBadge, 
-                            { backgroundColor: application.status === 'pending' ? Colors.warning : Colors.text.disabled }
-                          ]}>
-                            <Text style={styles.statusText}>{application.status}</Text>
-                          </View>
+                    <View key={application.id} style={styles.applicantItem}>
+                      <View style={styles.applicantInfo}>
+                        <View style={styles.applicantAvatar}>
+                          {application.driver?.avatar_url ? (
+                            <Text>Avatar</Text> // Replace with actual Avatar component if available
+                          ) : (
+                            <Text style={styles.avatarText}>
+                              {application.driver?.first_name
+                                ?.charAt(0)
+                                .toUpperCase() || 'D'}
+                            </Text>
+                          )}
                         </View>
-                        {application.driver?.rating && (
-                          <View style={styles.ratingContainer}>
-                            <MaterialIcons name="star" size={16} color="#FFD700" />
-                            <Text style={styles.ratingText}>{application.driver.rating.toFixed(1)}</Text>
+                        <View style={styles.applicantDetails}>
+                          <Text style={styles.applicantName}>
+                            {application.driver
+                              ? `${application.driver.first_name} ${application.driver.last_name}`
+                              : `Driver ID: ${application.driver_id.substring(0, 8)}...`}
+                          </Text>
+                          <View style={styles.statusRow}>
+                            <Text style={styles.applicantMeta}>
+                              Applied:{' '}
+                              {new Date(
+                                application.applied_at
+                              ).toLocaleDateString()}
+                            </Text>
+                            <View
+                              style={[
+                                styles.statusBadge,
+                                {
+                                  backgroundColor:
+                                    application.status === 'pending'
+                                      ? Colors.warning
+                                      : Colors.text.disabled,
+                                },
+                              ]}
+                            >
+                              <Text style={styles.statusText}>
+                                {application.status}
+                              </Text>
+                            </View>
                           </View>
-                        )}
+                          {application.driver?.rating && (
+                            <View style={styles.ratingContainer}>
+                              <MaterialIcons
+                                name="star"
+                                size={16}
+                                color="#FFD700"
+                              />
+                              <Text style={styles.ratingText}>
+                                {application.driver.rating.toFixed(1)}
+                              </Text>
+                            </View>
+                          )}
+                        </View>
                       </View>
+                      <TouchableOpacity
+                        style={[
+                          styles.assignButton,
+                          application.status !== 'pending' &&
+                            styles.disabledButton,
+                        ]}
+                        onPress={() =>
+                          confirmAssignment(
+                            item.id,
+                            application.driver_id,
+                            application.driver
+                              ? `${application.driver.first_name} ${application.driver.last_name}`
+                              : `Driver ID: ${application.driver_id.substring(0, 8)}...`
+                          )
+                        }
+                        disabled={application.status !== 'pending'}
+                      >
+                        <Text style={styles.assignButtonText}>Assign</Text>
+                      </TouchableOpacity>
                     </View>
-                    <TouchableOpacity
-                      style={[
-                        styles.assignButton,
-                        application.status !== 'pending' && styles.disabledButton
-                      ]}
-                      onPress={() => confirmAssignment(
-                        item.id,
-                        application.driver_id,
-                        application.driver 
-                          ? `${application.driver.first_name} ${application.driver.last_name}`
-                          : `Driver ID: ${application.driver_id.substring(0, 8)}...`
-                      )}
-                      disabled={application.status !== 'pending'}
-                    >
-                      <Text style={styles.assignButtonText}>Assign</Text>
-                    </TouchableOpacity>
-                  </View>
                   ));
                 })()
               ) : (
                 <View style={styles.noApplicationsContainer}>
-                  <MaterialIcons name="person-search" size={48} color={Colors.text.disabled} />
+                  <MaterialIcons
+                    name="person-search"
+                    size={48}
+                    color={Colors.text.disabled}
+                  />
                   <Text style={styles.noApplicationsText}>
                     No driver applications yet.
                   </Text>
@@ -504,8 +612,14 @@ export default function AdminAssignmentScreen({ navigation }: AdminAssignmentScr
                     style={styles.quickAssignButton}
                     onPress={() => openQuickAssignModal(item.id)}
                   >
-                    <MaterialIcons name="person-add" size={20} color="#FFFFFF" />
-                    <Text style={styles.quickAssignButtonText}>Quick Assign</Text>
+                    <MaterialIcons
+                      name="person-add"
+                      size={20}
+                      color="#FFFFFF"
+                    />
+                    <Text style={styles.quickAssignButtonText}>
+                      Quick Assign
+                    </Text>
                   </TouchableOpacity>
                 </View>
               )}
@@ -528,11 +642,11 @@ export default function AdminAssignmentScreen({ navigation }: AdminAssignmentScr
   return (
     <View style={styles.container}>
       <StatusBar style="light" />
-      
+
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Driver Assignment</Text>
       </View>
-      
+
       <FlatList
         data={shipments}
         renderItem={renderShipmentItem}
@@ -547,7 +661,11 @@ export default function AdminAssignmentScreen({ navigation }: AdminAssignmentScr
         }
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
-            <MaterialIcons name="assignment" size={64} color={Colors.text.disabled} />
+            <MaterialIcons
+              name="assignment"
+              size={64}
+              color={Colors.text.disabled}
+            />
             <Text style={styles.emptyTitle}>No Pending Shipments</Text>
             <Text style={styles.emptyText}>
               There are currently no shipments pending driver assignment.
@@ -555,7 +673,7 @@ export default function AdminAssignmentScreen({ navigation }: AdminAssignmentScr
           </View>
         }
       />
-      
+
       {/* Driver Selection Modal */}
       <Modal
         visible={isDriverModalVisible}
@@ -567,14 +685,18 @@ export default function AdminAssignmentScreen({ navigation }: AdminAssignmentScr
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Select a Driver</Text>
-              <TouchableOpacity 
+              <TouchableOpacity
                 onPress={() => setIsDriverModalVisible(false)}
                 style={styles.closeButton}
               >
-                <MaterialIcons name="close" size={24} color={Colors.text.primary} />
+                <MaterialIcons
+                  name="close"
+                  size={24}
+                  color={Colors.text.primary}
+                />
               </TouchableOpacity>
             </View>
-            
+
             <FlatList
               data={availableDrivers}
               renderItem={renderDriverItem}
