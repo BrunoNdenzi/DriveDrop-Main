@@ -211,7 +211,6 @@ export default function AdminAssignmentScreen({
             }
           }
         }
-      } catch (backendError) {
         console.log(
           'AdminScreen: Backend endpoint failed, falling back to direct database queries'
         );
@@ -443,4 +442,5 @@ const styles = StyleSheet.create({
     color: Colors.text.secondary,
   }
 });
+
 
