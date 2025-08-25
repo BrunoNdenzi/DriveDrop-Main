@@ -18,33 +18,15 @@ import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../context/AuthContext';
 import { RootStackParamList } from '../../navigation/types';
 import { Colors } from '../../constants/Colors';
+import colors from '../../theme/colors';
 import { ShipmentService } from '../../services/shipmentService';
 import { getApiUrl } from '../../utils/environment';
 import { ApplicationService } from '../../services/applicationService';
+import { Driver, Application } from '../../types';
 
 type AdminAssignmentScreenProps = NativeStackScreenProps<RootStackParamList, 'AdminAssignment'>;
 
-// Define the types needed for our data
-interface Driver {
-  id: string;
-  first_name: string;
-  last_name: string;
-  email: string;
-  phone?: string;
-  avatar_url?: string;
-  rating?: number;
-}
-
-interface Application {
-  id: string;
-  driver_id: string;
-  shipment_id: string;
-  status: 'pending' | 'accepted' | 'rejected';
-  applied_at: string;
-  updated_at: string | null;
-  driver?: Driver;
-}
-
+// Define the extended Shipment interface for admin assignment screen
 interface Shipment {
   id: string;
   title: string;
@@ -342,7 +324,7 @@ export default function AdminAssignmentScreen({ navigation }: AdminAssignmentScr
         <Text style={styles.driverName}>{item.first_name} {item.last_name}</Text>
         {item.rating && (
           <View style={styles.ratingContainer}>
-            <MaterialIcons name="star" size={16} color="#FFD700" />
+            <MaterialIcons name="star" size={16} color={colors.gold} />
             <Text style={styles.ratingText}>{item.rating.toFixed(1)}</Text>
           </View>
         )}
@@ -466,7 +448,7 @@ export default function AdminAssignmentScreen({ navigation }: AdminAssignmentScr
                         </View>
                         {application.driver?.rating && (
                           <View style={styles.ratingContainer}>
-                            <MaterialIcons name="star" size={16} color="#FFD700" />
+                            <MaterialIcons name="star" size={16} color={colors.gold} />
                             <Text style={styles.ratingText}>{application.driver.rating.toFixed(1)}</Text>
                           </View>
                         )}
@@ -504,7 +486,7 @@ export default function AdminAssignmentScreen({ navigation }: AdminAssignmentScr
                     style={styles.quickAssignButton}
                     onPress={() => openQuickAssignModal(item.id)}
                   >
-                    <MaterialIcons name="person-add" size={20} color="#FFFFFF" />
+                    <MaterialIcons name="person-add" size={20} color={colors.white} />
                     <Text style={styles.quickAssignButtonText}>Quick Assign</Text>
                   </TouchableOpacity>
                 </View>
@@ -608,7 +590,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#FFFFFF',
+    color: colors.white,
   },
   loadingContainer: {
     flex: 1,
@@ -625,11 +607,11 @@ const styles = StyleSheet.create({
     padding: 16,
   },
   shipmentCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.white,
     borderRadius: 12,
     padding: 16,
     marginBottom: 16,
-    shadowColor: '#000',
+    shadowColor: colors.black,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
@@ -657,7 +639,7 @@ const styles = StyleSheet.create({
   priceText: {
     fontSize: 14,
     fontWeight: 'bold',
-    color: '#FFFFFF',
+    color: colors.white,
   },
   shipmentDetails: {
     marginBottom: 16,
@@ -718,7 +700,7 @@ const styles = StyleSheet.create({
     marginRight: 12,
   },
   avatarText: {
-    color: '#FFFFFF',
+    color: colors.white,
     fontSize: 16,
     fontWeight: 'bold',
   },
@@ -753,7 +735,7 @@ const styles = StyleSheet.create({
     borderRadius: 6,
   },
   assignButtonText: {
-    color: '#FFFFFF',
+    color: colors.white,
     fontWeight: '600',
     fontSize: 14,
   },
@@ -787,7 +769,7 @@ const styles = StyleSheet.create({
   },
   statusText: {
     fontSize: 12,
-    color: '#FFFFFF',
+    color: colors.white,
     fontWeight: '500',
   },
   disabledButton: {
@@ -797,7 +779,7 @@ const styles = StyleSheet.create({
     padding: 24,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#f8f8f8',
+    backgroundColor: colors.lightGray,
     borderRadius: 8,
     margin: 8,
   },
@@ -826,7 +808,7 @@ const styles = StyleSheet.create({
     marginTop: 16,
   },
   quickAssignButtonText: {
-    color: '#FFFFFF',
+    color: colors.white,
     fontWeight: '600',
     fontSize: 14,
     marginLeft: 4,

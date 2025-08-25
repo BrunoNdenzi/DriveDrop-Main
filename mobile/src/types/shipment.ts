@@ -1,3 +1,5 @@
+import colors from '../theme/colors';
+
 export interface Shipment {
   id: string;
   title: string;
@@ -51,19 +53,19 @@ export const shipmentStatusMap: Record<ShipmentStatus, string> = {
 export const getStatusColor = (status: ShipmentStatus): string => {
   switch (status) {
     case 'pending':
-      return '#FFB74D'; // Orange
+      return colors.status.pending;
     case 'accepted':
-      return '#64B5F6'; // Light Blue
+      return colors.status.accepted;
     case 'picked_up':
-      return '#64B5F6'; // Light Blue
+      return colors.status.picked_up;
     case 'in_transit':
-      return '#1E88E5'; // Blue
+      return colors.status.in_transit;
     case 'delivered':
-      return '#81C784'; // Light Green
+      return colors.status.delivered;
     case 'cancelled':
-      return '#E57373'; // Light Red
+      return colors.status.cancelled;
     default:
-      return '#9E9E9E'; // Grey
+      return colors.text.disabled;
   }
 };
 
