@@ -1,0 +1,444 @@
+
+> mobile@1.0.0 lint
+> eslint . --ext .ts,.tsx --max-warnings 0
+
+
+/home/runner/work/DriveDrop-Main/DriveDrop-Main/mobile/integration-test.ts
+  52:11  error  '_mockUserId' is assigned a value but never used    @typescript-eslint/no-unused-vars
+  69:11  error  '_mockDriverId' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+/home/runner/work/DriveDrop-Main/DriveDrop-Main/mobile/src/components/Card.tsx
+  29:14  warning  Color literal: { shadowColor: '#000' }  react-native/no-color-literals
+
+/home/runner/work/DriveDrop-Main/DriveDrop-Main/mobile/src/components/PaymentPolicyCard.tsx
+   87:14  warning  Color literal: { backgroundColor: '#FFFFFF', shadowColor: '#000' }  react-native/no-color-literals
+  126:15  warning  Color literal: { color: '#FFFFFF' }                                 react-native/no-color-literals
+  157:18  warning  Color literal: { backgroundColor: '#F8F9FA' }                       react-native/no-color-literals
+
+/home/runner/work/DriveDrop-Main/DriveDrop-Main/mobile/src/components/ShipmentListItem.tsx
+  93:14  warning  Color literal: { shadowColor: '#000' }  react-native/no-color-literals
+
+/home/runner/work/DriveDrop-Main/DriveDrop-Main/mobile/src/components/ShipmentSummary.tsx
+  141:15  warning  Color literal: { color: 'white' }  react-native/no-color-literals
+
+/home/runner/work/DriveDrop-Main/DriveDrop-Main/mobile/src/components/payment/StripePaymentForm.tsx
+  347:16  warning  Color literal: { color: '#6772E5' }  react-native/no-color-literals
+
+/home/runner/work/DriveDrop-Main/DriveDrop-Main/mobile/src/components/ui/Button.tsx
+   91:3   error    Unused style detected: styles.primary              react-native/no-unused-styles
+   94:3   error    Unused style detected: styles.secondary            react-native/no-unused-styles
+   97:3   error    Unused style detected: styles.outline              react-native/no-unused-styles
+   97:12  warning  Color literal: { backgroundColor: 'transparent' }  react-native/no-color-literals
+  102:3   error    Unused style detected: styles.ghost                react-native/no-unused-styles
+  102:10  warning  Color literal: { backgroundColor: 'transparent' }  react-native/no-color-literals
+  108:3   error    Unused style detected: styles.sm                   react-native/no-unused-styles
+  116:3   error    Unused style detected: styles.lg                   react-native/no-unused-styles
+  127:3   error    Unused style detected: styles.primaryText          react-native/no-unused-styles
+  130:3   error    Unused style detected: styles.secondaryText        react-native/no-unused-styles
+  133:3   error    Unused style detected: styles.outlineText          react-native/no-unused-styles
+  136:3   error    Unused style detected: styles.ghostText            react-native/no-unused-styles
+  142:3   error    Unused style detected: styles.smText               react-native/no-unused-styles
+  145:3   error    Unused style detected: styles.baseText             react-native/no-unused-styles
+  148:3   error    Unused style detected: styles.lgText               react-native/no-unused-styles
+
+/home/runner/work/DriveDrop-Main/DriveDrop-Main/mobile/src/components/ui/Card.tsx
+  57:3  error  Unused style detected: styles.default      react-native/no-unused-styles
+  60:3  error  Unused style detected: styles.elevated     react-native/no-unused-styles
+  63:3  error  Unused style detected: styles.outlined     react-native/no-unused-styles
+  70:3  error  Unused style detected: styles.smPadding    react-native/no-unused-styles
+  73:3  error  Unused style detected: styles.basePadding  react-native/no-unused-styles
+  76:3  error  Unused style detected: styles.lgPadding    react-native/no-unused-styles
+
+/home/runner/work/DriveDrop-Main/DriveDrop-Main/mobile/src/context/AuthContext.tsx
+  201:19  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/home/runner/work/DriveDrop-Main/DriveDrop-Main/mobile/src/context/BookingContext.tsx
+  128:69  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  271:45  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  283:33  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  305:64  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/home/runner/work/DriveDrop-Main/DriveDrop-Main/mobile/src/examples/ShipmentDetailsWithRealtime.tsx
+   29:3   error    'onPress' is defined but never used. Allowed unused args must match /^_/u                                                    @typescript-eslint/no-unused-vars
+   31:12  error    Unexpected any. Specify a different type                                                                                     @typescript-eslint/no-explicit-any
+   36:12  warning  Inline style: {
+  backgroundColor: "isOwnMessage ? '#DCF8C6' : '#ECECEC'",
+  padding: 10,
+  margin: 5,
+  borderRadius: 10
+}  react-native/no-inline-styles
+   36:12  warning  Color literal: { backgroundColor: "isOwnMessage ? '#DCF8C6' : '#ECECEC'" }                                                   react-native/no-color-literals
+   44:18  warning  Inline style: { fontSize: 10 }                                                                                               react-native/no-inline-styles
+   48:44  error    Unexpected any. Specify a different type                                                                                     @typescript-eslint/no-explicit-any
+   50:12  warning  Inline style: { padding: 10, borderBottomWidth: 1, borderBottomColor: '#ECECEC' }                                            react-native/no-inline-styles
+   50:12  warning  Color literal: { borderBottomColor: '#ECECEC' }                                                                              react-native/no-color-literals
+   52:18  warning  Inline style: { fontWeight: 'bold' }                                                                                         react-native/no-inline-styles
+   65:15  error    Unexpected any. Specify a different type                                                                                     @typescript-eslint/no-explicit-any
+   70:3   error    'navigation' is defined but never used. Allowed unused args must match /^_/u                                                 @typescript-eslint/no-unused-vars
+   84:21  error    'error' is assigned a value but never used                                                                                   @typescript-eslint/no-unused-vars
+  292:11  warning  Color literal: { color: '#007AFF' }                                                                                          react-native/no-color-literals
+  333:17  warning  Color literal: { borderColor: '#ccc' }                                                                                       react-native/no-color-literals
+
+/home/runner/work/DriveDrop-Main/DriveDrop-Main/mobile/src/hooks/useAPI.ts
+    9:27  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   24:16  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   62:21  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   92:16  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  120:21  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/home/runner/work/DriveDrop-Main/DriveDrop-Main/mobile/src/hooks/useDriverLocation.ts
+  6:13  error  'Location' is defined but never used  @typescript-eslint/no-unused-vars
+
+/home/runner/work/DriveDrop-Main/DriveDrop-Main/mobile/src/hooks/useFetch.ts
+  18:30  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/home/runner/work/DriveDrop-Main/DriveDrop-Main/mobile/src/hooks/useRealtimeMessages.ts
+  3:10  error  'realtimeService' is defined but never used  @typescript-eslint/no-unused-vars
+
+/home/runner/work/DriveDrop-Main/DriveDrop-Main/mobile/src/screens/NetworkDiagnosticScreen.tsx
+   52:21  error    Unexpected any. Specify a different type                               @typescript-eslint/no-explicit-any
+  106:21  error    Unexpected any. Specify a different type                               @typescript-eslint/no-explicit-any
+  169:14  warning  Color literal: { backgroundColor: '#f5f5f5' }                          react-native/no-color-literals
+  174:10  warning  Color literal: { color: '#333' }                                       react-native/no-color-literals
+  180:12  warning  Color literal: { backgroundColor: '#fff', shadowColor: '#000' }        react-native/no-color-literals
+  191:17  warning  Color literal: { color: '#333' }                                       react-native/no-color-literals
+  201:10  warning  Color literal: { color: '#666' }                                       react-native/no-color-literals
+  207:10  warning  Color literal: { color: '#333' }                                       react-native/no-color-literals
+  211:11  warning  Color literal: { backgroundColor: '#1E88E5' }                          react-native/no-color-literals
+  218:19  warning  Color literal: { backgroundColor: '#90CAF9' }                          react-native/no-color-literals
+  221:15  warning  Color literal: { color: '#fff' }                                       react-native/no-color-literals
+  226:19  warning  Color literal: { backgroundColor: '#FFF5F5', borderColor: '#E53935' }  react-native/no-color-literals
+  233:15  warning  Color literal: { color: '#E53935' }                                    react-native/no-color-literals
+  238:17  warning  Color literal: { color: '#333' }                                       react-native/no-color-literals
+
+/home/runner/work/DriveDrop-Main/DriveDrop-Main/mobile/src/screens/NotificationTestScreen.tsx
+    8:3   error    'ActivityIndicator' is defined but never used  @typescript-eslint/no-unused-vars
+   14:10  error    'realtimeService' is defined but never used    @typescript-eslint/no-unused-vars
+  320:14  warning  Color literal: { backgroundColor: '#f5f5f5' }  react-native/no-color-literals
+  340:16  warning  Color literal: { color: '#555' }               react-native/no-color-literals
+  344:15  warning  Color literal: { color: '#4CAF50' }            react-native/no-color-literals
+  348:14  warning  Color literal: { color: '#F44336' }            react-native/no-color-literals
+  352:18  warning  Color literal: { color: '#9E9E9E' }            react-native/no-color-literals
+  363:18  warning  Color literal: { backgroundColor: '#1E88E5' }  react-native/no-color-literals
+  366:20  warning  Color literal: { backgroundColor: '#4CAF50' }  react-native/no-color-literals
+  369:19  warning  Color literal: { backgroundColor: '#FF9800' }  react-native/no-color-literals
+  382:16  warning  Color literal: { color: '#1E88E5' }            react-native/no-color-literals
+  386:14  warning  Color literal: { color: '#9E9E9E' }            react-native/no-color-literals
+  408:21  warning  Color literal: { backgroundColor: '#4CAF50' }  react-native/no-color-literals
+  411:19  warning  Color literal: { backgroundColor: '#F44336' }  react-native/no-color-literals
+  418:16  warning  Color literal: { color: '#4CAF50' }            react-native/no-color-literals
+  422:14  warning  Color literal: { color: '#F44336' }            react-native/no-color-literals
+  426:18  warning  Color literal: { color: '#757575' }            react-native/no-color-literals
+
+/home/runner/work/DriveDrop-Main/DriveDrop-Main/mobile/src/screens/SettingsScreen.tsx
+    8:3   error    'ActivityIndicator' is defined but never used  @typescript-eslint/no-unused-vars
+   29:9   error    'auth' is assigned a value but never used      @typescript-eslint/no-unused-vars
+  242:29  warning  Inline style: { marginTop: 8 }                 react-native/no-inline-styles
+  259:14  warning  Color literal: { backgroundColor: '#fff' }     react-native/no-color-literals
+  284:19  warning  Color literal: { color: '#666' }               react-native/no-color-literals
+  293:15  warning  Color literal: { backgroundColor: '#1E88E5' }  react-native/no-color-literals
+  301:18  warning  Color literal: { borderColor: '#f44336' }      react-native/no-color-literals
+  305:22  warning  Color literal: { color: '#f44336' }            react-native/no-color-literals
+
+/home/runner/work/DriveDrop-Main/DriveDrop-Main/mobile/src/screens/admin/AdminAssignmentScreen.tsx
+   11:3   error    'ScrollView' is defined but never used                              @typescript-eslint/no-unused-vars
+   23:10  error    'ApplicationService' is defined but never used                      @typescript-eslint/no-unused-vars
+   73:60  error    Unexpected any. Specify a different type                            @typescript-eslint/no-explicit-any
+  147:62  error    Unexpected any. Specify a different type                            @typescript-eslint/no-explicit-any
+  173:23  error    Unexpected any. Specify a different type                            @typescript-eslint/no-explicit-any
+  173:33  error    Unexpected any. Specify a different type                            @typescript-eslint/no-explicit-any
+  218:16  error    'backendError' is defined but never used                            @typescript-eslint/no-unused-vars
+  265:47  error    Unexpected any. Specify a different type                            @typescript-eslint/no-explicit-any
+  368:47  error    Unexpected any. Specify a different type                            @typescript-eslint/no-explicit-any
+  730:16  warning  Color literal: { color: '#FFFFFF' }                                 react-native/no-color-literals
+  749:17  warning  Color literal: { backgroundColor: '#FFFFFF', shadowColor: '#000' }  react-native/no-color-literals
+  779:14  warning  Color literal: { color: '#FFFFFF' }                                 react-native/no-color-literals
+  842:15  warning  Color literal: { color: '#FFFFFF' }                                 react-native/no-color-literals
+  877:21  warning  Color literal: { color: '#FFFFFF' }                                 react-native/no-color-literals
+  910:15  warning  Color literal: { color: '#FFFFFF' }                                 react-native/no-color-literals
+  918:28  warning  Color literal: { backgroundColor: '#f8f8f8' }                       react-native/no-color-literals
+  950:26  warning  Color literal: { color: '#FFFFFF' }                                 react-native/no-color-literals
+  956:17  warning  Color literal: { backgroundColor: 'rgba(0, 0, 0, 0.5)' }            react-native/no-color-literals
+
+/home/runner/work/DriveDrop-Main/DriveDrop-Main/mobile/src/screens/admin/AdminDashboardScreen.tsx
+   46:18  warning  Inline style: { flex: 1, justifyContent: 'center', alignItems: 'center' }  react-native/no-inline-styles
+   72:11  error    'userProfile' is assigned a value but never used                           @typescript-eslint/no-unused-vars
+  403:13  warning  Color literal: { shadowColor: '#000' }                                     react-native/no-color-literals
+  436:17  warning  Color literal: { shadowColor: '#000' }                                     react-native/no-color-literals
+
+/home/runner/work/DriveDrop-Main/DriveDrop-Main/mobile/src/screens/admin/AdminDashboardScreenNew.tsx
+  330:13  warning  Color literal: { shadowColor: '#000' }  react-native/no-color-literals
+  363:17  warning  Color literal: { shadowColor: '#000' }  react-native/no-color-literals
+
+/home/runner/work/DriveDrop-Main/DriveDrop-Main/mobile/src/screens/auth/ForgotPasswordScreen.tsx
+   53:21  error    Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  176:15  warning  Color literal: { color: '#FFFFFF' }       react-native/no-color-literals
+
+/home/runner/work/DriveDrop-Main/DriveDrop-Main/mobile/src/screens/auth/LoginScreen.tsx
+   42:21  error    Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  202:15  warning  Color literal: { color: '#FFFFFF' }       react-native/no-color-literals
+
+/home/runner/work/DriveDrop-Main/DriveDrop-Main/mobile/src/screens/auth/SignUpScreen.tsx
+   17:16  error    'supabase' is defined but never used           @typescript-eslint/no-unused-vars
+   92:21  error    Unexpected any. Specify a different type       @typescript-eslint/no-explicit-any
+  326:19  warning  Color literal: { backgroundColor: '#FFEBEE' }  react-native/no-color-literals
+  409:15  warning  Color literal: { color: '#FFFFFF' }            react-native/no-color-literals
+
+/home/runner/work/DriveDrop-Main/DriveDrop-Main/mobile/src/screens/booking/BookingConfirmationScreen.tsx
+  89:32  warning  Inline style: { flexGrow: 1 }  react-native/no-inline-styles
+
+/home/runner/work/DriveDrop-Main/DriveDrop-Main/mobile/src/screens/booking/BookingPaymentProcessingScreen.tsx
+    5:18  error  'Typography' is defined but never used      @typescript-eslint/no-unused-vars
+    5:30  error  'Spacing' is defined but never used         @typescript-eslint/no-unused-vars
+   11:10  error  'paymentService' is defined but never used  @typescript-eslint/no-unused-vars
+  101:23  error  Unexpected any. Specify a different type    @typescript-eslint/no-explicit-any
+
+/home/runner/work/DriveDrop-Main/DriveDrop-Main/mobile/src/screens/booking/BookingStepCustomerScreen.tsx
+   7:3   error    'KeyboardAvoidingView' is defined but never used  @typescript-eslint/no-unused-vars
+   8:3   error    'Platform' is defined but never used              @typescript-eslint/no-unused-vars
+  89:46  warning  Inline style: { width: '12.5%' }                  react-native/no-inline-styles
+  97:32  warning  Inline style: { flexGrow: 1 }                     react-native/no-inline-styles
+
+/home/runner/work/DriveDrop-Main/DriveDrop-Main/mobile/src/screens/booking/BookingStepDeliveryScreen.tsx
+  65:46  warning  Inline style: { width: '50%' }  react-native/no-inline-styles
+  73:32  warning  Inline style: { flexGrow: 1 }   react-native/no-inline-styles
+
+/home/runner/work/DriveDrop-Main/DriveDrop-Main/mobile/src/screens/booking/BookingStepInsuranceScreen.tsx
+   85:5   error    'source' is defined but never used. Allowed unused args must match /^_/u  @typescript-eslint/no-unused-vars
+  139:46  warning  Inline style: { width: '75%' }                                            react-native/no-inline-styles
+  147:32  warning  Inline style: { flexGrow: 1 }                                             react-native/no-inline-styles
+  169:49  error    Unexpected any. Specify a different type                                  @typescript-eslint/no-explicit-any
+
+/home/runner/work/DriveDrop-Main/DriveDrop-Main/mobile/src/screens/booking/BookingStepPaymentScreen.tsx
+   12:10  error    'MaterialIcons' is defined but never used                @typescript-eslint/no-unused-vars
+   20:10  error    'Input' is defined but never used                        @typescript-eslint/no-unused-vars
+   33:18  error    'updateFormData' is assigned a value but never used      @typescript-eslint/no-unused-vars
+   93:46  warning  Inline style: { width: '100%' }                          react-native/no-inline-styles
+  101:32  warning  Inline style: { flexGrow: 1 }                            react-native/no-inline-styles
+  293:3   error    Unused style detected: styles.paymentCard                react-native/no-unused-styles
+  296:3   error    Unused style detected: styles.billingCard                react-native/no-unused-styles
+  377:3   error    Unused style detected: styles.paymentMethods             react-native/no-unused-styles
+  381:3   error    Unused style detected: styles.paymentMethodOption        react-native/no-unused-styles
+  392:3   error    Unused style detected: styles.selectedPaymentMethod      react-native/no-unused-styles
+  396:3   error    Unused style detected: styles.paymentMethodText          react-native/no-unused-styles
+  402:3   error    Unused style detected: styles.selectedPaymentMethodText  react-native/no-unused-styles
+  405:3   error    Unused style detected: styles.cardForm                   react-native/no-unused-styles
+  408:3   error    Unused style detected: styles.cardRow                    react-native/no-unused-styles
+  412:3   error    Unused style detected: styles.cardRowItem                react-native/no-unused-styles
+  415:3   error    Unused style detected: styles.addressRow                 react-native/no-unused-styles
+  419:3   error    Unused style detected: styles.addressRowItem             react-native/no-unused-styles
+  422:3   error    Unused style detected: styles.addressRowItemSmall        react-native/no-unused-styles
+
+/home/runner/work/DriveDrop-Main/DriveDrop-Main/mobile/src/screens/booking/BookingStepPickupScreen.tsx
+  63:46  warning  Inline style: { width: '37.5%' }  react-native/no-inline-styles
+  71:32  warning  Inline style: { flexGrow: 1 }     react-native/no-inline-styles
+
+/home/runner/work/DriveDrop-Main/DriveDrop-Main/mobile/src/screens/booking/BookingStepTermsScreen.tsx
+   1:28  error    'useState' is defined but never used  @typescript-eslint/no-unused-vars
+  91:46  warning  Inline style: { width: '88.9%' }      react-native/no-inline-styles
+  99:32  warning  Inline style: { flexGrow: 1 }         react-native/no-inline-styles
+
+/home/runner/work/DriveDrop-Main/DriveDrop-Main/mobile/src/screens/booking/BookingStepTowingScreen.tsx
+    1:28  error    'useState' is defined but never used  @typescript-eslint/no-unused-vars
+  113:46  warning  Inline style: { width: '62.5%' }      react-native/no-inline-styles
+  121:32  warning  Inline style: { flexGrow: 1 }         react-native/no-inline-styles
+
+/home/runner/work/DriveDrop-Main/DriveDrop-Main/mobile/src/screens/booking/BookingStepVehicleScreen.tsx
+  66:46  warning  Inline style: { width: '25%' }  react-native/no-inline-styles
+  74:32  warning  Inline style: { flexGrow: 1 }   react-native/no-inline-styles
+
+/home/runner/work/DriveDrop-Main/DriveDrop-Main/mobile/src/screens/booking/BookingStepVisualScreen.tsx
+  100:43  error    'source' is defined but never used. Allowed unused args must match /^_/u  @typescript-eslint/no-unused-vars
+  149:46  warning  Inline style: { width: '87.5%' }                                          react-native/no-inline-styles
+  157:32  warning  Inline style: { flexGrow: 1 }                                             react-native/no-inline-styles
+  189:74  error    Unexpected any. Specify a different type                                  @typescript-eslint/no-explicit-any
+
+/home/runner/work/DriveDrop-Main/DriveDrop-Main/mobile/src/screens/debug/TestInputScreen.tsx
+  9:3  error  'ComponentTokens' is defined but never used  @typescript-eslint/no-unused-vars
+
+/home/runner/work/DriveDrop-Main/DriveDrop-Main/mobile/src/screens/driver/AvailableJobsScreen.tsx
+   33:61  error    Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  186:21  error    Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  304:11  warning  Color literal: { shadowColor: '#000' }    react-native/no-color-literals
+  326:12  warning  Color literal: { shadowColor: '#000' }    react-native/no-color-literals
+
+/home/runner/work/DriveDrop-Main/DriveDrop-Main/mobile/src/screens/driver/AvailableShipmentsScreen.tsx
+   16:10  error    'ShipmentService' is defined but never used   @typescript-eslint/no-unused-vars
+   34:66  error    Unexpected any. Specify a different type      @typescript-eslint/no-explicit-any
+   39:10  error    'loading' is assigned a value but never used  @typescript-eslint/no-unused-vars
+   75:20  error    Unexpected any. Specify a different type      @typescript-eslint/no-explicit-any
+  322:17  warning  Color literal: { shadowColor: '#000' }        react-native/no-color-literals
+
+/home/runner/work/DriveDrop-Main/DriveDrop-Main/mobile/src/screens/driver/DriverDashboardScreen.tsx
+   17:63  error    Unexpected any. Specify a different type       @typescript-eslint/no-explicit-any
+   25:54  error    Unexpected any. Specify a different type       @typescript-eslint/no-explicit-any
+   27:10  error    'loading' is assigned a value but never used   @typescript-eslint/no-unused-vars
+  136:21  error    Unexpected any. Specify a different type       @typescript-eslint/no-explicit-any
+  574:12  warning  Color literal: { shadowColor: '#000' }         react-native/no-color-literals
+  607:17  warning  Color literal: { color: '#FFFFFF' }            react-native/no-color-literals
+  635:19  warning  Color literal: { color: '#FFFFFF' }            react-native/no-color-literals
+  643:17  warning  Color literal: { backgroundColor: '#E8F5E8' }  react-native/no-color-literals
+  672:20  warning  Color literal: { color: '#FFFFFF' }            react-native/no-color-literals
+
+/home/runner/work/DriveDrop-Main/DriveDrop-Main/mobile/src/screens/driver/DriverProfileScreen.tsx
+   19:10  error    'RootStackParamList' is defined but never used       @typescript-eslint/no-unused-vars
+   37:61  error    Unexpected any. Specify a different type             @typescript-eslint/no-explicit-any
+   38:24  error    'refreshProfile' is assigned a value but never used  @typescript-eslint/no-unused-vars
+  126:15  error    'count' is assigned a value but never used           @typescript-eslint/no-unused-vars
+  584:45  warning  Inline style: { marginTop: 12 }                      react-native/no-inline-styles
+  602:22  warning  Inline style: { height: 40 }                         react-native/no-inline-styles
+  613:11  warning  Color literal: { shadowColor: '#000' }               react-native/no-color-literals
+  635:16  warning  Color literal: { shadowColor: '#000' }               react-native/no-color-literals
+  731:21  warning  Color literal: { shadowColor: '#000' }               react-native/no-color-literals
+  772:17  warning  Color literal: { shadowColor: '#000' }               react-native/no-color-literals
+  808:17  warning  Color literal: { shadowColor: '#000' }               react-native/no-color-literals
+  862:16  warning  Color literal: { shadowColor: '#000' }               react-native/no-color-literals
+
+/home/runner/work/DriveDrop-Main/DriveDrop-Main/mobile/src/screens/driver/JobDetailsScreen.tsx
+   46:65  error    Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  568:22  warning  Inline style: { height: 100 }             react-native/no-inline-styles
+  605:11  warning  Color literal: { shadowColor: '#000' }    react-native/no-color-literals
+  646:19  warning  Color literal: { shadowColor: '#000' }    react-native/no-color-literals
+  679:13  warning  Color literal: { shadowColor: '#000' }    react-native/no-color-literals
+
+/home/runner/work/DriveDrop-Main/DriveDrop-Main/mobile/src/screens/driver/MessagesScreen.tsx
+   19:10  error    'realtimeService' is defined but never used                                   @typescript-eslint/no-unused-vars
+   39:49  error    'navigation' is defined but never used. Allowed unused args must match /^_/u  @typescript-eslint/no-unused-vars
+   39:63  error    Unexpected any. Specify a different type                                      @typescript-eslint/no-explicit-any
+   52:41  error    Unexpected any. Specify a different type                                      @typescript-eslint/no-explicit-any
+   53:41  error    Unexpected any. Specify a different type                                      @typescript-eslint/no-explicit-any
+  562:11  warning  Color literal: { shadowColor: '#000' }                                        react-native/no-color-literals
+
+/home/runner/work/DriveDrop-Main/DriveDrop-Main/mobile/src/screens/driver/MyJobsScreen.tsx
+   36:40  error    Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  225:43  error    Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  420:11  warning  Color literal: { shadowColor: '#000' }    react-native/no-color-literals
+  446:12  warning  Color literal: { shadowColor: '#000' }    react-native/no-color-literals
+
+/home/runner/work/DriveDrop-Main/DriveDrop-Main/mobile/src/screens/driver/MyShipmentsScreen.tsx
+   37:45  error    Unexpected any. Specify a different type                                      @typescript-eslint/no-explicit-any
+   40:10  error    'loading' is assigned a value but never used                                  @typescript-eslint/no-unused-vars
+   41:24  error    'session' is assigned a value but never used                                  @typescript-eslint/no-unused-vars
+   68:68  error    Unexpected any. Specify a different type                                      @typescript-eslint/no-explicit-any
+  244:44  error    Unexpected any. Specify a different type                                      @typescript-eslint/no-explicit-any
+  291:48  error    Unexpected any. Specify a different type                                      @typescript-eslint/no-explicit-any
+  294:10  error    'loading' is assigned a value but never used                                  @typescript-eslint/no-unused-vars
+  295:24  error    'session' is assigned a value but never used                                  @typescript-eslint/no-unused-vars
+  321:68  error    Unexpected any. Specify a different type                                      @typescript-eslint/no-explicit-any
+  438:28  error    'navigation' is defined but never used. Allowed unused args must match /^_/u  @typescript-eslint/no-unused-vars
+  438:42  error    Unexpected any. Specify a different type                                      @typescript-eslint/no-explicit-any
+  439:52  error    Unexpected any. Specify a different type                                      @typescript-eslint/no-explicit-any
+  441:10  error    'loading' is assigned a value but never used                                  @typescript-eslint/no-unused-vars
+  562:52  error    Unexpected any. Specify a different type                                      @typescript-eslint/no-explicit-any
+  713:17  warning  Color literal: { shadowColor: '#000' }                                        react-native/no-color-literals
+
+/home/runner/work/DriveDrop-Main/DriveDrop-Main/mobile/src/screens/driver/RouteMapScreen.tsx
+   37:21  error    Unexpected any. Specify a different type                                             @typescript-eslint/no-explicit-any
+   38:23  error    Unexpected any. Specify a different type                                             @typescript-eslint/no-explicit-any
+   39:18  error    Unexpected any. Specify a different type                                             @typescript-eslint/no-explicit-any
+   48:15  error    Unexpected any. Specify a different type                                             @typescript-eslint/no-explicit-any
+   62:60  error    Unexpected any. Specify a different type                                             @typescript-eslint/no-explicit-any
+  189:47  error    Unexpected any. Specify a different type                                             @typescript-eslint/no-explicit-any
+  612:20  warning  Color literal: { backgroundColor: 'rgba(0, 0, 0, 0.5)' }                             react-native/no-color-literals
+  633:18  warning  Color literal: { shadowColor: '#000' }                                               react-native/no-color-literals
+  709:28  warning  Color literal: { backgroundColor: 'rgba(255, 255, 255, 0.9)', shadowColor: '#000' }  react-native/no-color-literals
+
+/home/runner/work/DriveDrop-Main/DriveDrop-Main/mobile/src/screens/driver/ShipmentDetailsScreen.tsx
+   14:13  error  'Location' is defined but never used      @typescript-eslint/no-unused-vars
+   49:70  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  589:44  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/home/runner/work/DriveDrop-Main/DriveDrop-Main/mobile/src/screens/home/HomeScreen.tsx
+    8:3   error  'Image' is defined but never used         @typescript-eslint/no-unused-vars
+   18:3   error  'BorderRadius' is defined but never used  @typescript-eslint/no-unused-vars
+  155:38  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  202:40  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/home/runner/work/DriveDrop-Main/DriveDrop-Main/mobile/src/screens/home/HomeScreenNew.tsx
+    8:3   error  'Image' is defined but never used         @typescript-eslint/no-unused-vars
+   18:3   error  'BorderRadius' is defined but never used  @typescript-eslint/no-unused-vars
+  155:38  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  202:40  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/home/runner/work/DriveDrop-Main/DriveDrop-Main/mobile/src/screens/profile/ProfileScreen.tsx
+   28:24  error    'refreshProfile' is assigned a value but never used                                                                                                              @typescript-eslint/no-unused-vars
+  199:20  warning  Inline style: {
+  flexDirection: 'row',
+  justifyContent: 'space-between',
+  alignItems: 'center',
+  paddingVertical: 12,
+  marginTop: 8,
+  borderTopWidth: 1
+}  react-native/no-inline-styles
+  213:22  warning  Inline style: { fontSize: 14, fontWeight: '500' }                                                                                                                react-native/no-inline-styles
+  365:16  warning  Color literal: { backgroundColor: '#E3F2FD' }                                                                                                                    react-native/no-color-literals
+
+/home/runner/work/DriveDrop-Main/DriveDrop-Main/mobile/src/screens/profile/ProfileScreenNew.tsx
+  22:41  error  'navigation' is defined but never used. Allowed unused args must match /^_/u  @typescript-eslint/no-unused-vars
+  23:24  error  'refreshProfile' is assigned a value but never used                           @typescript-eslint/no-unused-vars
+
+/home/runner/work/DriveDrop-Main/DriveDrop-Main/mobile/src/screens/shipments/NewShipmentScreen.tsx
+  13:10  error  'MaterialIcons' is defined but never used         @typescript-eslint/no-unused-vars
+  31:11  error  'userProfile' is assigned a value but never used  @typescript-eslint/no-unused-vars
+  77:11  error  'quoteData' is assigned a value but never used    @typescript-eslint/no-unused-vars
+
+/home/runner/work/DriveDrop-Main/DriveDrop-Main/mobile/src/screens/shipments/ShipmentDetailsScreen.tsx
+   42:17  error    '_user' is assigned a value but never used  @typescript-eslint/no-unused-vars
+  414:15  warning  Color literal: { color: 'white' }           react-native/no-color-literals
+  476:21  warning  Color literal: { color: 'white' }           react-native/no-color-literals
+  491:21  warning  Color literal: { color: 'white' }           react-native/no-color-literals
+
+/home/runner/work/DriveDrop-Main/DriveDrop-Main/mobile/src/screens/shipments/ShipmentsScreenNew.tsx
+  38:24  error  '_userProfile' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+/home/runner/work/DriveDrop-Main/DriveDrop-Main/mobile/src/services/NotificationService.ts
+   43:34  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   44:30  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  188:47  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  375:11  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/home/runner/work/DriveDrop-Main/DriveDrop-Main/mobile/src/services/OfflineService.ts
+  245:18  error  'error' is defined but never used  @typescript-eslint/no-unused-vars
+
+/home/runner/work/DriveDrop-Main/DriveDrop-Main/mobile/src/services/RealtimeService.ts
+  181:32  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/home/runner/work/DriveDrop-Main/DriveDrop-Main/mobile/src/services/shipmentService.ts
+    6:6   error  'TrackingEventType' is defined but never used         @typescript-eslint/no-unused-vars
+  134:7   error  'customerDetails' is assigned a value but never used  @typescript-eslint/no-unused-vars
+  403:21  error  'result' is assigned a value but never used           @typescript-eslint/no-unused-vars
+
+/home/runner/work/DriveDrop-Main/DriveDrop-Main/mobile/src/utils/MessageUtil.ts
+  42:15  error  'data' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+/home/runner/work/DriveDrop-Main/DriveDrop-Main/mobile/src/utils/NetworkUtil.ts
+  27:39  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  44:21  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  78:20  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/home/runner/work/DriveDrop-Main/DriveDrop-Main/mobile/src/utils/environment.ts
+  21:46  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/home/runner/work/DriveDrop-Main/DriveDrop-Main/mobile/src/utils/logger.ts
+   5:36  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   9:36  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  13:37  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  17:37  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/home/runner/work/DriveDrop-Main/DriveDrop-Main/mobile/src/utils/maps.ts
+  51:12  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/home/runner/work/DriveDrop-Main/DriveDrop-Main/mobile/src/utils/paymentApiTest.ts
+   13:13  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  168:18  error  'e' is defined but never used             @typescript-eslint/no-unused-vars
+  232:18  error  'e' is defined but never used             @typescript-eslint/no-unused-vars
+
+/home/runner/work/DriveDrop-Main/DriveDrop-Main/mobile/src/utils/validation.ts
+   11:22  error  'T' is defined but never used             @typescript-eslint/no-unused-vars
+   26:60  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   85:33  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  135:33  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  136:11  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+✖ 297 problems (177 errors, 120 warnings)
+
