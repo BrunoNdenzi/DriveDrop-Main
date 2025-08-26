@@ -1,5 +1,5 @@
 import {
-  // ShipmentService, // TODO: Uncomment when implementing actual integration tests
+  ShipmentService,
   CreateShipmentData,
 } from './src/services/shipmentService';
 
@@ -37,8 +37,7 @@ async function testShipmentIntegration() {
   try {
     // Test 1: Create a shipment (simulating client action)
     console.log('📝 Test 1: Creating shipment...');
-    // TODO: Implement when integration tests are enabled
-    // const mockUserId = 'test-client-uuid';
+    const mockUserId = 'test-client-uuid';
 
     // Note: This would normally use a real user ID from authentication
     // const shipment = await ShipmentService.createShipment(mockShipmentData, mockUserId);
@@ -55,8 +54,7 @@ async function testShipmentIntegration() {
 
     // Test 3: Driver applies for shipment
     console.log('\n👤 Test 3: Driver applying for shipment...');
-    // TODO: Implement when integration tests are enabled  
-    // const mockDriverId = 'test-driver-uuid';
+    const mockDriverId = 'test-driver-uuid';
 
     // Note: This would use real IDs in practice
     // await ShipmentService.applyForShipment(shipment.id, mockDriverId);
