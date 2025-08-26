@@ -34,7 +34,7 @@ export function useFormValidation<T extends Record<string, any>>(
       if (!validator) return null;
 
       const error = validator(value);
-      setErrors((prev) => ({ ...prev, [name]: error }));
+      setErrors(prev => ({ ...prev, [name]: error }));
       return error;
     },
     [validators]
@@ -45,7 +45,7 @@ export function useFormValidation<T extends Record<string, any>>(
       const newErrors: FormErrors<T> = {};
       let isValid = true;
 
-      Object.keys(validators).forEach((key) => {
+      Object.keys(validators).forEach(key => {
         const validator = validators[key];
         const value = data[key as keyof T];
         const error = validator(value);
@@ -64,12 +64,9 @@ export function useFormValidation<T extends Record<string, any>>(
     [validators]
   );
 
-  const setFieldError = useCallback(
-    (name: keyof T, error: string | null) => {
-      setErrors((prev) => ({ ...prev, [name]: error }));
-    },
-    []
-  );
+  const setFieldError = useCallback((name: keyof T, error: string | null) => {
+    setErrors(prev => ({ ...prev, [name]: error }));
+  }, []);
 
   const clearErrors = useCallback(() => {
     setErrors({});
@@ -94,7 +91,7 @@ export const required = (value: any): string | null => {
 
 export const email = (value: string): string | null => {
   if (!value) return null;
-  
+
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   if (!emailRegex.test(value)) {
     return 'Please enter a valid email address';
@@ -102,27 +99,31 @@ export const email = (value: string): string | null => {
   return null;
 };
 
-export const minLength = (min: number) => (value: string): string | null => {
-  if (!value) return null;
-  
-  if (value.length < min) {
-    return `Must be at least ${min} characters`;
-  }
-  return null;
-};
+export const minLength =
+  (min: number) =>
+  (value: string): string | null => {
+    if (!value) return null;
 
-export const maxLength = (max: number) => (value: string): string | null => {
-  if (!value) return null;
-  
-  if (value.length > max) {
-    return `Must be at most ${max} characters`;
-  }
-  return null;
-};
+    if (value.length < min) {
+      return `Must be at least ${min} characters`;
+    }
+    return null;
+  };
+
+export const maxLength =
+  (max: number) =>
+  (value: string): string | null => {
+    if (!value) return null;
+
+    if (value.length > max) {
+      return `Must be at most ${max} characters`;
+    }
+    return null;
+  };
 
 export const phoneNumber = (value: string): string | null => {
   if (!value) return null;
-  
+
   const phoneRegex = /^\+?[0-9]{10,15}$/;
   if (!phoneRegex.test(value.replace(/[\s()-]/g, ''))) {
     return 'Please enter a valid phone number';
@@ -130,12 +131,12 @@ export const phoneNumber = (value: string): string | null => {
   return null;
 };
 
-export const composeValidators = (...validators: Array<(value: any) => string | null>) => (
-  value: any
-): string | null => {
-  for (const validator of validators) {
-    const error = validator(value);
-    if (error) return error;
-  }
-  return null;
-};
+export const composeValidators =
+  (...validators: Array<(value: any) => string | null>) =>
+  (value: any): string | null => {
+    for (const validator of validators) {
+      const error = validator(value);
+      if (error) return error;
+    }
+    return null;
+  };

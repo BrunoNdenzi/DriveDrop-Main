@@ -42,21 +42,36 @@ router.post('/verify/check', authenticate, verifyPhoneNumber);
  * @desc Send shipment status notification
  * @access Private (Driver or Admin)
  */
-router.post('/shipment-notification', authenticate, authorize(['driver', 'admin']), sendShipmentNotification);
+router.post(
+  '/shipment-notification',
+  authenticate,
+  authorize(['driver', 'admin']),
+  sendShipmentNotification
+);
 
 /**
  * @route POST /api/v1/sms/driver-assignment
  * @desc Send driver assignment notification (Admin only)
  * @access Private (Admin)
  */
-router.post('/driver-assignment', authenticate, authorize(['admin']), sendDriverAssignmentNotification);
+router.post(
+  '/driver-assignment',
+  authenticate,
+  authorize(['admin']),
+  sendDriverAssignmentNotification
+);
 
 /**
  * @route POST /api/v1/sms/delivery-confirmation
  * @desc Send delivery confirmation
  * @access Private (Driver or Admin)
  */
-router.post('/delivery-confirmation', authenticate, authorize(['driver', 'admin']), sendDeliveryConfirmation);
+router.post(
+  '/delivery-confirmation',
+  authenticate,
+  authorize(['driver', 'admin']),
+  sendDeliveryConfirmation
+);
 
 /**
  * @route POST /api/v1/sms/validate-phone

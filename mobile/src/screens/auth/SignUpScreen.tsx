@@ -32,13 +32,13 @@ export default function SignUpScreen({ navigation }: SignUpScreenProps) {
   async function handleSignUp() {
     // Reset error state
     setErrorMsg(null);
-    
+
     // Validate inputs
     if (!firstName || !lastName) {
       Alert.alert('Error', 'Please enter your first and last name');
       return;
     }
-    
+
     if (!email || !password) {
       Alert.alert('Error', 'Please enter email and password');
       return;
@@ -56,7 +56,7 @@ export default function SignUpScreen({ navigation }: SignUpScreenProps) {
 
     try {
       setLoading(true);
-      
+
       // Sign up with user metadata including role
       const { data, error } = await auth.signUp({
         email,
@@ -65,16 +65,16 @@ export default function SignUpScreen({ navigation }: SignUpScreenProps) {
           data: {
             first_name: firstName,
             last_name: lastName,
-            role: role
-          }
-        }
+            role: role,
+          },
+        },
       });
 
       if (error) throw error;
 
       // If signup was successful and we have a user
       if (data?.user) {
-        // No need to manually create a profile record as Supabase should handle this 
+        // No need to manually create a profile record as Supabase should handle this
         // via triggers or RLS policies, but we can confirm the user was created
         console.log('User created successfully:', data.user.id);
       }
@@ -85,26 +85,28 @@ export default function SignUpScreen({ navigation }: SignUpScreenProps) {
         [
           {
             text: 'OK',
-            onPress: () => navigation.navigate('Login')
-          }
+            onPress: () => navigation.navigate('Login'),
+          },
         ]
       );
     } catch (error: any) {
       console.error('Sign up error:', error);
-      
+
       let errorMsg = 'An error occurred during sign up';
-      
+
       // Improved error handling with specific messages
       if (error.message?.includes('Database error')) {
-        errorMsg = 'Database error creating user. This might be due to an issue with our systems. Please try again later.';
+        errorMsg =
+          'Database error creating user. This might be due to an issue with our systems. Please try again later.';
       } else if (error.message?.includes('already registered')) {
-        errorMsg = 'This email is already registered. Please use a different email or try to login.';
+        errorMsg =
+          'This email is already registered. Please use a different email or try to login.';
       } else if (error.message?.includes('invalid email')) {
         errorMsg = 'Please enter a valid email address.';
       } else if (error.message) {
         errorMsg = error.message;
       }
-      
+
       setErrorMsg(errorMsg);
       Alert.alert('Sign Up Error', errorMsg);
     } finally {
@@ -122,7 +124,9 @@ export default function SignUpScreen({ navigation }: SignUpScreenProps) {
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <View style={styles.header}>
           <Text style={styles.title}>Create Account</Text>
-          <Text style={styles.subtitle}>Sign up to get started with DriveDrop</Text>
+          <Text style={styles.subtitle}>
+            Sign up to get started with DriveDrop
+          </Text>
         </View>
 
         {errorMsg && (
@@ -166,27 +170,53 @@ export default function SignUpScreen({ navigation }: SignUpScreenProps) {
             <Text style={styles.label}>I want to sign up as:</Text>
             <View style={styles.roleContainer}>
               <TouchableOpacity
-                style={[styles.roleButton, role === 'client' && styles.roleButtonSelected]}
+                style={[
+                  styles.roleButton,
+                  role === 'client' && styles.roleButtonSelected,
+                ]}
                 onPress={() => setRole('client')}
                 testID="client-role-button"
               >
-                <Text style={[styles.roleButtonText, role === 'client' && styles.roleButtonTextSelected]}>
+                <Text
+                  style={[
+                    styles.roleButtonText,
+                    role === 'client' && styles.roleButtonTextSelected,
+                  ]}
+                >
                   Client
                 </Text>
-                <Text style={[styles.roleSubtext, role === 'client' && styles.roleSubtextSelected]}>
+                <Text
+                  style={[
+                    styles.roleSubtext,
+                    role === 'client' && styles.roleSubtextSelected,
+                  ]}
+                >
                   Ship packages
                 </Text>
               </TouchableOpacity>
-              
+
               <TouchableOpacity
-                style={[styles.roleButton, role === 'driver' && styles.roleButtonSelected]}
+                style={[
+                  styles.roleButton,
+                  role === 'driver' && styles.roleButtonSelected,
+                ]}
                 onPress={() => setRole('driver')}
                 testID="driver-role-button"
               >
-                <Text style={[styles.roleButtonText, role === 'driver' && styles.roleButtonTextSelected]}>
+                <Text
+                  style={[
+                    styles.roleButtonText,
+                    role === 'driver' && styles.roleButtonTextSelected,
+                  ]}
+                >
                   Driver
                 </Text>
-                <Text style={[styles.roleSubtext, role === 'driver' && styles.roleSubtextSelected]}>
+                <Text
+                  style={[
+                    styles.roleSubtext,
+                    role === 'driver' && styles.roleSubtextSelected,
+                  ]}
+                >
                   Deliver packages
                 </Text>
               </TouchableOpacity>
@@ -248,13 +278,18 @@ export default function SignUpScreen({ navigation }: SignUpScreenProps) {
             activeOpacity={0.7}
             testID="signup-button"
           >
-            <Text style={styles.buttonText}>{loading ? 'Creating Account...' : 'Create Account'}</Text>
+            <Text style={styles.buttonText}>
+              {loading ? 'Creating Account...' : 'Create Account'}
+            </Text>
           </TouchableOpacity>
         </View>
 
         <View style={styles.footer}>
           <Text style={styles.footerText}>Already have an account?</Text>
-          <TouchableOpacity onPress={() => navigation.navigate('Login')} activeOpacity={0.7}>
+          <TouchableOpacity
+            onPress={() => navigation.navigate('Login')}
+            activeOpacity={0.7}
+          >
             <Text style={styles.signInText}>Sign In</Text>
           </TouchableOpacity>
         </View>

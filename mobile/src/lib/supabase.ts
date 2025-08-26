@@ -19,11 +19,17 @@ const ExpoSecureStoreAdapter = {
 };
 
 // Get Supabase URL and anon key from environment variables
-const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL || Constants.expoConfig?.extra?.supabaseUrl as string;
-const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || Constants.expoConfig?.extra?.supabaseAnonKey as string;
+const supabaseUrl =
+  process.env.EXPO_PUBLIC_SUPABASE_URL ||
+  (Constants.expoConfig?.extra?.supabaseUrl as string);
+const supabaseAnonKey =
+  process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ||
+  (Constants.expoConfig?.extra?.supabaseAnonKey as string);
 
 if (!supabaseUrl || !supabaseAnonKey) {
-  throw new Error('Missing Supabase configuration. Check your app.config.js file and .env file.');
+  throw new Error(
+    'Missing Supabase configuration. Check your app.config.js file and .env file.'
+  );
 }
 
 // Create Supabase client

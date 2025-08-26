@@ -40,7 +40,10 @@ export default function LoginScreen({ navigation }: LoginScreenProps) {
       if (error) throw error;
       // No need to navigate, the auth context will handle that
     } catch (error: any) {
-      Alert.alert('Login Error', error.message || 'An error occurred during login');
+      Alert.alert(
+        'Login Error',
+        error.message || 'An error occurred during login'
+      );
     } finally {
       setLoading(false);
     }
@@ -100,8 +103,8 @@ export default function LoginScreen({ navigation }: LoginScreenProps) {
             />
           </View>
 
-          <TouchableOpacity 
-            style={styles.forgotPassword} 
+          <TouchableOpacity
+            style={styles.forgotPassword}
             onPress={navigateToForgotPassword}
             activeOpacity={0.7}
           >
@@ -115,7 +118,9 @@ export default function LoginScreen({ navigation }: LoginScreenProps) {
             activeOpacity={0.7}
             testID="login-button"
           >
-            <Text style={styles.buttonText}>{loading ? 'Signing in...' : 'Sign In'}</Text>
+            <Text style={styles.buttonText}>
+              {loading ? 'Signing in...' : 'Sign In'}
+            </Text>
           </TouchableOpacity>
         </View>
 

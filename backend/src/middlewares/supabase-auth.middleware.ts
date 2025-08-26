@@ -10,11 +10,14 @@ import { createError } from '@utils/error';
 /**
  * Validates resource ownership by checking if the authenticated user
  * has rights to access the requested resource.
- * 
+ *
  * This is a more specific authorization middleware that extends the
  * basic role-based authorization.
  */
-export const validateResourceOwnership = (resourceIdParam = 'id', allowedRoles: string[] = ['admin']) => {
+export const validateResourceOwnership = (
+  resourceIdParam = 'id',
+  allowedRoles: string[] = ['admin']
+) => {
   return async (req: Request, _res: Response, next: NextFunction) => {
     try {
       if (!req.user) {
@@ -27,7 +30,7 @@ export const validateResourceOwnership = (resourceIdParam = 'id', allowedRoles: 
       }
 
       const resourceId = req.params[resourceIdParam];
-      
+
       // For user resources, check if accessing own profile
       if (req.baseUrl.includes('/users')) {
         if (resourceId === req.user.id || resourceId === 'me') {
@@ -48,8 +51,9 @@ export const validateResourceOwnership = (resourceIdParam = 'id', allowedRoles: 
           throw createError('Shipment not found', 404, 'NOT_FOUND');
         }
 
-        const hasAccess = shipment.client_id === req.user.id || 
-                         shipment.driver_id === req.user.id;
+        const hasAccess =
+          shipment.client_id === req.user.id ||
+          shipment.driver_id === req.user.id;
 
         if (!hasAccess) {
           throw createError('Access denied', 403, 'FORBIDDEN');

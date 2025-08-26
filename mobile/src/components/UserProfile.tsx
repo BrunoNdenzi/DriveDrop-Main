@@ -10,7 +10,11 @@ interface UserProfileProps {
   style?: ViewStyle;
 }
 
-export function UserProfile({ user, showDetails = true, style }: UserProfileProps) {
+export function UserProfile({
+  user,
+  showDetails = true,
+  style,
+}: UserProfileProps) {
   return (
     <View style={[styles.container, style]}>
       {user.avatar ? (
@@ -20,24 +24,34 @@ export function UserProfile({ user, showDetails = true, style }: UserProfileProp
           <Text style={styles.initials}>{getInitials(user)}</Text>
         </View>
       )}
-      
+
       <View style={styles.infoContainer}>
         <Text style={styles.name}>{getFullName(user)}</Text>
-        
+
         {showDetails && (
           <>
             <View style={styles.infoRow}>
-              <Ionicons name="mail-outline" size={16} color={Colors.text.secondary} style={styles.icon} />
+              <Ionicons
+                name="mail-outline"
+                size={16}
+                color={Colors.text.secondary}
+                style={styles.icon}
+              />
               <Text style={styles.infoText}>{user.email}</Text>
             </View>
-            
+
             {user.phone && (
               <View style={styles.infoRow}>
-                <Ionicons name="call-outline" size={16} color={Colors.text.secondary} style={styles.icon} />
+                <Ionicons
+                  name="call-outline"
+                  size={16}
+                  color={Colors.text.secondary}
+                  style={styles.icon}
+                />
                 <Text style={styles.infoText}>{user.phone}</Text>
               </View>
             )}
-            
+
             <View style={styles.roleContainer}>
               <Text style={styles.roleText}>{getRoleLabel(user.role)}</Text>
             </View>

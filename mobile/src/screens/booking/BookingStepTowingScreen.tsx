@@ -17,16 +17,33 @@ import { Input } from '../../components/ui/Input';
 import { RootStackParamList } from '../../navigation/types';
 import { useBooking } from '../../context/BookingContext';
 
-type BookingStepTowingProps = NativeStackScreenProps<RootStackParamList, 'BookingStepTowing'>;
+type BookingStepTowingProps = NativeStackScreenProps<
+  RootStackParamList,
+  'BookingStepTowing'
+>;
 
-export default function BookingStepTowingScreen({ navigation }: BookingStepTowingProps) {
+export default function BookingStepTowingScreen({
+  navigation,
+}: BookingStepTowingProps) {
   const { state, updateFormData, setStepValidity, goToNextStep } = useBooking();
   const { towingTransport } = state.formData;
 
   const operabilityOptions = [
-    { value: 'running', label: 'Running/Drivable', description: 'Vehicle starts and drives normally' },
-    { value: 'not_running', label: 'Not Running', description: 'Vehicle does not start or run' },
-    { value: 'partially_running', label: 'Partially Running', description: 'Vehicle has mechanical issues but may start' },
+    {
+      value: 'running',
+      label: 'Running/Drivable',
+      description: 'Vehicle starts and drives normally',
+    },
+    {
+      value: 'not_running',
+      label: 'Not Running',
+      description: 'Vehicle does not start or run',
+    },
+    {
+      value: 'partially_running',
+      label: 'Partially Running',
+      description: 'Vehicle has mechanical issues but may start',
+    },
   ];
 
   const equipmentOptions = [
@@ -40,14 +57,14 @@ export default function BookingStepTowingScreen({ navigation }: BookingStepTowin
 
   // Validate form data
   useEffect(() => {
-    const isValid = !!(towingTransport.operability);
+    const isValid = !!towingTransport.operability;
     setStepValidity('towing', isValid);
   }, [towingTransport, setStepValidity]);
 
   const handleOperabilityChange = (value: string) => {
-    const updatedData = { 
+    const updatedData = {
       ...towingTransport,
-      operability: value as 'running' | 'not_running' | 'partially_running'
+      operability: value as 'running' | 'not_running' | 'partially_running',
     };
     updateFormData('towing', updatedData);
   };
@@ -57,18 +74,18 @@ export default function BookingStepTowingScreen({ navigation }: BookingStepTowin
     const updatedEquipment = currentEquipment.includes(equipment)
       ? currentEquipment.filter(item => item !== equipment)
       : [...currentEquipment, equipment];
-    
-    const updatedData = { 
+
+    const updatedData = {
       ...towingTransport,
-      equipmentNeeds: updatedEquipment
+      equipmentNeeds: updatedEquipment,
     };
     updateFormData('towing', updatedData);
   };
 
   const handleInputChange = (field: string, value: string) => {
-    const updatedData = { 
+    const updatedData = {
       ...towingTransport,
-      [field]: value 
+      [field]: value,
     };
     updateFormData('towing', updatedData);
   };
@@ -87,7 +104,7 @@ export default function BookingStepTowingScreen({ navigation }: BookingStepTowin
   return (
     <View style={styles.container}>
       <StatusBar style="dark" />
-      
+
       {/* Header */}
       <View style={styles.header}>
         <Text style={styles.title}>Towing & Transport</Text>
@@ -97,8 +114,8 @@ export default function BookingStepTowingScreen({ navigation }: BookingStepTowin
         </View>
       </View>
 
-      <ScrollView 
-        style={styles.content} 
+      <ScrollView
+        style={styles.content}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
         contentContainerStyle={{ flexGrow: 1 }}
@@ -110,33 +127,46 @@ export default function BookingStepTowingScreen({ navigation }: BookingStepTowin
               Is your vehicle currently drivable?
             </Text>
 
-            {operabilityOptions.map((option) => (
+            {operabilityOptions.map(option => (
               <TouchableOpacity
                 key={option.value}
                 style={[
                   styles.optionCard,
-                  towingTransport.operability === option.value && styles.optionCardSelected
+                  towingTransport.operability === option.value &&
+                    styles.optionCardSelected,
                 ]}
                 onPress={() => handleOperabilityChange(option.value)}
               >
                 <View style={styles.optionContent}>
                   <View style={styles.optionHeader}>
-                    <Text style={[
-                      styles.optionLabel,
-                      towingTransport.operability === option.value && styles.optionLabelSelected
-                    ]}>
+                    <Text
+                      style={[
+                        styles.optionLabel,
+                        towingTransport.operability === option.value &&
+                          styles.optionLabelSelected,
+                      ]}
+                    >
                       {option.label}
                     </Text>
-                    <View style={[
-                      styles.radioButton,
-                      towingTransport.operability === option.value && styles.radioButtonSelected
-                    ]}>
+                    <View
+                      style={[
+                        styles.radioButton,
+                        towingTransport.operability === option.value &&
+                          styles.radioButtonSelected,
+                      ]}
+                    >
                       {towingTransport.operability === option.value && (
-                        <MaterialIcons name="check" size={16} color={Colors.surface} />
+                        <MaterialIcons
+                          name="check"
+                          size={16}
+                          color={Colors.surface}
+                        />
                       )}
                     </View>
                   </View>
-                  <Text style={styles.optionDescription}>{option.description}</Text>
+                  <Text style={styles.optionDescription}>
+                    {option.description}
+                  </Text>
                 </View>
               </TouchableOpacity>
             ))}
@@ -149,19 +179,25 @@ export default function BookingStepTowingScreen({ navigation }: BookingStepTowin
             </Text>
 
             <View style={styles.equipmentGrid}>
-              {equipmentOptions.map((equipment) => (
+              {equipmentOptions.map(equipment => (
                 <TouchableOpacity
                   key={equipment}
                   style={[
                     styles.equipmentChip,
-                    (towingTransport.equipmentNeeds || []).includes(equipment) && styles.equipmentChipSelected
+                    (towingTransport.equipmentNeeds || []).includes(
+                      equipment
+                    ) && styles.equipmentChipSelected,
                   ]}
                   onPress={() => handleEquipmentToggle(equipment)}
                 >
-                  <Text style={[
-                    styles.equipmentText,
-                    (towingTransport.equipmentNeeds || []).includes(equipment) && styles.equipmentTextSelected
-                  ]}>
+                  <Text
+                    style={[
+                      styles.equipmentText,
+                      (towingTransport.equipmentNeeds || []).includes(
+                        equipment
+                      ) && styles.equipmentTextSelected,
+                    ]}
+                  >
                     {equipment}
                   </Text>
                 </TouchableOpacity>
@@ -174,7 +210,9 @@ export default function BookingStepTowingScreen({ navigation }: BookingStepTowin
               label="Special Requirements"
               placeholder="Any special towing or transport requirements"
               value={towingTransport.specialRequirements || ''}
-              onChangeText={(value) => handleInputChange('specialRequirements', value)}
+              onChangeText={value =>
+                handleInputChange('specialRequirements', value)
+              }
               leftIcon="build"
               multiline
               numberOfLines={3}

@@ -27,7 +27,10 @@ export const login = asyncHandler(async (req: Request, res: Response) => {
   }
 
   // Login user
-  const { accessToken, refreshToken } = await authService.login(email, password);
+  const { accessToken, refreshToken } = await authService.login(
+    email,
+    password
+  );
 
   // Set refresh token as HTTP-only cookie
   res.cookie('refreshToken', refreshToken, {
@@ -73,7 +76,7 @@ export const register = asyncHandler(async (req: Request, res: Response) => {
   }
 
   // Default to client role if not specified
-  const userRole = role as UserRole || UserRole.CLIENT;
+  const userRole = (role as UserRole) || UserRole.CLIENT;
 
   // Register user
   const { accessToken, refreshToken } = await authService.register(
@@ -101,17 +104,19 @@ export const register = asyncHandler(async (req: Request, res: Response) => {
  * @route POST /api/v1/auth/refresh-token
  * @access Public
  */
-export const refreshToken = asyncHandler(async (req: Request, res: Response) => {
-  const { refreshToken } = req.cookies;
+export const refreshToken = asyncHandler(
+  async (req: Request, res: Response) => {
+    const { refreshToken } = req.cookies;
 
-  if (!refreshToken) {
-    throw createError('Refresh token is required', 401, 'UNAUTHORIZED');
+    if (!refreshToken) {
+      throw createError('Refresh token is required', 401, 'UNAUTHORIZED');
+    }
+
+    const { accessToken } = await authService.refreshToken(refreshToken);
+
+    res.status(200).json(successResponse({ accessToken }));
   }
-
-  const { accessToken } = await authService.refreshToken(refreshToken);
-
-  res.status(200).json(successResponse({ accessToken }));
-});
+);
 
 /**
  * Logout user

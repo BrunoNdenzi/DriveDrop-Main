@@ -24,11 +24,14 @@ module.exports = [
     },
     plugins: {
       '@typescript-eslint': typescriptEslint,
-      'react': reactPlugin,
+      react: reactPlugin,
       'react-native': reactNativePlugin,
     },
     rules: {
-      '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
+      '@typescript-eslint/no-unused-vars': [
+        'error',
+        { argsIgnorePattern: '^_' },
+      ],
       '@typescript-eslint/no-explicit-any': 'error',
       'react/react-in-jsx-scope': 'off',
       'react-native/no-unused-styles': 'error',

@@ -20,7 +20,7 @@ const getEnvironment = (): Environment => {
   // but not properly typed in the ExpoConfig type
   const expoConfig = Constants.expoConfig as any;
   const releaseChannel = expoConfig?.releaseChannel;
-  
+
   // Default to development if no release channel
   if (!releaseChannel || releaseChannel === 'default') {
     return {
@@ -31,7 +31,7 @@ const getEnvironment = (): Environment => {
       stripePublishableKey: expoConfig?.extra?.stripePublishableKey || '',
     };
   }
-  
+
   // Production environment
   if (releaseChannel.indexOf('prod') !== -1) {
     return {
@@ -42,7 +42,7 @@ const getEnvironment = (): Environment => {
       stripePublishableKey: expoConfig?.extra?.stripePublishableKey || '',
     };
   }
-  
+
   // Staging environment
   if (releaseChannel.indexOf('staging') !== -1) {
     return {
@@ -53,7 +53,7 @@ const getEnvironment = (): Environment => {
       stripePublishableKey: expoConfig?.extra?.stripePublishableKey || '',
     };
   }
-  
+
   // Default to development if no match
   return {
     apiUrl: DEV_API_URL,
@@ -70,6 +70,7 @@ export const getApiUrl = (): string => environment.apiUrl;
 export const getSupabaseUrl = (): string => environment.supabaseUrl;
 export const getSupabaseAnonKey = (): string => environment.supabaseAnonKey;
 export const getGoogleMapsApiKey = (): string => environment.googleMapsApiKey;
-export const getStripePublishableKey = (): string => environment.stripePublishableKey;
+export const getStripePublishableKey = (): string =>
+  environment.stripePublishableKey;
 
 export default environment;

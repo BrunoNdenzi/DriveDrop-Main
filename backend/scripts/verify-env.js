@@ -1,6 +1,6 @@
 /**
  * Environment Variables Verification Script
- * 
+ *
  * This script checks if all required environment variables are set.
  * It also verifies the security of certain key variables.
  */
@@ -23,7 +23,9 @@ const colors = {
 // Check if .env file exists
 if (!fs.existsSync(path.join(__dirname, '..', '.env'))) {
   console.error(`${colors.red}ERROR: .env file not found!${colors.reset}`);
-  console.log(`${colors.yellow}Please copy .env.example to .env and fill in your values.${colors.reset}`);
+  console.log(
+    `${colors.yellow}Please copy .env.example to .env and fill in your values.${colors.reset}`
+  );
   process.exit(1);
 }
 
@@ -44,10 +46,10 @@ envExample.split('\n').forEach(line => {
   // Check if this is a variable definition (not a commented variable)
   if (line.includes('=')) {
     const varName = line.split('=')[0].trim();
-    
+
     // Check if the line is commented out
     const isCommented = envExample.includes(`# ${varName}=`);
-    
+
     if (!isCommented) {
       requiredVars.push(varName);
     } else {
@@ -76,7 +78,7 @@ const securityChecks = {
     min_length: 32,
     value: null,
     secure: false,
-    message: 'should be at least 32 characters and cryptographically secure'
+    message: 'should be at least 32 characters and cryptographically secure',
   },
 };
 
@@ -84,14 +86,14 @@ const securityChecks = {
 Object.keys(securityChecks).forEach(varName => {
   const regex = new RegExp(`${varName}=(.+)`);
   const match = env.match(regex);
-  
+
   if (match && match[1]) {
     securityChecks[varName].value = match[1];
-    
+
     // Check JWT_SECRET
     if (varName === 'JWT_SECRET') {
       if (
-        match[1].length >= securityChecks[varName].min_length && 
+        match[1].length >= securityChecks[varName].min_length &&
         match[1] !== 'your-super-secret-jwt-key-here' &&
         match[1] !== 'secret' &&
         match[1] !== 'jwt_secret'
@@ -107,11 +109,17 @@ console.log(`${colors.blue}Environment Variable Verification${colors.reset}`);
 console.log('-----------------------------------');
 
 if (missingVars.length === 0) {
-  console.log(`${colors.green}✅ All required environment variables are defined.${colors.reset}`);
+  console.log(
+    `${colors.green}✅ All required environment variables are defined.${colors.reset}`
+  );
 } else {
-  console.error(`${colors.red}❌ Missing required environment variables:${colors.reset}`);
+  console.error(
+    `${colors.red}❌ Missing required environment variables:${colors.reset}`
+  );
   missingVars.forEach(v => console.log(`   - ${v}`));
-  console.log(`\n${colors.yellow}Please add these variables to your .env file.${colors.reset}`);
+  console.log(
+    `\n${colors.yellow}Please add these variables to your .env file.${colors.reset}`
+  );
 }
 
 // Security check results
@@ -122,7 +130,9 @@ Object.keys(securityChecks).forEach(varName => {
   if (securityChecks[varName].value === null) {
     console.warn(`${colors.yellow}⚠️  ${varName}: Not defined${colors.reset}`);
   } else if (!securityChecks[varName].secure) {
-    console.error(`${colors.red}❌ ${varName}: Insecure - ${securityChecks[varName].message}${colors.reset}`);
+    console.error(
+      `${colors.red}❌ ${varName}: Insecure - ${securityChecks[varName].message}${colors.reset}`
+    );
   } else {
     console.log(`${colors.green}✅ ${varName}: Secure${colors.reset}`);
   }
@@ -130,22 +140,41 @@ Object.keys(securityChecks).forEach(varName => {
 
 // Optional variables note
 if (commentedVars.length > 0) {
-  console.log(`\n${colors.cyan}ℹ️  Optional variables available:${colors.reset}`);
-  console.log(`${colors.cyan}   The following variables are optional and commented out in .env.example:${colors.reset}`);
+  console.log(
+    `\n${colors.cyan}ℹ️  Optional variables available:${colors.reset}`
+  );
+  console.log(
+    `${colors.cyan}   The following variables are optional and commented out in .env.example:${colors.reset}`
+  );
   commentedVars.forEach(v => console.log(`   - ${v}`));
 }
 
 // Security recommendations
 console.log(`\n${colors.magenta}Security Recommendations${colors.reset}`);
 console.log('-----------------------------------');
-console.log(`${colors.magenta}1. Generate secure random values for secrets:${colors.reset}`);
-console.log(`   node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"${colors.reset}`);
-console.log(`${colors.magenta}2. Rotate secrets regularly, especially in production${colors.reset}`);
-console.log(`${colors.magenta}3. Use different values across environments${colors.reset}`);
-console.log(`${colors.magenta}4. Consider using a secrets manager for production${colors.reset}`);
+console.log(
+  `${colors.magenta}1. Generate secure random values for secrets:${colors.reset}`
+);
+console.log(
+  `   node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"${colors.reset}`
+);
+console.log(
+  `${colors.magenta}2. Rotate secrets regularly, especially in production${colors.reset}`
+);
+console.log(
+  `${colors.magenta}3. Use different values across environments${colors.reset}`
+);
+console.log(
+  `${colors.magenta}4. Consider using a secrets manager for production${colors.reset}`
+);
 
 // Exit with appropriate code
-if (missingVars.length > 0 || Object.keys(securityChecks).some(k => securityChecks[k].value && !securityChecks[k].secure)) {
+if (
+  missingVars.length > 0 ||
+  Object.keys(securityChecks).some(
+    k => securityChecks[k].value && !securityChecks[k].secure
+  )
+) {
   process.exit(1);
 }
 

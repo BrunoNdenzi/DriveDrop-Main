@@ -11,33 +11,33 @@ type NewMessage = Database['public']['Tables']['messages']['Insert'];
 
 /**
  * Hook for real-time messaging functionality
- * 
+ *
  * @param shipmentId The ID of the shipment for messaging context
  * @returns Object containing messages, loading state, error state, and functions to send/mark messages as read
- * 
+ *
  * @example
  * ```tsx
  * // In a chat component:
- * const { 
- *   messages, 
- *   loading, 
- *   error, 
- *   sendMessage, 
- *   markAsRead 
+ * const {
+ *   messages,
+ *   loading,
+ *   error,
+ *   sendMessage,
+ *   markAsRead
  * } = useRealtimeMessages(shipmentId);
- * 
+ *
  * // Send a new message
  * const handleSend = () => {
  *   sendMessage(messageText);
  * };
- * 
+ *
  * // Messages will update in real-time
  * return (
  *   <FlatList
  *     data={messages}
  *     renderItem={({item}) => (
- *       <MessageBubble 
- *         message={item} 
+ *       <MessageBubble
+ *         message={item}
  *         onPress={() => markAsRead(item.id)}
  *       />
  *     )}
@@ -54,7 +54,7 @@ export function useRealtimeMessages(shipmentId: string) {
   // Fetch existing messages when the component mounts
   useEffect(() => {
     if (!shipmentId) return;
-    
+
     const fetchMessages = async () => {
       try {
         setLoading(true);
@@ -63,7 +63,7 @@ export function useRealtimeMessages(shipmentId: string) {
           .select('*')
           .eq('shipment_id', shipmentId)
           .order('created_at', { ascending: true });
-          
+
         if (error) throw error;
         setMessages(data || []);
       } catch (err) {
@@ -73,9 +73,9 @@ export function useRealtimeMessages(shipmentId: string) {
         setLoading(false);
       }
     };
-    
+
     fetchMessages();
-    
+
     // Handler for new messages
     const handleNewMessage = (message: MessageData) => {
       setMessages(prev => {
@@ -86,9 +86,10 @@ export function useRealtimeMessages(shipmentId: string) {
         return [...prev, message];
       });
     };
-    
+
     // Subscribe to new messages
-    const newChannel = supabase.channel(`messages:${shipmentId}`)
+    const newChannel = supabase
+      .channel(`messages:${shipmentId}`)
       .on(
         'postgres_changes',
         {
@@ -97,7 +98,7 @@ export function useRealtimeMessages(shipmentId: string) {
           table: 'messages',
           filter: `shipment_id=eq.${shipmentId}`,
         },
-        (payload) => {
+        payload => {
           console.log('New message received:', payload);
           handleNewMessage(payload.new as MessageData);
         }
@@ -110,20 +111,20 @@ export function useRealtimeMessages(shipmentId: string) {
           table: 'messages',
           filter: `shipment_id=eq.${shipmentId}`,
         },
-        (payload) => {
+        payload => {
           console.log('Message updated:', payload);
           // Update the message in our state
-          setMessages(prev => 
-            prev.map(msg => 
+          setMessages(prev =>
+            prev.map(msg =>
               msg.id === payload.new.id ? (payload.new as MessageData) : msg
             )
           );
         }
       )
       .subscribe();
-      
+
     setChannel(newChannel);
-    
+
     // Cleanup function
     return () => {
       if (newChannel) {
@@ -131,11 +132,11 @@ export function useRealtimeMessages(shipmentId: string) {
       }
     };
   }, [shipmentId]);
-  
+
   // Function to send a new message
   const sendMessage = async (content: string, senderId: string) => {
     if (!content.trim() || !shipmentId || !senderId) return;
-    
+
     try {
       const newMessage: NewMessage = {
         shipment_id: shipmentId,
@@ -143,29 +144,29 @@ export function useRealtimeMessages(shipmentId: string) {
         content: content.trim(),
         is_read: false,
       };
-      
+
       const { error } = await supabase.from('messages').insert(newMessage);
-      
+
       if (error) throw error;
     } catch (err) {
       console.error('Error sending message:', err);
       setError(err instanceof Error ? err : new Error(String(err)));
     }
   };
-  
+
   // Function to mark a message as read
   const markAsRead = async (messageId: string) => {
     try {
       const { error } = await supabase.rpc('mark_message_as_read', {
         p_message_id: messageId,
-        p_user_id: (await supabase.auth.getUser()).data.user?.id
+        p_user_id: (await supabase.auth.getUser()).data.user?.id,
       });
-      
+
       if (error) throw error;
-      
+
       // Update local state to show message as read
-      setMessages(prev => 
-        prev.map(msg => 
+      setMessages(prev =>
+        prev.map(msg =>
           msg.id === messageId ? { ...msg, is_read: true } : msg
         )
       );
@@ -173,13 +174,13 @@ export function useRealtimeMessages(shipmentId: string) {
       console.error('Error marking message as read:', err);
     }
   };
-  
+
   return {
     messages,
     loading,
     error,
     sendMessage,
     markAsRead,
-    channel
+    channel,
   };
 }

@@ -1,4 +1,10 @@
-import React, { createContext, useContext, useReducer, useCallback, ReactNode } from 'react';
+import React, {
+  createContext,
+  useContext,
+  useReducer,
+  useCallback,
+  ReactNode,
+} from 'react';
 import { ShipmentService } from '../services/shipmentService';
 import { useAuth } from './AuthContext';
 
@@ -99,7 +105,7 @@ export interface BookingFormData {
   paymentDetails: Partial<PaymentDetails>;
 }
 
-export type BookingStep = 
+export type BookingStep =
   | 'customer'
   | 'vehicle'
   | 'pickup'
@@ -120,7 +126,10 @@ interface BookingState {
 type BookingAction =
   | { type: 'SET_STEP'; payload: BookingStep }
   | { type: 'UPDATE_FORM_DATA'; payload: { step: BookingStep; data: any } }
-  | { type: 'SET_STEP_VALIDITY'; payload: { step: BookingStep; isValid: boolean } }
+  | {
+      type: 'SET_STEP_VALIDITY';
+      payload: { step: BookingStep; isValid: boolean };
+    }
   | { type: 'SAVE_DRAFT' }
   | { type: 'LOAD_DRAFT'; payload: BookingFormData }
   | { type: 'RESET_FORM' }
@@ -139,8 +148,19 @@ const initialState: BookingState = {
     pickupDetails: {},
     deliveryDetails: {},
     towingTransport: { equipmentNeeds: [] },
-    insuranceDocumentation: { proofOfOwnership: [], insurance: [], otherDocuments: [] },
-    visualDocumentation: { frontView: [], rearView: [], leftSide: [], rightSide: [], interior: [], damagePhotos: [] },
+    insuranceDocumentation: {
+      proofOfOwnership: [],
+      insurance: [],
+      otherDocuments: [],
+    },
+    visualDocumentation: {
+      frontView: [],
+      rearView: [],
+      leftSide: [],
+      rightSide: [],
+      interior: [],
+      damagePhotos: [],
+    },
     termsAuthorization: {},
     paymentDetails: {
       paymentMethod: '',
@@ -171,11 +191,14 @@ const initialState: BookingState = {
   isDraft: false,
 };
 
-function bookingReducer(state: BookingState, action: BookingAction): BookingState {
+function bookingReducer(
+  state: BookingState,
+  action: BookingAction
+): BookingState {
   switch (action.type) {
     case 'SET_STEP':
       return { ...state, currentStep: action.payload };
-    
+
     case 'UPDATE_FORM_DATA':
       const stepKey = action.payload.step;
       // Map step names to form data keys
@@ -190,10 +213,10 @@ function bookingReducer(state: BookingState, action: BookingAction): BookingStat
         terms: 'termsAuthorization',
         payment: 'paymentDetails',
       };
-      
+
       const formDataKey = stepToFormKeyMap[stepKey];
       const currentStepData = state.formData[formDataKey] || {};
-      
+
       return {
         ...state,
         formData: {
@@ -205,7 +228,7 @@ function bookingReducer(state: BookingState, action: BookingAction): BookingStat
         },
         isDraft: true,
       };
-    
+
     case 'SET_STEP_VALIDITY':
       return {
         ...state,
@@ -214,17 +237,17 @@ function bookingReducer(state: BookingState, action: BookingAction): BookingStat
           [action.payload.step]: action.payload.isValid,
         },
       };
-    
+
     case 'SAVE_DRAFT':
       return { ...state, isDraft: true };
-    
+
     case 'LOAD_DRAFT':
       return {
         ...state,
         formData: action.payload,
         isDraft: true,
       };
-    
+
     case 'SET_QUOTE_ID':
       return {
         ...state,
@@ -233,10 +256,10 @@ function bookingReducer(state: BookingState, action: BookingAction): BookingStat
           quoteId: action.payload,
         },
       };
-    
+
     case 'RESET_FORM':
       return initialState;
-    
+
     default:
       return state;
   }
@@ -265,7 +288,7 @@ const BookingContext = createContext<BookingContextType | undefined>(undefined);
 
 const stepOrder: BookingStep[] = [
   'customer',
-  'vehicle', 
+  'vehicle',
   'pickup',
   'delivery',
   'towing',
@@ -308,8 +331,10 @@ export function BookingProvider({ children }: { children: ReactNode }) {
   };
 
   const canGoToNextStep = () => {
-    return state.isValid[state.currentStep] && 
-           stepOrder.indexOf(state.currentStep) < stepOrder.length - 1;
+    return (
+      state.isValid[state.currentStep] &&
+      stepOrder.indexOf(state.currentStep) < stepOrder.length - 1
+    );
   };
 
   const canGoToPreviousStep = () => {
@@ -340,11 +365,17 @@ export function BookingProvider({ children }: { children: ReactNode }) {
 
   const submitShipment = async () => {
     if (!user) throw new Error('User not authenticated');
-    
+
     try {
       // Convert booking form data to shipment data
-      const shipmentData = ShipmentService.convertBookingToShipment(state.formData, 250);
-      const response = await ShipmentService.createShipment(shipmentData, user.id);
+      const shipmentData = ShipmentService.convertBookingToShipment(
+        state.formData,
+        250
+      );
+      const response = await ShipmentService.createShipment(
+        shipmentData,
+        user.id
+      );
       dispatch({ type: 'RESET_FORM' });
       return response;
     } catch (error) {

@@ -7,7 +7,7 @@ type TrackingEventType = Database['public']['Enums']['tracking_event_type'];
 
 /**
  * Interface for creating a new shipment
- * Note: client_id is NOT included here as it should always be derived from 
+ * Note: client_id is NOT included here as it should always be derived from
  * the authenticated user's session for security reasons
  */
 export interface CreateShipmentData {
@@ -36,26 +36,40 @@ export class ShipmentService {
    */
   static async createShipment(data: CreateShipmentData, userId: string) {
     try {
-      console.log('ShipmentService.createShipment - Starting with userId:', userId);
-      console.log('ShipmentService.createShipment - Complete payload:', JSON.stringify(data));
-      
+      console.log(
+        'ShipmentService.createShipment - Starting with userId:',
+        userId
+      );
+      console.log(
+        'ShipmentService.createShipment - Complete payload:',
+        JSON.stringify(data)
+      );
+
       // Verify auth state before insert
-      const { data: authData, error: authError } = await supabase.auth.getSession();
+      const { data: authData, error: authError } =
+        await supabase.auth.getSession();
       if (authError) {
-        console.error('Authentication error before shipment insert:', authError);
+        console.error(
+          'Authentication error before shipment insert:',
+          authError
+        );
         throw new Error(`Authentication failed: ${authError.message}`);
       }
-      
+
       console.log('Current auth session:', JSON.stringify(authData));
       if (!authData.session) {
-        throw new Error('No active session found - user must be logged in to create shipments');
+        throw new Error(
+          'No active session found - user must be logged in to create shipments'
+        );
       }
-      
-      console.log(`Session user ID: ${authData.session.user.id}, Using client_id: ${userId}`);
+
+      console.log(
+        `Session user ID: ${authData.session.user.id}, Using client_id: ${userId}`
+      );
       if (authData.session.user.id !== userId) {
         console.warn('Warning: Session user ID does not match provided userId');
       }
-      
+
       // Create insert payload with client_id explicitly set to the session user's ID
       const insertPayload = {
         client_id: authData.session.user.id, // Always use the authenticated user's ID
@@ -74,7 +88,7 @@ export class ShipmentService {
         estimated_price: data.estimated_price,
       };
       console.log('Insert payload:', JSON.stringify(insertPayload));
-      
+
       // Perform the insert with the verified payload
       const { data: shipment, error } = await supabase
         .from('shipments')
@@ -86,10 +100,17 @@ export class ShipmentService {
         console.error('Error creating shipment in Supabase:', error);
         // Attempt to diagnose RLS issues
         if (error.code === '42501') {
-          console.error('Row-level security policy violation - this is likely a permission issue:');
+          console.error(
+            'Row-level security policy violation - this is likely a permission issue:'
+          );
           console.error('1. Verify the user is authenticated');
-          console.error('2. Verify the RLS policy allows insert where client_id = auth.uid()');
-          console.error('3. Verify auth.uid() matches the client_id being inserted:', insertPayload.client_id);
+          console.error(
+            '2. Verify the RLS policy allows insert where client_id = auth.uid()'
+          );
+          console.error(
+            '3. Verify auth.uid() matches the client_id being inserted:',
+            insertPayload.client_id
+          );
         }
         throw error;
       }
@@ -105,7 +126,10 @@ export class ShipmentService {
   /**
    * Convert BookingFormData to CreateShipmentData
    */
-  static convertBookingToShipment(bookingData: BookingFormData, estimatedPrice: number = 250): CreateShipmentData {
+  static convertBookingToShipment(
+    bookingData: BookingFormData,
+    estimatedPrice: number = 250
+  ): CreateShipmentData {
     const {
       customerDetails,
       vehicleInformation,
@@ -115,17 +139,24 @@ export class ShipmentService {
     } = bookingData;
 
     // Create a descriptive title and description
-    const vehicleDescription = `${vehicleInformation.year || ''} ${vehicleInformation.make || ''} ${vehicleInformation.model || ''}`.trim();
+    const vehicleDescription =
+      `${vehicleInformation.year || ''} ${vehicleInformation.make || ''} ${vehicleInformation.model || ''}`.trim();
     const title = vehicleDescription || 'Vehicle Transport';
-    
+
     const description = [
       vehicleDescription && `Vehicle: ${vehicleDescription}`,
       vehicleInformation.vin && `VIN: ${vehicleInformation.vin}`,
-      vehicleInformation.licensePlate && `License: ${vehicleInformation.licensePlate}`,
-      vehicleInformation.conditionNotes && `Condition: ${vehicleInformation.conditionNotes}`,
-      towingTransport.operability && `Operability: ${towingTransport.operability}`,
-      deliveryDetails.specialInstructions && `Instructions: ${deliveryDetails.specialInstructions}`,
-    ].filter(Boolean).join('\n');
+      vehicleInformation.licensePlate &&
+        `License: ${vehicleInformation.licensePlate}`,
+      vehicleInformation.conditionNotes &&
+        `Condition: ${vehicleInformation.conditionNotes}`,
+      towingTransport.operability &&
+        `Operability: ${towingTransport.operability}`,
+      deliveryDetails.specialInstructions &&
+        `Instructions: ${deliveryDetails.specialInstructions}`,
+    ]
+      .filter(Boolean)
+      .join('\n');
 
     // Combine pickup and delivery notes
     const pickupNotes = [
@@ -133,15 +164,21 @@ export class ShipmentService {
       pickupDetails.time && `Pickup Time: ${pickupDetails.time}`,
       pickupDetails.contactPerson && `Contact: ${pickupDetails.contactPerson}`,
       pickupDetails.contactPhone && `Phone: ${pickupDetails.contactPhone}`,
-    ].filter(Boolean).join('\n');
+    ]
+      .filter(Boolean)
+      .join('\n');
 
     const deliveryNotes = [
       deliveryDetails.date && `Delivery Date: ${deliveryDetails.date}`,
       deliveryDetails.time && `Delivery Time: ${deliveryDetails.time}`,
-      deliveryDetails.contactPerson && `Contact: ${deliveryDetails.contactPerson}`,
+      deliveryDetails.contactPerson &&
+        `Contact: ${deliveryDetails.contactPerson}`,
       deliveryDetails.contactPhone && `Phone: ${deliveryDetails.contactPhone}`,
-      deliveryDetails.specialInstructions && `Instructions: ${deliveryDetails.specialInstructions}`,
-    ].filter(Boolean).join('\n');
+      deliveryDetails.specialInstructions &&
+        `Instructions: ${deliveryDetails.specialInstructions}`,
+    ]
+      .filter(Boolean)
+      .join('\n');
 
     return {
       title,
@@ -191,7 +228,7 @@ export class ShipmentService {
   static async getAvailableShipments(driverId?: string) {
     try {
       console.log('Fetching available shipments...');
-      
+
       // Get all pending shipments without a driver assigned
       const { data: pendingShipments, error } = await supabase
         .from('shipments')
@@ -207,46 +244,56 @@ export class ShipmentService {
 
       // If no driver ID provided, return all pending shipments
       if (!driverId) {
-        console.log(`Found ${pendingShipments?.length || 0} available shipments`);
+        console.log(
+          `Found ${pendingShipments?.length || 0} available shipments`
+        );
         return pendingShipments || [];
       }
-      
+
       // If driver ID provided, filter out shipments they've already applied for
       console.log(`Checking applications for driver ${driverId}`);
       const { data: driverApplications, error: appsError } = await supabase
         .from('job_applications')
         .select('shipment_id')
         .eq('driver_id', driverId);
-        
+
       if (appsError) {
         console.error('Error fetching driver applications:', appsError);
         // Continue with all shipments if we can't get applications
         return pendingShipments || [];
       }
-      
+
       // Create a set of shipment IDs the driver has already applied for
-      const appliedShipmentIds = new Set(driverApplications?.map(app => app.shipment_id) || []);
-      
+      const appliedShipmentIds = new Set(
+        driverApplications?.map(app => app.shipment_id) || []
+      );
+
       // Filter out shipments the driver has already applied for
-      const availableShipments = pendingShipments?.filter(
-        shipment => !appliedShipmentIds.has(shipment.id)
-      ) || [];
-      
-      console.log(`Found ${availableShipments.length} available shipments after filtering out ${appliedShipmentIds.size} applied jobs`);
-      
+      const availableShipments =
+        pendingShipments?.filter(
+          shipment => !appliedShipmentIds.has(shipment.id)
+        ) || [];
+
+      console.log(
+        `Found ${availableShipments.length} available shipments after filtering out ${appliedShipmentIds.size} applied jobs`
+      );
+
       // Debug: also check all shipments to see their current state
       const { data: allShipments, error: allError } = await supabase
         .from('shipments')
         .select('id, status, driver_id, title')
         .order('created_at', { ascending: false });
-        
+
       if (!allError && allShipments) {
-        console.log('DEBUG - All shipments state:', allShipments.map(s => ({
-          id: s.id,
-          status: s.status,
-          driver_id: s.driver_id ? 'assigned' : 'unassigned',
-          title: s.title
-        })));
+        console.log(
+          'DEBUG - All shipments state:',
+          allShipments.map(s => ({
+            id: s.id,
+            status: s.status,
+            driver_id: s.driver_id ? 'assigned' : 'unassigned',
+            title: s.title,
+          }))
+        );
       }
 
       return availableShipments;
@@ -265,19 +312,24 @@ export class ShipmentService {
       if (!shipmentId || shipmentId === 'null' || shipmentId === 'undefined') {
         throw new Error('Invalid shipment ID provided');
       }
-      
+
       if (!driverId || driverId === 'null' || driverId === 'undefined') {
         throw new Error('Invalid driver ID provided');
       }
 
-      console.log('ShipmentService: Applying for shipment:', { shipmentId, driverId });
+      console.log('ShipmentService: Applying for shipment:', {
+        shipmentId,
+        driverId,
+      });
 
       // Use the stored procedure for safer application handling
-      const { data: result, error: applicationError } = await supabase
-        .rpc('apply_for_shipment', {
+      const { data: result, error: applicationError } = await supabase.rpc(
+        'apply_for_shipment',
+        {
           p_shipment_id: shipmentId,
-          p_driver_id: driverId
-        });
+          p_driver_id: driverId,
+        }
+      );
 
       if (applicationError) {
         console.error('Error applying for shipment:', applicationError);
@@ -285,13 +337,15 @@ export class ShipmentService {
       }
 
       console.log('ShipmentService: Application result:', result);
-      
+
       if (result.message && result.message.includes('already applied')) {
-        console.log(`ShipmentService: Driver ${driverId} has already applied for shipment ${shipmentId}`);
+        console.log(
+          `ShipmentService: Driver ${driverId} has already applied for shipment ${shipmentId}`
+        );
       } else {
         console.log('ShipmentService: Application submitted successfully');
       }
-      
+
       return result;
     } catch (error) {
       console.error('ShipmentService.applyForShipment error:', error);
@@ -308,7 +362,7 @@ export class ShipmentService {
       if (!shipmentId || shipmentId === 'null' || shipmentId === 'undefined') {
         throw new Error('Invalid shipment ID provided');
       }
-      
+
       if (!driverId || driverId === 'null' || driverId === 'undefined') {
         throw new Error('Invalid driver ID provided');
       }
@@ -339,19 +393,26 @@ export class ShipmentService {
 
       if (shipment.status !== 'pending') {
         console.warn('Shipment status is not pending:', shipment.status);
-        throw new Error(`This shipment cannot be assigned. Current status: ${shipment.status}`);
+        throw new Error(
+          `This shipment cannot be assigned. Current status: ${shipment.status}`
+        );
       }
 
       // Use the new stored procedure to handle all the assignment logic
       console.log('Using assign_driver_to_shipment stored procedure...');
-      const { data: result, error: assignError } = await supabase
-        .rpc('assign_driver_to_shipment', {
+      const { data: result, error: assignError } = await supabase.rpc(
+        'assign_driver_to_shipment',
+        {
           p_shipment_id: shipmentId,
-          p_driver_id: driverId
-        });
+          p_driver_id: driverId,
+        }
+      );
 
       if (assignError) {
-        console.error('Error assigning driver via stored procedure:', assignError);
+        console.error(
+          'Error assigning driver via stored procedure:',
+          assignError
+        );
         throw assignError;
       }
 
@@ -361,7 +422,7 @@ export class ShipmentService {
         .select('*')
         .eq('id', shipmentId)
         .single();
-        
+
       if (fetchError) {
         console.error('Error fetching updated shipment:', fetchError);
         throw fetchError;
@@ -382,7 +443,8 @@ export class ShipmentService {
     try {
       const { data, error } = await supabase
         .from('job_applications')
-        .select(`
+        .select(
+          `
           *,
           profiles:driver_id (
             id,
@@ -392,7 +454,8 @@ export class ShipmentService {
             phone,
             profile_picture_url
           )
-        `)
+        `
+        )
         .eq('shipment_id', shipmentId)
         .eq('status', 'pending')
         .order('applied_at', { ascending: true });
@@ -432,7 +495,7 @@ export class ShipmentService {
         client_id: shipment.client_id,
         title: shipment.title,
         created_at: shipment.created_at,
-        updated_at: shipment.updated_at
+        updated_at: shipment.updated_at,
       });
 
       return shipment;
@@ -475,7 +538,10 @@ export class ShipmentService {
         .eq('shipment_id', shipmentId);
 
       if (resetApplicationsError) {
-        console.error('Error resetting job applications:', resetApplicationsError);
+        console.error(
+          'Error resetting job applications:',
+          resetApplicationsError
+        );
       }
 
       console.log('Shipment reset successfully:', updatedShipment);

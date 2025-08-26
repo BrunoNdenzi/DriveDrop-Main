@@ -6,7 +6,7 @@ import { UserProfile } from '../context/AuthContext';
 
 /**
  * Higher-Order Component (HOC) that restricts access to components based on user roles
- * 
+ *
  * @param WrappedComponent The component to wrap with role-based access control
  * @param allowedRoles Array of roles that have access to this component
  * @param redirectTo Optional screen to redirect to if access is denied (defaults to going back)

@@ -5,6 +5,7 @@ This README documents the implementation of Supabase Real-Time subscriptions for
 ## Overview
 
 We've implemented real-time features for:
+
 1. Shipment Status Updates
 2. Real-Time Messaging
 3. Driver Location Tracking
@@ -28,17 +29,20 @@ The implementation consists of:
 ### Key Features
 
 #### 1. Shipment Status Updates
+
 - Real-time notification when shipment status changes
 - Automatic creation of tracking events
 - React hook to simplify integration in components
 
 #### 2. Real-Time Messaging
+
 - Instant message delivery without polling
 - Read status tracking
 - Automatic notifications for new messages
 - Clean React hook API for components
 
 #### 3. Driver Location Tracking
+
 - Efficient location updates (30-second intervals)
 - Automatic cleanup of old location data
 - Row-level security for proper access control

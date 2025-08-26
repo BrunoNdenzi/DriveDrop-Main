@@ -26,7 +26,7 @@ export interface ApiResponse<T> {
  */
 export const successResponse = <T>(
   data: T,
-  meta?: ApiResponse<T>['meta'],
+  meta?: ApiResponse<T>['meta']
 ): ApiResponse<T> => ({
   success: true,
   data,
@@ -39,7 +39,7 @@ export const successResponse = <T>(
 export const errorResponse = (
   message: string,
   code = 'INTERNAL_SERVER_ERROR',
-  errors: unknown[] = [],
+  errors: unknown[] = []
 ): ApiResponse<never> => ({
   success: false,
   error: {

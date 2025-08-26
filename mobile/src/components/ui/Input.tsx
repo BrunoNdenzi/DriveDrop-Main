@@ -10,7 +10,13 @@ import {
   TouchableOpacity,
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
-import { Colors, ComponentTokens, Typography, BorderRadius, Spacing } from '../../constants/DesignSystem';
+import {
+  Colors,
+  ComponentTokens,
+  Typography,
+  BorderRadius,
+  Spacing,
+} from '../../constants/DesignSystem';
 
 interface InputProps extends TextInputProps {
   label?: string;
@@ -46,7 +52,7 @@ export function Input({
           {required && <Text style={styles.required}> *</Text>}
         </Text>
       )}
-      
+
       <View style={[styles.inputContainer, hasError && styles.inputError]}>
         {leftIcon && (
           <MaterialIcons
@@ -56,7 +62,7 @@ export function Input({
             style={styles.leftIcon}
           />
         )}
-        
+
         <TextInput
           style={[
             styles.input,
@@ -67,7 +73,7 @@ export function Input({
           placeholderTextColor={Colors.text.disabled}
           {...props}
         />
-        
+
         {rightIcon && (
           <TouchableOpacity onPress={onRightIconPress} style={styles.rightIcon}>
             <MaterialIcons
@@ -78,7 +84,7 @@ export function Input({
           </TouchableOpacity>
         )}
       </View>
-      
+
       {(error || helper) && (
         <Text style={[styles.helper, hasError && styles.helperError]}>
           {error || helper}

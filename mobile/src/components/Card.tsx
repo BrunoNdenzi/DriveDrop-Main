@@ -10,7 +10,13 @@ interface CardProps {
   contentStyle?: ViewStyle;
 }
 
-export function Card({ title, children, style, titleStyle, contentStyle }: CardProps) {
+export function Card({
+  title,
+  children,
+  style,
+  titleStyle,
+  contentStyle,
+}: CardProps) {
   return (
     <View style={[styles.container, style]}>
       {title && <Text style={[styles.title, titleStyle]}>{title}</Text>}

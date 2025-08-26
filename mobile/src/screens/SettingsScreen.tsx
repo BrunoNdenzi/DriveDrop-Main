@@ -1,6 +1,12 @@
 // src/screens/SettingsScreen.tsx
 import React, { useState, useEffect } from 'react';
-import { View, StyleSheet, ScrollView, Alert, ActivityIndicator } from 'react-native';
+import {
+  View,
+  StyleSheet,
+  ScrollView,
+  Alert,
+  ActivityIndicator,
+} from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { Text, Switch, Divider, Button } from '@rneui/themed';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -12,10 +18,17 @@ import { RootStackParamList } from '../navigation/types';
 import { supabase } from '../lib/supabase';
 
 export default function SettingsScreen() {
-  const { preferences, updatePreferences, hasPermission, requestPermissions, sendTestNotification } = useNotifications();
+  const {
+    preferences,
+    updatePreferences,
+    hasPermission,
+    requestPermissions,
+    sendTestNotification,
+  } = useNotifications();
   const { user } = useAuth();
   const auth = useAuth(); // Get the full auth object
-  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const navigation =
+    useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const [saving, setSaving] = useState(false);
   const [localPrefs, setLocalPrefs] = useState<NotificationPreferences>({
     pushEnabled: true,
@@ -46,54 +59,56 @@ export default function SettingsScreen() {
       Alert.alert('Success', 'Your notification preferences have been saved.');
     } catch (error) {
       console.error('Error saving preferences:', error);
-      Alert.alert('Error', 'Failed to save notification preferences. Please try again.');
+      Alert.alert(
+        'Error',
+        'Failed to save notification preferences. Please try again.'
+      );
     } finally {
       setSaving(false);
     }
   };
 
   const handleSignOut = async () => {
-    Alert.alert(
-      'Sign Out',
-      'Are you sure you want to sign out?',
-      [
-        {
-          text: 'Cancel',
-          style: 'cancel',
+    Alert.alert('Sign Out', 'Are you sure you want to sign out?', [
+      {
+        text: 'Cancel',
+        style: 'cancel',
+      },
+      {
+        text: 'Sign Out',
+        onPress: async () => {
+          try {
+            await supabase.auth.signOut();
+            // The auth context will handle navigation
+          } catch (error) {
+            console.error('Error signing out:', error);
+            Alert.alert('Error', 'Failed to sign out');
+          }
         },
-        {
-          text: 'Sign Out',
-          onPress: async () => {
-            try {
-              await supabase.auth.signOut();
-              // The auth context will handle navigation
-            } catch (error) {
-              console.error('Error signing out:', error);
-              Alert.alert('Error', 'Failed to sign out');
-            }
-          },
-          style: 'destructive',
-        },
-      ]
-    );
+        style: 'destructive',
+      },
+    ]);
   };
 
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView>
-        <Text h4 style={styles.title}>Settings</Text>
-        
+        <Text h4 style={styles.title}>
+          Settings
+        </Text>
+
         <View style={styles.section}>
-          <Text h4 style={styles.sectionTitle}>Notification Preferences</Text>
-          
+          <Text h4 style={styles.sectionTitle}>
+            Notification Preferences
+          </Text>
+
           <View style={styles.toggleRow}>
             <View>
               <Text style={styles.toggleTitle}>Push Notifications</Text>
               <Text style={styles.toggleSubtitle}>
-                {hasPermission 
-                  ? 'Receive notifications on this device' 
-                  : 'Push notifications are disabled'
-                }
+                {hasPermission
+                  ? 'Receive notifications on this device'
+                  : 'Push notifications are disabled'}
               </Text>
             </View>
             <Switch
@@ -107,22 +122,26 @@ export default function SettingsScreen() {
               }}
             />
           </View>
-          
+
           <View style={styles.toggleRow}>
             <View>
               <Text style={styles.toggleTitle}>Email Notifications</Text>
-              <Text style={styles.toggleSubtitle}>Receive notifications via email</Text>
+              <Text style={styles.toggleSubtitle}>
+                Receive notifications via email
+              </Text>
             </View>
             <Switch
               value={localPrefs.emailEnabled}
               onValueChange={() => handleToggle('emailEnabled')}
             />
           </View>
-          
+
           <View style={styles.toggleRow}>
             <View>
               <Text style={styles.toggleTitle}>SMS Notifications</Text>
-              <Text style={styles.toggleSubtitle}>Receive notifications via SMS</Text>
+              <Text style={styles.toggleSubtitle}>
+                Receive notifications via SMS
+              </Text>
             </View>
             <Switch
               value={localPrefs.smsEnabled}
@@ -130,49 +149,59 @@ export default function SettingsScreen() {
             />
           </View>
         </View>
-        
+
         <Divider style={styles.divider} />
-        
+
         <View style={styles.section}>
-          <Text h4 style={styles.sectionTitle}>Notification Types</Text>
-          
+          <Text h4 style={styles.sectionTitle}>
+            Notification Types
+          </Text>
+
           <View style={styles.toggleRow}>
             <View>
               <Text style={styles.toggleTitle}>Shipment Updates</Text>
-              <Text style={styles.toggleSubtitle}>Status changes and tracking updates</Text>
+              <Text style={styles.toggleSubtitle}>
+                Status changes and tracking updates
+              </Text>
             </View>
             <Switch
               value={localPrefs.shipmentUpdates}
               onValueChange={() => handleToggle('shipmentUpdates')}
             />
           </View>
-          
+
           <View style={styles.toggleRow}>
             <View>
               <Text style={styles.toggleTitle}>Driver Assigned</Text>
-              <Text style={styles.toggleSubtitle}>When a driver accepts your shipment</Text>
+              <Text style={styles.toggleSubtitle}>
+                When a driver accepts your shipment
+              </Text>
             </View>
             <Switch
               value={localPrefs.driverAssigned}
               onValueChange={() => handleToggle('driverAssigned')}
             />
           </View>
-          
+
           <View style={styles.toggleRow}>
             <View>
               <Text style={styles.toggleTitle}>Payment Updates</Text>
-              <Text style={styles.toggleSubtitle}>Payment confirmations and receipts</Text>
+              <Text style={styles.toggleSubtitle}>
+                Payment confirmations and receipts
+              </Text>
             </View>
             <Switch
               value={localPrefs.paymentUpdates}
               onValueChange={() => handleToggle('paymentUpdates')}
             />
           </View>
-          
+
           <View style={styles.toggleRow}>
             <View>
               <Text style={styles.toggleTitle}>Promotions</Text>
-              <Text style={styles.toggleSubtitle}>Special offers and promotions</Text>
+              <Text style={styles.toggleSubtitle}>
+                Special offers and promotions
+              </Text>
             </View>
             <Switch
               value={localPrefs.promotions}
@@ -180,7 +209,7 @@ export default function SettingsScreen() {
             />
           </View>
         </View>
-        
+
         <Button
           title="Save Preferences"
           onPress={savePreferences}
@@ -188,23 +217,23 @@ export default function SettingsScreen() {
           disabled={saving}
           buttonStyle={styles.saveButton}
         />
-        
+
         <Divider style={styles.divider} />
-        
+
         <View style={styles.section}>
-          <Text h4 style={styles.sectionTitle}>Account</Text>
-          
-          <Text style={styles.infoText}>
-            Signed in as: {user?.email}
+          <Text h4 style={styles.sectionTitle}>
+            Account
           </Text>
-          
+
+          <Text style={styles.infoText}>Signed in as: {user?.email}</Text>
+
           <Button
             title="Test Notification"
             type="outline"
             onPress={() => sendTestNotification()}
             buttonStyle={styles.testButton}
           />
-          
+
           <Button
             title="Advanced Notification Testing"
             type="outline"
@@ -212,7 +241,7 @@ export default function SettingsScreen() {
             buttonStyle={styles.testButton}
             containerStyle={{ marginTop: 8 }}
           />
-          
+
           <Button
             title="Sign Out"
             type="outline"

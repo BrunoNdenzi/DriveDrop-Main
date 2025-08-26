@@ -1,5 +1,14 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { StyleSheet, View, Text, ScrollView, TouchableOpacity, Alert, ActivityIndicator, Linking } from 'react-native';
+import {
+  StyleSheet,
+  View,
+  Text,
+  ScrollView,
+  TouchableOpacity,
+  Alert,
+  ActivityIndicator,
+  Linking,
+} from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
 import * as Location from 'expo-location';
@@ -47,12 +56,12 @@ export default function ShipmentDetailsScreen({ route, navigation }: any) {
 
   useEffect(() => {
     fetchShipmentDetails();
-    
+
     // Set up real-time subscription
     if (shipmentId && userProfile) {
       setupRealtimeSubscription();
     }
-    
+
     // Cleanup on unmount
     return () => {
       if (realtimeChannelRef.current) {
@@ -67,9 +76,9 @@ export default function ShipmentDetailsScreen({ route, navigation }: any) {
     realtimeChannelRef.current = realtimeService.subscribeToShipment(
       shipmentId,
       // Shipment update handler
-      (updatedShipment) => {
+      updatedShipment => {
         console.log('Received real-time shipment update:', updatedShipment);
-        
+
         // Transform data to match our expected format
         if (updatedShipment && shipment) {
           const transformedShipment: ShipmentDetails = {
@@ -77,7 +86,7 @@ export default function ShipmentDetailsScreen({ route, navigation }: any) {
             status: updatedShipment.status,
             // Update other fields as needed
           };
-          
+
           setShipment(transformedShipment);
         } else {
           // If we don't have the shipment yet, fetch it
@@ -94,13 +103,15 @@ export default function ShipmentDetailsScreen({ route, navigation }: any) {
   const fetchShipmentDetails = async () => {
     try {
       setLoading(true);
-      
+
       const { data, error } = await supabase
         .from('shipments')
-        .select(`
+        .select(
+          `
           *,
           profiles:client_id(first_name, last_name, phone)
-        `)
+        `
+        )
         .eq('id', shipmentId)
         .single();
 
@@ -112,7 +123,7 @@ export default function ShipmentDetailsScreen({ route, navigation }: any) {
         title: data.title || 'Delivery Service',
         status: data.status,
         client_id: data.client_id,
-        client_name: data.profiles 
+        client_name: data.profiles
           ? `${data.profiles.first_name} ${data.profiles.last_name}`
           : 'Unknown Customer',
         client_phone: data.profiles?.phone || '',
@@ -148,12 +159,12 @@ export default function ShipmentDetailsScreen({ route, navigation }: any) {
 
   const updateShipmentStatus = async (newStatus: string) => {
     if (!shipment) return;
-    
+
     setStatusUpdating(true);
     try {
       // Import NetworkUtil on-demand
       const NetworkUtil = (await import('../../utils/NetworkUtil')).default;
-      
+
       // Check for internet connection first
       const isConnected = await NetworkUtil.isConnected();
       if (!isConnected) {
@@ -164,27 +175,39 @@ export default function ShipmentDetailsScreen({ route, navigation }: any) {
         setStatusUpdating(false);
         return;
       }
-      
+
       // Validate status against schema
-      const validStatuses = ['pending', 'accepted', 'assigned', 'in_transit', 'in_progress', 'delivered', 'completed', 'cancelled'];
+      const validStatuses = [
+        'pending',
+        'accepted',
+        'assigned',
+        'in_transit',
+        'in_progress',
+        'delivered',
+        'completed',
+        'cancelled',
+      ];
       if (!validStatuses.includes(newStatus)) {
-        Alert.alert('Error', `Invalid status: ${newStatus}. Please contact support.`);
+        Alert.alert(
+          'Error',
+          `Invalid status: ${newStatus}. Please contact support.`
+        );
         setStatusUpdating(false);
         return;
       }
-      
+
       const { error } = await supabase
         .from('shipments')
-        .update({ 
+        .update({
           status: newStatus,
-          updated_at: new Date().toISOString()
+          updated_at: new Date().toISOString(),
         })
         .eq('id', shipment.id);
 
       if (error) {
         if (error.message.includes('invalid input value for enum')) {
           Alert.alert(
-            'Error', 
+            'Error',
             'The status value is not valid. Please contact support about this database issue.',
             [{ text: 'OK' }]
           );
@@ -196,23 +219,31 @@ export default function ShipmentDetailsScreen({ route, navigation }: any) {
 
       // Start location tracking if status is in_transit
       if (newStatus === 'in_transit' && userProfile) {
-        realtimeService.startLocationTracking(
-          shipment.id,
-          userProfile.id,
-          () => Alert.alert('Location Permission', 'Location permission is required to track delivery progress.')
+        realtimeService.startLocationTracking(shipment.id, userProfile.id, () =>
+          Alert.alert(
+            'Location Permission',
+            'Location permission is required to track delivery progress.'
+          )
         );
       }
-      
+
       // Stop location tracking if delivered
-      if (newStatus === 'delivered' || newStatus === 'completed' || newStatus === 'cancelled') {
+      if (
+        newStatus === 'delivered' ||
+        newStatus === 'completed' ||
+        newStatus === 'cancelled'
+      ) {
         realtimeService.stopLocationTracking();
       }
-      
+
       // Local state will be updated via real-time subscription
       Alert.alert('Success', `Shipment status updated to ${newStatus}`);
     } catch (error) {
       console.error('Error updating shipment status:', error);
-      Alert.alert('Error', 'Failed to update shipment status. Please check your connection and try again.');
+      Alert.alert(
+        'Error',
+        'Failed to update shipment status. Please check your connection and try again.'
+      );
     } finally {
       setStatusUpdating(false);
     }
@@ -240,40 +271,47 @@ export default function ShipmentDetailsScreen({ route, navigation }: any) {
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'pending': return Colors.warning;
-      case 'assigned': return Colors.info;
-      case 'picked_up': return Colors.secondary;
-      case 'in_transit': return Colors.primary;
-      case 'delivered': return Colors.success;
-      case 'completed': return Colors.success;
-      default: return Colors.text.secondary;
+      case 'pending':
+        return Colors.warning;
+      case 'assigned':
+        return Colors.info;
+      case 'picked_up':
+        return Colors.secondary;
+      case 'in_transit':
+        return Colors.primary;
+      case 'delivered':
+        return Colors.success;
+      case 'completed':
+        return Colors.success;
+      default:
+        return Colors.text.secondary;
     }
   };
 
   const getNextStatusAction = () => {
     if (!shipment) return null;
-    
+
     switch (shipment.status) {
       case 'assigned':
         return {
           label: 'Mark as Picked Up',
           status: 'picked_up',
           icon: 'check-circle',
-          color: Colors.success
+          color: Colors.success,
         };
       case 'picked_up':
         return {
           label: 'Start Transit',
           status: 'in_transit',
           icon: 'local-shipping',
-          color: Colors.secondary
+          color: Colors.secondary,
         };
       case 'in_transit':
         return {
           label: 'Mark as Delivered',
           status: 'delivered',
           icon: 'flag',
-          color: Colors.primary
+          color: Colors.primary,
         };
       default:
         return null;
@@ -294,8 +332,10 @@ export default function ShipmentDetailsScreen({ route, navigation }: any) {
       <View style={styles.errorContainer}>
         <MaterialIcons name="error-outline" size={64} color={Colors.error} />
         <Text style={styles.errorTitle}>Shipment Not Found</Text>
-        <Text style={styles.errorText}>The requested shipment could not be loaded.</Text>
-        <TouchableOpacity 
+        <Text style={styles.errorText}>
+          The requested shipment could not be loaded.
+        </Text>
+        <TouchableOpacity
           style={styles.retryButton}
           onPress={fetchShipmentDetails}
         >
@@ -310,13 +350,26 @@ export default function ShipmentDetailsScreen({ route, navigation }: any) {
   return (
     <View style={styles.container}>
       <StatusBar style="dark" />
-      
-      <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+
+      <ScrollView
+        style={styles.scrollView}
+        showsVerticalScrollIndicator={false}
+      >
         {/* Header */}
         <View style={styles.header}>
           <Text style={styles.shipmentTitle}>{shipment.title}</Text>
-          <View style={[styles.statusBadge, { backgroundColor: getStatusColor(shipment.status) + '20' }]}>
-            <Text style={[styles.statusText, { color: getStatusColor(shipment.status) }]}>
+          <View
+            style={[
+              styles.statusBadge,
+              { backgroundColor: getStatusColor(shipment.status) + '20' },
+            ]}
+          >
+            <Text
+              style={[
+                styles.statusText,
+                { color: getStatusColor(shipment.status) },
+              ]}
+            >
               {shipment.status.replace('_', ' ').toUpperCase()}
             </Text>
           </View>
@@ -332,7 +385,9 @@ export default function ShipmentDetailsScreen({ route, navigation }: any) {
           {shipment.client_phone && (
             <TouchableOpacity style={styles.infoRow} onPress={callCustomer}>
               <MaterialIcons name="phone" size={20} color={Colors.success} />
-              <Text style={[styles.infoText, styles.phoneText]}>{shipment.client_phone}</Text>
+              <Text style={[styles.infoText, styles.phoneText]}>
+                {shipment.client_phone}
+              </Text>
               <MaterialIcons name="call" size={16} color={Colors.success} />
             </TouchableOpacity>
           )}
@@ -341,23 +396,33 @@ export default function ShipmentDetailsScreen({ route, navigation }: any) {
         {/* Pickup Information */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Pickup Details</Text>
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.addressContainer}
             onPress={() => openNavigationApp(shipment.pickup_address)}
           >
             <View style={styles.addressHeader}>
-              <MaterialIcons name="location-on" size={20} color={Colors.secondary} />
+              <MaterialIcons
+                name="location-on"
+                size={20}
+                color={Colors.secondary}
+              />
               <Text style={styles.addressTitle}>Pickup Location</Text>
-              <MaterialIcons name="directions" size={16} color={Colors.primary} />
+              <MaterialIcons
+                name="directions"
+                size={16}
+                color={Colors.primary}
+              />
             </View>
             <Text style={styles.addressText}>{shipment.pickup_address}</Text>
-            {(shipment.pickup_city || shipment.pickup_state || shipment.pickup_zip) && (
+            {(shipment.pickup_city ||
+              shipment.pickup_state ||
+              shipment.pickup_zip) && (
               <Text style={styles.addressText}>
                 {`${shipment.pickup_city}, ${shipment.pickup_state} ${shipment.pickup_zip}`.trim()}
               </Text>
             )}
           </TouchableOpacity>
-          
+
           <View style={styles.infoRow}>
             <MaterialIcons name="schedule" size={20} color={Colors.warning} />
             <Text style={styles.infoText}>
@@ -365,10 +430,14 @@ export default function ShipmentDetailsScreen({ route, navigation }: any) {
               {new Date(shipment.pickup_date).toLocaleTimeString()}
             </Text>
           </View>
-          
+
           {shipment.pickup_notes && (
             <View style={styles.notesContainer}>
-              <MaterialIcons name="note" size={16} color={Colors.text.secondary} />
+              <MaterialIcons
+                name="note"
+                size={16}
+                color={Colors.text.secondary}
+              />
               <Text style={styles.notesText}>{shipment.pickup_notes}</Text>
             </View>
           )}
@@ -377,36 +446,47 @@ export default function ShipmentDetailsScreen({ route, navigation }: any) {
         {/* Delivery Information */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Delivery Details</Text>
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.addressContainer}
             onPress={() => openNavigationApp(shipment.delivery_address)}
           >
             <View style={styles.addressHeader}>
               <MaterialIcons name="flag" size={20} color={Colors.primary} />
               <Text style={styles.addressTitle}>Delivery Location</Text>
-              <MaterialIcons name="directions" size={16} color={Colors.primary} />
+              <MaterialIcons
+                name="directions"
+                size={16}
+                color={Colors.primary}
+              />
             </View>
             <Text style={styles.addressText}>{shipment.delivery_address}</Text>
-            {(shipment.delivery_city || shipment.delivery_state || shipment.delivery_zip) && (
+            {(shipment.delivery_city ||
+              shipment.delivery_state ||
+              shipment.delivery_zip) && (
               <Text style={styles.addressText}>
                 {`${shipment.delivery_city}, ${shipment.delivery_state} ${shipment.delivery_zip}`.trim()}
               </Text>
             )}
           </TouchableOpacity>
-          
+
           {shipment.delivery_date && (
             <View style={styles.infoRow}>
               <MaterialIcons name="schedule" size={20} color={Colors.warning} />
               <Text style={styles.infoText}>
-                Expected: {new Date(shipment.delivery_date).toLocaleDateString()} at{' '}
+                Expected:{' '}
+                {new Date(shipment.delivery_date).toLocaleDateString()} at{' '}
                 {new Date(shipment.delivery_date).toLocaleTimeString()}
               </Text>
             </View>
           )}
-          
+
           {shipment.delivery_notes && (
             <View style={styles.notesContainer}>
-              <MaterialIcons name="note" size={16} color={Colors.text.secondary} />
+              <MaterialIcons
+                name="note"
+                size={16}
+                color={Colors.text.secondary}
+              />
               <Text style={styles.notesText}>{shipment.delivery_notes}</Text>
             </View>
           )}
@@ -415,46 +495,74 @@ export default function ShipmentDetailsScreen({ route, navigation }: any) {
         {/* Shipment Details */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Shipment Details</Text>
-          
+
           <View style={styles.detailsGrid}>
             <View style={styles.detailItem}>
-              <MaterialIcons name="attach-money" size={20} color={Colors.success} />
+              <MaterialIcons
+                name="attach-money"
+                size={20}
+                color={Colors.success}
+              />
               <Text style={styles.detailLabel}>Earnings</Text>
               <Text style={styles.detailValue}>${shipment.price}</Text>
             </View>
-            
+
             {shipment.distance > 0 && (
               <View style={styles.detailItem}>
-                <MaterialIcons name="straighten" size={20} color={Colors.info} />
+                <MaterialIcons
+                  name="straighten"
+                  size={20}
+                  color={Colors.info}
+                />
                 <Text style={styles.detailLabel}>Distance</Text>
-                <Text style={styles.detailValue}>{shipment.distance.toFixed(1)} mi</Text>
+                <Text style={styles.detailValue}>
+                  {shipment.distance.toFixed(1)} mi
+                </Text>
               </View>
             )}
-            
+
             <View style={styles.detailItem}>
-              <MaterialIcons name="directions-car" size={20} color={Colors.secondary} />
+              <MaterialIcons
+                name="directions-car"
+                size={20}
+                color={Colors.secondary}
+              />
               <Text style={styles.detailLabel}>Vehicle</Text>
               <Text style={styles.detailValue}>{shipment.vehicle_type}</Text>
             </View>
-            
+
             <View style={styles.detailItem}>
-              <MaterialIcons name="inventory" size={20} color={Colors.primary} />
+              <MaterialIcons
+                name="inventory"
+                size={20}
+                color={Colors.primary}
+              />
               <Text style={styles.detailLabel}>Cargo</Text>
               <Text style={styles.detailValue}>{shipment.cargo_type}</Text>
             </View>
           </View>
-          
+
           {shipment.weight > 0 && (
             <View style={styles.infoRow}>
-              <MaterialIcons name="fitness-center" size={20} color={Colors.text.secondary} />
+              <MaterialIcons
+                name="fitness-center"
+                size={20}
+                color={Colors.text.secondary}
+              />
               <Text style={styles.infoText}>Weight: {shipment.weight} lbs</Text>
             </View>
           )}
-          
+
           {shipment.dimensions && (
             <View style={styles.infoRow}>
-              <MaterialIcons name="square-foot" size={20} color={Colors.text.secondary} />
-              <Text style={styles.infoText}>Dimensions: {shipment.dimensions}</Text>
+              <MaterialIcons
+                name="square-foot"
+                size={20}
+                color={Colors.text.secondary}
+              />
+              <Text style={styles.infoText}>
+                Dimensions: {shipment.dimensions}
+              </Text>
             </View>
           )}
         </View>
@@ -462,10 +570,7 @@ export default function ShipmentDetailsScreen({ route, navigation }: any) {
 
       {/* Action Buttons */}
       <View style={styles.actionContainer}>
-        <TouchableOpacity
-          style={styles.mapButton}
-          onPress={openRouteMap}
-        >
+        <TouchableOpacity style={styles.mapButton} onPress={openRouteMap}>
           <MaterialIcons name="map" size={20} color={Colors.primary} />
           <Text style={styles.mapButtonText}>View Route</Text>
         </TouchableOpacity>
@@ -480,7 +585,11 @@ export default function ShipmentDetailsScreen({ route, navigation }: any) {
               <ActivityIndicator size="small" color={Colors.background} />
             ) : (
               <>
-                <MaterialIcons name={nextAction.icon as any} size={20} color={Colors.background} />
+                <MaterialIcons
+                  name={nextAction.icon as any}
+                  size={20}
+                  color={Colors.background}
+                />
                 <Text style={styles.statusButtonText}>{nextAction.label}</Text>
               </>
             )}

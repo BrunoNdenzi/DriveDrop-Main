@@ -14,7 +14,7 @@ export const Colors = {
   background: '#F7F9FC',
   surface: '#FFFFFF',
   border: '#E1E8ED',
-  
+
   // Text colors
   text: {
     primary: '#263238',
@@ -28,7 +28,7 @@ export const Colors = {
   warning: '#FF9800',
   error: '#F44336',
   info: '#2196F3',
-  
+
   // Shipment status colors
   status: {
     pending: '#FFB74D', // Orange

@@ -32,26 +32,14 @@ export function TextInput({
 }: TextInputProps) {
   return (
     <View style={[styles.container, containerStyle]}>
-      {label && (
-        <Text style={[styles.label, labelStyle]}>
-          {label}
-        </Text>
-      )}
+      {label && <Text style={[styles.label, labelStyle]}>{label}</Text>}
       <RNTextInput
-        style={[
-          styles.input,
-          error ? styles.inputError : {},
-          inputStyle,
-        ]}
+        style={[styles.input, error ? styles.inputError : {}, inputStyle]}
         placeholderTextColor={Colors.text.secondary}
         testID={testID}
         {...props}
       />
-      {error && (
-        <Text style={[styles.error, errorStyle]}>
-          {error}
-        </Text>
-      )}
+      {error && <Text style={[styles.error, errorStyle]}>{error}</Text>}
     </View>
   );
 }

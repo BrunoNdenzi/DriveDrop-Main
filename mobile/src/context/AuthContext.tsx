@@ -45,11 +45,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [error, setError] = useState<string | null>(null);
 
   // Function to fetch or create user profile - uses a mutex pattern to prevent race conditions
-  const fetchUserProfile = async (userId: string): Promise<UserProfile | null> => {
+  const fetchUserProfile = async (
+    userId: string
+  ): Promise<UserProfile | null> => {
     try {
       // Check if there's already an ongoing fetch/creation operation for this user
       if (profileCreationStatus.has(userId)) {
-        console.log('Profile fetch/creation already in progress for user:', userId);
+        console.log(
+          'Profile fetch/creation already in progress for user:',
+          userId
+        );
         // Wait for the existing operation to complete
         return await profileCreationStatus.get(userId)!;
       }
@@ -66,13 +71,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
           if (error && error.code === 'PGRST116') {
             // Profile doesn't exist, create one
-            console.log('Profile not found, creating new profile for user:', userId);
-            
+            console.log(
+              'Profile not found, creating new profile for user:',
+              userId
+            );
+
             try {
               // Get user metadata from auth
               const { data: authData } = await auth.getUser();
               const userMetadata = authData.user?.user_metadata || {};
-              
+
               // Create new profile
               const newProfile = {
                 id: userId,
@@ -97,21 +105,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               if (insertError) {
                 // If it's a duplicate key error, try to fetch the existing profile
                 if (insertError.code === '23505') {
-                  console.log('Profile already exists (race condition), fetching existing profile');
-                  const { data: existingData, error: fetchError } = await supabase
-                    .from('profiles')
-                    .select('*')
-                    .eq('id', userId)
-                    .single();
-                  
+                  console.log(
+                    'Profile already exists (race condition), fetching existing profile'
+                  );
+                  const { data: existingData, error: fetchError } =
+                    await supabase
+                      .from('profiles')
+                      .select('*')
+                      .eq('id', userId)
+                      .single();
+
                   if (fetchError) {
-                    console.error('Error fetching existing profile:', fetchError);
+                    console.error(
+                      'Error fetching existing profile:',
+                      fetchError
+                    );
                     return null;
                   }
-                  
+
                   return existingData as UserProfile;
                 }
-                
+
                 console.error('Error creating user profile:', insertError);
                 return null;
               }
@@ -162,14 +176,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // Get the user's session on load
   useEffect(() => {
     let mounted = true;
-    
+
     async function loadUserSession() {
       try {
         setLoading(true);
-        
+
         // Get the user's current session
         const { data, error } = await auth.getSession();
-        
+
         if (error) {
           throw error;
         }
@@ -177,7 +191,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (data?.session && mounted) {
           setSession(data.session);
           setUser(data.session.user);
-          
+
           // Fetch user profile
           const profile = await fetchUserProfile(data.session.user.id);
           if (mounted) {
@@ -201,13 +215,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Subscribe to auth changes
     const { data } = auth.onAuthStateChange(async (event, newSession) => {
       console.log(`Auth event: ${event}`);
-      
+
       if (!mounted) return;
-      
+
       if (newSession) {
         setSession(newSession);
         setUser(newSession.user);
-        
+
         // Fetch user profile
         const profile = await fetchUserProfile(newSession.user.id);
         if (mounted) {
@@ -218,7 +232,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setUser(null);
         setUserProfile(null);
       }
-      
+
       if (mounted) {
         setLoading(false);
       }
@@ -232,7 +246,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   return (
-    <AuthContext.Provider value={{ user, userProfile, session, loading, error, refreshProfile }}>
+    <AuthContext.Provider
+      value={{ user, userProfile, session, loading, error, refreshProfile }}
+    >
       {children}
     </AuthContext.Provider>
   );

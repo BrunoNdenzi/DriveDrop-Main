@@ -18,7 +18,10 @@ import { useAuth } from '../../context/AuthContext';
 import { supabase } from '../../lib/supabase';
 import { ShipmentService } from '../../services/shipmentService';
 
-type ShipmentsScreenProps = NativeStackScreenProps<ClientTabParamList, 'Shipments'> & {
+type ShipmentsScreenProps = NativeStackScreenProps<
+  ClientTabParamList,
+  'Shipments'
+> & {
   navigation: NativeStackScreenProps<RootStackParamList>['navigation'];
 };
 
@@ -49,10 +52,10 @@ export default function ShipmentsScreen({ navigation }: ShipmentsScreenProps) {
 
   async function loadShipments() {
     if (!userProfile?.id) return;
-    
+
     try {
       setLoading(true);
-      
+
       // Determine status filter for query
       let statusFilter: string[] = [];
       switch (filter) {
@@ -67,7 +70,10 @@ export default function ShipmentsScreen({ navigation }: ShipmentsScreenProps) {
           break;
       }
 
-      const data = await ShipmentService.getClientShipments(userProfile.id, statusFilter);
+      const data = await ShipmentService.getClientShipments(
+        userProfile.id,
+        statusFilter
+      );
       setShipments(data);
     } catch (err) {
       console.error('Error loading shipments:', err);
@@ -86,9 +92,18 @@ export default function ShipmentsScreen({ navigation }: ShipmentsScreenProps) {
     navigation.navigate('ShipmentDetails', { shipmentId });
   };
 
-  const FilterButton = ({ title, value }: { title: string; value: ShipmentFilter }) => (
+  const FilterButton = ({
+    title,
+    value,
+  }: {
+    title: string;
+    value: ShipmentFilter;
+  }) => (
     <TouchableOpacity
-      style={[styles.filterButton, filter === value && styles.filterButtonActive]}
+      style={[
+        styles.filterButton,
+        filter === value && styles.filterButtonActive,
+      ]}
       onPress={() => setFilter(value)}
     >
       <Text
@@ -115,12 +130,12 @@ export default function ShipmentsScreen({ navigation }: ShipmentsScreenProps) {
   return (
     <View style={styles.container}>
       <StatusBar style="dark" />
-      
+
       {/* Header */}
       <View style={styles.header}>
         <Text style={styles.title}>My Shipments</Text>
       </View>
-      
+
       {/* Filter Tabs */}
       <View style={styles.filtersContainer}>
         <FilterButton title="Pending" value="pending" />
@@ -139,7 +154,7 @@ export default function ShipmentsScreen({ navigation }: ShipmentsScreenProps) {
         ) : (
           <FlatList
             data={shipments}
-            keyExtractor={(item) => item.id}
+            keyExtractor={item => item.id}
             renderItem={({ item }) => (
               <TouchableOpacity
                 style={styles.shipmentCard}
@@ -149,7 +164,9 @@ export default function ShipmentsScreen({ navigation }: ShipmentsScreenProps) {
                   <Text style={styles.shipmentTitle}>
                     {item.title || `Shipment #${item.id.substring(0, 8)}`}
                   </Text>
-                  <Text style={styles.shipmentCost}>${item.estimated_price}</Text>
+                  <Text style={styles.shipmentCost}>
+                    ${item.estimated_price}
+                  </Text>
                 </View>
                 <Text style={styles.shipmentRoute}>
                   {item.pickup_address} → {item.delivery_address}

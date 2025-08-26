@@ -17,9 +17,14 @@ import { Card } from '../../components/ui/Card';
 import { RootStackParamList } from '../../navigation/types';
 import { useBooking } from '../../context/BookingContext';
 
-type BookingStepInsuranceProps = NativeStackScreenProps<RootStackParamList, 'BookingStepInsurance'>;
+type BookingStepInsuranceProps = NativeStackScreenProps<
+  RootStackParamList,
+  'BookingStepInsurance'
+>;
 
-export default function BookingStepInsuranceScreen({ navigation }: BookingStepInsuranceProps) {
+export default function BookingStepInsuranceScreen({
+  navigation,
+}: BookingStepInsuranceProps) {
   const { state, updateFormData, setStepValidity, goToNextStep } = useBooking();
   const { insuranceDocumentation } = state.formData;
 
@@ -49,7 +54,8 @@ export default function BookingStepInsuranceScreen({ navigation }: BookingStepIn
 
   // Validate form data
   useEffect(() => {
-    const hasOwnership = (insuranceDocumentation.proofOfOwnership || []).length > 0;
+    const hasOwnership =
+      (insuranceDocumentation.proofOfOwnership || []).length > 0;
     const hasInsurance = (insuranceDocumentation.insurance || []).length > 0;
     const isValid = hasOwnership && hasInsurance;
     setStepValidity('insurance', isValid);
@@ -61,37 +67,52 @@ export default function BookingStepInsuranceScreen({ navigation }: BookingStepIn
       'Document Upload',
       `Would you like to upload ${documentTypes.find(d => d.key === documentType)?.title}?`,
       [
-        { text: 'Camera', onPress: () => uploadDocument(documentType, 'camera') },
-        { text: 'Gallery', onPress: () => uploadDocument(documentType, 'gallery') },
+        {
+          text: 'Camera',
+          onPress: () => uploadDocument(documentType, 'camera'),
+        },
+        {
+          text: 'Gallery',
+          onPress: () => uploadDocument(documentType, 'gallery'),
+        },
         { text: 'Cancel', style: 'cancel' },
       ]
     );
   };
 
-  const uploadDocument = (documentType: string, source: 'camera' | 'gallery') => {
+  const uploadDocument = (
+    documentType: string,
+    source: 'camera' | 'gallery'
+  ) => {
     // Placeholder implementation - in real app, would use expo-image-picker
     const mockFileUri = `file://mock-${documentType}-${Date.now()}.jpg`;
-    const currentDocs = insuranceDocumentation[documentType as keyof typeof insuranceDocumentation] || [];
-    
+    const currentDocs =
+      insuranceDocumentation[
+        documentType as keyof typeof insuranceDocumentation
+      ] || [];
+
     const updatedData = {
       ...insuranceDocumentation,
       [documentType]: [...currentDocs, mockFileUri],
     };
-    
+
     updateFormData('insurance', updatedData);
-    
+
     Alert.alert('Success', 'Document uploaded successfully!');
   };
 
   const removeDocument = (documentType: string, index: number) => {
-    const currentDocs = insuranceDocumentation[documentType as keyof typeof insuranceDocumentation] || [];
+    const currentDocs =
+      insuranceDocumentation[
+        documentType as keyof typeof insuranceDocumentation
+      ] || [];
     const updatedDocs = currentDocs.filter((_, i) => i !== index);
-    
+
     const updatedData = {
       ...insuranceDocumentation,
       [documentType]: updatedDocs,
     };
-    
+
     updateFormData('insurance', updatedData);
   };
 
@@ -109,7 +130,7 @@ export default function BookingStepInsuranceScreen({ navigation }: BookingStepIn
   return (
     <View style={styles.container}>
       <StatusBar style="dark" />
-      
+
       {/* Header */}
       <View style={styles.header}>
         <Text style={styles.title}>Insurance & Documents</Text>
@@ -119,8 +140,8 @@ export default function BookingStepInsuranceScreen({ navigation }: BookingStepIn
         </View>
       </View>
 
-      <ScrollView 
-        style={styles.content} 
+      <ScrollView
+        style={styles.content}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
         contentContainerStyle={{ flexGrow: 1 }}
@@ -132,8 +153,11 @@ export default function BookingStepInsuranceScreen({ navigation }: BookingStepIn
               Please upload the required documents for your vehicle shipment
             </Text>
 
-            {documentTypes.map((docType) => {
-              const documents = insuranceDocumentation[docType.key as keyof typeof insuranceDocumentation] || [];
+            {documentTypes.map(docType => {
+              const documents =
+                insuranceDocumentation[
+                  docType.key as keyof typeof insuranceDocumentation
+                ] || [];
               const hasDocuments = documents.length > 0;
 
               return (
@@ -141,14 +165,16 @@ export default function BookingStepInsuranceScreen({ navigation }: BookingStepIn
                   <View style={styles.documentHeader}>
                     <View style={styles.documentInfo}>
                       <View style={styles.documentTitleRow}>
-                        <MaterialIcons 
-                          name={docType.icon as any} 
-                          size={20} 
-                          color={Colors.text.secondary} 
+                        <MaterialIcons
+                          name={docType.icon as any}
+                          size={20}
+                          color={Colors.text.secondary}
                         />
                         <Text style={styles.documentTitle}>
                           {docType.title}
-                          {docType.required && <Text style={styles.required}> *</Text>}
+                          {docType.required && (
+                            <Text style={styles.required}> *</Text>
+                          )}
                         </Text>
                       </View>
                       <Text style={styles.documentDescription}>
@@ -158,14 +184,14 @@ export default function BookingStepInsuranceScreen({ navigation }: BookingStepIn
                     <TouchableOpacity
                       style={[
                         styles.uploadButton,
-                        hasDocuments && styles.uploadButtonSuccess
+                        hasDocuments && styles.uploadButtonSuccess,
                       ]}
                       onPress={() => handleDocumentUpload(docType.key)}
                     >
-                      <MaterialIcons 
-                        name={hasDocuments ? "check" : "add"} 
-                        size={20} 
-                        color={hasDocuments ? Colors.success : Colors.primary} 
+                      <MaterialIcons
+                        name={hasDocuments ? 'check' : 'add'}
+                        size={20}
+                        color={hasDocuments ? Colors.success : Colors.primary}
                       />
                     </TouchableOpacity>
                   </View>
@@ -174,7 +200,11 @@ export default function BookingStepInsuranceScreen({ navigation }: BookingStepIn
                     <View style={styles.documentList}>
                       {documents.map((doc, index) => (
                         <View key={index} style={styles.documentItem}>
-                          <MaterialIcons name="description" size={16} color={Colors.text.secondary} />
+                          <MaterialIcons
+                            name="description"
+                            size={16}
+                            color={Colors.text.secondary}
+                          />
                           <Text style={styles.documentName}>
                             Document {index + 1}
                           </Text>
@@ -182,7 +212,11 @@ export default function BookingStepInsuranceScreen({ navigation }: BookingStepIn
                             onPress={() => removeDocument(docType.key, index)}
                             style={styles.removeButton}
                           >
-                            <MaterialIcons name="close" size={16} color={Colors.error} />
+                            <MaterialIcons
+                              name="close"
+                              size={16}
+                              color={Colors.error}
+                            />
                           </TouchableOpacity>
                         </View>
                       ))}
@@ -199,10 +233,10 @@ export default function BookingStepInsuranceScreen({ navigation }: BookingStepIn
               <View style={styles.infoContent}>
                 <Text style={styles.infoTitle}>Document Requirements</Text>
                 <Text style={styles.infoText}>
-                  • All documents must be clear and legible{'\n'}
-                  • Accepted formats: JPG, PNG, PDF{'\n'}
-                  • Maximum file size: 10MB per document{'\n'}
-                  • Documents will be securely stored and only used for shipment processing
+                  • All documents must be clear and legible{'\n'}• Accepted
+                  formats: JPG, PNG, PDF{'\n'}• Maximum file size: 10MB per
+                  document{'\n'}• Documents will be securely stored and only
+                  used for shipment processing
                 </Text>
               </View>
             </View>

@@ -47,7 +47,9 @@ export const stripeService = {
   /**
    * Create a payment intent for shipment payment
    */
-  async createPaymentIntent(data: PaymentIntentData): Promise<Stripe.PaymentIntent> {
+  async createPaymentIntent(
+    data: PaymentIntentData
+  ): Promise<Stripe.PaymentIntent> {
     try {
       // Validate Stripe API key is configured
       if (!stripe) {
@@ -99,42 +101,46 @@ export const stripeService = {
       return paymentIntent;
     } catch (error) {
       // Extract detailed error information from Stripe error
-      const errorMessage = error instanceof Stripe.errors.StripeError
-        ? `Stripe error: ${error.type} - ${error.message}`
-        : error instanceof Error
-          ? error.message
-          : 'Unknown payment intent creation error';
-      
-      const errorCode = error instanceof Stripe.errors.StripeError
-        ? error.code || error.type
-        : 'PAYMENT_INTENT_FAILED';
-        
+      const errorMessage =
+        error instanceof Stripe.errors.StripeError
+          ? `Stripe error: ${error.type} - ${error.message}`
+          : error instanceof Error
+            ? error.message
+            : 'Unknown payment intent creation error';
+
+      const errorCode =
+        error instanceof Stripe.errors.StripeError
+          ? error.code || error.type
+          : 'PAYMENT_INTENT_FAILED';
+
       // Log detailed error for debugging
-      logger.error('Error creating payment intent', { 
+      logger.error('Error creating payment intent', {
         error,
         errorMessage,
         errorCode,
         data,
         stack: error instanceof Error ? error.stack : undefined,
       });
-      
-      throw createError(
-        errorMessage,
-        400,
-        errorCode
-      );
+
+      throw createError(errorMessage, 400, errorCode);
     }
   },
 
   /**
    * Retrieve a payment intent by ID
    */
-  async getPaymentIntent(paymentIntentId: string): Promise<Stripe.PaymentIntent> {
+  async getPaymentIntent(
+    paymentIntentId: string
+  ): Promise<Stripe.PaymentIntent> {
     try {
-      const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
+      const paymentIntent =
+        await stripe.paymentIntents.retrieve(paymentIntentId);
       return paymentIntent;
     } catch (error) {
-      logger.error('Error retrieving payment intent', { error, paymentIntentId });
+      logger.error('Error retrieving payment intent', {
+        error,
+        paymentIntentId,
+      });
       throw createError(
         error instanceof Error ? error.message : 'Payment intent not found',
         404,
@@ -151,9 +157,12 @@ export const stripeService = {
     paymentMethodId: string
   ): Promise<Stripe.PaymentIntent> {
     try {
-      const paymentIntent = await stripe.paymentIntents.confirm(paymentIntentId, {
-        payment_method: paymentMethodId,
-      });
+      const paymentIntent = await stripe.paymentIntents.confirm(
+        paymentIntentId,
+        {
+          payment_method: paymentMethodId,
+        }
+      );
 
       logger.info('Payment intent confirmed', {
         paymentIntentId,
@@ -162,7 +171,10 @@ export const stripeService = {
 
       return paymentIntent;
     } catch (error) {
-      logger.error('Error confirming payment intent', { error, paymentIntentId });
+      logger.error('Error confirming payment intent', {
+        error,
+        paymentIntentId,
+      });
       throw createError(
         error instanceof Error ? error.message : 'Payment confirmation failed',
         400,
@@ -174,7 +186,11 @@ export const stripeService = {
   /**
    * Create a customer
    */
-  async createCustomer(email: string, name?: string, phone?: string): Promise<Stripe.Customer> {
+  async createCustomer(
+    email: string,
+    name?: string,
+    phone?: string
+  ): Promise<Stripe.Customer> {
     try {
       // Create params object, handling optional fields properly
       const params: Stripe.CustomerCreateParams = {
@@ -183,7 +199,7 @@ export const stripeService = {
           source: 'drivedrop_app',
         },
       };
-      
+
       // Only add optional fields if they are defined
       if (name) params.name = name;
       if (phone) params.phone = phone;
@@ -222,7 +238,7 @@ export const stripeService = {
           refunded_by: 'drivedrop_system',
         },
       };
-      
+
       // Only add optional fields if they are defined
       if (amount !== undefined) params.amount = amount;
       if (reason) params.reason = reason as Stripe.RefundCreateParams.Reason;
@@ -258,7 +274,11 @@ export const stripeService = {
       return stripe.webhooks.constructEvent(payload, signature, endpointSecret);
     } catch (error) {
       logger.error('Webhook signature verification failed', { error });
-      throw createError('Invalid webhook signature', 400, 'INVALID_WEBHOOK_SIGNATURE');
+      throw createError(
+        'Invalid webhook signature',
+        400,
+        'INVALID_WEBHOOK_SIGNATURE'
+      );
     }
   },
 
@@ -269,34 +289,53 @@ export const stripeService = {
     try {
       switch (event.type) {
         case 'payment_intent.succeeded':
-          await this.handlePaymentSucceeded(event.data.object as Stripe.PaymentIntent);
+          await this.handlePaymentSucceeded(
+            event.data.object as Stripe.PaymentIntent
+          );
           break;
         case 'payment_intent.payment_failed':
-          await this.handlePaymentFailed(event.data.object as Stripe.PaymentIntent);
+          await this.handlePaymentFailed(
+            event.data.object as Stripe.PaymentIntent
+          );
           break;
         case 'payment_intent.canceled':
-          await this.handlePaymentCanceled(event.data.object as Stripe.PaymentIntent);
+          await this.handlePaymentCanceled(
+            event.data.object as Stripe.PaymentIntent
+          );
           break;
         case 'customer.subscription.created':
-          await this.handleSubscriptionCreated(event.data.object as Stripe.Subscription);
+          await this.handleSubscriptionCreated(
+            event.data.object as Stripe.Subscription
+          );
           break;
         case 'customer.subscription.updated':
-          await this.handleSubscriptionUpdated(event.data.object as Stripe.Subscription);
+          await this.handleSubscriptionUpdated(
+            event.data.object as Stripe.Subscription
+          );
           break;
         case 'customer.subscription.deleted':
-          await this.handleSubscriptionCanceled(event.data.object as Stripe.Subscription);
+          await this.handleSubscriptionCanceled(
+            event.data.object as Stripe.Subscription
+          );
           break;
         case 'invoice.payment_succeeded':
-          await this.handleInvoicePaymentSucceeded(event.data.object as Stripe.Invoice);
+          await this.handleInvoicePaymentSucceeded(
+            event.data.object as Stripe.Invoice
+          );
           break;
         case 'invoice.payment_failed':
-          await this.handleInvoicePaymentFailed(event.data.object as Stripe.Invoice);
+          await this.handleInvoicePaymentFailed(
+            event.data.object as Stripe.Invoice
+          );
           break;
         default:
           logger.info(`Unhandled event type: ${event.type}`);
       }
     } catch (error) {
-      logger.error('Error handling webhook event', { error, eventType: event.type });
+      logger.error('Error handling webhook event', {
+        error,
+        eventType: event.type,
+      });
       throw error;
     }
   },
@@ -304,7 +343,9 @@ export const stripeService = {
   /**
    * Handle successful payment
    */
-  async handlePaymentSucceeded(paymentIntent: Stripe.PaymentIntent): Promise<void> {
+  async handlePaymentSucceeded(
+    paymentIntent: Stripe.PaymentIntent
+  ): Promise<void> {
     try {
       const { clientId, shipmentId } = paymentIntent.metadata;
 
@@ -329,12 +370,16 @@ export const stripeService = {
           .single();
 
         if (paymentError) {
-          logger.error('Error updating payment record', { 
-            error: paymentError, 
-            shipmentId, 
-            paymentIntentId: paymentIntent.id 
+          logger.error('Error updating payment record', {
+            error: paymentError,
+            shipmentId,
+            paymentIntentId: paymentIntent.id,
           });
-          throw createError('Failed to update payment record', 500, 'PAYMENT_UPDATE_FAILED');
+          throw createError(
+            'Failed to update payment record',
+            500,
+            'PAYMENT_UPDATE_FAILED'
+          );
         }
 
         // Update the shipment status
@@ -347,20 +392,32 @@ export const stripeService = {
           .eq('id', shipmentId);
 
         if (shipmentError) {
-          logger.error('Error updating shipment payment status', { 
-            error: shipmentError, 
-            shipmentId 
+          logger.error('Error updating shipment payment status', {
+            error: shipmentError,
+            shipmentId,
           });
-          throw createError('Failed to update shipment status', 500, 'SHIPMENT_UPDATE_FAILED');
+          throw createError(
+            'Failed to update shipment status',
+            500,
+            'SHIPMENT_UPDATE_FAILED'
+          );
         }
 
         // Create a payment notification
         if (clientId) {
-          await this.createPaymentNotification(clientId, shipmentId, 'success', paymentIntent.amount);
+          await this.createPaymentNotification(
+            clientId,
+            shipmentId,
+            'success',
+            paymentIntent.amount
+          );
         }
       }
     } catch (error) {
-      logger.error('Error handling payment success', { error, paymentIntentId: paymentIntent.id });
+      logger.error('Error handling payment success', {
+        error,
+        paymentIntentId: paymentIntent.id,
+      });
       throw error;
     }
   },
@@ -368,7 +425,9 @@ export const stripeService = {
   /**
    * Handle failed payment
    */
-  async handlePaymentFailed(paymentIntent: Stripe.PaymentIntent): Promise<void> {
+  async handlePaymentFailed(
+    paymentIntent: Stripe.PaymentIntent
+  ): Promise<void> {
     try {
       const { clientId, shipmentId } = paymentIntent.metadata;
 
@@ -391,12 +450,16 @@ export const stripeService = {
           .eq('shipment_id', shipmentId);
 
         if (paymentError) {
-          logger.error('Error updating payment record for failed payment', { 
-            error: paymentError, 
-            shipmentId, 
-            paymentIntentId: paymentIntent.id 
+          logger.error('Error updating payment record for failed payment', {
+            error: paymentError,
+            shipmentId,
+            paymentIntentId: paymentIntent.id,
           });
-          throw createError('Failed to update payment record', 500, 'PAYMENT_UPDATE_FAILED');
+          throw createError(
+            'Failed to update payment record',
+            500,
+            'PAYMENT_UPDATE_FAILED'
+          );
         }
 
         // Update the shipment status
@@ -409,20 +472,35 @@ export const stripeService = {
           .eq('id', shipmentId);
 
         if (shipmentError) {
-          logger.error('Error updating shipment payment status for failed payment', { 
-            error: shipmentError, 
-            shipmentId 
-          });
-          throw createError('Failed to update shipment status', 500, 'SHIPMENT_UPDATE_FAILED');
+          logger.error(
+            'Error updating shipment payment status for failed payment',
+            {
+              error: shipmentError,
+              shipmentId,
+            }
+          );
+          throw createError(
+            'Failed to update shipment status',
+            500,
+            'SHIPMENT_UPDATE_FAILED'
+          );
         }
 
         // Create a payment notification
         if (clientId) {
-          await this.createPaymentNotification(clientId, shipmentId, 'failure', paymentIntent.amount);
+          await this.createPaymentNotification(
+            clientId,
+            shipmentId,
+            'failure',
+            paymentIntent.amount
+          );
         }
       }
     } catch (error) {
-      logger.error('Error handling payment failure', { error, paymentIntentId: paymentIntent.id });
+      logger.error('Error handling payment failure', {
+        error,
+        paymentIntentId: paymentIntent.id,
+      });
       throw error;
     }
   },
@@ -440,33 +518,51 @@ export const stripeService = {
       const { error } = await supabase.from('notifications').insert({
         user_id: userId,
         type: 'payment',
-        title: type === 'success' ? 'Payment Successful' : type === 'failure' ? 'Payment Failed' : 'Refund Processed',
-        message: type === 'success' 
-          ? `Your payment of $${(amount / 100).toFixed(2)} for shipment was successful.` 
-          : type === 'failure'
-          ? `Your payment of $${(amount / 100).toFixed(2)} for shipment failed. Please try again.`
-          : `A refund of $${(amount / 100).toFixed(2)} has been processed for your shipment.`,
-        data: { 
+        title:
+          type === 'success'
+            ? 'Payment Successful'
+            : type === 'failure'
+              ? 'Payment Failed'
+              : 'Refund Processed',
+        message:
+          type === 'success'
+            ? `Your payment of $${(amount / 100).toFixed(2)} for shipment was successful.`
+            : type === 'failure'
+              ? `Your payment of $${(amount / 100).toFixed(2)} for shipment failed. Please try again.`
+              : `A refund of $${(amount / 100).toFixed(2)} has been processed for your shipment.`,
+        data: {
           shipmentId,
           amount,
-          type
+          type,
         },
         is_read: false,
         created_at: new Date().toISOString(),
       });
 
       if (error) {
-        logger.error('Error creating payment notification', { error, userId, shipmentId, type });
+        logger.error('Error creating payment notification', {
+          error,
+          userId,
+          shipmentId,
+          type,
+        });
       }
     } catch (error) {
-      logger.error('Error creating payment notification', { error, userId, shipmentId, type });
+      logger.error('Error creating payment notification', {
+        error,
+        userId,
+        shipmentId,
+        type,
+      });
     }
   },
 
   /**
    * Handle canceled payment
    */
-  async handlePaymentCanceled(paymentIntent: Stripe.PaymentIntent): Promise<void> {
+  async handlePaymentCanceled(
+    paymentIntent: Stripe.PaymentIntent
+  ): Promise<void> {
     try {
       const { clientId, shipmentId } = paymentIntent.metadata;
 
@@ -488,12 +584,16 @@ export const stripeService = {
           .eq('shipment_id', shipmentId);
 
         if (paymentError) {
-          logger.error('Error updating payment record for canceled payment', { 
-            error: paymentError, 
-            shipmentId, 
-            paymentIntentId: paymentIntent.id 
+          logger.error('Error updating payment record for canceled payment', {
+            error: paymentError,
+            shipmentId,
+            paymentIntentId: paymentIntent.id,
           });
-          throw createError('Failed to update payment record', 500, 'PAYMENT_UPDATE_FAILED');
+          throw createError(
+            'Failed to update payment record',
+            500,
+            'PAYMENT_UPDATE_FAILED'
+          );
         }
 
         // Update the shipment status
@@ -506,20 +606,35 @@ export const stripeService = {
           .eq('id', shipmentId);
 
         if (shipmentError) {
-          logger.error('Error updating shipment payment status for canceled payment', { 
-            error: shipmentError, 
-            shipmentId 
-          });
-          throw createError('Failed to update shipment status', 500, 'SHIPMENT_UPDATE_FAILED');
+          logger.error(
+            'Error updating shipment payment status for canceled payment',
+            {
+              error: shipmentError,
+              shipmentId,
+            }
+          );
+          throw createError(
+            'Failed to update shipment status',
+            500,
+            'SHIPMENT_UPDATE_FAILED'
+          );
         }
 
         // Create a payment notification
         if (clientId) {
-          await this.createPaymentNotification(clientId, shipmentId, 'failure', paymentIntent.amount);
+          await this.createPaymentNotification(
+            clientId,
+            shipmentId,
+            'failure',
+            paymentIntent.amount
+          );
         }
       }
     } catch (error) {
-      logger.error('Error handling payment cancellation', { error, paymentIntentId: paymentIntent.id });
+      logger.error('Error handling payment cancellation', {
+        error,
+        paymentIntentId: paymentIntent.id,
+      });
       throw error;
     }
   },
@@ -527,7 +642,9 @@ export const stripeService = {
   /**
    * Handle subscription created event
    */
-  async handleSubscriptionCreated(subscription: Stripe.Subscription): Promise<void> {
+  async handleSubscriptionCreated(
+    subscription: Stripe.Subscription
+  ): Promise<void> {
     try {
       logger.info('Subscription created', {
         subscriptionId: subscription.id,
@@ -538,7 +655,10 @@ export const stripeService = {
       // Here you would update the user's subscription status in your database
       // Example: await userService.updateSubscriptionStatus(customerId, subscriptionId, 'active');
     } catch (error) {
-      logger.error('Error handling subscription creation', { error, subscriptionId: subscription.id });
+      logger.error('Error handling subscription creation', {
+        error,
+        subscriptionId: subscription.id,
+      });
       throw error;
     }
   },
@@ -546,7 +666,9 @@ export const stripeService = {
   /**
    * Handle subscription updated event
    */
-  async handleSubscriptionUpdated(subscription: Stripe.Subscription): Promise<void> {
+  async handleSubscriptionUpdated(
+    subscription: Stripe.Subscription
+  ): Promise<void> {
     try {
       logger.info('Subscription updated', {
         subscriptionId: subscription.id,
@@ -557,7 +679,10 @@ export const stripeService = {
       // Here you would update the user's subscription status in your database
       // Example: await userService.updateSubscriptionStatus(customerId, subscriptionId, subscription.status);
     } catch (error) {
-      logger.error('Error handling subscription update', { error, subscriptionId: subscription.id });
+      logger.error('Error handling subscription update', {
+        error,
+        subscriptionId: subscription.id,
+      });
       throw error;
     }
   },
@@ -565,7 +690,9 @@ export const stripeService = {
   /**
    * Handle subscription canceled event
    */
-  async handleSubscriptionCanceled(subscription: Stripe.Subscription): Promise<void> {
+  async handleSubscriptionCanceled(
+    subscription: Stripe.Subscription
+  ): Promise<void> {
     try {
       logger.info('Subscription canceled', {
         subscriptionId: subscription.id,
@@ -576,7 +703,10 @@ export const stripeService = {
       // Here you would update the user's subscription status in your database
       // Example: await userService.updateSubscriptionStatus(customerId, subscriptionId, 'canceled');
     } catch (error) {
-      logger.error('Error handling subscription cancellation', { error, subscriptionId: subscription.id });
+      logger.error('Error handling subscription cancellation', {
+        error,
+        subscriptionId: subscription.id,
+      });
       throw error;
     }
   },
@@ -589,7 +719,7 @@ export const stripeService = {
       // Using type assertion to access properties that might not be in the type definitions
       const invoiceData = invoice as any;
       const subscriptionId = invoiceData.subscription || null;
-        
+
       logger.info('Invoice payment succeeded', {
         invoiceId: invoice.id,
         customerId: invoice.customer,
@@ -600,7 +730,10 @@ export const stripeService = {
       // Here you would update the user's payment records in your database
       // Example: await paymentService.recordSuccessfulPayment(customerId, invoiceId, amount);
     } catch (error) {
-      logger.error('Error handling invoice payment success', { error, invoiceId: invoice.id });
+      logger.error('Error handling invoice payment success', {
+        error,
+        invoiceId: invoice.id,
+      });
       throw error;
     }
   },
@@ -613,7 +746,7 @@ export const stripeService = {
       // Using type assertion to access properties that might not be in the type definitions
       const invoiceData = invoice as any;
       const subscriptionId = invoiceData.subscription || null;
-        
+
       logger.info('Invoice payment failed', {
         invoiceId: invoice.id,
         customerId: invoice.customer,
@@ -625,7 +758,10 @@ export const stripeService = {
       // Example: await paymentService.recordFailedPayment(customerId, invoiceId, amount);
       // Example: await notificationService.sendPaymentFailureNotification(customerId);
     } catch (error) {
-      logger.error('Error handling invoice payment failure', { error, invoiceId: invoice.id });
+      logger.error('Error handling invoice payment failure', {
+        error,
+        invoiceId: invoice.id,
+      });
       throw error;
     }
   },
@@ -633,12 +769,17 @@ export const stripeService = {
   /**
    * Add payment method to customer
    */
-  async addPaymentMethod(data: PaymentMethodData): Promise<Stripe.PaymentMethod> {
+  async addPaymentMethod(
+    data: PaymentMethodData
+  ): Promise<Stripe.PaymentMethod> {
     try {
       // Attach payment method to customer
-      const paymentMethod = await stripe.paymentMethods.attach(data.paymentMethodId, {
-        customer: data.customerId,
-      });
+      const paymentMethod = await stripe.paymentMethods.attach(
+        data.paymentMethodId,
+        {
+          customer: data.customerId,
+        }
+      );
 
       // Set as default payment method if requested
       if (data.isDefault) {
@@ -669,7 +810,10 @@ export const stripeService = {
   /**
    * List customer payment methods
    */
-  async listPaymentMethods(customerId: string, type: Stripe.PaymentMethodListParams.Type = 'card'): Promise<Stripe.ApiList<Stripe.PaymentMethod>> {
+  async listPaymentMethods(
+    customerId: string,
+    type: Stripe.PaymentMethodListParams.Type = 'card'
+  ): Promise<Stripe.ApiList<Stripe.PaymentMethod>> {
     try {
       const paymentMethods = await stripe.customers.listPaymentMethods(
         customerId,
@@ -680,7 +824,9 @@ export const stripeService = {
     } catch (error) {
       logger.error('Error listing payment methods', { error, customerId });
       throw createError(
-        error instanceof Error ? error.message : 'Failed to list payment methods',
+        error instanceof Error
+          ? error.message
+          : 'Failed to list payment methods',
         400,
         'LIST_PAYMENT_METHODS_FAILED'
       );
@@ -690,7 +836,9 @@ export const stripeService = {
   /**
    * Remove payment method from customer
    */
-  async removePaymentMethod(paymentMethodId: string): Promise<Stripe.PaymentMethod> {
+  async removePaymentMethod(
+    paymentMethodId: string
+  ): Promise<Stripe.PaymentMethod> {
     try {
       const paymentMethod = await stripe.paymentMethods.detach(paymentMethodId);
 
@@ -702,7 +850,9 @@ export const stripeService = {
     } catch (error) {
       logger.error('Error removing payment method', { error, paymentMethodId });
       throw createError(
-        error instanceof Error ? error.message : 'Failed to remove payment method',
+        error instanceof Error
+          ? error.message
+          : 'Failed to remove payment method',
         400,
         'REMOVE_PAYMENT_METHOD_FAILED'
       );
@@ -734,7 +884,8 @@ export const stripeService = {
         subscriptionParams.default_payment_method = paymentMethodId;
       }
 
-      const subscription = await stripe.subscriptions.create(subscriptionParams);
+      const subscription =
+        await stripe.subscriptions.create(subscriptionParams);
 
       logger.info('Subscription created', {
         subscriptionId: subscription.id,
@@ -744,7 +895,11 @@ export const stripeService = {
 
       return subscription;
     } catch (error) {
-      logger.error('Error creating subscription', { error, customerId, priceId });
+      logger.error('Error creating subscription', {
+        error,
+        customerId,
+        priceId,
+      });
       throw createError(
         error instanceof Error ? error.message : 'Subscription creation failed',
         400,
@@ -782,7 +937,9 @@ export const stripeService = {
     } catch (error) {
       logger.error('Error canceling subscription', { error, subscriptionId });
       throw createError(
-        error instanceof Error ? error.message : 'Subscription cancellation failed',
+        error instanceof Error
+          ? error.message
+          : 'Subscription cancellation failed',
         400,
         'SUBSCRIPTION_CANCELLATION_FAILED'
       );
@@ -797,7 +954,10 @@ export const stripeService = {
     params: Partial<Stripe.SubscriptionUpdateParams>
   ): Promise<Stripe.Subscription> {
     try {
-      const subscription = await stripe.subscriptions.update(subscriptionId, params);
+      const subscription = await stripe.subscriptions.update(
+        subscriptionId,
+        params
+      );
 
       logger.info('Subscription updated', {
         subscriptionId,
@@ -818,7 +978,9 @@ export const stripeService = {
   /**
    * Get customer subscriptions
    */
-  async getCustomerSubscriptions(customerId: string): Promise<Stripe.ApiList<Stripe.Subscription>> {
+  async getCustomerSubscriptions(
+    customerId: string
+  ): Promise<Stripe.ApiList<Stripe.Subscription>> {
     try {
       const subscriptions = await stripe.subscriptions.list({
         customer: customerId,
@@ -828,7 +990,10 @@ export const stripeService = {
 
       return subscriptions;
     } catch (error) {
-      logger.error('Error getting customer subscriptions', { error, customerId });
+      logger.error('Error getting customer subscriptions', {
+        error,
+        customerId,
+      });
       throw createError(
         error instanceof Error ? error.message : 'Failed to get subscriptions',
         400,
@@ -864,9 +1029,14 @@ export const stripeService = {
 
       return paymentIntents;
     } catch (error) {
-      logger.error('Error retrieving customer transaction history', { error, customerId });
+      logger.error('Error retrieving customer transaction history', {
+        error,
+        customerId,
+      });
       throw createError(
-        error instanceof Error ? error.message : 'Failed to retrieve transaction history',
+        error instanceof Error
+          ? error.message
+          : 'Failed to retrieve transaction history',
         400,
         'TRANSACTION_HISTORY_FAILED'
       );
@@ -880,10 +1050,10 @@ export const stripeService = {
     startDate: number, // Unix timestamp
     endDate: number, // Unix timestamp
     limit: number = 100
-  ): Promise<{ 
-    totalAmount: number; 
-    successfulPayments: number; 
-    failedPayments: number; 
+  ): Promise<{
+    totalAmount: number;
+    successfulPayments: number;
+    failedPayments: number;
     paymentIntents: Stripe.PaymentIntent[];
   }> {
     try {
@@ -903,7 +1073,10 @@ export const stripeService = {
         if (intent.status === 'succeeded') {
           successfulPayments++;
           totalAmount += intent.amount;
-        } else if (intent.status === 'canceled' || intent.status === 'requires_payment_method') {
+        } else if (
+          intent.status === 'canceled' ||
+          intent.status === 'requires_payment_method'
+        ) {
           failedPayments++;
         }
       });
@@ -923,9 +1096,15 @@ export const stripeService = {
         paymentIntents: paymentIntents.data,
       };
     } catch (error) {
-      logger.error('Error retrieving payment analytics', { error, startDate, endDate });
+      logger.error('Error retrieving payment analytics', {
+        error,
+        startDate,
+        endDate,
+      });
       throw createError(
-        error instanceof Error ? error.message : 'Failed to retrieve payment analytics',
+        error instanceof Error
+          ? error.message
+          : 'Failed to retrieve payment analytics',
         400,
         'PAYMENT_ANALYTICS_FAILED'
       );
@@ -964,7 +1143,7 @@ export const stripeService = {
       );
     }
   },
-  
+
   /**
    * Verify Stripe connectivity
    * Use this to check if Stripe API is reachable
@@ -972,19 +1151,21 @@ export const stripeService = {
   async verifyConnectivity(): Promise<boolean> {
     try {
       if (!stripe) {
-        logger.error('Cannot verify Stripe connectivity - service not initialized');
+        logger.error(
+          'Cannot verify Stripe connectivity - service not initialized'
+        );
         return false;
       }
-      
+
       // Make a simple API call that doesn't affect any resources
       // Using countrySpecs.list as it's a lightweight call
       await stripe.countrySpecs.list({ limit: 1 });
       logger.info('Stripe API connectivity verified successfully');
       return true;
     } catch (error) {
-      logger.error('Stripe API connectivity check failed', { 
-        error, 
-        message: error instanceof Error ? error.message : 'Unknown error' 
+      logger.error('Stripe API connectivity check failed', {
+        error,
+        message: error instanceof Error ? error.message : 'Unknown error',
       });
       return false;
     }

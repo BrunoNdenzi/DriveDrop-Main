@@ -3,13 +3,13 @@
  */
 import { Router } from 'express';
 import { authenticate, authorize } from '@middlewares/auth.middleware';
-import { 
-  getCurrentUser, 
-  getUserById, 
+import {
+  getCurrentUser,
+  getUserById,
   getUsers,
   updateCurrentUser,
   updateUserRating,
-  getDriversNearby
+  getDriversNearby,
 } from '@controllers/user.controller';
 import { getDriverApplications } from '@controllers/application.controller';
 
@@ -34,14 +34,24 @@ router.put('/me', authenticate, updateCurrentUser);
  * @desc Get drivers near location
  * @access Private (Client)
  */
-router.get('/drivers/nearby', authenticate, authorize(['client']), getDriversNearby);
+router.get(
+  '/drivers/nearby',
+  authenticate,
+  authorize(['client']),
+  getDriversNearby
+);
 
 /**
  * @route GET /api/v1/users/drivers/applications
  * @desc Get driver's applications
  * @access Private (Driver)
  */
-router.get('/drivers/applications', authenticate, authorize(['driver']), getDriverApplications);
+router.get(
+  '/drivers/applications',
+  authenticate,
+  authorize(['driver']),
+  getDriverApplications
+);
 
 /**
  * @route GET /api/v1/users/:id
@@ -55,7 +65,12 @@ router.get('/:id', authenticate, authorize(['admin']), getUserById);
  * @desc Update user rating
  * @access Private (Admin)
  */
-router.patch('/:id/rating', authenticate, authorize(['admin']), updateUserRating);
+router.patch(
+  '/:id/rating',
+  authenticate,
+  authorize(['admin']),
+  updateUserRating
+);
 
 /**
  * @route GET /api/v1/users

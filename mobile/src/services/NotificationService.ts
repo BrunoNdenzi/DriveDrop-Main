@@ -80,7 +80,8 @@ export class NotificationService {
       }
 
       // Check if we have permission to send notifications
-      const { status: existingStatus } = await Notifications.getPermissionsAsync();
+      const { status: existingStatus } =
+        await Notifications.getPermissionsAsync();
       let finalStatus = existingStatus;
 
       // If we don't have permission, ask for it
@@ -97,12 +98,12 @@ export class NotificationService {
       // Get the Expo push token
       try {
         const token = await this.registerForPushNotifications();
-        
+
         // If we got a valid token, save it
         if (token !== 'INVALID_PROJECT_ID') {
           this._expoPushToken = token;
           console.log('Expo push token:', token);
-          
+
           // Store the token in Supabase
           await this.savePushToken(token);
         } else {
@@ -126,11 +127,16 @@ export class NotificationService {
   private async registerForPushNotifications(): Promise<string> {
     try {
       // Check if we have a valid project ID
-      if (!ExpoConfig.projectId || ExpoConfig.projectId === '00000000-0000-0000-0000-000000000000') {
-        console.log('No valid Expo project ID configured. Push notifications will not work.');
+      if (
+        !ExpoConfig.projectId ||
+        ExpoConfig.projectId === '00000000-0000-0000-0000-000000000000'
+      ) {
+        console.log(
+          'No valid Expo project ID configured. Push notifications will not work.'
+        );
         return 'INVALID_PROJECT_ID';
       }
-      
+
       // Get the token
       console.log('Using project ID:', ExpoConfig.projectId);
       const { data: tokenData } = await Notifications.getExpoPushTokenAsync({
@@ -160,19 +166,20 @@ export class NotificationService {
   private setupNotificationListeners(): void {
     // This listener is fired whenever a notification is received while the app is foregrounded
     this._notificationListener = Notifications.addNotificationReceivedListener(
-      (notification) => {
+      notification => {
         console.log('Notification received:', notification);
       }
     );
 
     // This listener is fired whenever a user taps on or interacts with a notification
-    this._responseListener = Notifications.addNotificationResponseReceivedListener(
-      (response) => {
+    this._responseListener =
+      Notifications.addNotificationResponseReceivedListener(response => {
         console.log('Notification response:', response);
         // Handle notification tap
-        this.handleNotificationInteraction(response.notification.request.content.data);
-      }
-    );
+        this.handleNotificationInteraction(
+          response.notification.request.content.data
+        );
+      });
   }
 
   /**
@@ -206,13 +213,13 @@ export class NotificationService {
   async savePushToken(token: string): Promise<void> {
     try {
       // Check if session exists first
-      if (!await this.hasActiveSession()) {
+      if (!(await this.hasActiveSession())) {
         console.log('No active session, skipping push token save');
         return;
       }
 
       const { data: user, error: userError } = await supabase.auth.getUser();
-      
+
       if (userError || !user) {
         console.error('Error getting user:', userError);
         return;
@@ -255,13 +262,13 @@ export class NotificationService {
   async getNotificationPreferences(): Promise<NotificationPreferences> {
     try {
       // Check if session exists first
-      if (!await this.hasActiveSession()) {
+      if (!(await this.hasActiveSession())) {
         console.log('No active session, returning default preferences');
         return defaultPreferences;
       }
-      
+
       const { data: user, error: userError } = await supabase.auth.getUser();
-      
+
       if (userError || !user) {
         console.error('Error getting user:', userError);
         return defaultPreferences;
@@ -297,16 +304,18 @@ export class NotificationService {
   /**
    * Save notification preferences for the current user
    */
-  async saveNotificationPreferences(preferences: NotificationPreferences): Promise<void> {
+  async saveNotificationPreferences(
+    preferences: NotificationPreferences
+  ): Promise<void> {
     try {
       // Check if session exists first
-      if (!await this.hasActiveSession()) {
+      if (!(await this.hasActiveSession())) {
         console.log('No active session, skipping preferences save');
         return;
       }
-      
+
       const { data: user, error: userError } = await supabase.auth.getUser();
-      
+
       if (userError || !user) {
         console.error('Error getting user:', userError);
         return;
@@ -332,15 +341,13 @@ export class NotificationService {
       };
 
       let error;
-      
+
       if (queryError || !data) {
         // Insert new preferences
-        const result = await supabase
-          .from('notification_preferences')
-          .insert({
-            ...prefsData,
-            created_at: new Date().toISOString(),
-          });
+        const result = await supabase.from('notification_preferences').insert({
+          ...prefsData,
+          created_at: new Date().toISOString(),
+        });
         error = result.error;
       } else {
         // Update existing preferences
@@ -362,7 +369,11 @@ export class NotificationService {
   /**
    * Send a local notification for testing
    */
-  async sendLocalNotification(title: string, body: string, data: any = {}): Promise<void> {
+  async sendLocalNotification(
+    title: string,
+    body: string,
+    data: any = {}
+  ): Promise<void> {
     await Notifications.scheduleNotificationAsync({
       content: {
         title,

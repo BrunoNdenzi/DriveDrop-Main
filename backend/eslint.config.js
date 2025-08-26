@@ -22,11 +22,19 @@ module.exports = [
       '@typescript-eslint': typescriptEslint,
     },
     rules: {
-      '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
+      '@typescript-eslint/no-unused-vars': [
+        'error',
+        { argsIgnorePattern: '^_' },
+      ],
       '@typescript-eslint/no-explicit-any': 'error',
     },
   },
   {
-    ignores: ['dist/', 'node_modules/'],
+    ignores: [
+      'dist/',
+      'node_modules/',
+      '**/*.bak.ts',
+      '**/temp_payments.controller.ts',
+    ],
   },
 ];

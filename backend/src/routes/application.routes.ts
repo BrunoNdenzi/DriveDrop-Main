@@ -3,10 +3,10 @@
  */
 import { Router } from 'express';
 import { authenticate, authorize } from '@middlewares/auth.middleware';
-import { 
+import {
   updateApplicationStatus,
   getDriverApplications,
-  getAllApplications
+  getAllApplications,
 } from '@controllers/application.controller';
 
 const router = Router();
@@ -30,6 +30,11 @@ router.put('/:id/status', authenticate, updateApplicationStatus);
  * @desc Get applications for a specific driver (admin only)
  * @access Private (Admin)
  */
-router.get('/driver/:driverId', authenticate, authorize(['admin']), getDriverApplications);
+router.get(
+  '/driver/:driverId',
+  authenticate,
+  authorize(['admin']),
+  getDriverApplications
+);
 
 export default router;

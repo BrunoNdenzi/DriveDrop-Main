@@ -63,7 +63,12 @@ router.post('/nearby-places', authenticate, findNearbyPlaces);
  * @desc Get optimized route for multiple waypoints (Driver or Admin)
  * @access Private (Driver or Admin)
  */
-router.post('/optimize-route', authenticate, authorize(['driver', 'admin']), optimizeRoute);
+router.post(
+  '/optimize-route',
+  authenticate,
+  authorize(['driver', 'admin']),
+  optimizeRoute
+);
 
 /**
  * @route POST /api/v1/maps/validate-coordinates

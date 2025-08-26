@@ -9,7 +9,7 @@ if (!config.supabase.url || !config.supabase.anonKey) {
 
 // Client for general API operations (uses anon key)
 export const supabase = createClient<Database>(
-  config.supabase.url, 
+  config.supabase.url,
   config.supabase.anonKey,
   {
     auth: {
@@ -35,19 +35,15 @@ export const supabaseAdmin = createClient<Database>(
  * Create a Supabase client with a specific user's JWT token
  */
 export const createUserSupabaseClient = (accessToken: string) => {
-  return createClient<Database>(
-    config.supabase.url,
-    config.supabase.anonKey,
-    {
-      global: {
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-        },
+  return createClient<Database>(config.supabase.url, config.supabase.anonKey, {
+    global: {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
       },
-      auth: {
-        autoRefreshToken: false,
-        persistSession: false,
-      },
-    }
-  );
+    },
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false,
+    },
+  });
 };

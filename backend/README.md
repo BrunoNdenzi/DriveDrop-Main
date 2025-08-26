@@ -75,10 +75,11 @@ yarn run start
 ### Supabase Setup
 
 1. **Database Migration**: Run the SQL migrations in your Supabase project:
+
    ```sql
    -- Located in /supabase/migrations/
    -- 01_initial_schema.sql
-   -- 02_row_level_security.sql  
+   -- 02_row_level_security.sql
    -- 03_functions_and_triggers.sql
    ```
 
@@ -109,6 +110,7 @@ Content-Type: application/json
 ```
 
 Response:
+
 ```json
 {
   "success": true,
@@ -263,6 +265,7 @@ The API implements three user roles:
 3. **validateResourceOwnership**: Ensures users can only access their own resources
 
 Example middleware usage:
+
 ```typescript
 // Protect route for authenticated users only
 router.get('/profile', authenticate, getProfile);
@@ -271,7 +274,12 @@ router.get('/profile', authenticate, getProfile);
 router.get('/admin', authenticate, authorize(['admin']), getAdminData);
 
 // Resource ownership validation
-router.get('/shipments/:id', authenticate, validateResourceOwnership(), getShipment);
+router.get(
+  '/shipments/:id',
+  authenticate,
+  validateResourceOwnership(),
+  getShipment
+);
 ```
 
 ### Supabase Integration
@@ -298,7 +306,7 @@ The API returns standardized error responses:
 {
   "success": false,
   "error": {
-    "code": "ERROR_CODE", 
+    "code": "ERROR_CODE",
     "message": "Error description",
     "errors": []
   }
@@ -306,6 +314,7 @@ The API returns standardized error responses:
 ```
 
 Common error codes:
+
 - `UNAUTHORIZED`: Authentication required or invalid token
 - `FORBIDDEN`: Permission denied for the requested resource
 - `NOT_FOUND`: Resource not found
@@ -369,6 +378,7 @@ src/
 6. **Update API documentation**
 
 Example:
+
 ```typescript
 // 1. Types
 export interface Vehicle {
@@ -382,7 +392,7 @@ export interface Vehicle {
 export const vehicleService = {
   async getVehicleById(id: string) {
     // Implementation
-  }
+  },
 };
 
 // 3. Controller

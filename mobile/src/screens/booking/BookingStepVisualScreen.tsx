@@ -17,9 +17,14 @@ import { Card } from '../../components/ui/Card';
 import { RootStackParamList } from '../../navigation/types';
 import { useBooking } from '../../context/BookingContext';
 
-type BookingStepVisualProps = NativeStackScreenProps<RootStackParamList, 'BookingStepVisual'>;
+type BookingStepVisualProps = NativeStackScreenProps<
+  RootStackParamList,
+  'BookingStepVisual'
+>;
 
-export default function BookingStepVisualScreen({ navigation }: BookingStepVisualProps) {
+export default function BookingStepVisualScreen({
+  navigation,
+}: BookingStepVisualProps) {
   const { state, updateFormData, setStepValidity, goToNextStep } = useBooking();
   const { visualDocumentation } = state.formData;
 
@@ -72,7 +77,9 @@ export default function BookingStepVisualScreen({ navigation }: BookingStepVisua
   useEffect(() => {
     const requiredCategories = photoCategories.filter(cat => cat.required);
     const hasAllRequired = requiredCategories.every(category => {
-      const photos = visualDocumentation[category.key as keyof typeof visualDocumentation] || [];
+      const photos =
+        visualDocumentation[category.key as keyof typeof visualDocumentation] ||
+        [];
       return photos.length > 0;
     });
     setStepValidity('visual', hasAllRequired);
@@ -93,27 +100,29 @@ export default function BookingStepVisualScreen({ navigation }: BookingStepVisua
   const capturePhoto = (category: string, source: 'camera' | 'gallery') => {
     // Placeholder implementation - in real app, would use expo-image-picker
     const mockPhotoUri = `file://mock-${category}-${Date.now()}.jpg`;
-    const currentPhotos = visualDocumentation[category as keyof typeof visualDocumentation] || [];
-    
+    const currentPhotos =
+      visualDocumentation[category as keyof typeof visualDocumentation] || [];
+
     const updatedData = {
       ...visualDocumentation,
       [category]: [...currentPhotos, mockPhotoUri],
     };
-    
+
     updateFormData('visual', updatedData);
-    
+
     Alert.alert('Success', 'Photo added successfully!');
   };
 
   const removePhoto = (category: string, index: number) => {
-    const currentPhotos = visualDocumentation[category as keyof typeof visualDocumentation] || [];
+    const currentPhotos =
+      visualDocumentation[category as keyof typeof visualDocumentation] || [];
     const updatedPhotos = currentPhotos.filter((_, i) => i !== index);
-    
+
     const updatedData = {
       ...visualDocumentation,
       [category]: updatedPhotos,
     };
-    
+
     updateFormData('visual', updatedData);
   };
 
@@ -131,7 +140,7 @@ export default function BookingStepVisualScreen({ navigation }: BookingStepVisua
   return (
     <View style={styles.container}>
       <StatusBar style="dark" />
-      
+
       {/* Header */}
       <View style={styles.header}>
         <Text style={styles.title}>Visual Documentation</Text>
@@ -141,8 +150,8 @@ export default function BookingStepVisualScreen({ navigation }: BookingStepVisua
         </View>
       </View>
 
-      <ScrollView 
-        style={styles.content} 
+      <ScrollView
+        style={styles.content}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
         contentContainerStyle={{ flexGrow: 1 }}
@@ -151,12 +160,16 @@ export default function BookingStepVisualScreen({ navigation }: BookingStepVisua
           <Card variant="default" padding="lg" style={styles.formCard}>
             <Text style={styles.sectionTitle}>Vehicle Photos</Text>
             <Text style={styles.sectionSubtitle}>
-              Take clear photos of your vehicle from all angles. This helps us provide accurate service and document the vehicle's condition.
+              Take clear photos of your vehicle from all angles. This helps us
+              provide accurate service and document the vehicle's condition.
             </Text>
 
             <View style={styles.photoGrid}>
-              {photoCategories.map((category) => {
-                const photos = visualDocumentation[category.key as keyof typeof visualDocumentation] || [];
+              {photoCategories.map(category => {
+                const photos =
+                  visualDocumentation[
+                    category.key as keyof typeof visualDocumentation
+                  ] || [];
                 const hasPhotos = photos.length > 0;
 
                 return (
@@ -165,21 +178,31 @@ export default function BookingStepVisualScreen({ navigation }: BookingStepVisua
                       style={[
                         styles.photoButton,
                         hasPhotos && styles.photoButtonComplete,
-                        category.required && !hasPhotos && styles.photoButtonRequired
+                        category.required &&
+                          !hasPhotos &&
+                          styles.photoButtonRequired,
                       ]}
                       onPress={() => handlePhotoCapture(category.key)}
                     >
-                      <MaterialIcons 
-                        name={hasPhotos ? "check-circle" : category.icon as any} 
-                        size={32} 
-                        color={hasPhotos ? Colors.success : Colors.text.secondary} 
+                      <MaterialIcons
+                        name={
+                          hasPhotos ? 'check-circle' : (category.icon as any)
+                        }
+                        size={32}
+                        color={
+                          hasPhotos ? Colors.success : Colors.text.secondary
+                        }
                       />
-                      <Text style={[
-                        styles.photoButtonText,
-                        hasPhotos && styles.photoButtonTextComplete
-                      ]}>
+                      <Text
+                        style={[
+                          styles.photoButtonText,
+                          hasPhotos && styles.photoButtonTextComplete,
+                        ]}
+                      >
                         {category.title}
-                        {category.required && <Text style={styles.required}> *</Text>}
+                        {category.required && (
+                          <Text style={styles.required}> *</Text>
+                        )}
                       </Text>
                       <Text style={styles.photoButtonDescription}>
                         {category.description}
@@ -195,7 +218,11 @@ export default function BookingStepVisualScreen({ navigation }: BookingStepVisua
                       <View style={styles.photoList}>
                         {photos.map((photo, index) => (
                           <View key={index} style={styles.photoItem}>
-                            <MaterialIcons name="photo" size={16} color={Colors.text.secondary} />
+                            <MaterialIcons
+                              name="photo"
+                              size={16}
+                              color={Colors.text.secondary}
+                            />
                             <Text style={styles.photoName}>
                               Photo {index + 1}
                             </Text>
@@ -203,7 +230,11 @@ export default function BookingStepVisualScreen({ navigation }: BookingStepVisua
                               onPress={() => removePhoto(category.key, index)}
                               style={styles.removeButton}
                             >
-                              <MaterialIcons name="close" size={16} color={Colors.error} />
+                              <MaterialIcons
+                                name="close"
+                                size={16}
+                                color={Colors.error}
+                              />
                             </TouchableOpacity>
                           </View>
                         ))}
@@ -217,15 +248,18 @@ export default function BookingStepVisualScreen({ navigation }: BookingStepVisua
 
           <Card variant="default" padding="lg" style={styles.formCard}>
             <View style={styles.tipsSection}>
-              <MaterialIcons name="lightbulb" size={24} color={Colors.secondary} />
+              <MaterialIcons
+                name="lightbulb"
+                size={24}
+                color={Colors.secondary}
+              />
               <View style={styles.tipsContent}>
                 <Text style={styles.tipsTitle}>Photo Tips</Text>
                 <Text style={styles.tipsText}>
-                  • Take photos in good lighting{'\n'}
-                  • Ensure the entire vehicle is visible{'\n'}
-                  • Capture any existing damage clearly{'\n'}
-                  • Clean photos help with faster processing{'\n'}
-                  • Multiple angles are welcome
+                  • Take photos in good lighting{'\n'}• Ensure the entire
+                  vehicle is visible{'\n'}• Capture any existing damage clearly
+                  {'\n'}• Clean photos help with faster processing{'\n'}•
+                  Multiple angles are welcome
                 </Text>
               </View>
             </View>

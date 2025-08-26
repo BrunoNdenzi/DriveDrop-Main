@@ -17,9 +17,14 @@ import { Colors } from '../../constants/Colors';
 import { auth } from '../../lib/supabase';
 import { RootStackParamList } from '../../navigation/types';
 
-type ForgotPasswordScreenProps = NativeStackScreenProps<RootStackParamList, 'ForgotPassword'>;
+type ForgotPasswordScreenProps = NativeStackScreenProps<
+  RootStackParamList,
+  'ForgotPassword'
+>;
 
-export default function ForgotPasswordScreen({ navigation }: ForgotPasswordScreenProps) {
+export default function ForgotPasswordScreen({
+  navigation,
+}: ForgotPasswordScreenProps) {
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -41,12 +46,15 @@ export default function ForgotPasswordScreen({ navigation }: ForgotPasswordScree
         [
           {
             text: 'OK',
-            onPress: () => navigation.navigate('Login')
-          }
+            onPress: () => navigation.navigate('Login'),
+          },
         ]
       );
     } catch (error: any) {
-      Alert.alert('Reset Error', error.message || 'An error occurred while sending reset email');
+      Alert.alert(
+        'Reset Error',
+        error.message || 'An error occurred while sending reset email'
+      );
     } finally {
       setLoading(false);
     }
@@ -63,7 +71,8 @@ export default function ForgotPasswordScreen({ navigation }: ForgotPasswordScree
         <View style={styles.header}>
           <Text style={styles.title}>Reset Password</Text>
           <Text style={styles.subtitle}>
-            Enter the email address associated with your account and we'll send you a link to reset your password.
+            Enter the email address associated with your account and we'll send
+            you a link to reset your password.
           </Text>
         </View>
 

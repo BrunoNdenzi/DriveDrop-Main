@@ -8,7 +8,7 @@ import NetworkUtil from './NetworkUtil';
 export const MessageUtil = {
   /**
    * Send a message securely, handling potential RLS and network errors
-   * 
+   *
    * @param shipmentId - The ID of the shipment this message is related to
    * @param senderId - The user ID of the sender
    * @param content - The message content
@@ -42,29 +42,30 @@ export const MessageUtil = {
       const { data, error: rpcError } = await supabase.rpc('send_message', {
         p_shipment_id: shipmentId,
         p_content: trimmedContent,
-        p_receiver_id: receiverId || null
+        p_receiver_id: receiverId || null,
       });
-      
+
       // If RPC function doesn't exist, fall back to direct insert
-      if (rpcError && rpcError.code === '42883') { // Function doesn't exist
-        const { error } = await supabase
-          .from('messages')
-          .insert({
-            shipment_id: shipmentId,
-            sender_id: senderId,
-            receiver_id: receiverId || null,
-            content: trimmedContent,
-            created_at: new Date().toISOString()
-          });
-          
+      if (rpcError && rpcError.code === '42883') {
+        // Function doesn't exist
+        const { error } = await supabase.from('messages').insert({
+          shipment_id: shipmentId,
+          sender_id: senderId,
+          receiver_id: receiverId || null,
+          content: trimmedContent,
+          created_at: new Date().toISOString(),
+        });
+
         if (error) {
           // Handle row-level security policy violation
-          if (error.code === '42501') { // Permission denied
+          if (error.code === '42501') {
+            // Permission denied
             Alert.alert(
               'Permission Error',
               'You do not have permission to send this message. This might be because you are not associated with this shipment.'
             );
-          } else if (error.code === '23503') { // Foreign key violation
+          } else if (error.code === '23503') {
+            // Foreign key violation
             Alert.alert(
               'Error',
               'This message cannot be sent because the shipment or user no longer exists.'
@@ -78,18 +79,21 @@ export const MessageUtil = {
         Alert.alert('Error', `Failed to send message: ${rpcError.message}`);
         return { success: false, error: rpcError.message };
       }
-      
+
       return { success: true, error: null };
     } catch (error) {
       console.error('Error sending message:', error);
-      Alert.alert('Error', 'An unexpected error occurred while sending your message.');
+      Alert.alert(
+        'Error',
+        'An unexpected error occurred while sending your message.'
+      );
       return { success: false, error: 'Unexpected error' };
     }
   },
 
   /**
    * Mark a message as read
-   * 
+   *
    * @param messageId - The ID of the message to mark as read
    * @param userId - The user ID of the reader
    */
@@ -97,14 +101,14 @@ export const MessageUtil = {
     try {
       const { error } = await supabase.rpc('mark_message_as_read', {
         p_message_id: messageId,
-        p_user_id: userId
+        p_user_id: userId,
       });
-      
+
       if (error) {
         console.error('Error marking message as read:', error);
       }
     } catch (error) {
       console.error('Error marking message as read:', error);
     }
-  }
+  },
 };

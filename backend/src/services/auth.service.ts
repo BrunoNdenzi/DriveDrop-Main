@@ -43,9 +43,9 @@ export const authService = {
       }
 
       // Return Supabase auth tokens directly
-      return { 
+      return {
         accessToken: data.session.access_token,
-        refreshToken: data.session.refresh_token
+        refreshToken: data.session.refresh_token,
       };
     } catch (error) {
       logger.error('Login error', { error, email });
@@ -62,7 +62,7 @@ export const authService = {
     firstName: string,
     lastName: string,
     role: UserRole,
-    phone?: string,
+    phone?: string
   ): Promise<AuthTokens> {
     try {
       // Check if user already exists
@@ -91,55 +91,69 @@ export const authService = {
       });
 
       if (error || !data.user) {
-        throw createError(error?.message || 'Registration failed', 400, 'REGISTRATION_FAILED');
+        throw createError(
+          error?.message || 'Registration failed',
+          400,
+          'REGISTRATION_FAILED'
+        );
       }
 
       // Create profile entry in the profiles table
-      const { error: profileError } = await supabase
-        .from('profiles')
-        .insert({
-          id: data.user.id,
-          first_name: firstName,
-          last_name: lastName,
-          email: email,
-          role: role,
-          phone: phone || null,
-          avatar_url: null,
-          is_verified: false,
-          rating: null,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        });
+      const { error: profileError } = await supabase.from('profiles').insert({
+        id: data.user.id,
+        first_name: firstName,
+        last_name: lastName,
+        email: email,
+        role: role,
+        phone: phone || null,
+        avatar_url: null,
+        is_verified: false,
+        rating: null,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      });
 
       if (profileError) {
-        logger.error('Profile creation error', { error: profileError, userId: data.user.id });
+        logger.error('Profile creation error', {
+          error: profileError,
+          userId: data.user.id,
+        });
         // If profile creation fails, we should clean up the auth user
         // But for now, we'll just log the error and continue
-        throw createError('Database error creating user profile', 500, 'PROFILE_CREATION_FAILED');
+        throw createError(
+          'Database error creating user profile',
+          500,
+          'PROFILE_CREATION_FAILED'
+        );
       }
 
       // Return Supabase auth tokens directly
       if (!data.session) {
         // If session is not available (e.g., email confirmation required)
         // Sign in the user to get tokens
-        const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
-          email,
-          password,
-        });
+        const { data: signInData, error: signInError } =
+          await supabase.auth.signInWithPassword({
+            email,
+            password,
+          });
 
         if (signInError || !signInData.session) {
-          throw createError('Registration succeeded but login failed', 400, 'LOGIN_AFTER_REGISTER_FAILED');
+          throw createError(
+            'Registration succeeded but login failed',
+            400,
+            'LOGIN_AFTER_REGISTER_FAILED'
+          );
         }
 
-        return { 
+        return {
           accessToken: signInData.session.access_token,
-          refreshToken: signInData.session.refresh_token
+          refreshToken: signInData.session.refresh_token,
         };
       }
 
-      return { 
+      return {
         accessToken: data.session.access_token,
-        refreshToken: data.session.refresh_token
+        refreshToken: data.session.refresh_token,
       };
     } catch (error) {
       logger.error('Registration error', { error, email });
@@ -172,8 +186,13 @@ export const authService = {
    * Validate password - now uses Supabase directly for auth
    * This method is kept for backward compatibility but may not be needed
    */
-  async validatePassword(_plainPassword: string, _hashedPassword: string): Promise<boolean> {
-    logger.warn('validatePassword was called directly - this should be avoided');
+  async validatePassword(
+    _plainPassword: string,
+    _hashedPassword: string
+  ): Promise<boolean> {
+    logger.warn(
+      'validatePassword was called directly - this should be avoided'
+    );
     return false; // Always return false as we shouldn't be using this method directly
   },
 };

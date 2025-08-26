@@ -1,5 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, View, Text, FlatList, TouchableOpacity, RefreshControl, Alert } from 'react-native';
+import {
+  StyleSheet,
+  View,
+  Text,
+  FlatList,
+  TouchableOpacity,
+  RefreshControl,
+  Alert,
+} from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { MaterialIcons } from '@expo/vector-icons';
 import { createMaterialTopTabNavigator } from '@react-navigation/material-top-tabs';
@@ -38,16 +46,18 @@ function ActiveShipmentsTab({ navigation }: any) {
 
   const fetchActiveShipments = async () => {
     if (!userProfile) return;
-    
+
     setLoading(true);
     try {
       // Query shipments assigned to this driver that are in active statuses
       const { data, error } = await supabase
         .from('shipments')
-        .select(`
+        .select(
+          `
           *,
           profiles:client_id(first_name, last_name)
-        `)
+        `
+        )
         .eq('driver_id', userProfile.id)
         .in('status', ['assigned', 'picked_up', 'in_transit'])
         .order('pickup_date', { ascending: true });
@@ -62,7 +72,7 @@ function ActiveShipmentsTab({ navigation }: any) {
         delivery_location: shipment.delivery_address || 'Unknown delivery',
         distance: shipment.distance || 0,
         earnings: shipment.estimated_price || 0,
-        customer_name: shipment.profiles 
+        customer_name: shipment.profiles
           ? `${shipment.profiles.first_name} ${shipment.profiles.last_name}`
           : 'Unknown Customer',
         status: shipment.status,
@@ -84,14 +94,17 @@ function ActiveShipmentsTab({ navigation }: any) {
     fetchActiveShipments().finally(() => setRefreshing(false));
   };
 
-  const updateShipmentStatus = async (shipmentId: string, newStatus: string) => {
+  const updateShipmentStatus = async (
+    shipmentId: string,
+    newStatus: string
+  ) => {
     try {
       const { error } = await supabase
         .from('shipments')
-        .update({ 
+        .update({
           status: newStatus,
           updated_at: new Date().toISOString(),
-          updated_by: userProfile?.id // Add the user ID who is updating
+          updated_by: userProfile?.id, // Add the user ID who is updating
         })
         .eq('id', shipmentId);
 
@@ -116,10 +129,14 @@ function ActiveShipmentsTab({ navigation }: any) {
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'assigned': return Colors.warning;
-      case 'picked_up': return Colors.info;
-      case 'in_transit': return Colors.secondary;
-      default: return Colors.text.secondary;
+      case 'assigned':
+        return Colors.warning;
+      case 'picked_up':
+        return Colors.info;
+      case 'in_transit':
+        return Colors.secondary;
+      default:
+        return Colors.text.secondary;
     }
   };
 
@@ -130,21 +147,21 @@ function ActiveShipmentsTab({ navigation }: any) {
           label: 'Mark Picked Up',
           action: () => updateShipmentStatus(shipment.id, 'picked_up'),
           icon: 'check-circle',
-          color: Colors.success
+          color: Colors.success,
         };
       case 'picked_up':
         return {
           label: 'Start Transit',
           action: () => updateShipmentStatus(shipment.id, 'in_transit'),
           icon: 'local-shipping',
-          color: Colors.secondary
+          color: Colors.secondary,
         };
       case 'in_transit':
         return {
           label: 'Complete Delivery',
           action: () => updateShipmentStatus(shipment.id, 'delivered'),
           icon: 'flag',
-          color: Colors.primary
+          color: Colors.primary,
         };
       default:
         return null;
@@ -153,7 +170,7 @@ function ActiveShipmentsTab({ navigation }: any) {
 
   const renderShipmentItem = ({ item }: { item: Shipment }) => {
     const statusAction = getStatusAction(item);
-    
+
     return (
       <TouchableOpacity
         style={styles.shipmentCard}
@@ -161,18 +178,32 @@ function ActiveShipmentsTab({ navigation }: any) {
       >
         <View style={styles.shipmentHeader}>
           <Text style={styles.shipmentTitle}>{item.title}</Text>
-          <View style={[styles.statusBadge, { backgroundColor: getStatusColor(item.status) + '20' }]}>
-            <Text style={[styles.statusText, { color: getStatusColor(item.status) }]}>
+          <View
+            style={[
+              styles.statusBadge,
+              { backgroundColor: getStatusColor(item.status) + '20' },
+            ]}
+          >
+            <Text
+              style={[
+                styles.statusText,
+                { color: getStatusColor(item.status) },
+              ]}
+            >
               {item.status.replace('_', ' ').toUpperCase()}
             </Text>
           </View>
         </View>
-        
+
         <Text style={styles.customerName}>Customer: {item.customer_name}</Text>
-        
+
         <View style={styles.locationContainer}>
           <View style={styles.locationRow}>
-            <MaterialIcons name="location-on" size={16} color={Colors.secondary} />
+            <MaterialIcons
+              name="location-on"
+              size={16}
+              color={Colors.secondary}
+            />
             <Text style={styles.locationText} numberOfLines={1}>
               From: {item.pickup_location}
             </Text>
@@ -184,14 +215,14 @@ function ActiveShipmentsTab({ navigation }: any) {
             </Text>
           </View>
         </View>
-        
+
         <View style={styles.detailsContainer}>
           <Text style={styles.earningsText}>${item.earnings}</Text>
           <Text style={styles.dateText}>
             {new Date(item.pickup_date).toLocaleDateString()}
           </Text>
         </View>
-        
+
         <View style={styles.actionContainer}>
           <TouchableOpacity
             style={styles.mapButton}
@@ -200,13 +231,20 @@ function ActiveShipmentsTab({ navigation }: any) {
             <MaterialIcons name="map" size={16} color={Colors.primary} />
             <Text style={styles.mapButtonText}>Route</Text>
           </TouchableOpacity>
-          
+
           {statusAction && (
             <TouchableOpacity
-              style={[styles.actionButton, { backgroundColor: statusAction.color }]}
+              style={[
+                styles.actionButton,
+                { backgroundColor: statusAction.color },
+              ]}
               onPress={statusAction.action}
             >
-              <MaterialIcons name={statusAction.icon as any} size={16} color={Colors.background} />
+              <MaterialIcons
+                name={statusAction.icon as any}
+                size={16}
+                color={Colors.background}
+              />
               <Text style={styles.actionButtonText}>{statusAction.label}</Text>
             </TouchableOpacity>
           )}
@@ -220,7 +258,7 @@ function ActiveShipmentsTab({ navigation }: any) {
       <FlatList
         data={activeShipments}
         renderItem={renderShipmentItem}
-        keyExtractor={(item) => item.id}
+        keyExtractor={item => item.id}
         contentContainerStyle={styles.listContainer}
         refreshControl={
           <RefreshControl
@@ -233,7 +271,11 @@ function ActiveShipmentsTab({ navigation }: any) {
         showsVerticalScrollIndicator={false}
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
-            <MaterialIcons name="assignment" size={64} color={Colors.text.secondary} />
+            <MaterialIcons
+              name="assignment"
+              size={64}
+              color={Colors.text.secondary}
+            />
             <Text style={styles.emptyTitle}>No Active Shipments</Text>
             <Text style={styles.emptyText}>
               Your assigned shipments will appear here.
@@ -258,15 +300,17 @@ function CompletedShipmentsTab({ navigation }: any) {
 
   const fetchCompletedShipments = async () => {
     if (!userProfile) return;
-    
+
     setLoading(true);
     try {
       const { data, error } = await supabase
         .from('shipments')
-        .select(`
+        .select(
+          `
           *,
           profiles:client_id(first_name, last_name)
-        `)
+        `
+        )
         .eq('driver_id', userProfile.id)
         .in('status', ['delivered', 'completed'])
         .order('updated_at', { ascending: false })
@@ -281,7 +325,7 @@ function CompletedShipmentsTab({ navigation }: any) {
         delivery_location: shipment.delivery_address || 'Unknown delivery',
         distance: shipment.distance || 0,
         earnings: shipment.estimated_price || 0,
-        customer_name: shipment.profiles 
+        customer_name: shipment.profiles
           ? `${shipment.profiles.first_name} ${shipment.profiles.last_name}`
           : 'Unknown Customer',
         status: shipment.status,
@@ -314,18 +358,27 @@ function CompletedShipmentsTab({ navigation }: any) {
     >
       <View style={styles.shipmentHeader}>
         <Text style={styles.shipmentTitle}>{item.title}</Text>
-        <View style={[styles.statusBadge, { backgroundColor: Colors.success + '20' }]}>
+        <View
+          style={[
+            styles.statusBadge,
+            { backgroundColor: Colors.success + '20' },
+          ]}
+        >
           <Text style={[styles.statusText, { color: Colors.success }]}>
             COMPLETED
           </Text>
         </View>
       </View>
-      
+
       <Text style={styles.customerName}>Customer: {item.customer_name}</Text>
-      
+
       <View style={styles.locationContainer}>
         <View style={styles.locationRow}>
-          <MaterialIcons name="location-on" size={16} color={Colors.secondary} />
+          <MaterialIcons
+            name="location-on"
+            size={16}
+            color={Colors.secondary}
+          />
           <Text style={styles.locationText} numberOfLines={1}>
             From: {item.pickup_location}
           </Text>
@@ -337,7 +390,7 @@ function CompletedShipmentsTab({ navigation }: any) {
           </Text>
         </View>
       </View>
-      
+
       <View style={styles.detailsContainer}>
         <Text style={styles.earningsText}>${item.earnings}</Text>
         <Text style={styles.dateText}>
@@ -352,7 +405,7 @@ function CompletedShipmentsTab({ navigation }: any) {
       <FlatList
         data={completedShipments}
         renderItem={renderShipmentItem}
-        keyExtractor={(item) => item.id}
+        keyExtractor={item => item.id}
         contentContainerStyle={styles.listContainer}
         refreshControl={
           <RefreshControl
@@ -365,7 +418,11 @@ function CompletedShipmentsTab({ navigation }: any) {
         showsVerticalScrollIndicator={false}
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
-            <MaterialIcons name="history" size={64} color={Colors.text.secondary} />
+            <MaterialIcons
+              name="history"
+              size={64}
+              color={Colors.text.secondary}
+            />
             <Text style={styles.emptyTitle}>No Completed Shipments</Text>
             <Text style={styles.emptyText}>
               Your completed deliveries will appear here.
@@ -390,22 +447,24 @@ function ApplicationsTab({ navigation }: any) {
 
   const fetchApplications = async () => {
     if (!userProfile) return;
-    
+
     setLoading(true);
     try {
       // Check if API URL is configured
       const apiUrl = getApiUrl();
       if (!apiUrl) {
-        throw new Error('API URL is not configured. Please check your environment variables.');
+        throw new Error(
+          'API URL is not configured. Please check your environment variables.'
+        );
       }
-      
+
       console.log('Fetching from:', `${apiUrl}/api/v1/drivers/applications`);
-      
+
       // Use the backend API to get driver applications
       const response = await fetch(`${apiUrl}/api/v1/drivers/applications`, {
         method: 'GET',
         headers: {
-          'Authorization': `Bearer ${session?.access_token}`,
+          Authorization: `Bearer ${session?.access_token}`,
           'Content-Type': 'application/json',
         },
       });
@@ -423,7 +482,10 @@ function ApplicationsTab({ navigation }: any) {
       if (response.ok && result.success) {
         setApplications(result.data || []);
       } else {
-        throw new Error(result.error?.message || `Failed to fetch applications: ${response.status} ${response.statusText}`);
+        throw new Error(
+          result.error?.message ||
+            `Failed to fetch applications: ${response.status} ${response.statusText}`
+        );
       }
     } catch (error) {
       console.error('Error fetching applications:', error);
@@ -431,7 +493,8 @@ function ApplicationsTab({ navigation }: any) {
       let errorMessage = 'Failed to load applications.';
       if (error instanceof Error) {
         if (error.message.includes('Network request failed')) {
-          errorMessage = 'Network request failed. Please check your internet connection and make sure the API server is running.';
+          errorMessage =
+            'Network request failed. Please check your internet connection and make sure the API server is running.';
         } else {
           errorMessage = `Error: ${error.message}`;
         }
@@ -450,17 +513,20 @@ function ApplicationsTab({ navigation }: any) {
   const cancelApplication = async (applicationId: string) => {
     try {
       const apiUrl = getApiUrl();
-      const response = await fetch(`${apiUrl}/api/v1/applications/${applicationId}/status`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session?.access_token}`,
-        },
-        body: JSON.stringify({
-          status: 'cancelled',
-          notes: 'Cancelled by driver via mobile app'
-        }),
-      });
+      const response = await fetch(
+        `${apiUrl}/api/v1/applications/${applicationId}/status`,
+        {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${session?.access_token}`,
+          },
+          body: JSON.stringify({
+            status: 'cancelled',
+            notes: 'Cancelled by driver via mobile app',
+          }),
+        }
+      );
 
       const result = await response.json();
 
@@ -468,7 +534,9 @@ function ApplicationsTab({ navigation }: any) {
         Alert.alert('Success', 'Application cancelled successfully.');
         fetchApplications(); // Refresh the list
       } else {
-        throw new Error(result.error?.message || 'Failed to cancel application');
+        throw new Error(
+          result.error?.message || 'Failed to cancel application'
+        );
       }
     } catch (error) {
       console.error('Error cancelling application:', error);
@@ -478,28 +546,46 @@ function ApplicationsTab({ navigation }: any) {
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'pending': return Colors.warning;
-      case 'accepted': return Colors.success;
-      case 'rejected': return Colors.error;
-      case 'cancelled': return Colors.text.secondary;
-      default: return Colors.text.secondary;
+      case 'pending':
+        return Colors.warning;
+      case 'accepted':
+        return Colors.success;
+      case 'rejected':
+        return Colors.error;
+      case 'cancelled':
+        return Colors.text.secondary;
+      default:
+        return Colors.text.secondary;
     }
   };
 
   const renderApplicationItem = ({ item }: { item: any }) => (
     <View style={styles.shipmentCard}>
       <View style={styles.shipmentHeader}>
-        <Text style={styles.shipmentTitle}>{item.shipment_title || 'Delivery Service'}</Text>
-        <View style={[styles.statusBadge, { backgroundColor: getStatusColor(item.status) + '20' }]}>
-          <Text style={[styles.statusText, { color: getStatusColor(item.status) }]}>
+        <Text style={styles.shipmentTitle}>
+          {item.shipment_title || 'Delivery Service'}
+        </Text>
+        <View
+          style={[
+            styles.statusBadge,
+            { backgroundColor: getStatusColor(item.status) + '20' },
+          ]}
+        >
+          <Text
+            style={[styles.statusText, { color: getStatusColor(item.status) }]}
+          >
             {item.status.toUpperCase()}
           </Text>
         </View>
       </View>
-      
+
       <View style={styles.locationContainer}>
         <View style={styles.locationRow}>
-          <MaterialIcons name="location-on" size={16} color={Colors.secondary} />
+          <MaterialIcons
+            name="location-on"
+            size={16}
+            color={Colors.secondary}
+          />
           <Text style={styles.locationText} numberOfLines={1}>
             From: {item.shipment_pickup_address}
           </Text>
@@ -511,18 +597,18 @@ function ApplicationsTab({ navigation }: any) {
           </Text>
         </View>
       </View>
-      
-      {item.notes && (
-        <Text style={styles.notesText}>Notes: {item.notes}</Text>
-      )}
-      
+
+      {item.notes && <Text style={styles.notesText}>Notes: {item.notes}</Text>}
+
       <View style={styles.detailsContainer}>
-        <Text style={styles.earningsText}>${item.shipment_estimated_price}</Text>
+        <Text style={styles.earningsText}>
+          ${item.shipment_estimated_price}
+        </Text>
         <Text style={styles.dateText}>
           Applied: {new Date(item.applied_at).toLocaleDateString()}
         </Text>
       </View>
-      
+
       {item.status === 'pending' && (
         <TouchableOpacity
           style={styles.cancelButton}
@@ -540,7 +626,7 @@ function ApplicationsTab({ navigation }: any) {
       <FlatList
         data={applications}
         renderItem={renderApplicationItem}
-        keyExtractor={(item) => item.id}
+        keyExtractor={item => item.id}
         contentContainerStyle={styles.listContainer}
         refreshControl={
           <RefreshControl
@@ -553,7 +639,11 @@ function ApplicationsTab({ navigation }: any) {
         showsVerticalScrollIndicator={false}
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
-            <MaterialIcons name="send" size={64} color={Colors.text.secondary} />
+            <MaterialIcons
+              name="send"
+              size={64}
+              color={Colors.text.secondary}
+            />
             <Text style={styles.emptyTitle}>No Applications</Text>
             <Text style={styles.emptyText}>
               Your shipment applications will appear here.
@@ -592,18 +682,18 @@ export default function MyShipmentsScreen() {
           },
         }}
       >
-        <Tab.Screen 
-          name="Active" 
+        <Tab.Screen
+          name="Active"
           component={ActiveShipmentsTab}
           options={{ tabBarLabel: 'Active' }}
         />
-        <Tab.Screen 
-          name="Completed" 
+        <Tab.Screen
+          name="Completed"
           component={CompletedShipmentsTab}
           options={{ tabBarLabel: 'Completed' }}
         />
-        <Tab.Screen 
-          name="Applications" 
+        <Tab.Screen
+          name="Applications"
           component={ApplicationsTab}
           options={{ tabBarLabel: 'Applications' }}
         />

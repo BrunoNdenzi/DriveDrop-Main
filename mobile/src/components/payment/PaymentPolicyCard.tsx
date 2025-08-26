@@ -1,7 +1,12 @@
 import React from 'react';
 import { View, StyleSheet, Text } from 'react-native';
 import { Card } from '../ui/Card';
-import { Colors, Spacing, Typography, NeutralColors } from '../../constants/DesignSystem';
+import {
+  Colors,
+  Spacing,
+  Typography,
+  NeutralColors,
+} from '../../constants/DesignSystem';
 import { FontAwesome } from '@expo/vector-icons';
 import { formatCurrency } from '../../utils/formatters';
 
@@ -16,7 +21,7 @@ interface PaymentPolicyCardProps {
 
 /**
  * PaymentPolicyCard Component
- * 
+ *
  * Displays the payment policy information including:
  * - 20% initial payment / 80% final payment breakdown
  * - Refund eligibility status
@@ -28,28 +33,30 @@ export function PaymentPolicyCard({
   remainingAmount,
   refundDeadline,
   isRefundable = false,
-  paymentType = 'initial'
+  paymentType = 'initial',
 }: PaymentPolicyCardProps) {
   // Calculate amounts if not provided
-  const calculatedInitialAmount = initialAmount || Math.round(totalAmount * 0.2);
-  const calculatedRemainingAmount = remainingAmount || Math.round(totalAmount * 0.8);
-  
+  const calculatedInitialAmount =
+    initialAmount || Math.round(totalAmount * 0.2);
+  const calculatedRemainingAmount =
+    remainingAmount || Math.round(totalAmount * 0.8);
+
   // Calculate refund time remaining
   const getRefundTimeRemaining = () => {
     if (!refundDeadline || !isRefundable) return null;
-    
+
     const deadline = new Date(refundDeadline);
     const now = new Date();
     const timeDiff = deadline.getTime() - now.getTime();
-    
+
     if (timeDiff <= 0) return 'Expired';
-    
+
     const minutes = Math.floor(timeDiff / (1000 * 60));
     const seconds = Math.floor((timeDiff % (1000 * 60)) / 1000);
-    
+
     return `${minutes}m ${seconds}s`;
   };
-  
+
   const refundTimeRemaining = getRefundTimeRemaining();
 
   return (
@@ -58,9 +65,9 @@ export function PaymentPolicyCard({
         <FontAwesome name="money" size={24} color={Colors.primary} />
         <Text style={styles.headerText}>Payment Policy</Text>
       </View>
-      
+
       <View style={styles.divider} />
-      
+
       {/* Payment breakdown visualization */}
       <View style={styles.paymentBreakdownContainer}>
         <View style={styles.paymentVisualization}>
@@ -71,47 +78,57 @@ export function PaymentPolicyCard({
             <Text style={styles.paymentBarText}>80%</Text>
           </View>
         </View>
-        
+
         <View style={styles.amountsContainer}>
           <View style={styles.amountRow}>
             <Text style={styles.amountLabel}>Initial Payment (20%)</Text>
-            <Text style={styles.amountValue}>{formatCurrency(calculatedInitialAmount / 100)}</Text>
+            <Text style={styles.amountValue}>
+              {formatCurrency(calculatedInitialAmount / 100)}
+            </Text>
           </View>
-          
+
           <View style={styles.amountRow}>
             <Text style={styles.amountLabel}>Final Payment (80%)</Text>
-            <Text style={styles.amountValue}>{formatCurrency(calculatedRemainingAmount / 100)}</Text>
+            <Text style={styles.amountValue}>
+              {formatCurrency(calculatedRemainingAmount / 100)}
+            </Text>
           </View>
-          
+
           <View style={[styles.amountRow, styles.totalRow]}>
             <Text style={styles.totalLabel}>Total</Text>
-            <Text style={styles.totalValue}>{formatCurrency(totalAmount / 100)}</Text>
+            <Text style={styles.totalValue}>
+              {formatCurrency(totalAmount / 100)}
+            </Text>
           </View>
         </View>
       </View>
-      
+
       {/* Refund policy */}
       <View style={styles.refundPolicyContainer}>
         <View style={styles.refundHeaderRow}>
           <FontAwesome name="refresh" size={16} color={Colors.secondary} />
           <Text style={styles.refundHeaderText}>Refund Policy</Text>
         </View>
-        
+
         <Text style={styles.refundPolicyText}>
-          Initial payments (20%) are refundable within 1 hour of booking.
-          Final payments (80%) are non-refundable.
+          Initial payments (20%) are refundable within 1 hour of booking. Final
+          payments (80%) are non-refundable.
         </Text>
-        
+
         {isRefundable && refundTimeRemaining && paymentType === 'initial' && (
           <View style={styles.refundStatusContainer}>
             <Text style={styles.refundStatusLabel}>Refund available for:</Text>
-            <Text style={styles.refundTimeRemaining}>{refundTimeRemaining}</Text>
+            <Text style={styles.refundTimeRemaining}>
+              {refundTimeRemaining}
+            </Text>
           </View>
         )}
-        
+
         {!isRefundable && paymentType === 'initial' && (
           <View style={styles.refundStatusContainer}>
-            <Text style={styles.refundStatusExpired}>Refund period has expired</Text>
+            <Text style={styles.refundStatusExpired}>
+              Refund period has expired
+            </Text>
           </View>
         )}
       </View>

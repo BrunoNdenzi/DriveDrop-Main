@@ -13,25 +13,25 @@ interface UseDriverLocationProps {
 
 /**
  * Hook for real-time driver location tracking
- * 
+ *
  * This hook handles both sending location updates (when used by a driver)
  * and receiving location updates (when used by a client)
- * 
+ *
  * @param props Object containing shipmentId, isDriver flag, and optional driverId
  * @returns Object containing location data and tracking status
- * 
+ *
  * @example
  * ```tsx
  * // For a driver to send their location:
- * const { 
- *   startTracking, 
- *   stopTracking, 
- *   isTracking 
+ * const {
+ *   startTracking,
+ *   stopTracking,
+ *   isTracking
  * } = useDriverLocation({
  *   shipmentId,
  *   isDriver: true,
  * });
- * 
+ *
  * // Start tracking when delivery begins
  * useEffect(() => {
  *   if (shipmentStatus === 'in_transit') {
@@ -40,16 +40,16 @@ interface UseDriverLocationProps {
  *     stopTracking();
  *   }
  * }, [shipmentStatus]);
- * 
+ *
  * // For a client to receive driver location:
- * const { 
- *   driverLocation, 
- *   error 
+ * const {
+ *   driverLocation,
+ *   error
  * } = useDriverLocation({
  *   shipmentId,
  *   isDriver: false,
  * });
- * 
+ *
  * // Use driver location to update a map
  * useEffect(() => {
  *   if (driverLocation) {
@@ -63,26 +63,34 @@ interface UseDriverLocationProps {
  * }, [driverLocation]);
  * ```
  */
-export function useDriverLocation({ shipmentId, isDriver = false, driverId }: UseDriverLocationProps) {
-  const [driverLocation, setDriverLocation] = useState<DriverLocation | null>(null);
+export function useDriverLocation({
+  shipmentId,
+  isDriver = false,
+  driverId,
+}: UseDriverLocationProps) {
+  const [driverLocation, setDriverLocation] = useState<DriverLocation | null>(
+    null
+  );
   const [isTracking, setIsTracking] = useState(false);
   const [error, setError] = useState<Error | null>(null);
   const [channel, setChannel] = useState<RealtimeChannel | null>(null);
-  
+
   // For clients: Subscribe to driver location updates
   useEffect(() => {
     if (isDriver || !shipmentId) return;
-    
+
     const handleLocationUpdate = (location: DriverLocation) => {
       setDriverLocation(location);
     };
-    
+
     // Get the most recent location first
     const fetchLatestLocation = async () => {
       try {
-        const { data, error } = await supabase
-          .rpc('get_latest_driver_location', { p_shipment_id: shipmentId });
-          
+        const { data, error } = await supabase.rpc(
+          'get_latest_driver_location',
+          { p_shipment_id: shipmentId }
+        );
+
         if (error) throw error;
         if (data && data.length > 0) {
           setDriverLocation(data[0] as unknown as DriverLocation);
@@ -91,37 +99,37 @@ export function useDriverLocation({ shipmentId, isDriver = false, driverId }: Us
         console.error('Error fetching latest driver location:', err);
       }
     };
-    
+
     fetchLatestLocation();
-    
+
     // Subscribe to real-time updates
     const newChannel = realtimeService.subscribeToDriverLocation(
       shipmentId,
       handleLocationUpdate
     );
-    
+
     setChannel(newChannel);
-    
+
     // Cleanup function
     return () => {
       realtimeService.unsubscribeFromDriverLocation();
     };
   }, [shipmentId, isDriver]);
-  
+
   // For drivers: Start sending location updates
   const startTracking = async () => {
     if (!isDriver || !shipmentId || !driverId) {
       setError(new Error('Cannot start tracking: missing required parameters'));
       return false;
     }
-    
+
     try {
       const success = await realtimeService.startLocationTracking(
         shipmentId,
         driverId,
         () => setError(new Error('Location permission denied'))
       );
-      
+
       setIsTracking(success);
       return success;
     } catch (err) {
@@ -130,7 +138,7 @@ export function useDriverLocation({ shipmentId, isDriver = false, driverId }: Us
       return false;
     }
   };
-  
+
   // For drivers: Stop sending location updates
   const stopTracking = () => {
     if (isDriver) {
@@ -138,7 +146,7 @@ export function useDriverLocation({ shipmentId, isDriver = false, driverId }: Us
       setIsTracking(false);
     }
   };
-  
+
   // Clean up tracking when component unmounts
   useEffect(() => {
     return () => {
@@ -147,13 +155,13 @@ export function useDriverLocation({ shipmentId, isDriver = false, driverId }: Us
       }
     };
   }, [isDriver, isTracking]);
-  
+
   return {
     driverLocation,
     isTracking,
     error,
     startTracking,
     stopTracking,
-    channel
+    channel,
   };
 }

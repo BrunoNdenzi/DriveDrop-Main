@@ -67,27 +67,44 @@ export function ShipmentSummary({ shipment, onPress }: ShipmentSummaryProps) {
   };
 
   return (
-    <TouchableOpacity style={styles.container} onPress={onPress} activeOpacity={0.7}>
+    <TouchableOpacity
+      style={styles.container}
+      onPress={onPress}
+      activeOpacity={0.7}
+    >
       <View style={styles.header}>
         <Text style={styles.trackingNumber}>#{shipment.tracking_number}</Text>
-        <View style={[styles.statusBadge, { backgroundColor: getStatusColor(shipment.status) }]}>
-          <Text style={styles.statusText}>{getStatusLabel(shipment.status)}</Text>
+        <View
+          style={[
+            styles.statusBadge,
+            { backgroundColor: getStatusColor(shipment.status) },
+          ]}
+        >
+          <Text style={styles.statusText}>
+            {getStatusLabel(shipment.status)}
+          </Text>
         </View>
       </View>
 
       <View style={styles.details}>
         <View style={styles.addressContainer}>
           <Text style={styles.label}>From</Text>
-          <Text style={styles.address}>{truncateAddress(shipment.origin_address)}</Text>
+          <Text style={styles.address}>
+            {truncateAddress(shipment.origin_address)}
+          </Text>
         </View>
         <View style={styles.addressContainer}>
           <Text style={styles.label}>To</Text>
-          <Text style={styles.address}>{truncateAddress(shipment.destination_address)}</Text>
+          <Text style={styles.address}>
+            {truncateAddress(shipment.destination_address)}
+          </Text>
         </View>
       </View>
 
       <View style={styles.footer}>
-        <Text style={styles.date}>Created: {formatDate(shipment.created_at)}</Text>
+        <Text style={styles.date}>
+          Created: {formatDate(shipment.created_at)}
+        </Text>
         {shipment.price && (
           <Text style={styles.price}>${shipment.price.toFixed(2)}</Text>
         )}

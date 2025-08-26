@@ -13,7 +13,9 @@ const config = {
     port: process.env['PORT'] || 3000,
     nodeEnv: process.env['NODE_ENV'] || 'development',
     apiPrefix: '/api/v1',
-    corsOrigin: process.env['CORS_ORIGIN'] ? process.env['CORS_ORIGIN'].split(',') : '*',
+    corsOrigin: process.env['CORS_ORIGIN']
+      ? process.env['CORS_ORIGIN'].split(',')
+      : '*',
     corsMethods: process.env['CORS_METHODS'] || 'GET,POST,PUT,DELETE,PATCH',
     corsCredentials: process.env['CORS_CREDENTIALS'] === 'true',
   },
@@ -40,7 +42,10 @@ const config = {
     publishableKey: process.env['STRIPE_PUBLISHABLE_KEY'] || '',
     priceIdBasic: process.env['STRIPE_PRICE_ID_BASIC'] || '',
     priceIdPremium: process.env['STRIPE_PRICE_ID_PREMIUM'] || '',
-    webhookTolerance: parseInt(process.env['STRIPE_WEBHOOK_TOLERANCE'] || '300', 10),
+    webhookTolerance: parseInt(
+      process.env['STRIPE_WEBHOOK_TOLERANCE'] || '300',
+      10
+    ),
   },
 
   // Twilio Configuration
@@ -70,16 +75,14 @@ const config = {
 
 // Validate required environment variables
 export const validateConfig = (): void => {
-  const requiredVars = [
-    'SUPABASE_URL',
-    'SUPABASE_ANON_KEY',
-    'JWT_SECRET',
-  ];
+  const requiredVars = ['SUPABASE_URL', 'SUPABASE_ANON_KEY', 'JWT_SECRET'];
 
   const missingVars = requiredVars.filter(varName => !process.env[varName]);
 
   if (missingVars.length > 0) {
-    throw new Error(`Missing required environment variables: ${missingVars.join(', ')}`);
+    throw new Error(
+      `Missing required environment variables: ${missingVars.join(', ')}`
+    );
   }
 };
 

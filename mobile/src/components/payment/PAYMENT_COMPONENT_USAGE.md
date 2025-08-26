@@ -12,7 +12,7 @@ import { PaymentPolicyCard } from '../components/payment/PaymentPolicyCard';
 // Display for a new shipment (initial payment)
 <PaymentPolicyCard
   totalAmount={12500} // Amount in cents (e.g., $125.00)
-  paymentType="initial" 
+  paymentType="initial"
   isRefundable={true}
   refundDeadline="2025-07-29T10:30:00Z" // 1 hour after booking
 />
@@ -45,7 +45,7 @@ export function ShipmentDetailsScreen({ route }) {
   const { shipmentId } = route.params;
   const [shipment, setShipment] = useState(null);
   const [payment, setPayment] = useState(null);
-  
+
   useEffect(() => {
     // Fetch shipment and payment details
     const loadDetails = async () => {
@@ -53,18 +53,18 @@ export function ShipmentDetailsScreen({ route }) {
       setShipment(details.shipment);
       setPayment(details.payment);
     };
-    
+
     loadDetails();
   }, [shipmentId]);
-  
+
   if (!shipment || !payment) {
     return <LoadingIndicator />;
   }
-  
+
   return (
     <ScrollView>
       <ShipmentInfoCard shipment={shipment} />
-      
+
       <PaymentPolicyCard
         totalAmount={payment.amount}
         initialAmount={payment.initial_amount}
@@ -73,7 +73,7 @@ export function ShipmentDetailsScreen({ route }) {
         isRefundable={payment.is_refundable}
         paymentType={payment.payment_type}
       />
-      
+
       {/* Other shipment details components */}
     </ScrollView>
   );

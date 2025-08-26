@@ -17,7 +17,7 @@ export const errorHandler = (
   err: ApiError,
   _req: Request,
   res: Response,
-  _next: NextFunction,
+  _next: NextFunction
 ) => {
   const statusCode = err.statusCode || 500;
   const errorCode = err.code || 'INTERNAL_SERVER_ERROR';
@@ -35,19 +35,23 @@ export const errorHandler = (
   }
 
   // For payment-related errors, always include full details for debugging
-  const isPaymentError = errorCode.includes('PAYMENT') || 
-                         errorCode.includes('STRIPE') || 
-                         message.includes('payment') || 
-                         message.includes('Stripe');
+  const isPaymentError =
+    errorCode.includes('PAYMENT') ||
+    errorCode.includes('STRIPE') ||
+    message.includes('payment') ||
+    message.includes('Stripe');
 
   // Hide error details in production only for non-payment errors
   const responseBody = {
     success: false,
     error: {
       code: errorCode,
-      message: process.env['NODE_ENV'] === 'production' && statusCode === 500 && !isPaymentError
-        ? 'Internal Server Error' 
-        : message,
+      message:
+        process.env['NODE_ENV'] === 'production' &&
+        statusCode === 500 &&
+        !isPaymentError
+          ? 'Internal Server Error'
+          : message,
       ...(errors.length > 0 && { errors }),
     },
   };
@@ -60,10 +64,10 @@ export const errorHandler = (
  */
 export const notFoundHandler = (req: Request, res: Response) => {
   // Safely handle req.originalUrl which could be a full URL or path
-  const path = req.originalUrl.includes('://') 
+  const path = req.originalUrl.includes('://')
     ? 'external URL' // Avoid passing full URLs to the response
     : req.originalUrl;
-    
+
   res.status(404).json({
     success: false,
     error: {

@@ -38,9 +38,7 @@ export const userService = {
    */
   async getUsers(page = 1, limit = 10, role?: UserRole) {
     try {
-      let query = supabase
-        .from('profiles')
-        .select('*', { count: 'exact' });
+      let query = supabase.from('profiles').select('*', { count: 'exact' });
 
       if (role) {
         query = query.eq('role', role);
@@ -72,12 +70,15 @@ export const userService = {
   /**
    * Update user profile
    */
-  async updateUserProfile(id: string, updates: {
-    first_name?: string;
-    last_name?: string;
-    phone?: string;
-    avatar_url?: string;
-  }) {
+  async updateUserProfile(
+    id: string,
+    updates: {
+      first_name?: string;
+      last_name?: string;
+      phone?: string;
+      avatar_url?: string;
+    }
+  ) {
     try {
       const { data, error } = await supabase
         .from('profiles')
@@ -95,7 +96,11 @@ export const userService = {
 
       return data;
     } catch (error) {
-      logger.error('Error updating user profile', { error, userId: id, updates });
+      logger.error('Error updating user profile', {
+        error,
+        userId: id,
+        updates,
+      });
       throw error;
     }
   },
@@ -107,7 +112,7 @@ export const userService = {
     try {
       const { data, error } = await supabase
         .from('profiles')
-        .update({ 
+        .update({
           rating,
           updated_at: new Date().toISOString(),
         })
@@ -143,7 +148,12 @@ export const userService = {
 
       return data;
     } catch (error) {
-      logger.error('Error getting nearby drivers', { error, lat, lng, radiusKm });
+      logger.error('Error getting nearby drivers', {
+        error,
+        lat,
+        lng,
+        radiusKm,
+      });
       throw error;
     }
   },
@@ -160,12 +170,14 @@ export const shipmentService = {
     try {
       const { data, error } = await supabase
         .from('shipments')
-        .select(`
+        .select(
+          `
           *,
           client:client_id(id, first_name, last_name, email, phone, avatar_url),
           driver:driver_id(id, first_name, last_name, email, phone, avatar_url),
           tracking_events(*)
-        `)
+        `
+        )
         .eq('id', id)
         .single();
 
@@ -190,16 +202,17 @@ export const shipmentService = {
       clientId?: string;
       driverId?: string;
       status?: ShipmentStatus;
-    } = {},
+    } = {}
   ) {
     try {
-      let query = supabase
-        .from('shipments')
-        .select(`
+      let query = supabase.from('shipments').select(
+        `
           *,
           client:client_id(id, first_name, last_name, avatar_url),
           driver:driver_id(id, first_name, last_name, avatar_url)
-        `, { count: 'exact' });
+        `,
+        { count: 'exact' }
+      );
 
       // Apply filters
       if (filters.clientId) {
@@ -245,7 +258,7 @@ export const shipmentService = {
     eventType: Database['public']['Enums']['tracking_event_type'],
     createdBy: string,
     location?: unknown,
-    notes?: string,
+    notes?: string
   ) {
     try {
       const { data, error } = await supabase.rpc('create_tracking_event', {
@@ -293,10 +306,12 @@ export const shipmentService = {
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
         })
-        .select(`
+        .select(
+          `
           *,
           client:client_id(id, first_name, last_name, email, phone)
-        `)
+        `
+        )
         .single();
 
       if (error) {
@@ -313,7 +328,11 @@ export const shipmentService = {
   /**
    * Update shipment status
    */
-  async updateShipmentStatus(id: string, status: ShipmentStatus, driverId?: string) {
+  async updateShipmentStatus(
+    id: string,
+    status: ShipmentStatus,
+    driverId?: string
+  ) {
     try {
       const updateData: any = {
         status,
@@ -334,11 +353,13 @@ export const shipmentService = {
         .from('shipments')
         .update(updateData)
         .eq('id', id)
-        .select(`
+        .select(
+          `
           *,
           client:client_id(id, first_name, last_name, email, phone),
           driver:driver_id(id, first_name, last_name, email, phone)
-        `)
+        `
+        )
         .single();
 
       if (error) {
@@ -347,7 +368,12 @@ export const shipmentService = {
 
       return data;
     } catch (error) {
-      logger.error('Error updating shipment status', { error, id, status, driverId });
+      logger.error('Error updating shipment status', {
+        error,
+        id,
+        status,
+        driverId,
+      });
       throw error;
     }
   },
@@ -355,14 +381,22 @@ export const shipmentService = {
   /**
    * Get shipments by proximity (using PostGIS)
    */
-  async getShipmentsNearLocation(lat: number, lng: number, radiusKm = 20, status?: ShipmentStatus) {
+  async getShipmentsNearLocation(
+    lat: number,
+    lng: number,
+    radiusKm = 20,
+    status?: ShipmentStatus
+  ) {
     try {
-      const { data, error } = await supabase.rpc('get_shipments_near_location', {
-        user_lat: lat,
-        user_lng: lng,
-        radius_km: radiusKm,
-        shipment_status: status || null,
-      });
+      const { data, error } = await supabase.rpc(
+        'get_shipments_near_location',
+        {
+          user_lat: lat,
+          user_lng: lng,
+          radius_km: radiusKm,
+          shipment_status: status || null,
+        }
+      );
 
       if (error) {
         throw createError(error.message, 500, 'LOCATION_QUERY_FAILED');
@@ -370,7 +404,13 @@ export const shipmentService = {
 
       return data;
     } catch (error) {
-      logger.error('Error getting nearby shipments', { error, lat, lng, radiusKm, status });
+      logger.error('Error getting nearby shipments', {
+        error,
+        lat,
+        lng,
+        radiusKm,
+        status,
+      });
       throw error;
     }
   },
@@ -382,10 +422,12 @@ export const shipmentService = {
     try {
       const { data, error } = await supabase
         .from('tracking_events')
-        .select(`
+        .select(
+          `
           *,
           created_by_user:created_by(id, first_name, last_name, role)
-        `)
+        `
+        )
         .eq('shipment_id', shipmentId)
         .order('created_at', { ascending: true });
 
@@ -417,11 +459,19 @@ export const shipmentService = {
       }
 
       if (shipment.status !== 'pending') {
-        throw createError('Shipment is not available for assignment', 400, 'INVALID_STATUS');
+        throw createError(
+          'Shipment is not available for assignment',
+          400,
+          'INVALID_STATUS'
+        );
       }
 
       if (shipment.driver_id) {
-        throw createError('Shipment already has a driver assigned', 400, 'ALREADY_ASSIGNED');
+        throw createError(
+          'Shipment already has a driver assigned',
+          400,
+          'ALREADY_ASSIGNED'
+        );
       }
 
       // Verify driver exists
@@ -445,7 +495,11 @@ export const shipmentService = {
         .single();
 
       if (applicationError) {
-        throw createError('Driver has not applied for this shipment', 400, 'NO_APPLICATION');
+        throw createError(
+          'Driver has not applied for this shipment',
+          400,
+          'NO_APPLICATION'
+        );
       }
 
       // Update shipment with assigned driver
@@ -486,7 +540,11 @@ export const shipmentService = {
 
       return updatedShipment;
     } catch (error) {
-      logger.error('Error assigning driver to shipment', { error, shipmentId, driverId });
+      logger.error('Error assigning driver to shipment', {
+        error,
+        shipmentId,
+        driverId,
+      });
       throw error;
     }
   },
@@ -498,7 +556,8 @@ export const shipmentService = {
     try {
       const { data, error } = await supabase
         .from('job_applications')
-        .select(`
+        .select(
+          `
           *,
           driver:driver_id(
             id, 
@@ -510,7 +569,8 @@ export const shipmentService = {
             ratings(score, created_at),
             driver_details(*)
           )
-        `)
+        `
+        )
         .eq('shipment_id', shipmentId)
         .eq('status', 'pending')
         .order('applied_at', { ascending: true });

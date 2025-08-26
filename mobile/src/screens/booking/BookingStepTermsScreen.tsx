@@ -18,9 +18,14 @@ import { Input } from '../../components/ui/Input';
 import { RootStackParamList } from '../../navigation/types';
 import { useBooking } from '../../context/BookingContext';
 
-type BookingStepTermsProps = NativeStackScreenProps<RootStackParamList, 'BookingStepTerms'>;
+type BookingStepTermsProps = NativeStackScreenProps<
+  RootStackParamList,
+  'BookingStepTerms'
+>;
 
-export default function BookingStepTermsScreen({ navigation }: BookingStepTermsProps) {
+export default function BookingStepTermsScreen({
+  navigation,
+}: BookingStepTermsProps) {
   const { state, updateFormData, setStepValidity, goToNextStep } = useBooking();
   const { termsAuthorization } = state.formData;
 
@@ -65,7 +70,8 @@ export default function BookingStepTermsScreen({ navigation }: BookingStepTermsP
   };
 
   const viewDocument = (documentType: 'service' | 'cancellation') => {
-    const title = documentType === 'service' ? 'Service Agreement' : 'Cancellation Policy';
+    const title =
+      documentType === 'service' ? 'Service Agreement' : 'Cancellation Policy';
     Alert.alert(
       title,
       `This would show the full ${title.toLowerCase()} document. In a real app, this would open a detailed view or PDF.`,
@@ -76,7 +82,7 @@ export default function BookingStepTermsScreen({ navigation }: BookingStepTermsP
   return (
     <View style={styles.container}>
       <StatusBar style="dark" />
-      
+
       {/* Header */}
       <View style={styles.header}>
         <Text style={styles.title}>Terms & Authorization</Text>
@@ -86,8 +92,8 @@ export default function BookingStepTermsScreen({ navigation }: BookingStepTermsP
         </View>
       </View>
 
-      <ScrollView 
-        style={styles.content} 
+      <ScrollView
+        style={styles.content}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
         contentContainerStyle={{ flexGrow: 1 }}
@@ -101,9 +107,12 @@ export default function BookingStepTermsScreen({ navigation }: BookingStepTermsP
 
             <View style={styles.documentSection}>
               <View style={styles.documentPreview}>
-                <Text style={styles.documentTitle}>DriveDrop Vehicle Shipping Service Agreement</Text>
+                <Text style={styles.documentTitle}>
+                  DriveDrop Vehicle Shipping Service Agreement
+                </Text>
                 <Text style={styles.documentExcerpt}>
-                  This agreement governs the vehicle shipping services provided by DriveDrop. Key points include:
+                  This agreement governs the vehicle shipping services provided
+                  by DriveDrop. Key points include:
                   {'\n\n'}• Professional handling and transport of your vehicle
                   {'\n'}• Insurance coverage during transport
                   {'\n'}• Delivery timeline estimates
@@ -111,25 +120,43 @@ export default function BookingStepTermsScreen({ navigation }: BookingStepTermsP
                   {'\n'}• Liability and damage policies
                   {'\n\n'}Please read the full agreement before accepting.
                 </Text>
-                <TouchableOpacity 
+                <TouchableOpacity
                   style={styles.viewDocumentButton}
                   onPress={() => viewDocument('service')}
                 >
-                  <Text style={styles.viewDocumentText}>View Full Agreement</Text>
-                  <MaterialIcons name="open-in-new" size={16} color={Colors.primary} />
+                  <Text style={styles.viewDocumentText}>
+                    View Full Agreement
+                  </Text>
+                  <MaterialIcons
+                    name="open-in-new"
+                    size={16}
+                    color={Colors.primary}
+                  />
                 </TouchableOpacity>
               </View>
 
               <TouchableOpacity
                 style={styles.checkboxRow}
-                onPress={() => handleCheckboxToggle('serviceAgreementAccepted', termsAuthorization.serviceAgreementAccepted || false)}
+                onPress={() =>
+                  handleCheckboxToggle(
+                    'serviceAgreementAccepted',
+                    termsAuthorization.serviceAgreementAccepted || false
+                  )
+                }
               >
-                <View style={[
-                  styles.checkbox,
-                  termsAuthorization.serviceAgreementAccepted && styles.checkboxChecked
-                ]}>
+                <View
+                  style={[
+                    styles.checkbox,
+                    termsAuthorization.serviceAgreementAccepted &&
+                      styles.checkboxChecked,
+                  ]}
+                >
                   {termsAuthorization.serviceAgreementAccepted && (
-                    <MaterialIcons name="check" size={16} color={Colors.surface} />
+                    <MaterialIcons
+                      name="check"
+                      size={16}
+                      color={Colors.surface}
+                    />
                   )}
                 </View>
                 <Text style={styles.checkboxText}>
@@ -149,25 +176,41 @@ export default function BookingStepTermsScreen({ navigation }: BookingStepTermsP
                   {'\n'}• Emergency cancellation procedures
                   {'\n'}• Rescheduling options and fees
                 </Text>
-                <TouchableOpacity 
+                <TouchableOpacity
                   style={styles.viewDocumentButton}
                   onPress={() => viewDocument('cancellation')}
                 >
                   <Text style={styles.viewDocumentText}>View Full Policy</Text>
-                  <MaterialIcons name="open-in-new" size={16} color={Colors.primary} />
+                  <MaterialIcons
+                    name="open-in-new"
+                    size={16}
+                    color={Colors.primary}
+                  />
                 </TouchableOpacity>
               </View>
 
               <TouchableOpacity
                 style={styles.checkboxRow}
-                onPress={() => handleCheckboxToggle('cancellationPolicyAccepted', termsAuthorization.cancellationPolicyAccepted || false)}
+                onPress={() =>
+                  handleCheckboxToggle(
+                    'cancellationPolicyAccepted',
+                    termsAuthorization.cancellationPolicyAccepted || false
+                  )
+                }
               >
-                <View style={[
-                  styles.checkbox,
-                  termsAuthorization.cancellationPolicyAccepted && styles.checkboxChecked
-                ]}>
+                <View
+                  style={[
+                    styles.checkbox,
+                    termsAuthorization.cancellationPolicyAccepted &&
+                      styles.checkboxChecked,
+                  ]}
+                >
                   {termsAuthorization.cancellationPolicyAccepted && (
-                    <MaterialIcons name="check" size={16} color={Colors.surface} />
+                    <MaterialIcons
+                      name="check"
+                      size={16}
+                      color={Colors.surface}
+                    />
                   )}
                 </View>
                 <Text style={styles.checkboxText}>
@@ -181,7 +224,8 @@ export default function BookingStepTermsScreen({ navigation }: BookingStepTermsP
           <Card variant="default" padding="lg" style={styles.formCard}>
             <Text style={styles.sectionTitle}>Digital Signature</Text>
             <Text style={styles.sectionSubtitle}>
-              Please provide your digital signature to authorize this shipment request
+              Please provide your digital signature to authorize this shipment
+              request
             </Text>
 
             <Input
@@ -196,9 +240,16 @@ export default function BookingStepTermsScreen({ navigation }: BookingStepTermsP
 
             {termsAuthorization.signatureDate && (
               <View style={styles.signatureInfo}>
-                <MaterialIcons name="schedule" size={16} color={Colors.text.secondary} />
+                <MaterialIcons
+                  name="schedule"
+                  size={16}
+                  color={Colors.text.secondary}
+                />
                 <Text style={styles.signatureDate}>
-                  Signed on {new Date(termsAuthorization.signatureDate).toLocaleDateString()}
+                  Signed on{' '}
+                  {new Date(
+                    termsAuthorization.signatureDate
+                  ).toLocaleDateString()}
                 </Text>
               </View>
             )}

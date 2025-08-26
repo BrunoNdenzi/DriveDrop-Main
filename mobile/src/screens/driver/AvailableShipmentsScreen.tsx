@@ -1,5 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, View, Text, FlatList, TouchableOpacity, RefreshControl, Alert } from 'react-native';
+import {
+  StyleSheet,
+  View,
+  Text,
+  FlatList,
+  TouchableOpacity,
+  RefreshControl,
+  Alert,
+} from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { MaterialIcons } from '@expo/vector-icons';
 import { Colors } from '../../constants/Colors';
@@ -24,7 +32,9 @@ interface AvailableShipment {
 }
 
 export default function AvailableShipmentsScreen({ navigation }: any) {
-  const [availableShipments, setAvailableShipments] = useState<AvailableShipment[]>([]);
+  const [availableShipments, setAvailableShipments] = useState<
+    AvailableShipment[]
+  >([]);
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
   const { userProfile, session } = useAuth();
@@ -52,7 +62,7 @@ export default function AvailableShipmentsScreen({ navigation }: any) {
           .from('job_applications')
           .select('shipment_id')
           .eq('driver_id', userProfile.id);
-        
+
         if (appError) {
           console.error('Error fetching applications:', appError);
         } else {
@@ -61,19 +71,21 @@ export default function AvailableShipmentsScreen({ navigation }: any) {
       }
 
       // Transform data and add application status
-      const transformedShipments: AvailableShipment[] = data.map((shipment: any) => ({
-        id: shipment.id,
-        title: shipment.title || 'Delivery Service',
-        pickup_location: shipment.pickup_address || 'Unknown pickup',
-        delivery_location: shipment.delivery_address || 'Unknown delivery',
-        distance: shipment.distance || 0,
-        estimated_earnings: shipment.estimated_price || 0,
-        vehicle_type: shipment.vehicle_type || 'Any',
-        pickup_date: shipment.pickup_date || shipment.created_at,
-        status: shipment.status,
-        created_at: shipment.created_at,
-        hasApplied: appliedShipmentIds.includes(shipment.id),
-      }));
+      const transformedShipments: AvailableShipment[] = data.map(
+        (shipment: any) => ({
+          id: shipment.id,
+          title: shipment.title || 'Delivery Service',
+          pickup_location: shipment.pickup_address || 'Unknown pickup',
+          delivery_location: shipment.delivery_address || 'Unknown delivery',
+          distance: shipment.distance || 0,
+          estimated_earnings: shipment.estimated_price || 0,
+          vehicle_type: shipment.vehicle_type || 'Any',
+          pickup_date: shipment.pickup_date || shipment.created_at,
+          status: shipment.status,
+          created_at: shipment.created_at,
+          hasApplied: appliedShipmentIds.includes(shipment.id),
+        })
+      );
 
       setAvailableShipments(transformedShipments);
     } catch (error) {
@@ -99,38 +111,42 @@ export default function AvailableShipmentsScreen({ navigation }: any) {
       // Check if already applied
       const shipment = availableShipments.find(s => s.id === shipmentId);
       if (shipment?.hasApplied) {
-        Alert.alert('Already Applied', 'You have already applied for this shipment.');
+        Alert.alert(
+          'Already Applied',
+          'You have already applied for this shipment.'
+        );
         return;
       }
 
       // Use the backend API endpoint to apply for shipment
       const apiUrl = getApiUrl();
-      const response = await fetch(`${apiUrl}/api/v1/shipments/${shipmentId}/apply`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session?.access_token}`,
-        },
-        body: JSON.stringify({
-          notes: 'Application submitted via mobile app'
-        }),
-      });
+      const response = await fetch(
+        `${apiUrl}/api/v1/shipments/${shipmentId}/apply`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${session?.access_token}`,
+          },
+          body: JSON.stringify({
+            notes: 'Application submitted via mobile app',
+          }),
+        }
+      );
 
       const result = await response.json();
 
       if (response.ok && result.success) {
         Alert.alert('Success', 'Application submitted successfully!');
-        
+
         // Update local state to reflect application
-        setAvailableShipments(prev => 
-          prev.map(s => 
-            s.id === shipmentId 
-              ? { ...s, hasApplied: true }
-              : s
-          )
+        setAvailableShipments(prev =>
+          prev.map(s => (s.id === shipmentId ? { ...s, hasApplied: true } : s))
         );
       } else {
-        throw new Error(result.error?.message || 'Failed to submit application');
+        throw new Error(
+          result.error?.message || 'Failed to submit application'
+        );
       }
     } catch (error) {
       console.error('Error applying for shipment:', error);
@@ -151,10 +167,14 @@ export default function AvailableShipmentsScreen({ navigation }: any) {
         <Text style={styles.shipmentTitle}>{item.title}</Text>
         <Text style={styles.earningsText}>${item.estimated_earnings}</Text>
       </View>
-      
+
       <View style={styles.locationContainer}>
         <View style={styles.locationRow}>
-          <MaterialIcons name="location-on" size={16} color={Colors.secondary} />
+          <MaterialIcons
+            name="location-on"
+            size={16}
+            color={Colors.secondary}
+          />
           <Text style={styles.locationText} numberOfLines={1}>
             From: {item.pickup_location}
           </Text>
@@ -166,28 +186,44 @@ export default function AvailableShipmentsScreen({ navigation }: any) {
           </Text>
         </View>
       </View>
-      
+
       <View style={styles.detailsContainer}>
         <Text style={styles.detailText}>
-          <MaterialIcons name="directions-car" size={14} color={Colors.text.secondary} />
-          {' '}{item.vehicle_type}
+          <MaterialIcons
+            name="directions-car"
+            size={14}
+            color={Colors.text.secondary}
+          />{' '}
+          {item.vehicle_type}
         </Text>
         <Text style={styles.detailText}>
-          <MaterialIcons name="schedule" size={14} color={Colors.text.secondary} />
-          {' '}{new Date(item.pickup_date).toLocaleDateString()}
+          <MaterialIcons
+            name="schedule"
+            size={14}
+            color={Colors.text.secondary}
+          />{' '}
+          {new Date(item.pickup_date).toLocaleDateString()}
         </Text>
         {item.distance > 0 && (
           <Text style={styles.detailText}>
-            <MaterialIcons name="straighten" size={14} color={Colors.text.secondary} />
-            {' '}{item.distance.toFixed(1)} mi
+            <MaterialIcons
+              name="straighten"
+              size={14}
+              color={Colors.text.secondary}
+            />{' '}
+            {item.distance.toFixed(1)} mi
           </Text>
         )}
       </View>
-      
+
       <View style={styles.actionContainer}>
         {item.hasApplied ? (
           <View style={styles.appliedBadge}>
-            <MaterialIcons name="check-circle" size={16} color={Colors.success} />
+            <MaterialIcons
+              name="check-circle"
+              size={16}
+              color={Colors.success}
+            />
             <Text style={styles.appliedText}>Applied</Text>
           </View>
         ) : (
@@ -199,13 +235,17 @@ export default function AvailableShipmentsScreen({ navigation }: any) {
             <Text style={styles.applyButtonText}>Apply for Job</Text>
           </TouchableOpacity>
         )}
-        
+
         <TouchableOpacity
           style={styles.detailsButton}
           onPress={() => viewShipmentDetails(item.id)}
         >
           <Text style={styles.detailsButtonText}>View Details</Text>
-          <MaterialIcons name="arrow-forward" size={16} color={Colors.primary} />
+          <MaterialIcons
+            name="arrow-forward"
+            size={16}
+            color={Colors.primary}
+          />
         </TouchableOpacity>
       </View>
     </TouchableOpacity>
@@ -214,7 +254,7 @@ export default function AvailableShipmentsScreen({ navigation }: any) {
   return (
     <View style={styles.container}>
       <StatusBar style="dark" />
-      
+
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Available Shipments</Text>
         <Text style={styles.headerSubtitle}>
@@ -225,7 +265,7 @@ export default function AvailableShipmentsScreen({ navigation }: any) {
       <FlatList
         data={availableShipments}
         renderItem={renderShipmentItem}
-        keyExtractor={(item) => item.id}
+        keyExtractor={item => item.id}
         contentContainerStyle={styles.listContainer}
         refreshControl={
           <RefreshControl
@@ -238,7 +278,11 @@ export default function AvailableShipmentsScreen({ navigation }: any) {
         showsVerticalScrollIndicator={false}
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
-            <MaterialIcons name="search-off" size={64} color={Colors.text.secondary} />
+            <MaterialIcons
+              name="search-off"
+              size={64}
+              color={Colors.text.secondary}
+            />
             <Text style={styles.emptyTitle}>No Shipments Available</Text>
             <Text style={styles.emptyText}>
               Check back later for new delivery opportunities.

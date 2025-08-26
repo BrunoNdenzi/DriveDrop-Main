@@ -9,7 +9,9 @@ import config from '@config/index';
  * @access Public
  */
 export const getConfig = asyncHandler(async (_req: Request, res: Response) => {
-  res.status(200).json(successResponse({
-    publishableKey: config.stripe.publishableKey,
-  }));
+  res.status(200).json(
+    successResponse({
+      publishableKey: config.stripe.publishableKey,
+    })
+  );
 });

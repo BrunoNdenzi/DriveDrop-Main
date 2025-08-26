@@ -30,8 +30,10 @@ export function useAPI() {
         setError(null);
 
         // Get the user's JWT token
-        const { data: { session } } = await auth.getSession();
-        
+        const {
+          data: { session },
+        } = await auth.getSession();
+
         if (!session) {
           throw new Error('No authenticated session found');
         }
@@ -39,7 +41,7 @@ export function useAPI() {
         const url = `${API_URL}${endpoint}`;
         const headers = {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session.access_token}`,
+          Authorization: `Bearer ${session.access_token}`,
           ...options.headers,
         };
 
@@ -51,14 +53,16 @@ export function useAPI() {
         const data = await response.json();
 
         if (!response.ok) {
-          throw new Error(data.message || 'An error occurred while fetching data');
+          throw new Error(
+            data.message || 'An error occurred while fetching data'
+          );
         }
 
         return data;
       } catch (err: any) {
         setError(err.message || 'An error occurred');
         console.error('API Error:', err);
-        
+
         if (err.message === 'No authenticated session found') {
           // Handle unauthenticated error - this could redirect to login
           Alert.alert(
@@ -72,7 +76,7 @@ export function useAPI() {
             ]
           );
         }
-        
+
         return null;
       } finally {
         setLoading(false);
@@ -107,7 +111,9 @@ export function useAPI() {
         const data = await response.json();
 
         if (!response.ok) {
-          throw new Error(data.message || 'An error occurred while fetching data');
+          throw new Error(
+            data.message || 'An error occurred while fetching data'
+          );
         }
 
         return data;

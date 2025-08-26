@@ -4,7 +4,10 @@ import { Card } from '../ui/Card';
 import { Input } from '../ui/Input';
 import { Button } from '../ui/Button';
 import { Colors, Spacing, Typography } from '../../constants/DesignSystem';
-import { paymentService, PaymentMethodRequest } from '../../services/paymentService';
+import {
+  paymentService,
+  PaymentMethodRequest,
+} from '../../services/paymentService';
 
 interface StripePaymentFormProps {
   amount: number;
@@ -13,11 +16,11 @@ interface StripePaymentFormProps {
   onPaymentError: (error: string) => void;
 }
 
-export function StripePaymentForm({ 
-  amount, 
-  shipmentId, 
-  onPaymentSuccess, 
-  onPaymentError 
+export function StripePaymentForm({
+  amount,
+  shipmentId,
+  onPaymentSuccess,
+  onPaymentError,
 }: StripePaymentFormProps) {
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [cardholderName, setCardholderName] = useState<string>('');
@@ -31,13 +34,13 @@ export function StripePaymentForm({
     zipCode: '',
     country: 'US',
   });
-  
+
   // This is already the 20% amount from the parent component
 
   const handleBillingAddressChange = (field: string, value: string) => {
     setBillingAddress(prev => ({
       ...prev,
-      [field]: value
+      [field]: value,
     }));
   };
 
@@ -70,7 +73,10 @@ export function StripePaymentForm({
 
   const handlePayment = async () => {
     if (!isFormValid()) {
-      Alert.alert('Validation Error', 'Please fill in all required fields correctly.');
+      Alert.alert(
+        'Validation Error',
+        'Please fill in all required fields correctly.'
+      );
       return;
     }
 
@@ -80,11 +86,13 @@ export function StripePaymentForm({
       // Test API connectivity first
       const isConnected = await paymentService.testApiConnectivity();
       if (!isConnected) {
-        throw new Error('Cannot connect to payment server. Please check your internet connection and try again.');
+        throw new Error(
+          'Cannot connect to payment server. Please check your internet connection and try again.'
+        );
       }
 
       console.log('Creating payment intent for shipment:', shipmentId);
-      
+
       // Create a payment intent
       const paymentIntentResponse = await paymentService.createPaymentIntent(
         shipmentId,
@@ -93,15 +101,21 @@ export function StripePaymentForm({
       );
 
       if (!paymentIntentResponse || !paymentIntentResponse.id) {
-        console.error('Invalid payment intent response:', paymentIntentResponse);
+        console.error(
+          'Invalid payment intent response:',
+          paymentIntentResponse
+        );
         throw new Error('Failed to create payment intent: Missing ID');
       }
 
-      console.log('Payment intent created successfully with ID:', paymentIntentResponse.id);
+      console.log(
+        'Payment intent created successfully with ID:',
+        paymentIntentResponse.id
+      );
 
       // Parse expiry date (MM/YY)
       const [expMonth, expYear] = expiryDate.split('/');
-      
+
       // Prepare payment method data
       const paymentMethodData: PaymentMethodRequest = {
         type: 'card',
@@ -109,7 +123,7 @@ export function StripePaymentForm({
           number: cardNumber.replace(/\s/g, ''),
           exp_month: expMonth,
           exp_year: expYear,
-          cvc: cvv
+          cvc: cvv,
         },
         billing_details: {
           name: cardholderName,
@@ -118,9 +132,9 @@ export function StripePaymentForm({
             city: billingAddress.city,
             state: billingAddress.state,
             postal_code: billingAddress.zipCode,
-            country: billingAddress.country
-          }
-        }
+            country: billingAddress.country,
+          },
+        },
       };
 
       // Confirm payment
@@ -139,10 +153,11 @@ export function StripePaymentForm({
       }
     } catch (error) {
       console.error('Payment processing error (detailed):', error);
-      
+
       // Determine a user-friendly error message based on the error
-      let errorMessage = 'An unexpected error occurred during payment processing';
-      
+      let errorMessage =
+        'An unexpected error occurred during payment processing';
+
       if (error instanceof Error) {
         // Extract the most meaningful part of the error message
         if (error.message.includes('User not authenticated')) {
@@ -150,15 +165,17 @@ export function StripePaymentForm({
         } else if (error.message.includes('card')) {
           errorMessage = error.message; // Card errors are usually user-friendly
         } else if (error.message.includes('Failed to create payment intent')) {
-          errorMessage = 'Could not process payment. Please check your payment details and try again.';
+          errorMessage =
+            'Could not process payment. Please check your payment details and try again.';
         } else if (error.message.includes('connect')) {
-          errorMessage = 'Connection to payment service failed. Please check your internet connection.';
+          errorMessage =
+            'Connection to payment service failed. Please check your internet connection.';
         } else {
           // If we have a specific error message, use it
           errorMessage = error.message;
         }
       }
-      
+
       onPaymentError(errorMessage);
     } finally {
       setIsLoading(false);
@@ -171,20 +188,22 @@ export function StripePaymentForm({
         <Text style={styles.title}>Payment Details</Text>
         <Text style={styles.secureText}>Secure</Text>
       </View>
-      
+
       <Text style={styles.amount}>Amount: ${(amount / 100).toFixed(2)}</Text>
-      
+
       <View style={styles.stripeContainer}>
         <Text style={styles.stripeText}>Powered by</Text>
         <Text style={styles.stripeBrand}>Stripe</Text>
       </View>
-      
+
       <View style={styles.legalContainer}>
         <Text style={styles.legalText}>
-          Your payment information is securely processed by Stripe. DriveDrop does not store your credit card information. By proceeding with payment, you agree to Stripe's Terms of Service.
+          Your payment information is securely processed by Stripe. DriveDrop
+          does not store your credit card information. By proceeding with
+          payment, you agree to Stripe's Terms of Service.
         </Text>
       </View>
-      
+
       <Input
         label="Cardholder Name"
         value={cardholderName}
@@ -196,7 +215,7 @@ export function StripePaymentForm({
       <Input
         label="Card Number"
         value={cardNumber}
-        onChangeText={(value) => {
+        onChangeText={value => {
           const formatted = formatCardNumber(value);
           if (formatted.replace(/\s/g, '').length <= 16) {
             setCardNumber(formatted);
@@ -212,7 +231,7 @@ export function StripePaymentForm({
           <Input
             label="Expiry Date"
             value={expiryDate}
-            onChangeText={(value) => {
+            onChangeText={value => {
               const formatted = formatExpiryDate(value);
               if (formatted.length <= 5) {
                 setExpiryDate(formatted);
@@ -237,11 +256,11 @@ export function StripePaymentForm({
       </View>
 
       <Text style={styles.billingTitle}>Billing Address</Text>
-      
+
       <Input
         label="Street Address"
         value={billingAddress.street}
-        onChangeText={(value) => handleBillingAddressChange('street', value)}
+        onChangeText={value => handleBillingAddressChange('street', value)}
         placeholder="123 Main St"
       />
 
@@ -250,7 +269,7 @@ export function StripePaymentForm({
           <Input
             label="City"
             value={billingAddress.city}
-            onChangeText={(value) => handleBillingAddressChange('city', value)}
+            onChangeText={value => handleBillingAddressChange('city', value)}
             placeholder="New York"
           />
         </View>
@@ -258,7 +277,7 @@ export function StripePaymentForm({
           <Input
             label="State"
             value={billingAddress.state}
-            onChangeText={(value) => handleBillingAddressChange('state', value)}
+            onChangeText={value => handleBillingAddressChange('state', value)}
             placeholder="NY"
           />
         </View>
@@ -267,7 +286,7 @@ export function StripePaymentForm({
       <Input
         label="Zip Code"
         value={billingAddress.zipCode}
-        onChangeText={(value) => handleBillingAddressChange('zipCode', value)}
+        onChangeText={value => handleBillingAddressChange('zipCode', value)}
         placeholder="10001"
         keyboardType="numeric"
       />
@@ -280,7 +299,11 @@ export function StripePaymentForm({
       />
 
       {isLoading && (
-        <ActivityIndicator size="large" color={Colors.primary} style={styles.loader} />
+        <ActivityIndicator
+          size="large"
+          color={Colors.primary}
+          style={styles.loader}
+        />
       )}
     </Card>
   );

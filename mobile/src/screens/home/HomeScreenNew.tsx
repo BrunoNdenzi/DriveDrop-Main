@@ -11,7 +11,12 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { StatusBar } from 'expo-status-bar';
 import { MaterialIcons } from '@expo/vector-icons';
 
-import { Colors, Typography, Spacing, BorderRadius } from '../../constants/DesignSystem';
+import {
+  Colors,
+  Typography,
+  Spacing,
+  BorderRadius,
+} from '../../constants/DesignSystem';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
 import { ClientTabParamList } from '../../navigation/types';
@@ -46,22 +51,45 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
   };
 
   const quickStats = [
-    { label: 'Active Shipments', value: '2', icon: 'local-shipping', color: Colors.primary },
-    { label: 'Completed', value: '12', icon: 'check-circle', color: Colors.success },
-    { label: 'This Month', value: '$2,450', icon: 'account-balance-wallet', color: Colors.secondary },
+    {
+      label: 'Active Shipments',
+      value: '2',
+      icon: 'local-shipping',
+      color: Colors.primary,
+    },
+    {
+      label: 'Completed',
+      value: '12',
+      icon: 'check-circle',
+      color: Colors.success,
+    },
+    {
+      label: 'This Month',
+      value: '$2,450',
+      icon: 'account-balance-wallet',
+      color: Colors.secondary,
+    },
   ];
 
   const quickActions = [
-    { title: 'Track Shipment', icon: 'my-location', onPress: handleTrackShipment },
+    {
+      title: 'Track Shipment',
+      icon: 'my-location',
+      onPress: handleTrackShipment,
+    },
     { title: 'Get Quote', icon: 'calculate', onPress: handleCreateShipment },
     { title: 'Support', icon: 'headset-mic', onPress: () => {} },
-    { title: 'History', icon: 'history', onPress: () => navigation.navigate('Shipments') },
+    {
+      title: 'History',
+      icon: 'history',
+      onPress: () => navigation.navigate('Shipments'),
+    },
   ];
 
   return (
     <View style={styles.container}>
       <StatusBar style="dark" />
-      
+
       {/* Header */}
       <View style={styles.header}>
         <View style={styles.headerLeft}>
@@ -75,9 +103,13 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
             </Text>
           </View>
         </View>
-        
+
         <TouchableOpacity style={styles.notificationButton}>
-          <MaterialIcons name="notifications-none" size={24} color={Colors.text.primary} />
+          <MaterialIcons
+            name="notifications-none"
+            size={24}
+            color={Colors.text.primary}
+          />
           <View style={styles.notificationBadge} />
         </TouchableOpacity>
       </View>
@@ -88,7 +120,9 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
           <View style={styles.bannerContent}>
             <View style={styles.bannerLeft}>
               <Text style={styles.bannerTitle}>🚛 Need to ship a vehicle?</Text>
-              <Text style={styles.bannerSubtitle}>Get instant quotes from trusted carriers</Text>
+              <Text style={styles.bannerSubtitle}>
+                Get instant quotes from trusted carriers
+              </Text>
               <Button
                 title="Get Quote Now"
                 variant="primary"
@@ -97,7 +131,12 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
                 style={styles.bannerButton}
               />
             </View>
-            <MaterialIcons name="directions-car" size={60} color={Colors.primary} style={styles.bannerIcon} />
+            <MaterialIcons
+              name="directions-car"
+              size={60}
+              color={Colors.primary}
+              style={styles.bannerIcon}
+            />
           </View>
         </Card>
 
@@ -106,8 +145,17 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
           <Text style={styles.sectionTitle}>Overview</Text>
           <View style={styles.statsGrid}>
             {quickStats.map((stat, index) => (
-              <Card key={index} variant="default" padding="base" style={styles.statCard}>
-                <MaterialIcons name={stat.icon as any} size={24} color={stat.color} />
+              <Card
+                key={index}
+                variant="default"
+                padding="base"
+                style={styles.statCard}
+              >
+                <MaterialIcons
+                  name={stat.icon as any}
+                  size={24}
+                  color={stat.color}
+                />
                 <Text style={styles.statValue}>{stat.value}</Text>
                 <Text style={styles.statLabel}>{stat.label}</Text>
               </Card>
@@ -118,9 +166,15 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
         {/* Create Shipment CTA */}
         <Card variant="outlined" padding="lg" style={styles.ctaCard}>
           <View style={styles.ctaContent}>
-            <MaterialIcons name="add-circle-outline" size={32} color={Colors.primary} />
+            <MaterialIcons
+              name="add-circle-outline"
+              size={32}
+              color={Colors.primary}
+            />
             <Text style={styles.ctaTitle}>Create New Shipment</Text>
-            <Text style={styles.ctaSubtitle}>Get quotes and book your vehicle transport</Text>
+            <Text style={styles.ctaSubtitle}>
+              Get quotes and book your vehicle transport
+            </Text>
           </View>
           <Button
             title="Start Booking"
@@ -144,7 +198,11 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
                 onPress={action.onPress}
                 style={styles.actionCard}
               >
-                <MaterialIcons name={action.icon as any} size={28} color={Colors.primary} />
+                <MaterialIcons
+                  name={action.icon as any}
+                  size={28}
+                  color={Colors.primary}
+                />
                 <Text style={styles.actionTitle}>{action.title}</Text>
               </Card>
             ))}
@@ -159,15 +217,25 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
               <Text style={styles.viewAllText}>View All</Text>
             </TouchableOpacity>
           </View>
-          
+
           <Card variant="default" padding="base" style={styles.activityCard}>
             <View style={styles.activityItem}>
-              <MaterialIcons name="local-shipping" size={20} color={Colors.primary} />
+              <MaterialIcons
+                name="local-shipping"
+                size={20}
+                color={Colors.primary}
+              />
               <View style={styles.activityContent}>
-                <Text style={styles.activityTitle}>Shipment #DR001 picked up</Text>
+                <Text style={styles.activityTitle}>
+                  Shipment #DR001 picked up
+                </Text>
                 <Text style={styles.activityTime}>2 hours ago</Text>
               </View>
-              <MaterialIcons name="chevron-right" size={20} color={Colors.text.secondary} />
+              <MaterialIcons
+                name="chevron-right"
+                size={20}
+                color={Colors.text.secondary}
+              />
             </View>
           </Card>
         </View>
@@ -176,7 +244,9 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
         <Card variant="elevated" padding="lg" style={styles.promoCard}>
           <View style={styles.promoContent}>
             <Text style={styles.promoTitle}>🎉 Special Offer</Text>
-            <Text style={styles.promoSubtitle}>Get 15% off your next shipment with code DRIVE15</Text>
+            <Text style={styles.promoSubtitle}>
+              Get 15% off your next shipment with code DRIVE15
+            </Text>
             <Button
               title="Learn More"
               variant="outline"

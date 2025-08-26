@@ -39,7 +39,7 @@ interface Message {
 export default function MessagesScreen({ route, navigation }: any) {
   // If contactId is provided in route params, we'll open that conversation directly
   const initialContactId = route.params?.contactId;
-  
+
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -47,23 +47,23 @@ export default function MessagesScreen({ route, navigation }: any) {
   const [loading, setLoading] = useState(true);
   const [sendingMessage, setSendingMessage] = useState(false);
   const { userProfile } = useAuth();
-  
+
   const messageListRef = useRef<FlatList>(null);
   const messageSubscriptionRef = useRef<any>(null);
   const contactSubscriptionRef = useRef<any>(null);
 
   useEffect(() => {
     fetchContacts();
-    
+
     // Set up real-time subscription for new contacts/messages
     setupContactsSubscription();
-    
+
     return () => {
       // Clean up subscriptions on unmount
       if (messageSubscriptionRef.current) {
         supabase.removeChannel(messageSubscriptionRef.current);
       }
-      
+
       if (contactSubscriptionRef.current) {
         supabase.removeChannel(contactSubscriptionRef.current);
       }
@@ -81,7 +81,7 @@ export default function MessagesScreen({ route, navigation }: any) {
 
   const setupContactsSubscription = () => {
     if (!userProfile) return;
-    
+
     // Set up real-time subscription for new messages that might create new contacts
     contactSubscriptionRef.current = supabase
       .channel('new-contacts')
@@ -103,25 +103,27 @@ export default function MessagesScreen({ route, navigation }: any) {
 
   const fetchContacts = async () => {
     if (!userProfile) return;
-    
+
     setLoading(true);
     try {
       // For drivers, contacts would primarily be clients they've worked with
       // This would typically come from shipments they've been assigned to
       const { data: shipments, error: shipmentsError } = await supabase
         .from('shipments')
-        .select(`
+        .select(
+          `
           *,
           profiles:client_id(id, first_name, last_name, avatar_url)
-        `)
+        `
+        )
         .eq('driver_id', userProfile.id);
 
       if (shipmentsError) throw shipmentsError;
 
       // Extract unique clients from shipments
       const uniqueClients: Record<string, Contact> = {};
-      
-      shipments.forEach((shipment) => {
+
+      shipments.forEach(shipment => {
         if (shipment.profiles && !uniqueClients[shipment.profiles.id]) {
           uniqueClients[shipment.profiles.id] = {
             id: shipment.profiles.id,
@@ -130,31 +132,35 @@ export default function MessagesScreen({ route, navigation }: any) {
           };
         }
       });
-      
+
       // Also fetch any system contacts or support staff (could be added later)
-      
+
       // Get last messages and unread counts for each contact in parallel for better performance
       const contactsArray = Object.values(uniqueClients);
       await Promise.all(
-        contactsArray.map(async (contact) => {
+        contactsArray.map(async contact => {
           try {
             // Get last message for this contact
             const { data: lastMessage } = await supabase
               .from('messages')
               .select('*')
-              .or(`and(sender_id.eq.${userProfile.id},receiver_id.eq.${contact.id}),and(sender_id.eq.${contact.id},receiver_id.eq.${userProfile.id})`)
+              .or(
+                `and(sender_id.eq.${userProfile.id},receiver_id.eq.${contact.id}),and(sender_id.eq.${contact.id},receiver_id.eq.${userProfile.id})`
+              )
               .order('created_at', { ascending: false })
               .limit(1);
-            
+
             // Get unread count for this contact using our new function
-            const { data: unreadCountData } = await supabase
-              .rpc('count_unread_messages', {
-                p_user_id: userProfile.id, 
-                p_contact_id: contact.id
-              });
-            
+            const { data: unreadCountData } = await supabase.rpc(
+              'count_unread_messages',
+              {
+                p_user_id: userProfile.id,
+                p_contact_id: contact.id,
+              }
+            );
+
             const unreadCount = unreadCountData || 0;
-            
+
             if (lastMessage && lastMessage.length > 0) {
               contact.lastMessage = lastMessage[0].content;
               contact.lastMessageTime = lastMessage[0].created_at;
@@ -165,14 +171,17 @@ export default function MessagesScreen({ route, navigation }: any) {
           }
         })
       );
-      
+
       // Sort contacts by last message time (most recent first)
       contactsArray.sort((a, b) => {
         if (!a.lastMessageTime) return 1;
         if (!b.lastMessageTime) return -1;
-        return new Date(b.lastMessageTime).getTime() - new Date(a.lastMessageTime).getTime();
+        return (
+          new Date(b.lastMessageTime).getTime() -
+          new Date(a.lastMessageTime).getTime()
+        );
       });
-      
+
       // Update state with the enhanced contacts information
       setContacts(contactsArray);
     } catch (error) {
@@ -185,38 +194,40 @@ export default function MessagesScreen({ route, navigation }: any) {
 
   const fetchMessages = async (contactId: string) => {
     if (!userProfile) return;
-    
+
     try {
       // Fetch message history between current user and selected contact
       const { data, error } = await supabase
         .from('messages')
         .select('*')
-        .or(`and(sender_id.eq.${userProfile.id},receiver_id.eq.${contactId}),and(sender_id.eq.${contactId},receiver_id.eq.${userProfile.id})`)
+        .or(
+          `and(sender_id.eq.${userProfile.id},receiver_id.eq.${contactId}),and(sender_id.eq.${contactId},receiver_id.eq.${userProfile.id})`
+        )
         .order('created_at', { ascending: true });
 
       if (error) throw error;
-      
+
       setMessages(data || []);
-      
+
       // Mark unread messages as read using our new function
       if (data) {
         const unreadMessages = data.filter(
           msg => msg.sender_id === contactId && !msg.is_read
         );
-        
+
         for (const msg of unreadMessages) {
           await supabase.rpc('mark_message_as_read', {
             p_message_id: msg.id,
-            p_user_id: userProfile.id
+            p_user_id: userProfile.id,
           });
         }
       }
-      
+
       // Set up real-time subscription for new messages using our RealtimeService
       if (messageSubscriptionRef.current) {
         supabase.removeChannel(messageSubscriptionRef.current);
       }
-      
+
       // Create a new real-time channel for messages between these users
       messageSubscriptionRef.current = supabase
         .channel(`messages-${userProfile.id}-${contactId}`)
@@ -228,18 +239,21 @@ export default function MessagesScreen({ route, navigation }: any) {
             table: 'messages',
             filter: `or(and(sender_id.eq.${userProfile.id},receiver_id.eq.${contactId}),and(sender_id.eq.${contactId},receiver_id.eq.${userProfile.id}))`,
           },
-          (payload) => {
+          payload => {
             // Add new message to the list
-            setMessages((prev) => [...prev, payload.new as Message]);
-            
+            setMessages(prev => [...prev, payload.new as Message]);
+
             // Mark message as read if it's from the contact
-            if (payload.new.sender_id === contactId && payload.new.receiver_id === userProfile.id) {
+            if (
+              payload.new.sender_id === contactId &&
+              payload.new.receiver_id === userProfile.id
+            ) {
               supabase.rpc('mark_message_as_read', {
                 p_message_id: payload.new.id,
-                p_user_id: userProfile.id
+                p_user_id: userProfile.id,
               });
             }
-            
+
             // Scroll to bottom
             setTimeout(() => {
               messageListRef.current?.scrollToEnd({ animated: true });
@@ -247,7 +261,7 @@ export default function MessagesScreen({ route, navigation }: any) {
           }
         )
         .subscribe();
-      
+
       // Scroll to bottom of message list
       setTimeout(() => {
         messageListRef.current?.scrollToEnd({ animated: false });
@@ -265,10 +279,10 @@ export default function MessagesScreen({ route, navigation }: any) {
 
   const handleSendMessage = async () => {
     if (!userProfile || !selectedContact || !newMessage.trim()) return;
-    
+
     try {
       setSendingMessage(true);
-      
+
       // Create message data
       const messageData = {
         sender_id: userProfile.id,
@@ -278,17 +292,15 @@ export default function MessagesScreen({ route, navigation }: any) {
         is_read: false,
         created_at: new Date().toISOString(),
       };
-      
+
       // Insert the new message
-      const { error } = await supabase
-        .from('messages')
-        .insert([messageData]);
+      const { error } = await supabase.from('messages').insert([messageData]);
 
       if (error) throw error;
-      
+
       // Clear the input
       setNewMessage('');
-      
+
       // Update the contact's last message in the contacts list
       setContacts(prevContacts => {
         return prevContacts.map(contact => {
@@ -318,17 +330,17 @@ export default function MessagesScreen({ route, navigation }: any) {
   const formatDate = (timestamp: string) => {
     const date = new Date(timestamp);
     const today = new Date();
-    
+
     if (date.toDateString() === today.toDateString()) {
       return 'Today';
     }
-    
+
     const yesterday = new Date(today);
     yesterday.setDate(yesterday.getDate() - 1);
     if (date.toDateString() === yesterday.toDateString()) {
       return 'Yesterday';
     }
-    
+
     return date.toLocaleDateString();
   };
 
@@ -341,13 +353,15 @@ export default function MessagesScreen({ route, navigation }: any) {
       onPress={() => handleSelectContact(item)}
     >
       <View style={styles.contactAvatar}>
-        <Text style={styles.contactInitial}>{item.name.charAt(0).toUpperCase()}</Text>
+        <Text style={styles.contactInitial}>
+          {item.name.charAt(0).toUpperCase()}
+        </Text>
       </View>
       <View style={styles.contactInfo}>
         <Text style={styles.contactName}>{item.name}</Text>
         {item.lastMessage && (
-          <Text 
-            style={styles.lastMessage} 
+          <Text
+            style={styles.lastMessage}
             numberOfLines={1}
             ellipsizeMode="tail"
           >
@@ -358,8 +372,8 @@ export default function MessagesScreen({ route, navigation }: any) {
       <View style={styles.contactMeta}>
         {item.lastMessageTime && (
           <Text style={styles.messageTime}>
-            {formatDate(item.lastMessageTime) === 'Today' 
-              ? formatTime(item.lastMessageTime) 
+            {formatDate(item.lastMessageTime) === 'Today'
+              ? formatTime(item.lastMessageTime)
               : formatDate(item.lastMessageTime)}
           </Text>
         )}
@@ -374,27 +388,35 @@ export default function MessagesScreen({ route, navigation }: any) {
 
   const renderMessageItem = ({ item }: { item: Message }) => {
     const isFromMe = item.sender_id === userProfile?.id;
-    
+
     return (
-      <View style={[
-        styles.messageContainer,
-        isFromMe ? styles.myMessageContainer : styles.theirMessageContainer,
-      ]}>
-        <View style={[
-          styles.messageBubble,
-          isFromMe ? styles.myMessageBubble : styles.theirMessageBubble,
-        ]}>
-          <Text style={[
-            styles.messageText,
-            isFromMe ? styles.myMessageText : styles.theirMessageText,
-          ]}>
+      <View
+        style={[
+          styles.messageContainer,
+          isFromMe ? styles.myMessageContainer : styles.theirMessageContainer,
+        ]}
+      >
+        <View
+          style={[
+            styles.messageBubble,
+            isFromMe ? styles.myMessageBubble : styles.theirMessageBubble,
+          ]}
+        >
+          <Text
+            style={[
+              styles.messageText,
+              isFromMe ? styles.myMessageText : styles.theirMessageText,
+            ]}
+          >
             {item.content}
           </Text>
         </View>
-        <Text style={[
-          styles.messageTime,
-          isFromMe ? styles.myMessageTime : styles.theirMessageTime,
-        ]}>
+        <Text
+          style={[
+            styles.messageTime,
+            isFromMe ? styles.myMessageTime : styles.theirMessageTime,
+          ]}
+        >
           {formatTime(item.created_at)}
         </Text>
       </View>
@@ -424,7 +446,7 @@ export default function MessagesScreen({ route, navigation }: any) {
   return (
     <View style={styles.container}>
       <StatusBar style="light" />
-      
+
       {/* Header */}
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Messages</Text>
@@ -434,12 +456,16 @@ export default function MessagesScreen({ route, navigation }: any) {
         {/* Contacts List */}
         <View style={styles.contactsColumn}>
           {loading ? (
-            <ActivityIndicator style={styles.loader} size="large" color={Colors.primary} />
+            <ActivityIndicator
+              style={styles.loader}
+              size="large"
+              color={Colors.primary}
+            />
           ) : (
             <FlatList
               data={contacts}
               renderItem={renderContactItem}
-              keyExtractor={(item) => item.id}
+              keyExtractor={item => item.id}
               ListEmptyComponent={renderEmptyContactsList}
             />
           )}
@@ -460,20 +486,22 @@ export default function MessagesScreen({ route, navigation }: any) {
                     {selectedContact.name.charAt(0).toUpperCase()}
                   </Text>
                 </View>
-                <Text style={styles.chatContactName}>{selectedContact.name}</Text>
+                <Text style={styles.chatContactName}>
+                  {selectedContact.name}
+                </Text>
               </View>
-              
+
               {/* Messages List */}
               <FlatList
                 ref={messageListRef}
                 style={styles.messagesList}
                 data={messages}
                 renderItem={renderMessageItem}
-                keyExtractor={(item) => item.id}
+                keyExtractor={item => item.id}
                 contentContainerStyle={styles.messagesListContent}
                 ListEmptyComponent={renderEmptyMessagesList}
               />
-              
+
               {/* Message Input */}
               <View style={styles.inputContainer}>
                 <TextInput
@@ -487,22 +515,34 @@ export default function MessagesScreen({ route, navigation }: any) {
                 <TouchableOpacity
                   style={[
                     styles.sendButton,
-                    (!newMessage.trim() || sendingMessage) && styles.disabledSendButton,
+                    (!newMessage.trim() || sendingMessage) &&
+                      styles.disabledSendButton,
                   ]}
                   onPress={handleSendMessage}
                   disabled={!newMessage.trim() || sendingMessage}
                 >
                   {sendingMessage ? (
-                    <ActivityIndicator size="small" color={Colors.text.inverse} />
+                    <ActivityIndicator
+                      size="small"
+                      color={Colors.text.inverse}
+                    />
                   ) : (
-                    <MaterialIcons name="send" size={20} color={Colors.text.inverse} />
+                    <MaterialIcons
+                      name="send"
+                      size={20}
+                      color={Colors.text.inverse}
+                    />
                   )}
                 </TouchableOpacity>
               </View>
             </KeyboardAvoidingView>
           ) : (
             <View style={styles.noSelectedContactContainer}>
-              <MaterialIcons name="forum" size={80} color={Colors.text.disabled} />
+              <MaterialIcons
+                name="forum"
+                size={80}
+                color={Colors.text.disabled}
+              />
               <Text style={styles.noSelectedContactText}>
                 Select a contact to start messaging
               </Text>

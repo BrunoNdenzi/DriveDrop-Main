@@ -4,7 +4,11 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { NavigationContainer } from '@react-navigation/native';
 import { MaterialIcons } from '@expo/vector-icons';
 
-import { RootStackParamList, ClientTabParamList, DriverTabParamList } from './types';
+import {
+  RootStackParamList,
+  ClientTabParamList,
+  DriverTabParamList,
+} from './types';
 import { useAuth } from '../context/AuthContext';
 import { Colors } from '../constants/Colors';
 
@@ -265,49 +269,49 @@ export default function Navigation() {
                 options={{ headerShown: false }}
               />
             )}
-            
+
             <Stack.Screen
               name="AdminAssignment"
               component={AdminAssignmentScreen}
               options={{ title: 'Driver Assignment' }}
             />
-            
+
             <Stack.Screen
               name="ShipmentDetails"
               component={ShipmentDetailsScreen}
               options={{ title: 'Shipment Details' }}
             />
-            
+
             <Stack.Screen
               name="ShipmentDetails_Driver"
               component={DriverShipmentDetailsScreen}
               options={{ title: 'Shipment Details' }}
             />
-            
+
             <Stack.Screen
               name="RouteMap"
               component={RouteMapScreen}
               options={{ title: 'Route Map', headerShown: false }}
             />
-            
+
             <Stack.Screen
               name="CreateShipment"
               component={NewShipmentScreen}
               options={{ title: 'Create New Shipment' }}
             />
-            
+
             <Stack.Screen
               name="Settings"
               component={SettingsScreen}
               options={{ title: 'Settings' }}
             />
-            
+
             <Stack.Screen
               name="NotificationTest"
               component={NotificationTestScreen}
               options={{ title: 'Notification Test' }}
             />
-            
+
             {/* Booking Flow Screens */}
             <Stack.Screen
               name="BookingStepCustomer"
@@ -362,20 +366,20 @@ export default function Navigation() {
             <Stack.Screen
               name="BookingConfirmation"
               component={BookingConfirmationScreen}
-              options={{ 
+              options={{
                 title: 'Booking Confirmed',
                 headerLeft: () => null, // Prevent going back
                 gestureEnabled: false, // Disable swipe back
               }}
             />
-            
+
             {/* Diagnostic screens */}
             <Stack.Screen
               name="NetworkDiagnostic"
               component={NetworkDiagnosticScreen}
               options={{ title: 'Network Diagnostics' }}
             />
-            
+
             {/* Add other authenticated screens here */}
           </>
         ) : (
