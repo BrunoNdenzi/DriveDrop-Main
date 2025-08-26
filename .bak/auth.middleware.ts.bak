@@ -16,7 +16,7 @@ declare global {
         email: string;
         role: string;
       };
-      userProfile?: Record<string, unknown>; // Full profile information
+      userProfile?: any; // Full profile information
     }
   }
 }

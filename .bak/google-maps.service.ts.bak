@@ -105,20 +105,23 @@ export const googleMapsService = {
       // Parse address components
       const addressComponents: GeocodingResult['addressComponents'] = {};
       result.address_components?.forEach(component => {
-        const types = component.types as string[];
-        if (types.includes('street_number')) {
+        if (component.types.includes('street_number' as any)) {
           addressComponents.streetNumber = component.long_name;
-        } else if (types.includes('route')) {
+        } else if (component.types.includes('route' as any)) {
           addressComponents.route = component.long_name;
-        } else if (types.includes('locality')) {
+        } else if (component.types.includes('locality' as any)) {
           addressComponents.locality = component.long_name;
-        } else if (types.includes('administrative_area_level_1')) {
+        } else if (
+          component.types.includes('administrative_area_level_1' as any)
+        ) {
           addressComponents.administrativeAreaLevel1 = component.short_name;
-        } else if (types.includes('administrative_area_level_2')) {
+        } else if (
+          component.types.includes('administrative_area_level_2' as any)
+        ) {
           addressComponents.administrativeAreaLevel2 = component.long_name;
-        } else if (types.includes('country')) {
+        } else if (component.types.includes('country' as any)) {
           addressComponents.country = component.long_name;
-        } else if (types.includes('postal_code')) {
+        } else if (component.types.includes('postal_code' as any)) {
           addressComponents.postalCode = component.long_name;
         }
       });
@@ -413,7 +416,7 @@ export const googleMapsService = {
     location: { lat: number; lng: number },
     radius: number,
     type?: string
-  ): Promise<Array<Record<string, unknown>>> {
+  ): Promise<any[]> {
     try {
       if (!config.googleMaps.apiKey) {
         throw createError(
@@ -423,25 +426,18 @@ export const googleMapsService = {
         );
       }
 
-      interface PlacesNearbyParams {
-        location: { lat: number; lng: number };
-        radius: number;
-        key: string;
-        type?: string;
-      }
-
-      const params: PlacesNearbyParams = {
+      const params: any = {
         location,
         radius,
         key: config.googleMaps.apiKey,
       };
 
       if (type) {
-        params['type'] = type;
+        params.type = type;
       }
 
       const response = await mapsClient.placesNearby({
-        params: params as Parameters<typeof mapsClient.placesNearby>[0]['params'], // Use proper parameter typing
+        params,
       });
 
       if (response.data.status !== 'OK') {

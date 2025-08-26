@@ -71,11 +71,11 @@ export const updateCurrentUser = asyncHandler(
     const { first_name, last_name, phone, avatar_url } = req.body;
 
     // Validate input
-    const updates: Record<string, string> = {};
-    if (first_name) updates['first_name'] = first_name.trim();
-    if (last_name) updates['last_name'] = last_name.trim();
-    if (phone) updates['phone'] = phone.trim();
-    if (avatar_url) updates['avatar_url'] = avatar_url.trim();
+    const updates: any = {};
+    if (first_name) updates.first_name = first_name.trim();
+    if (last_name) updates.last_name = last_name.trim();
+    if (phone) updates.phone = phone.trim();
+    if (avatar_url) updates.avatar_url = avatar_url.trim();
 
     if (Object.keys(updates).length === 0) {
       throw createError('No valid fields to update', 400, 'NO_UPDATES');

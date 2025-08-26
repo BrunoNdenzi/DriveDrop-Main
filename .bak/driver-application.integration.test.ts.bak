@@ -166,7 +166,7 @@ describe('Driver Application API Integration Tests', () => {
       expect(response.body.data).toBeInstanceOf(Array);
 
       if (response.body.data.length > 0) {
-        response.body.data.forEach((app: { status: string }) => {
+        response.body.data.forEach((app: any) => {
           expect(app.status).toBe('pending');
         });
       }

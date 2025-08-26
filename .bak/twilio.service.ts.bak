@@ -10,8 +10,7 @@ import { logger } from '@utils/logger';
 let twilio: Twilio;
 try {
   twilio = new Twilio(config.twilio.accountSid, config.twilio.authToken);
-} catch (_error) {
-  // TODO: Log specific Twilio initialization errors in development
+} catch (error) {
   logger.warn(
     'Failed to initialize Twilio client. SMS features will be mocked in development.'
   );

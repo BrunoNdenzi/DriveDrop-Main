@@ -21,7 +21,7 @@ async function makeRequest(
   endpoint: string,
   method: string,
   token: string,
-  body?: Record<string, unknown>
+  body?: any
 ) {
   const url = `${BASE_URL}${endpoint}`;
   const options: RequestInit = {
@@ -139,8 +139,7 @@ async function testErrorScenarios() {
       testConfig.adminToken,
       { status: 'invalid_status' }
     );
-  } catch (_error) {
-    // TODO: Handle specific error types if needed
+  } catch (error) {
     console.log('Expected error scenarios completed');
   }
 }
