@@ -11,7 +11,6 @@ export const Colors = {
   secondaryLight: '#FFB74D',
 
   // Neutral palette
-  white: '#FFFFFF',
   background: '#F7F9FC',
   surface: '#FFFFFF',
   border: '#E1E8ED',
@@ -23,7 +22,6 @@ export const Colors = {
     disabled: '#9E9E9E',
     inverse: '#FFFFFF',
   },
-  textLight: '#607D8B', // Alias for text.secondary
 
   // Status colors
   success: '#4CAF50',

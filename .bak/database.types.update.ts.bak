@@ -11,9 +11,9 @@ export type Json =
   | Json[];
 
 export interface Database extends ExistingDatabase {
-  public: ExistingDatabase['public'] & {
-    Tables: ExistingDatabase['public']['Tables'] & {
-      // Additional tables...
+  public: {
+    Tables: {
+      // Existing tables...
       push_tokens: {
         Row: {
           id: string;
@@ -85,5 +85,6 @@ export interface Database extends ExistingDatabase {
         };
       };
     };
+    // ...other existing properties
   };
 }

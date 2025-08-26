@@ -116,7 +116,7 @@ export default function JobDetailsScreen({ route, navigation }: any) {
       setStatusUpdating(true);
 
       // For status transitions that require location
-      let locationData: Record<string, number | string> = {};
+      let locationData = {};
       if (['in_transit', 'delivered'].includes(newStatus)) {
         try {
           const { status } = await Location.requestForegroundPermissionsAsync();
