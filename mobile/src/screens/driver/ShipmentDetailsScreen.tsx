@@ -419,7 +419,7 @@ export default function ShipmentDetailsScreen({ route, navigation }: any) {
           <View style={styles.detailsGrid}>
             <View style={styles.detailItem}>
               <MaterialIcons name="attach-money" size={20} color={Colors.success} />
-              <Text style={styles.detailLabel}>Earnings</Text>
+              <Text style={styles.detailLabel}>Price</Text>
               <Text style={styles.detailValue}>${shipment.price}</Text>
             </View>
             
@@ -437,11 +437,7 @@ export default function ShipmentDetailsScreen({ route, navigation }: any) {
               <Text style={styles.detailValue}>{shipment.vehicle_type}</Text>
             </View>
             
-            <View style={styles.detailItem}>
-              <MaterialIcons name="inventory" size={20} color={Colors.primary} />
-              <Text style={styles.detailLabel}>Cargo</Text>
-              <Text style={styles.detailValue}>{shipment.cargo_type}</Text>
-            </View>
+            {/* Cargo removed per requirements */}
           </View>
           
           {shipment.weight > 0 && (
