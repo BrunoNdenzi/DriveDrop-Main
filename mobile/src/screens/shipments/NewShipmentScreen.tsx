@@ -7,6 +7,8 @@ import {
   TouchableOpacity,
   ScrollView,
   Alert,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { StatusBar } from 'expo-status-bar';
@@ -15,6 +17,7 @@ import { MaterialIcons } from '@expo/vector-icons';
 import { Colors } from '../../constants/Colors';
 import { RootStackParamList } from '../../navigation/types';
 import { useAuth } from '../../context/AuthContext';
+import { useBooking } from '../../context/BookingContext';
 
 type NewShipmentNavigationProp = NativeStackScreenProps<RootStackParamList, 'CreateShipment'>['navigation'];
 
@@ -24,6 +27,7 @@ type NewShipmentScreenProps = {
 
 export default function NewShipmentScreen({ navigation }: NewShipmentScreenProps) {
   const { userProfile, session } = useAuth();
+  const { updateFormData } = useBooking();
   const [pickupZip, setPickupZip] = useState('');
   const [deliveryZip, setDeliveryZip] = useState('');
   const [pickupDate, setPickupDate] = useState('');
@@ -114,26 +118,15 @@ export default function NewShipmentScreen({ navigation }: NewShipmentScreenProps
 
   const handleBookShipment = async (estimatedCost: number = 0, distanceMiles: number = 0) => {
     // Navigate to booking flow with the quote information
-    const quoteData = {
-      pickupZip,
-      deliveryZip,
-      pickupDate,
-      deliveryDate,
-      vehicleType,
-      vehicleMake,
-      vehicleModel,
-      estimatedCost,
-      distanceMiles,
-    };
-    
-    // Navigate to the booking flow
+    // Persist quote price in booking context (using customer step bucket)
+    updateFormData('customer', { quotePrice: estimatedCost });
     navigation.navigate('BookingStepCustomer', { 
-      quoteId: `quote_${Date.now()}`,
-      quoteData,
+      quoteId: `quote_${Date.now()}`
     });
   };
 
   return (
+    <KeyboardAvoidingView style={{ flex:1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
     <View style={styles.container}>
       <StatusBar style="dark" />
       
@@ -142,7 +135,7 @@ export default function NewShipmentScreen({ navigation }: NewShipmentScreenProps
         <Text style={styles.title}>New Shipment</Text>
       </View>
 
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+  <ScrollView style={styles.content} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingBottom: 40 }}>
         {/* Pickup Information */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Pickup Information</Text>
@@ -251,7 +244,8 @@ export default function NewShipmentScreen({ navigation }: NewShipmentScreenProps
           </Text>
         </TouchableOpacity>
       </ScrollView>
-    </View>
+  </View>
+  </KeyboardAvoidingView>
   );
 }
 
