@@ -249,10 +249,10 @@ export default function ShipmentDetailsScreen({ route, navigation }: ShipmentDet
             </View>
           )}
           
-      {(shipment.price || shipment.estimated_price) && (
+      {(shipment.estimated_price) && (
             <View style={styles.detailRow}>
               <Text style={styles.detailLabel}>Price</Text>
-        <Text style={styles.detailValue}>${Number((shipment.price || shipment.estimated_price)).toFixed(2)}</Text>
+        <Text style={styles.detailValue}>${Number(shipment.estimated_price).toFixed(2)}</Text>
             </View>
           )}
           

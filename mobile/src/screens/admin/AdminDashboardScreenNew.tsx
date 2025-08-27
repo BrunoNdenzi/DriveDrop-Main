@@ -204,7 +204,7 @@ export default function AdminDashboardScreen({ navigation }: AdminDashboardScree
 
             <TouchableOpacity 
               style={styles.actionButton}
-              onPress={() => navigation.navigate('ShipmentList')}
+              onPress={() => navigation.navigate('Shipments' as any)}
             >
               <MaterialIcons name="view-list" size={32} color={Colors.white} />
               <Text style={styles.actionButtonText}>Manage Shipments</Text>
@@ -254,7 +254,7 @@ const styles = StyleSheet.create({
   loadingText: {
     marginTop: 10,
     fontSize: 16,
-    color: Colors.text,
+  color: Colors.text.primary,
   },
   header: {
     backgroundColor: Colors.primary,
@@ -277,7 +277,7 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: 'bold',
     marginVertical: 12,
-    color: Colors.text,
+  color: Colors.text.primary,
   },
   statsContainer: {
     marginBottom: 20,
@@ -304,12 +304,12 @@ const styles = StyleSheet.create({
   statValue: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: Colors.text,
+  color: Colors.text.primary,
     marginBottom: 5,
   },
   statLabel: {
     fontSize: 14,
-    color: Colors.textLight,
+  color: Colors.text.secondary,
     marginBottom: 8,
   },
   actionContainer: {

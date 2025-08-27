@@ -2,34 +2,13 @@ import { ShipmentService, CreateShipmentData } from './src/services/shipmentServ
 
 // Mock data for testing shipment creation
 const mockShipmentData: CreateShipmentData = {
+  title: 'Test Shipment',
   pickup_address: '123 Main St',
-  pickup_city: 'Los Angeles',
-  pickup_state: 'CA',
-  pickup_zip: '90210',
-  pickup_date: '2025-01-15',
-  pickup_time: '10:00 AM',
+  // removed unused pickup_city/state/zip/date/time fields not in CreateShipmentData
   delivery_address: '456 Oak Ave',
-  delivery_city: 'San Francisco',
-  delivery_state: 'CA',
-  delivery_zip: '94102',
-  delivery_date: '2025-01-17',
-  delivery_time: '2:00 PM',
-  vehicle_make: 'Toyota',
-  vehicle_model: 'Camry',
-  vehicle_year: '2020',
-  vehicle_vin: '1HGBH41JXMN109186',
-  vehicle_license_plate: 'ABC123',
-  vehicle_condition_notes: 'Excellent condition, minor scratch on front bumper',
-  vehicle_operability: 'running',
-  special_instructions: 'Please handle with care, garage pickup',
+  // removed unused delivery fields
+  // simplify to required fields
   estimated_price: 750,
-  customer_name: 'John Doe',
-  customer_email: 'john.doe@example.com',
-  customer_phone: '+1-555-123-4567',
-  contact_person_pickup: 'John Doe',
-  contact_phone_pickup: '+1-555-123-4567',
-  contact_person_delivery: 'Jane Smith',
-  contact_phone_delivery: '+1-555-987-6543',
 };
 
 /**
