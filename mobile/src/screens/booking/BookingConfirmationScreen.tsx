@@ -19,15 +19,20 @@ import { useBooking } from '../../context/BookingContext';
 
 type BookingConfirmationProps = NativeStackScreenProps<RootStackParamList, 'BookingConfirmation'>;
 
-export default function BookingConfirmationScreen({ navigation }: BookingConfirmationProps) {
+export default function BookingConfirmationScreen({ navigation, route }: BookingConfirmationProps) {
   const { state, resetForm, submitShipment } = useBooking();
-  const [shipmentId, setShipmentId] = useState<string | null>(null);
+  const initialShipmentId = (route.params as any)?.shipmentId || null;
+  const [shipmentId, setShipmentId] = useState<string | null>(initialShipmentId);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Submit shipment to Supabase when component mounts
   useEffect(() => {
     const submitToSupabase = async () => {
-      if (shipmentId) return; // Already submitted
+      // If shipment already created earlier in flow (e.g., during payment processing) skip creating again
+      if (shipmentId) {
+        console.log('Skipping duplicate shipment creation; existing shipmentId:', shipmentId);
+        return;
+      }
       
       try {
         setIsSubmitting(true);

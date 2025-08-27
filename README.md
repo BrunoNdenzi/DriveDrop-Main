@@ -534,3 +534,464 @@ This project is licensed under the ISC License - see the [LICENSE](LICENSE) file
 **Built with ❤️ using modern technologies for optimal performance and developer experience.**
 
 *DriveDrop - Connecting people through seamless package delivery.*
+
+```
+DriveDrop-Main
+├─ .qodo
+├─ backend
+│  ├─ .eslintrc.js
+│  ├─ .prettierrc
+│  ├─ app.json
+│  ├─ docs
+│  │  ├─ DRIVER_APPLICATION_API.md
+│  │  └─ IMPLEMENTATION_VALIDATION.md
+│  ├─ eslint.config.js
+│  ├─ nodemon.json
+│  ├─ package-lock.json
+│  ├─ package.json
+│  ├─ README.md
+│  ├─ schema.sql
+│  ├─ scripts
+│  │  ├─ check-driver-api.js
+│  │  ├─ check-env.js
+│  │  ├─ create-admin-user.js
+│  │  ├─ test-driver-endpoints.ts
+│  │  ├─ test-supabase.js
+│  │  └─ verify-env.js
+│  ├─ src
+│  │  ├─ config
+│  │  │  └─ index.ts
+│  │  ├─ controllers
+│  │  │  ├─ application.controller.ts
+│  │  │  ├─ auth.controller.ts
+│  │  │  ├─ health.controller.ts
+│  │  │  ├─ maps.controller.ts
+│  │  │  ├─ payments.controller.getConfig.ts
+│  │  │  ├─ payments.controller.ts
+│  │  │  ├─ shipment.controller.ts
+│  │  │  ├─ sms.controller.ts
+│  │  │  ├─ temp_payments.controller.ts
+│  │  │  └─ user.controller.ts
+│  │  ├─ index.ts
+│  │  ├─ lib
+│  │  │  ├─ database.types.ts
+│  │  │  └─ supabase.ts
+│  │  ├─ middlewares
+│  │  │  ├─ auth.middleware.ts
+│  │  │  ├─ error.middleware.ts
+│  │  │  └─ supabase-auth.middleware.ts
+│  │  ├─ register-paths.ts
+│  │  ├─ routes
+│  │  │  ├─ application.routes.ts
+│  │  │  ├─ auth.routes.ts
+│  │  │  ├─ diagnostics.routes.ts
+│  │  │  ├─ driver.routes.ts
+│  │  │  ├─ health.routes.ts
+│  │  │  ├─ index.ts
+│  │  │  ├─ maps.routes.ts
+│  │  │  ├─ payments.routes.bak.ts
+│  │  │  ├─ payments.routes.ts
+│  │  │  ├─ shipment.routes.ts
+│  │  │  ├─ sms.routes.ts
+│  │  │  └─ user.routes.ts
+│  │  ├─ services
+│  │  │  ├─ auth.service.ts
+│  │  │  ├─ google-maps.service.ts
+│  │  │  ├─ stripe.service.ts
+│  │  │  ├─ supabase.service.ts
+│  │  │  └─ twilio.service.ts
+│  │  ├─ types
+│  │  │  └─ api.types.ts
+│  │  └─ utils
+│  │     ├─ error.ts
+│  │     ├─ logger.ts
+│  │     ├─ response.ts
+│  │     ├─ supabase-test.ts
+│  │     └─ validation.ts
+│  ├─ tests
+│  │  └─ driver-application.integration.test.ts
+│  └─ tsconfig.json
+├─ docs
+│  ├─ application-consolidation-plan.md
+│  ├─ application-management-implementation.md
+│  ├─ AUTH-UNIFICATION.md
+│  ├─ HEALTH-ENDPOINTS.md
+│  ├─ MIGRATION_FIX_FUNCTION_COLLISION.md
+│  ├─ realtime-features-updated.md
+│  ├─ realtime-features.md
+│  └─ SECRETS-MANAGEMENT.md
+├─ DRIVE_DROP_CHECKLIST.md
+├─ DRIVE_DROP_PLAN.md
+├─ ENHANCEMENT_SUMMARY.md
+├─ fix_payments_policy.sql
+├─ LICENSE
+├─ mobile
+│  ├─ .eslintignore
+│  ├─ .eslintrc.js
+│  ├─ .prettierrc
+│  ├─ app.config.js
+│  ├─ app.json
+│  ├─ App.tsx
+│  ├─ assets
+│  │  ├─ adaptive_icon.png
+│  │  ├─ favicon.png
+│  │  ├─ icon.png
+│  │  ├─ notification_icon.png
+│  │  ├─ notification_sound.wav
+│  │  ├─ splash.png
+│  │  └─ splash_icon.png
+│  ├─ docs
+│  │  └─ enhancements-summary.md
+│  ├─ eas-build.json
+│  ├─ eas.json
+│  ├─ eslint.config.js
+│  ├─ image1.jpg
+│  ├─ image2.jpg
+│  ├─ image3.jpg
+│  ├─ image4.jpg
+│  ├─ index.ts
+│  ├─ integration-test.ts
+│  ├─ package.json
+│  ├─ PAYMENT_POLICY_IMPLEMENTATION.md
+│  ├─ README.md
+│  ├─ refactors
+│  │  └─ AdminAssignmentScreen.refactor.md
+│  ├─ scripts
+│  │  ├─ preinstall.sh
+│  │  ├─ verify-env.js
+│  │  └─ verify-mobile-env.js
+│  ├─ src
+│  │  ├─ components
+│  │  │  ├─ AdminAssignmentHeader.tsx
+│  │  │  ├─ AdminAssignmentHeader.tsx.bak
+│  │  │  ├─ Button.tsx
+│  │  │  ├─ Button.tsx.bak
+│  │  │  ├─ Card.tsx
+│  │  │  ├─ Card.tsx.bak
+│  │  │  ├─ DriverSelectionModal.tsx
+│  │  │  ├─ DriverSelectionModal.tsx.bak
+│  │  │  ├─ index.ts
+│  │  │  ├─ Loading.tsx
+│  │  │  ├─ Loading.tsx.bak
+│  │  │  ├─ payment
+│  │  │  │  ├─ PaymentPolicyCard.tsx
+│  │  │  │  ├─ PaymentPolicyCard.tsx.bak
+│  │  │  │  ├─ PAYMENT_COMPONENT_USAGE.md
+│  │  │  │  ├─ StripePaymentForm.tsx
+│  │  │  │  └─ StripePaymentForm.tsx.bak
+│  │  │  ├─ PaymentPolicyCard.tsx
+│  │  │  ├─ PaymentPolicyCard.tsx.bak
+│  │  │  ├─ ShipmentList.tsx
+│  │  │  ├─ ShipmentList.tsx.bak
+│  │  │  ├─ ShipmentListItem.tsx
+│  │  │  ├─ ShipmentListItem.tsx.bak
+│  │  │  ├─ ShipmentSummary.tsx
+│  │  │  ├─ ShipmentSummary.tsx.bak
+│  │  │  ├─ TextInput.tsx
+│  │  │  ├─ TextInput.tsx.bak
+│  │  │  ├─ ui
+│  │  │  │  ├─ Button.tsx
+│  │  │  │  ├─ Button.tsx.bak
+│  │  │  │  ├─ Card.tsx
+│  │  │  │  ├─ Card.tsx.bak
+│  │  │  │  ├─ Input.tsx
+│  │  │  │  └─ Input.tsx.bak
+│  │  │  ├─ UserProfile.tsx
+│  │  │  └─ UserProfile.tsx.bak
+│  │  ├─ constants
+│  │  │  ├─ Colors.ts
+│  │  │  ├─ Colors.ts.bak
+│  │  │  ├─ DesignSystem.ts
+│  │  │  ├─ DesignSystem.ts.bak
+│  │  │  ├─ Expo.ts
+│  │  │  └─ index.ts
+│  │  ├─ context
+│  │  │  ├─ AuthContext.tsx
+│  │  │  ├─ AuthContext.tsx.bak
+│  │  │  ├─ BookingContext.tsx
+│  │  │  └─ BookingContext.tsx.bak
+│  │  ├─ contexts
+│  │  │  ├─ NotificationContext.tsx
+│  │  │  └─ NotificationContext.tsx.bak
+│  │  ├─ db
+│  │  │  ├─ dbUtils.ts
+│  │  │  └─ dbUtils.ts.bak
+│  │  ├─ examples
+│  │  │  ├─ ShipmentDetailsWithRealtime.tsx
+│  │  │  └─ ShipmentDetailsWithRealtime.tsx.bak
+│  │  ├─ hooks
+│  │  │  ├─ index.ts
+│  │  │  ├─ useAPI.ts
+│  │  │  ├─ useAPI.ts.bak
+│  │  │  ├─ useDriverLocation.ts
+│  │  │  ├─ useDriverLocation.ts.bak
+│  │  │  ├─ useFetch.ts
+│  │  │  ├─ useFetch.ts.bak
+│  │  │  ├─ useRealtimeMessages.ts
+│  │  │  ├─ useRealtimeMessages.ts.bak
+│  │  │  ├─ useRealtimeShipment.ts
+│  │  │  ├─ useRealtimeShipment.ts.bak
+│  │  │  ├─ useRoleCheck.ts
+│  │  │  ├─ useRoleCheck.tsx
+│  │  │  └─ useRoleCheck.tsx.bak
+│  │  ├─ lib
+│  │  │  ├─ database.types.ts
+│  │  │  ├─ database.types.update.ts
+│  │  │  ├─ database.types.update.ts.bak
+│  │  │  ├─ supabase.ts
+│  │  │  └─ supabase.ts.bak
+│  │  ├─ navigation
+│  │  │  ├─ index.tsx
+│  │  │  ├─ index.tsx.bak
+│  │  │  └─ types.ts
+│  │  ├─ README-realtime.md
+│  │  ├─ screens
+│  │  │  ├─ admin
+│  │  │  │  ├─ AdminAssignmentScreen.tsx
+│  │  │  │  ├─ AdminAssignmentScreen.tsx.bak
+│  │  │  │  ├─ AdminDashboardScreen.tsx
+│  │  │  │  ├─ AdminDashboardScreen.tsx.bak
+│  │  │  │  ├─ AdminDashboardScreenNew.tsx
+│  │  │  │  └─ AdminDashboardScreenNew.tsx.bak
+│  │  │  ├─ auth
+│  │  │  │  ├─ ForgotPasswordScreen.tsx
+│  │  │  │  ├─ ForgotPasswordScreen.tsx.bak
+│  │  │  │  ├─ LoginScreen.tsx
+│  │  │  │  ├─ LoginScreen.tsx.bak
+│  │  │  │  ├─ SignUpScreen.tsx
+│  │  │  │  └─ SignUpScreen.tsx.bak
+│  │  │  ├─ booking
+│  │  │  │  ├─ BookingConfirmationScreen.tsx
+│  │  │  │  ├─ BookingConfirmationScreen.tsx.bak
+│  │  │  │  ├─ BookingPaymentProcessingScreen.tsx
+│  │  │  │  ├─ BookingPaymentProcessingScreen.tsx.bak
+│  │  │  │  ├─ BookingStepCustomerScreen.tsx
+│  │  │  │  ├─ BookingStepCustomerScreen.tsx.bak
+│  │  │  │  ├─ BookingStepDeliveryScreen.tsx
+│  │  │  │  ├─ BookingStepDeliveryScreen.tsx.bak
+│  │  │  │  ├─ BookingStepInsuranceScreen.tsx
+│  │  │  │  ├─ BookingStepInsuranceScreen.tsx.bak
+│  │  │  │  ├─ BookingStepPaymentScreen.tsx
+│  │  │  │  ├─ BookingStepPaymentScreen.tsx.bak
+│  │  │  │  ├─ BookingStepPickupScreen.tsx
+│  │  │  │  ├─ BookingStepPickupScreen.tsx.bak
+│  │  │  │  ├─ BookingStepTermsScreen.tsx
+│  │  │  │  ├─ BookingStepTermsScreen.tsx.bak
+│  │  │  │  ├─ BookingStepTowingScreen.tsx
+│  │  │  │  ├─ BookingStepTowingScreen.tsx.bak
+│  │  │  │  ├─ BookingStepVehicleScreen.tsx
+│  │  │  │  ├─ BookingStepVehicleScreen.tsx.bak
+│  │  │  │  ├─ BookingStepVisualScreen.tsx
+│  │  │  │  └─ BookingStepVisualScreen.tsx.bak
+│  │  │  ├─ debug
+│  │  │  │  ├─ TestInputScreen.tsx
+│  │  │  │  └─ TestInputScreen.tsx.bak
+│  │  │  ├─ driver
+│  │  │  │  ├─ AvailableJobsScreen.tsx
+│  │  │  │  ├─ AvailableJobsScreen.tsx.bak
+│  │  │  │  ├─ AvailableShipmentsScreen.tsx
+│  │  │  │  ├─ AvailableShipmentsScreen.tsx.bak
+│  │  │  │  ├─ DriverDashboardScreen.tsx
+│  │  │  │  ├─ DriverDashboardScreen.tsx.bak
+│  │  │  │  ├─ DriverProfileScreen.tsx
+│  │  │  │  ├─ DriverProfileScreen.tsx.bak
+│  │  │  │  ├─ JobDetailsScreen.tsx
+│  │  │  │  ├─ JobDetailsScreen.tsx.bak
+│  │  │  │  ├─ MessagesScreen.tsx
+│  │  │  │  ├─ MessagesScreen.tsx.bak
+│  │  │  │  ├─ MyJobsScreen.tsx
+│  │  │  │  ├─ MyJobsScreen.tsx.bak
+│  │  │  │  ├─ MyShipmentsScreen.tsx
+│  │  │  │  ├─ MyShipmentsScreen.tsx.bak
+│  │  │  │  ├─ README.md
+│  │  │  │  ├─ RouteMapScreen.tsx
+│  │  │  │  ├─ RouteMapScreen.tsx.bak
+│  │  │  │  ├─ ShipmentDetailsScreen.tsx
+│  │  │  │  └─ ShipmentDetailsScreen.tsx.bak
+│  │  │  ├─ home
+│  │  │  │  ├─ HomeScreen.tsx
+│  │  │  │  ├─ HomeScreen.tsx.bak
+│  │  │  │  ├─ HomeScreenNew.tsx
+│  │  │  │  └─ HomeScreenNew.tsx.bak
+│  │  │  ├─ NetworkDiagnosticScreen.tsx
+│  │  │  ├─ NetworkDiagnosticScreen.tsx.bak
+│  │  │  ├─ NotificationTestScreen.tsx
+│  │  │  ├─ NotificationTestScreen.tsx.bak
+│  │  │  ├─ profile
+│  │  │  │  ├─ ProfileScreen.tsx
+│  │  │  │  ├─ ProfileScreen.tsx.bak
+│  │  │  │  ├─ ProfileScreenNew.tsx
+│  │  │  │  └─ ProfileScreenNew.tsx.bak
+│  │  │  ├─ SettingsScreen.tsx
+│  │  │  ├─ SettingsScreen.tsx.bak
+│  │  │  └─ shipments
+│  │  │     ├─ NewShipmentScreen.tsx
+│  │  │     ├─ NewShipmentScreen.tsx.bak
+│  │  │     ├─ ShipmentDetailsScreen.tsx
+│  │  │     ├─ ShipmentDetailsScreen.tsx.bak
+│  │  │     ├─ ShipmentsScreen.tsx
+│  │  │     ├─ ShipmentsScreen.tsx.bak
+│  │  │     ├─ ShipmentsScreenNew.tsx
+│  │  │     └─ ShipmentsScreenNew.tsx.bak
+│  │  ├─ services
+│  │  │  ├─ applicationService.ts
+│  │  │  ├─ applicationService.ts.bak
+│  │  │  ├─ NotificationService.ts
+│  │  │  ├─ NotificationService.ts.bak
+│  │  │  ├─ OfflineService.ts
+│  │  │  ├─ OfflineService.ts.bak
+│  │  │  ├─ paymentApiTest.ts
+│  │  │  ├─ paymentApiTest.ts.bak
+│  │  │  ├─ paymentService.ts
+│  │  │  ├─ paymentService.ts.bak
+│  │  │  ├─ RealtimeService.ts
+│  │  │  ├─ RealtimeService.ts.bak
+│  │  │  ├─ shipmentService.ts
+│  │  │  └─ shipmentService.ts.bak
+│  │  ├─ sql
+│  │  │  └─ job_applications_schema.sql
+│  │  ├─ supabase.ts
+│  │  ├─ theme
+│  │  │  ├─ colors.ts
+│  │  │  └─ colors.ts.bak
+│  │  ├─ types
+│  │  │  ├─ app.d.ts
+│  │  │  ├─ index.ts
+│  │  │  ├─ shipment.ts
+│  │  │  ├─ shipment.ts.bak
+│  │  │  ├─ shipment.types.ts
+│  │  │  └─ user.ts
+│  │  └─ utils
+│  │     ├─ environment.ts
+│  │     ├─ formatters.ts
+│  │     ├─ index.ts
+│  │     ├─ logger.ts
+│  │     ├─ maps.ts
+│  │     ├─ MessageUtil.ts
+│  │     ├─ MessageUtil.ts.bak
+│  │     ├─ NetworkUtil.ts
+│  │     ├─ paymentApiTest.ts
+│  │     ├─ paymentApiTest.ts.bak
+│  │     ├─ ShipmentUtil.ts
+│  │     ├─ ShipmentUtil.ts.bak
+│  │     ├─ storage.ts
+│  │     └─ validation.ts
+│  ├─ supabase
+│  │  └─ config.toml
+│  ├─ t002_results.md
+│  ├─ T003_PRIORITIZED_FIXES.md
+│  ├─ t003_results.md
+│  ├─ test-shipment-data.js
+│  ├─ tsconfig.json
+│  ├─ TYPESCRIPT_FIXES.md
+│  └─ yarn.lock
+├─ MOBILE_NETWORK_FIX.md
+├─ PAYMENT_SYSTEM_ENHANCEMENT.md
+├─ PAYMENT_SYSTEM_FIX_SUMMARY.md
+├─ README.md
+├─ scripts
+│  ├─ admin-auth-helper.js
+│  ├─ apply-migration-fix.js
+│  ├─ auth-helper.js
+│  ├─ generate-secrets.js
+│  ├─ package-lock.json
+│  ├─ package.json
+│  ├─ README.md
+│  ├─ temp_restart.txt
+│  ├─ test-api-auth.bat
+│  ├─ test-api-auth.ps1
+│  ├─ test-api-endpoint.js
+│  ├─ test-api-robust.js
+│  ├─ test-api-with-auth-final.js
+│  ├─ test-api-with-auth.js
+│  ├─ test-api.bat
+│  ├─ test-applications-endpoint.js
+│  ├─ test-health-curl.ps1
+│  ├─ test-health-only.js
+│  ├─ test-health.bat
+│  ├─ test-health.ps1
+│  ├─ test-invalid-shipment-status.js
+│  ├─ test-quick-auth.js
+│  └─ validate-token.js
+├─ sql
+│  ├─ add_open_status_to_enum.sql
+│  ├─ add_updated_by_field.sql
+│  ├─ all_fixes.sql
+│  ├─ alternative_phase3.sql
+│  ├─ BACKEND_IMPLEMENTATION_SUMMARY.md
+│  ├─ check_profiles.sql
+│  ├─ check_profiles_table.sql
+│  ├─ COMPLETION_SUMMARY.md
+│  ├─ create_user_trigger.sql
+│  ├─ database_fixes.sql
+│  ├─ database_functions.sql
+│  ├─ debug_user_creation.sql
+│  ├─ DriveDrop_Prioritized_Checklist_Version2.md
+│  ├─ eliminate_status_change.sql
+│  ├─ ENHANCEMENT_SUMMARY.md
+│  ├─ FIXES-SUMMARY.md
+│  ├─ fix_additional_issues.sql
+│  ├─ fix_driver_errors.md
+│  ├─ fix_driver_settings.sql
+│  ├─ fix_messaging.sql
+│  ├─ fix_payments_policy.sql
+│  ├─ fix_profiles_policy.sql
+│  ├─ fix_shipment_assignment.sql
+│  ├─ fix_tracking_enum.sql
+│  ├─ fix_tracking_enum_comprehensive.sql
+│  ├─ fix_triggers.sql
+│  ├─ FUNCTION_COLLISION_FIX_SUMMARY.md
+│  ├─ HEALTH-ENDPOINT-FIX.md
+│  ├─ MOBILE_NETWORK_FIX.md
+│  ├─ PAYMENT_SYSTEM_ENHANCEMENT.md
+│  ├─ PAYMENT_SYSTEM_FIX_SUMMARY.md
+│  ├─ phase1_setup.sql
+│  ├─ phase2_driver_assignment.sql
+│  ├─ phase3_update_data.sql
+│  ├─ phase4_recreate_triggers.sql
+│  ├─ REALTIME-IMPLEMENTATION.md
+│  ├─ sample_data.sql
+│  ├─ SECTION_2.2_COMPLETION_SUMMARY.md
+│  ├─ shipment_status_migration_report.md
+│  ├─ simple_user_trigger.sql
+│  ├─ start-and-test-backend.bat
+│  ├─ start-app.bat
+│  ├─ start-app.sh
+│  ├─ start-testing.sh
+│  └─ update_user_trigger.sql
+├─ supabase
+│  ├─ migrations
+│  │  ├─ 01_initial_schema.sql
+│  │  ├─ 02_row_level_security.sql
+│  │  ├─ 03_fix_shipments.sql
+│  │  ├─ 03_functions_and_triggers.sql
+│  │  ├─ 04_consolidate_application_tables.sql
+│  │  ├─ 04_fix_shipment_status_enum.sql
+│  │  ├─ 05_application_management_procedures.sql
+│  │  ├─ 05_application_management_procedures_production.sql
+│  │  ├─ 05_fix_messages_rls.sql
+│  │  ├─ 06_add_enum_helper_function.sql
+│  │  ├─ 07_add_exec_sql_function.sql
+│  │  ├─ 08_add_picked_up_status.sql
+│  │  ├─ 20250725_driver_locations.sql
+│  │  ├─ 20250725_realtime_messaging.sql
+│  │  ├─ 20250726_realtime_shipment_updates.sql
+│  │  ├─ 20250729_enhanced_payments.sql
+│  │  ├─ 20250729_fix_payment_rls.sql
+│  │  ├─ 20250729_fix_user_id_client_id.sql
+│  │  ├─ test_function_cleanup.sql
+│  │  ├─ verify_application_procedures.sql
+│  │  ├─ verify_application_procedures_production.sql
+│  │  └─ verify_consolidation.sql
+│  ├─ README.md
+│  ├─ Schema.sql
+│  └─ seed
+│     └─ 01_example_data.sql
+├─ t001_audit.bat
+├─ t001_audit.sh
+├─ t001_audit_safe.bat
+├─ t002_autolint.ps1
+├─ t003_admin_followup
+└─ y
+
+```
