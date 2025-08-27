@@ -1,5 +1,5 @@
 import { Alert } from 'react-native';
-import { supabase } from '../supabase';
+import { supabase } from '../lib/supabase';
 import NetworkUtil from './NetworkUtil';
 
 /**
