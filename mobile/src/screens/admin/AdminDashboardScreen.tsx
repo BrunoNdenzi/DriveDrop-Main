@@ -89,10 +89,10 @@ function AdminDashboardScreen({ navigation }: AdminDashboardScreenProps) {
               if (error) {
                 throw error;
               }
-              // Navigate to login screen after successful logout
+              // Reset to root auth stack (Login is nested inside Auth navigator)
               navigation.reset({
                 index: 0,
-                routes: [{ name: 'Login' }],
+                routes: [{ name: 'Auth' }],
               });
             } catch (err) {
               console.error('Error signing out:', err);

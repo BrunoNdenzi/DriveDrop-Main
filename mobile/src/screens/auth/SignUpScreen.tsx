@@ -174,7 +174,7 @@ export default function SignUpScreen({ navigation }: SignUpScreenProps) {
                   Client
                 </Text>
                 <Text style={[styles.roleSubtext, role === 'client' && styles.roleSubtextSelected]}>
-                  Ship packages
+                  Ship Your Car
                 </Text>
               </TouchableOpacity>
               
@@ -187,7 +187,7 @@ export default function SignUpScreen({ navigation }: SignUpScreenProps) {
                   Driver
                 </Text>
                 <Text style={[styles.roleSubtext, role === 'driver' && styles.roleSubtextSelected]}>
-                  Deliver packages
+                  Deliver Cars
                 </Text>
               </TouchableOpacity>
             </View>

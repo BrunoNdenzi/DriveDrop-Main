@@ -60,10 +60,12 @@ export default function ShipmentsScreen({ navigation }: ShipmentsScreenProps) {
           statusFilter = ['pending'];
           break;
         case 'active':
-          statusFilter = ['accepted', 'in_transit'];
+          // Include all in-progress lifecycle statuses visible to client
+          statusFilter = ['assigned', 'picked_up', 'in_transit'];
           break;
         case 'past':
-          statusFilter = ['delivered', 'cancelled'];
+          // Completed lifecycle statuses
+          statusFilter = ['delivered', 'completed', 'cancelled'];
           break;
       }
 

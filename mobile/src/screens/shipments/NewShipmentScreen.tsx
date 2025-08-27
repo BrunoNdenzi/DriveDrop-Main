@@ -23,7 +23,7 @@ type NewShipmentScreenProps = {
 };
 
 export default function NewShipmentScreen({ navigation }: NewShipmentScreenProps) {
-  const { userProfile } = useAuth();
+  const { userProfile, session } = useAuth();
   const [pickupZip, setPickupZip] = useState('');
   const [deliveryZip, setDeliveryZip] = useState('');
   const [pickupDate, setPickupDate] = useState('');
@@ -47,14 +47,61 @@ export default function NewShipmentScreen({ navigation }: NewShipmentScreenProps
 
     try {
       setLoading(true);
-      
-      // TODO: Implement quote calculation with backend
+
+      // Attempt distance approximation (placeholder). In future integrate maps service.
+      // For now simple heuristic: difference in zip numeric values * 0.1 miles (fallback 100 miles).
+      const distanceMiles = (() => {
+        const a = parseInt(pickupZip, 10);
+        const b = parseInt(deliveryZip, 10);
+        if (!isNaN(a) && !isNaN(b)) {
+          const diff = Math.abs(a - b);
+            // clamp
+          return Math.max(25, Math.min(2500, Math.round(diff * 0.1)));
+        }
+        return 100;
+      })();
+
+      const apiBase = require('../../utils/environment').getApiUrl();
+      const url = `${apiBase}/api/v1/pricing/quote`;
+
+      const body = {
+        vehicle_type: vehicleType,
+        distance_miles: distanceMiles,
+        vehicle_count: 1,
+      };
+
+      const headers: any = {
+        'Content-Type': 'application/json',
+      };
+      if (session?.access_token) {
+        headers['Authorization'] = `Bearer ${session.access_token}`;
+      }
+
+      const response = await fetch(url, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(body),
+      });
+
+      if (!response.ok) {
+        const text = await response.text();
+        console.error('Quote API error', response.status, text);
+        throw new Error('Failed to fetch quote');
+      }
+
+      const json = await response.json();
+      // Expect shape { success: true, data: { total, breakdown } }
+      const total = json?.data?.total ?? json?.data?.breakdown?.total ?? json?.data?.total_price ?? 0;
+      if (!total) {
+        console.warn('Unexpected quote response', json);
+      }
+
       Alert.alert(
         'Quote Generated',
-        `Estimated cost: $250 for ${vehicleType} transport from ${pickupZip} to ${deliveryZip}`,
+        `Estimated cost: $${Number(total).toFixed(2)} for ${vehicleType} transport (${distanceMiles} mi)` ,
         [
           { text: 'Cancel', style: 'cancel' },
-          { text: 'Book Shipment', onPress: () => handleBookShipment() }
+          { text: 'Book Shipment', onPress: () => handleBookShipment(total, distanceMiles) }
         ]
       );
     } catch (error) {
@@ -65,7 +112,7 @@ export default function NewShipmentScreen({ navigation }: NewShipmentScreenProps
     }
   };
 
-  const handleBookShipment = async () => {
+  const handleBookShipment = async (estimatedCost: number = 0, distanceMiles: number = 0) => {
     // Navigate to booking flow with the quote information
     const quoteData = {
       pickupZip,
@@ -75,12 +122,14 @@ export default function NewShipmentScreen({ navigation }: NewShipmentScreenProps
       vehicleType,
       vehicleMake,
       vehicleModel,
-      estimatedCost: 250, // This would come from the actual quote API
+      estimatedCost,
+      distanceMiles,
     };
     
     // Navigate to the booking flow
     navigation.navigate('BookingStepCustomer', { 
-      quoteId: `quote_${Date.now()}` 
+      quoteId: `quote_${Date.now()}`,
+      quoteData,
     });
   };
 
