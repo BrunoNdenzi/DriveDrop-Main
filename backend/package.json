@@ -1,6 +1,6 @@
 {
   "name": "backend",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "main": "dist/index.js",
   "scripts": {
     "dev": "nodemon src/index.ts",
@@ -20,6 +20,7 @@
     "secrets:rotate:dev": "echo \"This would rotate development secrets in a real application.\"",
     "verify:env": "node scripts/verify-env.js",
     "create:admin": "node scripts/create-admin-user.js",
+  "create:review-users": "node scripts/create-review-users.js",
     "setup": "npm run build && npm run create:admin && npm run start"
   },
   "keywords": [],
