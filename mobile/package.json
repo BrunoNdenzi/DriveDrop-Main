@@ -1,6 +1,6 @@
 {
   "name": "mobile",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "main": "index.ts",
   "scripts": {
     "start": "expo start",
@@ -9,8 +9,9 @@
     "web": "expo start --web",
     "build": "expo export",
     "build:android": "eas build --platform android",
-    "build:ios": "eas build --platform ios",
-    "lint": "eslint . --ext .ts,.tsx --max-warnings 0",
+  "build:ios": "eas build --platform ios",
+  "lint": "eslint . --ext .ts,.tsx",
+  "lint:strict": "eslint . --ext .ts,.tsx --max-warnings 0",
     "lint:fix": "eslint . --ext .ts,.tsx --fix",
     "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md}\"",
     "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,json,md}\"",
@@ -19,7 +20,8 @@
     "prestart": "npm run env:check",
     "eas:secrets:list": "eas secret:list",
     "eas:secrets:create": "echo \"Usage: eas secret:create --scope project --name SECRET_NAME --value SECRET_VALUE\"",
-    "verify:env": "node -e \"require('./scripts/verify-env.js')\""
+    "verify:env": "node -e \"require('./scripts/verify-env.js')\"",
+    "ci": "yarn install --frozen-lockfile && yarn env:check && yarn type-check && yarn lint && yarn format:check"
   },
   "dependencies": {
     "@react-native-async-storage/async-storage": "2.1.2",

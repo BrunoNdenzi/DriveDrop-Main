@@ -15,7 +15,6 @@ import { MaterialIcons } from '@expo/vector-icons';
 import { Colors } from '../../constants/Colors';
 import { ClientTabParamList, RootStackParamList } from '../../navigation/types';
 import { useAuth } from '../../context/AuthContext';
-import { supabase } from '../../lib/supabase';
 import { ShipmentService } from '../../services/shipmentService';
 
 type ShipmentsScreenProps = NativeStackScreenProps<ClientTabParamList, 'Shipments'> & {

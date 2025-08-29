@@ -8,15 +8,22 @@ import { createError } from '@utils/error';
 import { logger } from '@utils/logger';
 
 // Extend Express Request type to include user and full profile
+interface UserProfile {
+  id: string;
+  email: string;
+  role: string;
+  first_name?: string;
+  last_name?: string;
+  is_verified?: boolean;
+  avatar_url?: string | null;
+  rating?: number | null;
+}
+
 declare global {
   namespace Express {
     interface Request {
-      user?: {
-        id: string;
-        email: string;
-        role: string;
-      };
-      userProfile?: any; // Full profile information
+      user?: { id: string; email: string; role: string };
+      userProfile?: UserProfile;
     }
   }
 }

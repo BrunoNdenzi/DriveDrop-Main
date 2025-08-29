@@ -1,8 +1,7 @@
 // supabase.ts
 // Cast to any to allow generic usage with local Database type when upstream types missing
 // (shim declared in types/shims.d.ts)
-import { createClient as rawCreateClient } from '@supabase/supabase-js';
-const createClient: any = rawCreateClient as any;
+import { createClient } from '@supabase/supabase-js';
 import config from '@config/index';
 
 if (!config.supabase.url || !config.supabase.anonKey) {
@@ -19,7 +18,7 @@ export const supabase = createClient(
       persistSession: false, // We handle JWT manually
     },
   }
-) as any; // Keep broad any so existing calls (from, rpc, auth) type-check
+);
 
 // Admin client for service operations (uses service role key)
 export const supabaseAdmin = createClient(
@@ -31,7 +30,7 @@ export const supabaseAdmin = createClient(
       persistSession: false,
     },
   }
-) as any;
+);
 
 /**
  * Create a Supabase client with a specific user's JWT token
@@ -51,5 +50,5 @@ export const createUserSupabaseClient = (accessToken: string) => {
         persistSession: false,
       },
     }
-  ) as any;
+  );
 };

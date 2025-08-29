@@ -68,7 +68,7 @@ export const updateCurrentUser = asyncHandler(async (req: Request, res: Response
   const { first_name, last_name, phone, avatar_url } = req.body;
 
   // Validate input
-  const updates: any = {};
+  const updates: Partial<{ first_name: string; last_name: string; phone: string; avatar_url: string; }> = {};
   if (first_name) updates.first_name = first_name.trim();
   if (last_name) updates.last_name = last_name.trim();
   if (phone) updates.phone = phone.trim();
