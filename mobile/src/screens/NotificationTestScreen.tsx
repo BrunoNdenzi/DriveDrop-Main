@@ -1,6 +1,12 @@
 // src/screens/NotificationTestScreen.tsx
 import React, { useState, useEffect } from 'react';
-import { View, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator } from 'react-native';
+import {
+  View,
+  StyleSheet,
+  ScrollView,
+  TouchableOpacity,
+  ActivityIndicator,
+} from 'react-native';
 import { Text, Button, Card, Divider } from '@rneui/themed';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNotifications } from '../contexts/NotificationContext';
@@ -15,13 +21,17 @@ export default function NotificationTestScreen() {
   const { user } = useAuth();
   const [loading, setLoading] = useState(false);
   const [lastSyncTime, setLastSyncTime] = useState<string | null>(null);
-  const [realtimeStatus, setRealtimeStatus] = useState<'connected' | 'disconnected'>('disconnected');
-  const [testResults, setTestResults] = useState<Array<{type: string, success: boolean, message: string}>>([]);
+  const [realtimeStatus, setRealtimeStatus] = useState<
+    'connected' | 'disconnected'
+  >('disconnected');
+  const [testResults, setTestResults] = useState<
+    Array<{ type: string; success: boolean; message: string }>
+  >([]);
 
   useEffect(() => {
     checkRealtimeStatus();
     loadSyncTimestamp();
-    
+
     return () => {
       // Clean up any subscriptions if needed
     };
@@ -56,7 +66,11 @@ export default function NotificationTestScreen() {
         'This is a test notification from the test screen',
         { type: 'test' }
       );
-      addTestResult('Local Notification', true, 'Successfully sent local notification');
+      addTestResult(
+        'Local Notification',
+        true,
+        'Successfully sent local notification'
+      );
     } catch (error) {
       console.error('Error sending local notification:', error);
       addTestResult('Local Notification', false, `Error: ${error}`);
@@ -71,13 +85,17 @@ export default function NotificationTestScreen() {
       await notificationService.sendLocalNotification(
         'Shipment Update',
         'Your shipment has been picked up by the driver',
-        { 
+        {
           type: 'shipment_update',
           shipmentId: 'test-shipment-id',
-          status: 'in_transit'
+          status: 'in_transit',
         }
       );
-      addTestResult('Shipment Notification', true, 'Successfully sent shipment notification');
+      addTestResult(
+        'Shipment Notification',
+        true,
+        'Successfully sent shipment notification'
+      );
     } catch (error) {
       console.error('Error sending shipment notification:', error);
       addTestResult('Shipment Notification', false, `Error: ${error}`);
@@ -92,13 +110,17 @@ export default function NotificationTestScreen() {
       await notificationService.sendLocalNotification(
         'New Message',
         'Driver: I am 10 minutes away from the pickup location',
-        { 
+        {
           type: 'new_message',
           shipmentId: 'test-shipment-id',
-          messageId: 'test-message-id'
+          messageId: 'test-message-id',
         }
       );
-      addTestResult('Message Notification', true, 'Successfully sent message notification');
+      addTestResult(
+        'Message Notification',
+        true,
+        'Successfully sent message notification'
+      );
     } catch (error) {
       console.error('Error sending message notification:', error);
       addTestResult('Message Notification', false, `Error: ${error}`);
@@ -114,11 +136,15 @@ export default function NotificationTestScreen() {
         addTestResult('Offline Sync', false, 'User not logged in');
         return;
       }
-      
+
       // Sync shipments for the current user
       const shipments = await offlineService.syncShipments(user.id);
-      addTestResult('Offline Sync', true, `Successfully synced ${shipments.length} shipments`);
-      
+      addTestResult(
+        'Offline Sync',
+        true,
+        `Successfully synced ${shipments.length} shipments`
+      );
+
       // Update last sync time
       await loadSyncTimestamp();
     } catch (error) {
@@ -132,7 +158,7 @@ export default function NotificationTestScreen() {
   const addTestResult = (type: string, success: boolean, message: string) => {
     setTestResults(prev => [
       { type, success, message, timestamp: new Date().toISOString() },
-      ...prev.slice(0, 9) // Keep only the last 10 results
+      ...prev.slice(0, 9), // Keep only the last 10 results
     ]);
   };
 
@@ -143,54 +169,68 @@ export default function NotificationTestScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView>
-        <Text h4 style={styles.title}>Notification Test Center</Text>
-        
+        <Text h4 style={styles.title}>
+          Notification Test Center
+        </Text>
+
         {/* Status Panel */}
         <Card containerStyle={styles.card}>
           <Card.Title>System Status</Card.Title>
           <Card.Divider />
-          
+
           <View style={styles.statusRow}>
             <Text style={styles.statusLabel}>Push Permissions:</Text>
             <Text style={hasPermission ? styles.statusGood : styles.statusBad}>
               {hasPermission ? 'Granted' : 'Not Granted'}
             </Text>
           </View>
-          
+
           <View style={styles.statusRow}>
             <Text style={styles.statusLabel}>Push Token:</Text>
             <Text style={pushToken ? styles.statusGood : styles.statusBad}>
               {pushToken ? 'Available' : 'Not Available'}
             </Text>
           </View>
-          
+
           <View style={styles.statusRow}>
             <Text style={styles.statusLabel}>Supabase Connection:</Text>
-            <Text style={realtimeStatus === 'connected' ? styles.statusGood : styles.statusBad}>
+            <Text
+              style={
+                realtimeStatus === 'connected'
+                  ? styles.statusGood
+                  : styles.statusBad
+              }
+            >
               {realtimeStatus}
             </Text>
           </View>
-          
+
           <View style={styles.statusRow}>
             <Text style={styles.statusLabel}>Last Sync:</Text>
-            <Text style={lastSyncTime ? styles.statusGood : styles.statusNeutral}>
+            <Text
+              style={lastSyncTime ? styles.statusGood : styles.statusNeutral}
+            >
               {lastSyncTime || 'Never'}
             </Text>
           </View>
-          
+
           <View style={styles.statusRow}>
             <Text style={styles.statusLabel}>Push Enabled:</Text>
-            <Text style={preferences.pushEnabled ? styles.statusGood : styles.statusBad}>
+            <Text
+              style={
+                preferences.pushEnabled ? styles.statusGood : styles.statusBad
+              }
+            >
               {preferences.pushEnabled ? 'Yes' : 'No'}
             </Text>
           </View>
         </Card>
-        
+
         {/* Test Actions */}
         <Card containerStyle={styles.card}>
           <Card.Title>Test Actions</Card.Title>
           <Card.Divider />
-          
+
           <Button
             title="Test Local Notification"
             onPress={testLocalNotification}
@@ -199,7 +239,7 @@ export default function NotificationTestScreen() {
             buttonStyle={[styles.button, styles.buttonPrimary]}
             containerStyle={styles.buttonContainer}
           />
-          
+
           <Button
             title="Test Shipment Update"
             onPress={testShipmentNotification}
@@ -208,7 +248,7 @@ export default function NotificationTestScreen() {
             buttonStyle={[styles.button, styles.buttonSecondary]}
             containerStyle={styles.buttonContainer}
           />
-          
+
           <Button
             title="Test Message Notification"
             onPress={testMessageNotification}
@@ -217,7 +257,7 @@ export default function NotificationTestScreen() {
             buttonStyle={[styles.button, styles.buttonSecondary]}
             containerStyle={styles.buttonContainer}
           />
-          
+
           <Button
             title="Test Offline Sync"
             onPress={testOfflineSync}
@@ -227,7 +267,7 @@ export default function NotificationTestScreen() {
             containerStyle={styles.buttonContainer}
           />
         </Card>
-        
+
         {/* Test Results */}
         <Card containerStyle={styles.card}>
           <View style={styles.resultsTitleContainer}>
@@ -237,7 +277,7 @@ export default function NotificationTestScreen() {
             </TouchableOpacity>
           </View>
           <Card.Divider />
-          
+
           {testResults.length === 0 ? (
             <Text style={styles.noResults}>No test results yet</Text>
           ) : (
@@ -245,18 +285,28 @@ export default function NotificationTestScreen() {
               <View key={index}>
                 <View style={styles.resultRow}>
                   <View style={styles.resultTypeContainer}>
-                    <View style={[
-                      styles.resultIndicator, 
-                      result.success ? styles.successIndicator : styles.errorIndicator
-                    ]} />
+                    <View
+                      style={[
+                        styles.resultIndicator,
+                        result.success
+                          ? styles.successIndicator
+                          : styles.errorIndicator,
+                      ]}
+                    />
                     <Text style={styles.resultType}>{result.type}</Text>
                   </View>
-                  <Text style={result.success ? styles.successText : styles.errorText}>
+                  <Text
+                    style={
+                      result.success ? styles.successText : styles.errorText
+                    }
+                  >
                     {result.success ? 'Success' : 'Failed'}
                   </Text>
                 </View>
                 <Text style={styles.resultMessage}>{result.message}</Text>
-                {index < testResults.length - 1 && <Divider style={styles.resultDivider} />}
+                {index < testResults.length - 1 && (
+                  <Divider style={styles.resultDivider} />
+                )}
               </View>
             ))
           )}

@@ -17,17 +17,22 @@ type PaymentApiTestResult = {
 /**
  * Helper function to make authenticated requests
  */
-async function fetchWithAuthHelper(url: string, options: RequestInit = {}): Promise<Response> {
+async function fetchWithAuthHelper(
+  url: string,
+  options: RequestInit = {}
+): Promise<Response> {
   // Get the user's JWT token
-  const { data: { session } } = await auth.getSession();
-  
+  const {
+    data: { session },
+  } = await auth.getSession();
+
   if (!session) {
     throw new Error('No authenticated session found');
   }
 
   const headers = {
     'Content-Type': 'application/json',
-    'Authorization': `Bearer ${session.access_token}`,
+    Authorization: `Bearer ${session.access_token}`,
     ...options.headers,
   };
 
@@ -48,7 +53,7 @@ export const paymentApiTest = {
   async checkNetworkConnectivity(): Promise<PaymentApiTestResult> {
     try {
       const netInfo = await NetInfo.fetch();
-      
+
       if (!netInfo.isConnected) {
         return {
           success: false,
@@ -57,7 +62,7 @@ export const paymentApiTest = {
           timestamp: new Date().toISOString(),
         };
       }
-      
+
       return {
         success: true,
         message: 'Device has internet connectivity',
@@ -79,12 +84,12 @@ export const paymentApiTest = {
   },
 
   /**
-   * Check API server connectivity 
+   * Check API server connectivity
    */
   async checkApiConnectivity(): Promise<PaymentApiTestResult> {
     try {
       const apiUrl = getApiUrl();
-      
+
       if (!apiUrl) {
         return {
           success: false,
@@ -100,7 +105,7 @@ export const paymentApiTest = {
           'Content-Type': 'application/json',
         },
       });
-      
+
       if (!response.ok) {
         return {
           success: false,
@@ -112,9 +117,9 @@ export const paymentApiTest = {
           timestamp: new Date().toISOString(),
         };
       }
-      
+
       const data = await response.json();
-      
+
       return {
         success: true,
         message: 'API server is reachable',
@@ -139,7 +144,7 @@ export const paymentApiTest = {
   async checkPaymentApiAccess(): Promise<PaymentApiTestResult> {
     try {
       const apiUrl = getApiUrl();
-      
+
       if (!apiUrl) {
         return {
           success: false,
@@ -149,10 +154,13 @@ export const paymentApiTest = {
       }
 
       // Try to connect to a protected payments endpoint
-      const response = await fetchWithAuthHelper(`${apiUrl}/api/v1/payments/status`, {
-        method: 'GET',
-      });
-      
+      const response = await fetchWithAuthHelper(
+        `${apiUrl}/api/v1/payments/status`,
+        {
+          method: 'GET',
+        }
+      );
+
       if (!response.ok) {
         let errorData;
         try {
@@ -160,7 +168,7 @@ export const paymentApiTest = {
         } catch (e) {
           errorData = { error: 'Could not parse error response' };
         }
-        
+
         return {
           success: false,
           message: `Payment API access failed: ${response.status}`,
@@ -172,9 +180,9 @@ export const paymentApiTest = {
           timestamp: new Date().toISOString(),
         };
       }
-      
+
       const data = await response.json();
-      
+
       return {
         success: true,
         message: 'Payment API is accessible',
@@ -200,7 +208,7 @@ export const paymentApiTest = {
   async checkStripeServiceStatus(): Promise<PaymentApiTestResult> {
     try {
       const apiUrl = getApiUrl();
-      
+
       if (!apiUrl) {
         return {
           success: false,
@@ -210,10 +218,13 @@ export const paymentApiTest = {
       }
 
       // Try to connect to a dedicated Stripe connectivity check endpoint
-      const response = await fetchWithAuthHelper(`${apiUrl}/api/v1/payments/stripe-status`, {
-        method: 'GET',
-      });
-      
+      const response = await fetchWithAuthHelper(
+        `${apiUrl}/api/v1/payments/stripe-status`,
+        {
+          method: 'GET',
+        }
+      );
+
       if (!response.ok) {
         let errorData;
         try {
@@ -221,7 +232,7 @@ export const paymentApiTest = {
         } catch (e) {
           errorData = { error: 'Could not parse error response' };
         }
-        
+
         return {
           success: false,
           message: `Stripe service check failed: ${response.status}`,
@@ -233,9 +244,9 @@ export const paymentApiTest = {
           timestamp: new Date().toISOString(),
         };
       }
-      
+
       const data = await response.json();
-      
+
       return {
         success: true,
         message: 'Stripe service is available',
@@ -272,25 +283,27 @@ export const paymentApiTest = {
     // Generate summary
     const allTests = [networkTest, apiTest, paymentApiTest, stripeTest];
     const passedCount = allTests.filter(test => test.success).length;
-    
+
     let summary = `Payment API Diagnostic Summary: ${passedCount}/${allTests.length} tests passed.\n`;
-    
+
     if (!networkTest.success) {
       summary += '❌ Network connectivity issue detected.\n';
     }
-    
+
     if (networkTest.success && !apiTest.success) {
       summary += '❌ API server unreachable despite network connectivity.\n';
     }
-    
+
     if (apiTest.success && !paymentApiTest.success) {
-      summary += '❌ Payment API access failed despite API server being reachable (possible auth issue).\n';
+      summary +=
+        '❌ Payment API access failed despite API server being reachable (possible auth issue).\n';
     }
-    
+
     if (paymentApiTest.success && !stripeTest.success) {
-      summary += '❌ Stripe service unavailable despite payment API being accessible.\n';
+      summary +=
+        '❌ Stripe service unavailable despite payment API being accessible.\n';
     }
-    
+
     if (allTests.every(test => test.success)) {
       summary += '✅ All payment services are operational.\n';
     }

@@ -6,7 +6,13 @@ import {
   TouchableOpacity,
   TouchableOpacityProps,
 } from 'react-native';
-import { Colors, ComponentTokens, BorderRadius, Shadows, Spacing } from '../../constants/DesignSystem';
+import {
+  Colors,
+  ComponentTokens,
+  BorderRadius,
+  Shadows,
+  Spacing,
+} from '../../constants/DesignSystem';
 
 interface CardProps extends TouchableOpacityProps {
   children: React.ReactNode;
@@ -47,7 +53,7 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.surface,
     borderRadius: ComponentTokens.card.borderRadius,
   },
-  
+
   // Variants
   default: {
     ...Shadows.sm,
@@ -59,7 +65,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: Colors.border,
   },
-  
+
   // Padding variants
   smPadding: {
     padding: ComponentTokens.card.padding.sm,

@@ -1,5 +1,11 @@
 import React from 'react';
-import { StyleSheet, Text, View, TouchableOpacity, ViewStyle } from 'react-native';
+import {
+  StyleSheet,
+  Text,
+  View,
+  TouchableOpacity,
+  ViewStyle,
+} from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Shipment, shipmentStatusMap, formatDate } from '../types';
 import { Colors } from '../constants/Colors';
@@ -10,7 +16,11 @@ interface ShipmentListItemProps {
   style?: ViewStyle;
 }
 
-export function ShipmentListItem({ shipment, onPress, style }: ShipmentListItemProps) {
+export function ShipmentListItem({
+  shipment,
+  onPress,
+  style,
+}: ShipmentListItemProps) {
   return (
     <TouchableOpacity
       style={[styles.container, style]}
@@ -25,7 +35,10 @@ export function ShipmentListItem({ shipment, onPress, style }: ShipmentListItemP
           <View
             style={[
               styles.statusBadge,
-              { backgroundColor: Colors.status[shipment.status] || Colors.text.secondary },
+              {
+                backgroundColor:
+                  Colors.status[shipment.status] || Colors.text.secondary,
+              },
             ]}
           >
             <Text style={styles.statusText}>
@@ -36,13 +49,23 @@ export function ShipmentListItem({ shipment, onPress, style }: ShipmentListItemP
 
         <View style={styles.addressContainer}>
           <View style={styles.addressRow}>
-            <Ionicons name="location" size={16} color={Colors.primary} style={styles.icon} />
+            <Ionicons
+              name="location"
+              size={16}
+              color={Colors.primary}
+              style={styles.icon}
+            />
             <Text style={styles.addressText} numberOfLines={1}>
               {shipment.pickupAddress}
             </Text>
           </View>
           <View style={styles.addressRow}>
-            <Ionicons name="location" size={16} color={Colors.secondary} style={styles.icon} />
+            <Ionicons
+              name="location"
+              size={16}
+              color={Colors.secondary}
+              style={styles.icon}
+            />
             <Text style={styles.addressText} numberOfLines={1}>
               {shipment.deliveryAddress}
             </Text>
@@ -50,13 +73,9 @@ export function ShipmentListItem({ shipment, onPress, style }: ShipmentListItemP
         </View>
 
         <View style={styles.footer}>
-          <Text style={styles.dateText}>
-            {formatDate(shipment.pickupDate)}
-          </Text>
+          <Text style={styles.dateText}>{formatDate(shipment.pickupDate)}</Text>
           {shipment.price && (
-            <Text style={styles.priceText}>
-              ${shipment.price.toFixed(2)}
-            </Text>
+            <Text style={styles.priceText}>${shipment.price.toFixed(2)}</Text>
           )}
         </View>
       </View>

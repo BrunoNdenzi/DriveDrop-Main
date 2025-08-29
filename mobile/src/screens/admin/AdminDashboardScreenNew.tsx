@@ -16,7 +16,10 @@ import { useAuth } from '../../context/AuthContext';
 import { RootStackParamList } from '../../navigation/types';
 import { Colors } from '../../constants/Colors';
 
-type AdminDashboardScreenProps = NativeStackScreenProps<RootStackParamList, 'AdminDashboard'>;
+type AdminDashboardScreenProps = NativeStackScreenProps<
+  RootStackParamList,
+  'AdminDashboard'
+>;
 
 interface DashboardStats {
   pendingShipments: number;
@@ -27,7 +30,9 @@ interface DashboardStats {
   totalClients: number;
 }
 
-export default function AdminDashboardScreen({ navigation }: AdminDashboardScreenProps) {
+export default function AdminDashboardScreen({
+  navigation,
+}: AdminDashboardScreenProps) {
   const { userProfile } = useAuth();
   const [stats, setStats] = useState<DashboardStats>({
     pendingShipments: 0,
@@ -42,7 +47,10 @@ export default function AdminDashboardScreen({ navigation }: AdminDashboardScree
   // Check if user is admin, redirect if not
   useEffect(() => {
     if (userProfile && userProfile.role !== 'admin') {
-      Alert.alert('Access Denied', 'You need admin privileges to access this screen.');
+      Alert.alert(
+        'Access Denied',
+        'You need admin privileges to access this screen.'
+      );
       navigation.goBack();
     }
   }, [userProfile, navigation]);
@@ -55,7 +63,7 @@ export default function AdminDashboardScreen({ navigation }: AdminDashboardScree
   const loadDashboardStats = async () => {
     try {
       setLoading(true);
-      
+
       // Get pending shipments count
       const { count: pendingShipments, error: pendingError } = await supabase
         .from('shipments')
@@ -78,23 +86,28 @@ export default function AdminDashboardScreen({ navigation }: AdminDashboardScree
       }
 
       // Get completed shipments count
-      const { count: completedShipments, error: completedError } = await supabase
-        .from('shipments')
-        .select('*', { count: 'exact', head: true })
-        .eq('status', 'delivered');
+      const { count: completedShipments, error: completedError } =
+        await supabase
+          .from('shipments')
+          .select('*', { count: 'exact', head: true })
+          .eq('status', 'delivered');
 
       if (completedError) {
         console.error('Error fetching completed shipments:', completedError);
       }
 
       // Get pending applications count
-      const { count: pendingApplications, error: applicationsError } = await supabase
-        .from('job_applications')
-        .select('*', { count: 'exact', head: true })
-        .eq('status', 'pending');
+      const { count: pendingApplications, error: applicationsError } =
+        await supabase
+          .from('job_applications')
+          .select('*', { count: 'exact', head: true })
+          .eq('status', 'pending');
 
       if (applicationsError) {
-        console.error('Error fetching pending applications:', applicationsError);
+        console.error(
+          'Error fetching pending applications:',
+          applicationsError
+        );
       }
 
       // Get total drivers count
@@ -128,7 +141,10 @@ export default function AdminDashboardScreen({ navigation }: AdminDashboardScree
       });
     } catch (err) {
       console.error('Error in loadDashboardStats:', err);
-      Alert.alert('Error', 'An unexpected error occurred while loading dashboard');
+      Alert.alert(
+        'Error',
+        'An unexpected error occurred while loading dashboard'
+      );
     } finally {
       setLoading(false);
     }
@@ -157,17 +173,29 @@ export default function AdminDashboardScreen({ navigation }: AdminDashboardScree
             <View style={styles.statCard}>
               <Text style={styles.statValue}>{stats.pendingShipments}</Text>
               <Text style={styles.statLabel}>Pending</Text>
-              <MaterialIcons name="pending-actions" size={24} color={Colors.warning} />
+              <MaterialIcons
+                name="pending-actions"
+                size={24}
+                color={Colors.warning}
+              />
             </View>
             <View style={styles.statCard}>
               <Text style={styles.statValue}>{stats.activeShipments}</Text>
               <Text style={styles.statLabel}>Active</Text>
-              <MaterialIcons name="local-shipping" size={24} color={Colors.success} />
+              <MaterialIcons
+                name="local-shipping"
+                size={24}
+                color={Colors.success}
+              />
             </View>
             <View style={styles.statCard}>
               <Text style={styles.statValue}>{stats.completedShipments}</Text>
               <Text style={styles.statLabel}>Completed</Text>
-              <MaterialIcons name="check-circle" size={24} color={Colors.success} />
+              <MaterialIcons
+                name="check-circle"
+                size={24}
+                color={Colors.success}
+              />
             </View>
           </View>
 
@@ -176,7 +204,11 @@ export default function AdminDashboardScreen({ navigation }: AdminDashboardScree
             <View style={styles.statCard}>
               <Text style={styles.statValue}>{stats.totalDrivers}</Text>
               <Text style={styles.statLabel}>Drivers</Text>
-              <MaterialIcons name="drive-eta" size={24} color={Colors.primary} />
+              <MaterialIcons
+                name="drive-eta"
+                size={24}
+                color={Colors.primary}
+              />
             </View>
             <View style={styles.statCard}>
               <Text style={styles.statValue}>{stats.totalClients}</Text>
@@ -186,7 +218,11 @@ export default function AdminDashboardScreen({ navigation }: AdminDashboardScree
             <View style={styles.statCard}>
               <Text style={styles.statValue}>{stats.pendingApplications}</Text>
               <Text style={styles.statLabel}>Applications</Text>
-              <MaterialIcons name="person-add" size={24} color={Colors.warning} />
+              <MaterialIcons
+                name="person-add"
+                size={24}
+                color={Colors.warning}
+              />
             </View>
           </View>
         </View>
@@ -194,7 +230,7 @@ export default function AdminDashboardScreen({ navigation }: AdminDashboardScree
         <View style={styles.actionContainer}>
           <Text style={styles.sectionTitle}>Quick Actions</Text>
           <View style={styles.actionButtonsContainer}>
-            <TouchableOpacity 
+            <TouchableOpacity
               style={styles.actionButton}
               onPress={() => navigation.navigate('AdminAssignment')}
             >
@@ -202,15 +238,15 @@ export default function AdminDashboardScreen({ navigation }: AdminDashboardScree
               <Text style={styles.actionButtonText}>Assign Drivers</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity 
+            <TouchableOpacity
               style={styles.actionButton}
-              onPress={() => navigation.navigate('ShipmentList')}
+              onPress={() => navigation.navigate('ClientTabs')}  // Navigate to client tabs, then to Shipments
             >
               <MaterialIcons name="view-list" size={32} color={Colors.white} />
               <Text style={styles.actionButtonText}>Manage Shipments</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity 
+            <TouchableOpacity
               style={styles.actionButton}
               onPress={() => alert('Manage Drivers - Feature coming soon')}
             >
@@ -218,17 +254,21 @@ export default function AdminDashboardScreen({ navigation }: AdminDashboardScree
               <Text style={styles.actionButtonText}>Manage Drivers</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity 
+            <TouchableOpacity
               style={styles.actionButton}
               onPress={() => alert('Driver Applications - Feature coming soon')}
             >
-              <MaterialIcons name="assignment-ind" size={32} color={Colors.white} />
+              <MaterialIcons
+                name="assignment-ind"
+                size={32}
+                color={Colors.white}
+              />
               <Text style={styles.actionButtonText}>Driver Applications</Text>
             </TouchableOpacity>
           </View>
         </View>
 
-        <TouchableOpacity 
+        <TouchableOpacity
           style={styles.refreshButton}
           onPress={loadDashboardStats}
         >
@@ -254,7 +294,7 @@ const styles = StyleSheet.create({
   loadingText: {
     marginTop: 10,
     fontSize: 16,
-    color: Colors.text,
+    color: Colors.text.primary,
   },
   header: {
     backgroundColor: Colors.primary,
@@ -277,7 +317,7 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: 'bold',
     marginVertical: 12,
-    color: Colors.text,
+    color: Colors.text.primary,
   },
   statsContainer: {
     marginBottom: 20,
@@ -304,7 +344,7 @@ const styles = StyleSheet.create({
   statValue: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: Colors.text,
+    color: Colors.text.primary,
     marginBottom: 5,
   },
   statLabel: {

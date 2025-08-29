@@ -5,6 +5,7 @@ This document describes the REST API endpoints for driver job applications in th
 ## Authentication
 
 All endpoints require authentication via JWT token in the Authorization header:
+
 ```
 Authorization: Bearer <jwt_token>
 ```
@@ -20,9 +21,11 @@ Apply for a specific shipment as a driver.
 **Access:** Private (Driver only)
 
 **Parameters:**
+
 - `id` (URL parameter): UUID of the shipment to apply for
 
 **Request Body:**
+
 ```json
 {
   "notes": "Optional application notes from the driver"
@@ -30,6 +33,7 @@ Apply for a specific shipment as a driver.
 ```
 
 **Success Response (201):**
+
 ```json
 {
   "success": true,
@@ -46,12 +50,14 @@ Apply for a specific shipment as a driver.
 ```
 
 **Error Responses:**
+
 - `400 Bad Request`: Invalid shipment ID, shipment not available, or already assigned
 - `401 Unauthorized`: Authentication required
 - `403 Forbidden`: Only drivers can apply for shipments
 - `404 Not Found`: Shipment not found
 
 **Example Usage:**
+
 ```bash
 curl -X POST "https://api.drivedrop.com/api/v1/shipments/550e8400-e29b-41d4-a716-446655440001/apply" \
   -H "Authorization: Bearer <jwt_token>" \
@@ -70,9 +76,11 @@ Retrieve all job applications for the authenticated driver.
 **Access:** Private (Driver only)
 
 **Query Parameters:**
+
 - `status` (optional): Filter by application status (`pending`, `accepted`, `rejected`, `cancelled`)
 
 **Success Response (200):**
+
 ```json
 {
   "success": true,
@@ -88,7 +96,7 @@ Retrieve all job applications for the authenticated driver.
       "shipment_title": "Furniture Delivery - Downtown to Suburbs",
       "shipment_pickup_address": "123 Main St, Downtown",
       "shipment_delivery_address": "456 Oak Ave, Suburbs",
-      "shipment_estimated_price": 150.00,
+      "shipment_estimated_price": 150.0,
       "shipment_status": "pending"
     },
     {
@@ -102,7 +110,7 @@ Retrieve all job applications for the authenticated driver.
       "shipment_title": "Electronics Delivery",
       "shipment_pickup_address": "789 Tech Blvd",
       "shipment_delivery_address": "321 Home St",
-      "shipment_estimated_price": 75.00,
+      "shipment_estimated_price": 75.0,
       "shipment_status": "assigned"
     }
   ]
@@ -110,11 +118,13 @@ Retrieve all job applications for the authenticated driver.
 ```
 
 **Error Responses:**
+
 - `401 Unauthorized`: Authentication required
 - `403 Forbidden`: Only drivers can view their applications
 - `500 Internal Server Error`: Database error
 
 **Example Usage:**
+
 ```bash
 # Get all applications
 curl -X GET "https://api.drivedrop.com/api/v1/drivers/applications" \
@@ -134,9 +144,11 @@ Update the status of a driver's application. Admins can accept/reject applicatio
 **Access:** Private (Admin or Driver with restrictions)
 
 **Parameters:**
+
 - `id` (URL parameter): UUID of the application to update
 
 **Request Body:**
+
 ```json
 {
   "status": "accepted|rejected|cancelled",
@@ -145,16 +157,18 @@ Update the status of a driver's application. Admins can accept/reject applicatio
 ```
 
 **Access Rules:**
+
 - **Admins**: Can set status to `pending`, `accepted`, or `rejected`
 - **Drivers**: Can only set status to `cancelled` for their own applications
 
 **Success Response (200):**
+
 ```json
 {
   "success": true,
   "data": {
     "id": "550e8400-e29b-41d4-a716-446655440000",
-    "shipment_id": "550e8400-e29b-41d4-a716-446655440001", 
+    "shipment_id": "550e8400-e29b-41d4-a716-446655440001",
     "driver_id": "550e8400-e29b-41d4-a716-446655440002",
     "status": "accepted",
     "notes": "Driver has excellent ratings and is available",
@@ -165,6 +179,7 @@ Update the status of a driver's application. Admins can accept/reject applicatio
 ```
 
 **Error Responses:**
+
 - `400 Bad Request`: Invalid application ID or status
 - `401 Unauthorized`: Authentication required
 - `403 Forbidden`: Insufficient permissions or trying to update another driver's application
@@ -173,6 +188,7 @@ Update the status of a driver's application. Admins can accept/reject applicatio
 **Example Usage:**
 
 **Admin accepting an application:**
+
 ```bash
 curl -X PUT "https://api.drivedrop.com/api/v1/applications/550e8400-e29b-41d4-a716-446655440000/status" \
   -H "Authorization: Bearer <admin_jwt_token>" \
@@ -184,6 +200,7 @@ curl -X PUT "https://api.drivedrop.com/api/v1/applications/550e8400-e29b-41d4-a7
 ```
 
 **Driver cancelling their own application:**
+
 ```bash
 curl -X PUT "https://api.drivedrop.com/api/v1/applications/550e8400-e29b-41d4-a716-446655440000/status" \
   -H "Authorization: Bearer <driver_jwt_token>" \
@@ -209,6 +226,7 @@ All endpoints follow a consistent error response format:
 ```
 
 Common error codes:
+
 - `INVALID_ID`: Invalid UUID format
 - `UNAUTHORIZED`: Authentication required
 - `FORBIDDEN`: Insufficient permissions
@@ -231,6 +249,7 @@ Common error codes:
 ### Automatic Shipment Assignment
 
 When an admin accepts an application (`status: "accepted"`), the system automatically:
+
 - Updates the shipment status to "assigned"
 - Sets the shipment's driver_id to the accepted driver
 - Rejects all other pending applications for that shipment
@@ -238,8 +257,9 @@ When an admin accepts an application (`status: "accepted"`), the system automati
 ### Status Transitions
 
 Valid status transitions:
+
 - `pending` → `accepted` (Admin only)
-- `pending` → `rejected` (Admin only)  
+- `pending` → `rejected` (Admin only)
 - `pending` → `cancelled` (Driver only, for their own applications)
 - `accepted` → `rejected` (Admin only, if needed)
 
@@ -253,6 +273,7 @@ Valid status transitions:
 ## Integration with Stored Procedures
 
 These endpoints utilize the following PostgreSQL stored procedures:
+
 - `apply_for_shipment(p_shipment_id, p_driver_id, p_notes)`
 - `get_driver_applications(p_driver_id, p_status)`
 - `update_application_status(p_application_id, p_status, p_notes)`

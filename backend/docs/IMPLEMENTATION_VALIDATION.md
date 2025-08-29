@@ -45,23 +45,27 @@
 ### Features Implemented
 
 #### Authentication & Authorization
+
 - ✅ Supabase Auth middleware integration
 - ✅ Role-based access control (driver, admin)
 - ✅ Ownership validation for driver actions
 
 #### Data Validation
+
 - ✅ UUID format validation
 - ✅ Status value validation
 - ✅ Required field validation
 - ✅ Business logic validation
 
 #### Error Handling
+
 - ✅ Standardized error responses
 - ✅ Proper HTTP status codes
 - ✅ Descriptive error messages
 - ✅ Database error handling
 
 #### Business Logic
+
 - ✅ Prevent duplicate applications
 - ✅ Automatic shipment assignment
 - ✅ Application status transitions
@@ -70,6 +74,7 @@
 ### API Documentation Highlights
 
 #### Request/Response Examples
+
 ```javascript
 // Apply for shipment
 POST /api/v1/shipments/{id}/apply
@@ -89,6 +94,7 @@ PUT /api/v1/applications/{id}/status
 ```
 
 #### Security Features
+
 - JWT token authentication required
 - Role-based endpoint access
 - Application ownership validation
@@ -97,6 +103,7 @@ PUT /api/v1/applications/{id}/status
 ### Integration with Stored Procedures
 
 All endpoints utilize the production-ready stored procedures:
+
 - `apply_for_shipment(p_shipment_id, p_driver_id, p_notes)`
 - `get_driver_applications(p_driver_id, p_status)`
 - `update_application_status(p_application_id, p_status, p_notes)`

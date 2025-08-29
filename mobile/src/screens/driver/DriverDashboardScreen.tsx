@@ -1,5 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, View, Text, TouchableOpacity, ScrollView, Alert } from 'react-native';
+import {
+  StyleSheet,
+  View,
+  Text,
+  TouchableOpacity,
+  ScrollView,
+  Alert,
+} from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { MaterialIcons } from '@expo/vector-icons';
 import { Colors } from '../../constants/Colors';
@@ -25,10 +32,10 @@ export default function DriverDashboardScreen({ navigation }: any) {
 
   const fetchDashboardData = async () => {
     if (!userProfile) return;
-    
+
     try {
       setLoading(true);
-      
+
       // Fetch driver stats
       const [activeJobsResult, completedJobsResult] = await Promise.all([
         // Active jobs count
@@ -37,7 +44,7 @@ export default function DriverDashboardScreen({ navigation }: any) {
           .select('*', { count: 'exact', head: true })
           .eq('driver_id', userProfile.id)
           .in('status', ['accepted', 'in_transit']),
-        
+
         // Completed jobs count and earnings
         supabase
           .from('shipments')
@@ -47,7 +54,9 @@ export default function DriverDashboardScreen({ navigation }: any) {
       ]);
 
       // Get available jobs using ShipmentService
-      const availableJobsData = await ShipmentService.getAvailableShipments(userProfile.id);
+      const availableJobsData = await ShipmentService.getAvailableShipments(
+        userProfile.id
+      );
 
       // Get all applications for this driver for tracking purposes
       const { data: applications, error: appsError } = await supabase
@@ -58,19 +67,29 @@ export default function DriverDashboardScreen({ navigation }: any) {
       if (appsError) {
         console.error('Error fetching driver applications:', appsError);
       } else {
-        console.log(`DriverScreen: Found ${applications?.length || 0} applications for driver ${userProfile.id}:`, applications);
-        
+        console.log(
+          `DriverScreen: Found ${applications?.length || 0} applications for driver ${userProfile.id}:`,
+          applications
+        );
+
         // Update the pendingJobs count in stats
         setStats({
           activeJobs: activeJobsResult.count || 0,
-          pendingJobs: applications?.filter(app => app.status === 'pending').length || 0,
+          pendingJobs:
+            applications?.filter(app => app.status === 'pending').length || 0,
           completedJobs: completedJobsResult.data?.length || 0,
-          totalEarnings: completedJobsResult.data?.reduce((sum, job) => sum + (job.estimated_price || 0), 0) || 0,
+          totalEarnings:
+            completedJobsResult.data?.reduce(
+              (sum, job) => sum + (job.estimated_price || 0),
+              0
+            ) || 0,
         });
       }
-      
+
       // availableJobsData already excludes jobs the driver has applied for
-      console.log(`DriverScreen: Showing ${availableJobsData.length} jobs, with ${0} marked as applied`);
+      console.log(
+        `DriverScreen: Showing ${availableJobsData.length} jobs, with ${0} marked as applied`
+      );
       setAvailableJobs(availableJobsData);
     } catch (error) {
       console.error('Error fetching dashboard data:', error);
@@ -83,17 +102,17 @@ export default function DriverDashboardScreen({ navigation }: any) {
     try {
       setIsAvailable(!isAvailable);
       // Update driver settings in the database
-      await supabase
-        .from('driver_settings')
-        .upsert({
-          driver_id: userProfile?.id,
-          available_for_jobs: !isAvailable,
-          updated_at: new Date().toISOString(),
-        });
-      
+      await supabase.from('driver_settings').upsert({
+        driver_id: userProfile?.id,
+        available_for_jobs: !isAvailable,
+        updated_at: new Date().toISOString(),
+      });
+
       Alert.alert(
-        'Shift Status Updated', 
-        isAvailable ? 'You are now offline and will not receive new job requests.' : 'You are now online and available for jobs!'
+        'Shift Status Updated',
+        isAvailable
+          ? 'You are now offline and will not receive new job requests.'
+          : 'You are now online and available for jobs!'
       );
     } catch (error) {
       console.error('Error updating shift status:', error);
@@ -109,11 +128,17 @@ export default function DriverDashboardScreen({ navigation }: any) {
 
     try {
       await ShipmentService.applyForShipment(jobId, userProfile.id);
-      Alert.alert('Success', 'Application submitted successfully! You will be notified when the client makes a decision.');
+      Alert.alert(
+        'Success',
+        'Application submitted successfully! You will be notified when the client makes a decision.'
+      );
       fetchDashboardData(); // Refresh data to show updated job lists
     } catch (error: any) {
       console.error('Error applying to job:', error);
-      Alert.alert('Error', error.message || 'Failed to apply to job. Please try again.');
+      Alert.alert(
+        'Error',
+        error.message || 'Failed to apply to job. Please try again.'
+      );
     }
   };
 
@@ -127,7 +152,7 @@ export default function DriverDashboardScreen({ navigation }: any) {
   return (
     <View style={styles.container}>
       <StatusBar style="light" />
-      
+
       {/* Header */}
       <View style={styles.header}>
         <View style={styles.headerContent}>
@@ -142,7 +167,11 @@ export default function DriverDashboardScreen({ navigation }: any) {
           </View>
         </View>
         <TouchableOpacity style={styles.notificationButton}>
-          <MaterialIcons name="notifications" size={24} color={Colors.text.inverse} />
+          <MaterialIcons
+            name="notifications"
+            size={24}
+            color={Colors.text.inverse}
+          />
         </TouchableOpacity>
       </View>
 
@@ -150,26 +179,31 @@ export default function DriverDashboardScreen({ navigation }: any) {
         {/* Status Card */}
         <View style={styles.statusCard}>
           <View style={styles.statusHeader}>
-            <MaterialIcons 
-              name={isAvailable ? "local-shipping" : "do-not-disturb"} 
-              size={24} 
-              color={isAvailable ? Colors.success : Colors.text.disabled} 
+            <MaterialIcons
+              name={isAvailable ? 'local-shipping' : 'do-not-disturb'}
+              size={24}
+              color={isAvailable ? Colors.success : Colors.text.disabled}
             />
             <Text style={styles.statusTitle}>
               {isAvailable ? 'Available for Deliveries' : 'Offline'}
             </Text>
           </View>
           <Text style={styles.statusSubtitle}>
-            {isAvailable ? 'Ready to accept new shipments' : 'Not receiving new job requests'}
+            {isAvailable
+              ? 'Ready to accept new shipments'
+              : 'Not receiving new job requests'}
           </Text>
-          <TouchableOpacity 
-            style={[styles.shiftButton, !isAvailable && styles.shiftButtonOffline]}
+          <TouchableOpacity
+            style={[
+              styles.shiftButton,
+              !isAvailable && styles.shiftButtonOffline,
+            ]}
             onPress={handleStartShift}
           >
-            <MaterialIcons 
-              name={isAvailable ? "pause" : "play-arrow"} 
-              size={20} 
-              color={Colors.text.inverse} 
+            <MaterialIcons
+              name={isAvailable ? 'pause' : 'play-arrow'}
+              size={20}
+              color={Colors.text.inverse}
             />
             <Text style={styles.shiftButtonText}>
               {isAvailable ? 'End Shift' : 'Start Shift'}
@@ -190,7 +224,11 @@ export default function DriverDashboardScreen({ navigation }: any) {
             <Text style={styles.statLabel}>Available</Text>
           </View>
           <View style={styles.statCard}>
-            <MaterialIcons name="check-circle" size={32} color={Colors.success} />
+            <MaterialIcons
+              name="check-circle"
+              size={32}
+              color={Colors.success}
+            />
             <Text style={styles.statNumber}>{stats.completedJobs}</Text>
             <Text style={styles.statLabel}>Completed</Text>
           </View>
@@ -200,57 +238,87 @@ export default function DriverDashboardScreen({ navigation }: any) {
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Available Jobs</Text>
-            <TouchableOpacity onPress={() => navigation.navigate('AvailableShipments')}>
+            <TouchableOpacity
+              onPress={() => navigation.navigate('AvailableShipments')}
+            >
               <Text style={styles.viewAllText}>View All</Text>
             </TouchableOpacity>
           </View>
-          
+
           {availableJobs.length > 0 ? (
-            availableJobs.slice(0, 3).map((job) => (
+            availableJobs.slice(0, 3).map(job => (
               <View key={job.id} style={styles.jobCard}>
                 <View style={styles.jobHeader}>
-                  <Text style={styles.jobTitle}>{job.title || `Shipment #${job.id.substring(0, 8)}`}</Text>
+                  <Text style={styles.jobTitle}>
+                    {job.title || `Shipment #${job.id.substring(0, 8)}`}
+                  </Text>
                   <View style={styles.earningsBadge}>
-                    <Text style={styles.earningsText}>${job.estimated_price || 0}</Text>
+                    <Text style={styles.earningsText}>
+                      ${job.estimated_price || 0}
+                    </Text>
                   </View>
                 </View>
-                
+
                 {job.hasApplied && (
                   <View style={styles.appliedBadge}>
-                    <MaterialIcons name="check-circle" size={16} color={Colors.success} />
+                    <MaterialIcons
+                      name="check-circle"
+                      size={16}
+                      color={Colors.success}
+                    />
                     <Text style={styles.appliedText}>Applied</Text>
                   </View>
                 )}
-                
+
                 <View style={styles.jobDetails}>
                   <View style={styles.jobDetailRow}>
-                    <MaterialIcons name="location-on" size={16} color={Colors.primary} />
+                    <MaterialIcons
+                      name="location-on"
+                      size={16}
+                      color={Colors.primary}
+                    />
                     <Text style={styles.jobDetailText} numberOfLines={1}>
                       {job.pickup_address}
                     </Text>
                   </View>
                   <View style={styles.jobDetailRow}>
-                    <MaterialIcons name="flag" size={16} color={Colors.secondary} />
+                    <MaterialIcons
+                      name="flag"
+                      size={16}
+                      color={Colors.secondary}
+                    />
                     <Text style={styles.jobDetailText} numberOfLines={1}>
                       {job.delivery_address}
                     </Text>
                   </View>
                   {job.description && (
                     <View style={styles.jobDetailRow}>
-                      <MaterialIcons name="info" size={16} color={Colors.text.secondary} />
+                      <MaterialIcons
+                        name="info"
+                        size={16}
+                        color={Colors.text.secondary}
+                      />
                       <Text style={styles.jobDetailText} numberOfLines={2}>
                         {job.description}
                       </Text>
                     </View>
                   )}
                 </View>
-                
-                <TouchableOpacity 
-                  style={[styles.quickApplyButton, job.hasApplied && styles.quickApplyButtonDisabled]}
+
+                <TouchableOpacity
+                  style={[
+                    styles.quickApplyButton,
+                    job.hasApplied && styles.quickApplyButtonDisabled,
+                  ]}
                   onPress={() => handleQuickApply(job.id)}
                   disabled={job.hasApplied}
                 >
-                  <Text style={[styles.quickApplyText, job.hasApplied && styles.quickApplyTextDisabled]}>
+                  <Text
+                    style={[
+                      styles.quickApplyText,
+                      job.hasApplied && styles.quickApplyTextDisabled,
+                    ]}
+                  >
                     {job.hasApplied ? 'Applied' : 'Accept Job'}
                   </Text>
                 </TouchableOpacity>
@@ -258,7 +326,11 @@ export default function DriverDashboardScreen({ navigation }: any) {
             ))
           ) : (
             <View style={styles.emptyState}>
-              <MaterialIcons name="inbox" size={48} color={Colors.text.disabled} />
+              <MaterialIcons
+                name="inbox"
+                size={48}
+                color={Colors.text.disabled}
+              />
               <Text style={styles.emptyTitle}>No jobs available</Text>
               <Text style={styles.emptySubtitle}>
                 New delivery requests will appear here
@@ -270,50 +342,74 @@ export default function DriverDashboardScreen({ navigation }: any) {
         {/* Quick Actions */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Quick Actions</Text>
-          
-          <TouchableOpacity 
+
+          <TouchableOpacity
             style={styles.actionButton}
             onPress={() => navigation.navigate('MyShipments')}
           >
             <MaterialIcons name="route" size={20} color={Colors.primary} />
             <Text style={styles.actionText}>View My Jobs</Text>
-            <MaterialIcons name="chevron-right" size={20} color={Colors.text.secondary} />
+            <MaterialIcons
+              name="chevron-right"
+              size={20}
+              color={Colors.text.secondary}
+            />
           </TouchableOpacity>
-          
-          <TouchableOpacity 
+
+          <TouchableOpacity
             style={styles.actionButton}
             onPress={() => navigation.navigate('Messages')}
           >
             <MaterialIcons name="chat" size={20} color={Colors.primary} />
             <Text style={styles.actionText}>Messages</Text>
-            <MaterialIcons name="chevron-right" size={20} color={Colors.text.secondary} />
+            <MaterialIcons
+              name="chevron-right"
+              size={20}
+              color={Colors.text.secondary}
+            />
           </TouchableOpacity>
-          
-          <TouchableOpacity 
+
+          <TouchableOpacity
             style={styles.actionButton}
             onPress={() => navigation.navigate('Profile')}
           >
-            <MaterialIcons name="account-balance-wallet" size={20} color={Colors.primary} />
+            <MaterialIcons
+              name="account-balance-wallet"
+              size={20}
+              color={Colors.primary}
+            />
             <Text style={styles.actionText}>View Payouts</Text>
-            <MaterialIcons name="chevron-right" size={20} color={Colors.text.secondary} />
+            <MaterialIcons
+              name="chevron-right"
+              size={20}
+              color={Colors.text.secondary}
+            />
           </TouchableOpacity>
-          
-          <TouchableOpacity 
+
+          <TouchableOpacity
             style={styles.actionButton}
             onPress={() => navigation.navigate('AvailableShipments')}
           >
             <MaterialIcons name="search" size={20} color={Colors.primary} />
             <Text style={styles.actionText}>Browse Jobs</Text>
-            <MaterialIcons name="chevron-right" size={20} color={Colors.text.secondary} />
+            <MaterialIcons
+              name="chevron-right"
+              size={20}
+              color={Colors.text.secondary}
+            />
           </TouchableOpacity>
-          
-          <TouchableOpacity 
+
+          <TouchableOpacity
             style={styles.actionButton}
             onPress={() => navigation.navigate('Profile')}
           >
             <MaterialIcons name="settings" size={20} color={Colors.primary} />
             <Text style={styles.actionText}>Driver Settings</Text>
-            <MaterialIcons name="chevron-right" size={20} color={Colors.text.secondary} />
+            <MaterialIcons
+              name="chevron-right"
+              size={20}
+              color={Colors.text.secondary}
+            />
           </TouchableOpacity>
         </View>
       </ScrollView>

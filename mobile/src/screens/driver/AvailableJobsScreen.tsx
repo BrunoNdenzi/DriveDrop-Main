@@ -1,5 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, View, Text, FlatList, TouchableOpacity, RefreshControl, Alert } from 'react-native';
+import {
+  StyleSheet,
+  View,
+  Text,
+  FlatList,
+  TouchableOpacity,
+  RefreshControl,
+  Alert,
+} from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { MaterialIcons } from '@expo/vector-icons';
 import { Colors } from '../../constants/Colors';
@@ -53,16 +61,21 @@ export default function AvailableJobsScreen({ navigation }: any) {
           .eq('driver_id', userProfile.id);
 
         if (!appError && applications) {
-          console.log(`DriverScreen: Found ${applications.length} applications for driver ${userProfile.id}:`, 
-            applications.map(a => ({shipment_id: a.shipment_id, status: a.status})));
+          console.log(
+            `DriverScreen: Found ${applications.length} applications for driver ${userProfile.id}:`,
+            applications.map(a => ({
+              shipment_id: a.shipment_id,
+              status: a.status,
+            }))
+          );
           appliedJobIds = applications.map(app => app.shipment_id);
         } else if (appError) {
           console.error('Error fetching driver applications:', appError);
         }
       }
-      
+
       // Transform the data for our UI
-      const formattedJobs = data.map((job) => ({
+      const formattedJobs = data.map(job => ({
         id: job.id,
         title: `Shipment #${job.id.substring(0, 8)}`,
         pickup_location: job.pickup_address || 'Address not specified',
@@ -76,8 +89,10 @@ export default function AvailableJobsScreen({ navigation }: any) {
         hasApplied: appliedJobIds.includes(job.id), // Check if driver has applied
       }));
 
-      console.log(`DriverScreen: Showing ${formattedJobs.length} jobs, with ${formattedJobs.filter(j => j.hasApplied).length} marked as applied`);
-      
+      console.log(
+        `DriverScreen: Showing ${formattedJobs.length} jobs, with ${formattedJobs.filter(j => j.hasApplied).length} marked as applied`
+      );
+
       setAvailableJobs(formattedJobs);
     } catch (error) {
       console.error('Error fetching available jobs:', error);
@@ -101,46 +116,64 @@ export default function AvailableJobsScreen({ navigation }: any) {
     try {
       // Check if driver is eligible
       if (!userProfile) {
-        Alert.alert('Error', 'You must complete your profile before applying for jobs.');
+        Alert.alert(
+          'Error',
+          'You must complete your profile before applying for jobs.'
+        );
         return;
       }
 
-      console.log(`DriverScreen: Driver ${userProfile.id} applying for job ${jobId}`);
-      
+      console.log(
+        `DriverScreen: Driver ${userProfile.id} applying for job ${jobId}`
+      );
+
       // DIAGNOSTIC: Check if any applications already exist for this job/driver combo
       const { data: existingApps, error: checkError } = await supabase
         .from('job_applications')
         .select('*')
         .eq('shipment_id', jobId)
         .eq('driver_id', userProfile.id);
-        
+
       if (checkError) {
         console.error('Error checking existing applications:', checkError);
       } else {
-        console.log(`DriverScreen DIAGNOSTIC: Existing applications for job ${jobId} and driver ${userProfile.id}:`, 
-          existingApps?.length ? existingApps : 'None found');
+        console.log(
+          `DriverScreen DIAGNOSTIC: Existing applications for job ${jobId} and driver ${userProfile.id}:`,
+          existingApps?.length ? existingApps : 'None found'
+        );
       }
 
       // Use the enhanced ShipmentService method
-      const application = await ShipmentService.applyForShipment(jobId, userProfile.id);
-      
-      console.log(`DriverScreen: Successfully applied for job ${jobId}`, application);
-      
+      const application = await ShipmentService.applyForShipment(
+        jobId,
+        userProfile.id
+      );
+
+      console.log(
+        `DriverScreen: Successfully applied for job ${jobId}`,
+        application
+      );
+
       // VERIFICATION: Double check the application was created
       const { data: verifyApp, error: verifyError } = await supabase
         .from('job_applications')
         .select('*')
         .eq('shipment_id', jobId)
         .eq('driver_id', userProfile.id);
-        
+
       if (verifyError) {
         console.error('Error verifying application was created:', verifyError);
       } else {
-        console.log(`DriverScreen VERIFICATION: Applications after applying for job ${jobId}:`, 
-          verifyApp?.length ? verifyApp : 'None found - POSSIBLE DATA ISSUE');
-        
+        console.log(
+          `DriverScreen VERIFICATION: Applications after applying for job ${jobId}:`,
+          verifyApp?.length ? verifyApp : 'None found - POSSIBLE DATA ISSUE'
+        );
+
         if (!verifyApp?.length) {
-          Alert.alert('Warning', 'Your application may not have been properly recorded. Please try again.');
+          Alert.alert(
+            'Warning',
+            'Your application may not have been properly recorded. Please try again.'
+          );
           return;
         }
       }
@@ -152,40 +185,57 @@ export default function AvailableJobsScreen({ navigation }: any) {
       );
     } catch (error: any) {
       console.error('Error applying for job:', error);
-      Alert.alert('Error', error.message || 'Failed to apply for job. Please try again.');
+      Alert.alert(
+        'Error',
+        error.message || 'Failed to apply for job. Please try again.'
+      );
     }
   };
 
   const renderJobItem = ({ item }: { item: AvailableJob }) => (
-    <TouchableOpacity 
+    <TouchableOpacity
       style={styles.jobCard}
       onPress={() => handleJobPress(item)}
     >
       <View style={styles.jobHeader}>
         <Text style={styles.jobTitle}>{item.title}</Text>
         <View style={styles.earnBadge}>
-          <Text style={styles.earnText}>${item.estimated_earnings.toFixed(2)}</Text>
+          <Text style={styles.earnText}>
+            ${item.estimated_earnings.toFixed(2)}
+          </Text>
         </View>
       </View>
 
       <View style={styles.locationContainer}>
         <View style={styles.locationRow}>
           <MaterialIcons name="location-on" size={16} color={Colors.primary} />
-          <Text style={styles.locationText}>Pickup: {item.pickup_location}</Text>
+          <Text style={styles.locationText}>
+            Pickup: {item.pickup_location}
+          </Text>
         </View>
         <View style={styles.locationRow}>
           <MaterialIcons name="flag" size={16} color={Colors.secondary} />
-          <Text style={styles.locationText}>Delivery: {item.delivery_location}</Text>
+          <Text style={styles.locationText}>
+            Delivery: {item.delivery_location}
+          </Text>
         </View>
       </View>
 
       <View style={styles.detailsRow}>
         <View style={styles.detailItem}>
-          <MaterialIcons name="straighten" size={16} color={Colors.text.secondary} />
+          <MaterialIcons
+            name="straighten"
+            size={16}
+            color={Colors.text.secondary}
+          />
           <Text style={styles.detailText}>{item.distance} miles</Text>
         </View>
         <View style={styles.detailItem}>
-          <MaterialIcons name="local-shipping" size={16} color={Colors.text.secondary} />
+          <MaterialIcons
+            name="local-shipping"
+            size={16}
+            color={Colors.text.secondary}
+          />
           <Text style={styles.detailText}>{item.vehicle_type}</Text>
         </View>
         <View style={styles.detailItem}>
@@ -196,18 +246,17 @@ export default function AvailableJobsScreen({ navigation }: any) {
         </View>
       </View>
 
-      <TouchableOpacity 
-        style={[
-          styles.applyButton, 
-          item.hasApplied && styles.appliedButton
-        ]}
+      <TouchableOpacity
+        style={[styles.applyButton, item.hasApplied && styles.appliedButton]}
         onPress={() => applyForJob(item.id)}
         disabled={item.hasApplied}
       >
-        <Text style={[
-          styles.applyButtonText,
-          item.hasApplied && styles.appliedButtonText
-        ]}>
+        <Text
+          style={[
+            styles.applyButtonText,
+            item.hasApplied && styles.appliedButtonText,
+          ]}
+        >
           {item.hasApplied ? 'Applied' : 'Apply Now'}
         </Text>
       </TouchableOpacity>
@@ -227,7 +276,7 @@ export default function AvailableJobsScreen({ navigation }: any) {
   return (
     <View style={styles.container}>
       <StatusBar style="light" />
-      
+
       {/* Header */}
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Available Jobs</Text>
@@ -236,7 +285,7 @@ export default function AvailableJobsScreen({ navigation }: any) {
       <FlatList
         data={availableJobs}
         renderItem={renderJobItem}
-        keyExtractor={(item) => item.id}
+        keyExtractor={item => item.id}
         contentContainerStyle={styles.listContainer}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />

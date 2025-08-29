@@ -1,5 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, View, Text, ScrollView, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
+import {
+  StyleSheet,
+  View,
+  Text,
+  ScrollView,
+  TouchableOpacity,
+  Alert,
+  ActivityIndicator,
+} from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
 import * as Location from 'expo-location';
@@ -51,10 +59,12 @@ export default function JobDetailsScreen({ route, navigation }: any) {
       setLoading(true);
       const { data, error } = await supabase
         .from('shipments')
-        .select(`
+        .select(
+          `
           *,
           profiles:client_id(first_name, last_name, phone)
-        `)
+        `
+        )
         .eq('id', jobId)
         .single();
 
@@ -66,7 +76,9 @@ export default function JobDetailsScreen({ route, navigation }: any) {
           title: `Shipment #${data.id.substring(0, 8)}`,
           status: data.status,
           client_id: data.client_id,
-          client_name: data.profiles ? `${data.profiles.first_name} ${data.profiles.last_name}` : 'Client',
+          client_name: data.profiles
+            ? `${data.profiles.first_name} ${data.profiles.last_name}`
+            : 'Client',
           client_phone: data.profiles?.phone || 'Not provided',
           pickup_address: data.pickup_address || 'Address not specified',
           pickup_city: data.pickup_city || '',
@@ -104,12 +116,15 @@ export default function JobDetailsScreen({ route, navigation }: any) {
       setStatusUpdating(true);
 
       // For status transitions that require location
-      let locationData = {};
+      let locationData: Record<string, number | string> = {};
       if (['in_transit', 'delivered'].includes(newStatus)) {
         try {
           const { status } = await Location.requestForegroundPermissionsAsync();
           if (status !== 'granted') {
-            Alert.alert('Permission Denied', 'Location permission is required to update job status.');
+            Alert.alert(
+              'Permission Denied',
+              'Location permission is required to update job status.'
+            );
             setStatusUpdating(false);
             return;
           }
@@ -122,7 +137,10 @@ export default function JobDetailsScreen({ route, navigation }: any) {
           };
         } catch (err) {
           console.error('Error getting location:', err);
-          Alert.alert('Location Error', 'Unable to get your current location. Please try again.');
+          Alert.alert(
+            'Location Error',
+            'Unable to get your current location. Please try again.'
+          );
           setStatusUpdating(false);
           return;
         }
@@ -153,8 +171,11 @@ export default function JobDetailsScreen({ route, navigation }: any) {
         },
       ]);
 
-      Alert.alert('Success', `Job status updated to ${getStatusLabel(newStatus)}`);
-      
+      Alert.alert(
+        'Success',
+        `Job status updated to ${getStatusLabel(newStatus)}`
+      );
+
       // Refresh job details
       fetchJobDetails();
     } catch (error) {
@@ -183,12 +204,15 @@ export default function JobDetailsScreen({ route, navigation }: any) {
   };
 
   const getStatusColor = (status: string) => {
-    return Colors.status[status as keyof typeof Colors.status] || Colors.text.secondary;
+    return (
+      Colors.status[status as keyof typeof Colors.status] ||
+      Colors.text.secondary
+    );
   };
 
   const getNextActionText = () => {
     if (!job) return '';
-    
+
     switch (job.status) {
       case 'accepted':
         return 'Start Transit';
@@ -201,10 +225,10 @@ export default function JobDetailsScreen({ route, navigation }: any) {
 
   const handleNextAction = () => {
     if (!job) return;
-    
+
     let nextStatus = '';
     let confirmMessage = '';
-    
+
     switch (job.status) {
       case 'accepted':
         nextStatus = 'in_transit';
@@ -217,25 +241,26 @@ export default function JobDetailsScreen({ route, navigation }: any) {
       default:
         return;
     }
-    
-    Alert.alert(
-      'Update Status',
-      confirmMessage,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Confirm', onPress: () => updateJobStatus(nextStatus) }
-      ]
-    );
+
+    Alert.alert('Update Status', confirmMessage, [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Confirm', onPress: () => updateJobStatus(nextStatus) },
+    ]);
   };
 
-  const formatFullAddress = (address: string, city: string, state: string, zip: string) => {
+  const formatFullAddress = (
+    address: string,
+    city: string,
+    state: string,
+    zip: string
+  ) => {
     const parts = [address];
-    
+
     if (city || state || zip) {
       const cityStateZip = [city, state, zip].filter(Boolean).join(', ');
       if (cityStateZip) parts.push(cityStateZip);
     }
-    
+
     return parts.join('\n');
   };
 
@@ -258,9 +283,11 @@ export default function JobDetailsScreen({ route, navigation }: any) {
       <View style={styles.errorContainer}>
         <MaterialIcons name="error-outline" size={64} color={Colors.error} />
         <Text style={styles.errorTitle}>Job Not Found</Text>
-        <Text style={styles.errorMessage}>The requested job could not be found.</Text>
-        <TouchableOpacity 
-          style={styles.errorButton} 
+        <Text style={styles.errorMessage}>
+          The requested job could not be found.
+        </Text>
+        <TouchableOpacity
+          style={styles.errorButton}
           onPress={() => navigation.goBack()}
         >
           <Text style={styles.errorButtonText}>Go Back</Text>
@@ -272,21 +299,32 @@ export default function JobDetailsScreen({ route, navigation }: any) {
   return (
     <View style={styles.container}>
       <StatusBar style="light" />
-      
+
       {/* Header */}
       <View style={styles.header}>
         <View style={styles.headerTop}>
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.backButton}
             onPress={() => navigation.goBack()}
           >
-            <MaterialIcons name="arrow-back" size={24} color={Colors.text.inverse} />
+            <MaterialIcons
+              name="arrow-back"
+              size={24}
+              color={Colors.text.inverse}
+            />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>{job.title}</Text>
         </View>
-        
-        <View style={[styles.statusBadge, { backgroundColor: getStatusColor(job.status) + '20' }]}>
-          <Text style={[styles.statusText, { color: getStatusColor(job.status) }]}>
+
+        <View
+          style={[
+            styles.statusBadge,
+            { backgroundColor: getStatusColor(job.status) + '20' },
+          ]}
+        >
+          <Text
+            style={[styles.statusText, { color: getStatusColor(job.status) }]}
+          >
             {getStatusLabel(job.status)}
           </Text>
         </View>
@@ -296,9 +334,11 @@ export default function JobDetailsScreen({ route, navigation }: any) {
         {/* Earning Summary */}
         <View style={styles.earningSummary}>
           <Text style={styles.earningSummaryLabel}>Earnings</Text>
-          <Text style={styles.earningSummaryValue}>${job.price.toFixed(2)}</Text>
+          <Text style={styles.earningSummaryValue}>
+            ${job.price.toFixed(2)}
+          </Text>
         </View>
-        
+
         {/* Client Information */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Client Information</Text>
@@ -315,47 +355,72 @@ export default function JobDetailsScreen({ route, navigation }: any) {
             </View>
           </View>
         </View>
-        
+
         {/* Pickup Information */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Pickup Information</Text>
           <View style={styles.infoCard}>
             <View style={styles.locationHeader}>
-              <MaterialIcons name="location-on" size={20} color={Colors.primary} />
+              <MaterialIcons
+                name="location-on"
+                size={20}
+                color={Colors.primary}
+              />
               <Text style={styles.locationHeaderText}>Pickup Location</Text>
             </View>
             <Text style={styles.addressText}>
-              {formatFullAddress(job.pickup_address, job.pickup_city, job.pickup_state, job.pickup_zip)}
+              {formatFullAddress(
+                job.pickup_address,
+                job.pickup_city,
+                job.pickup_state,
+                job.pickup_zip
+              )}
             </Text>
-            <TouchableOpacity 
+            <TouchableOpacity
               style={styles.navigationButton}
               onPress={() => openNavigationApp(job.pickup_address)}
             >
-              <MaterialIcons name="directions" size={16} color={Colors.primary} />
+              <MaterialIcons
+                name="directions"
+                size={16}
+                color={Colors.primary}
+              />
               <Text style={styles.navigationButtonText}>Get Directions</Text>
             </TouchableOpacity>
-            
-            <TouchableOpacity 
-              style={[styles.navigationButton, { backgroundColor: Colors.secondary + '20' }]}
+
+            <TouchableOpacity
+              style={[
+                styles.navigationButton,
+                { backgroundColor: Colors.secondary + '20' },
+              ]}
               onPress={() => navigation.navigate('RouteMap', { jobId: job.id })}
             >
               <MaterialIcons name="map" size={16} color={Colors.secondary} />
-              <Text style={[styles.navigationButtonText, { color: Colors.secondary }]}>View Route Map</Text>
+              <Text
+                style={[
+                  styles.navigationButtonText,
+                  { color: Colors.secondary },
+                ]}
+              >
+                View Route Map
+              </Text>
             </TouchableOpacity>
-            
+
             <View style={styles.infoRow}>
               <MaterialIcons name="event" size={20} color={Colors.primary} />
               <Text style={styles.infoLabel}>Date:</Text>
-              <Text style={styles.infoValue}>{new Date(job.pickup_date).toLocaleDateString()}</Text>
+              <Text style={styles.infoValue}>
+                {new Date(job.pickup_date).toLocaleDateString()}
+              </Text>
             </View>
-            
+
             <View style={styles.notesContainer}>
               <Text style={styles.notesLabel}>Notes:</Text>
               <Text style={styles.notesText}>{job.pickup_notes}</Text>
             </View>
           </View>
         </View>
-        
+
         {/* Delivery Information */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Delivery Information</Text>
@@ -365,87 +430,140 @@ export default function JobDetailsScreen({ route, navigation }: any) {
               <Text style={styles.locationHeaderText}>Delivery Location</Text>
             </View>
             <Text style={styles.addressText}>
-              {formatFullAddress(job.delivery_address, job.delivery_city, job.delivery_state, job.delivery_zip)}
+              {formatFullAddress(
+                job.delivery_address,
+                job.delivery_city,
+                job.delivery_state,
+                job.delivery_zip
+              )}
             </Text>
-            <TouchableOpacity 
+            <TouchableOpacity
               style={styles.navigationButton}
               onPress={() => openNavigationApp(job.delivery_address)}
             >
-              <MaterialIcons name="directions" size={16} color={Colors.secondary} />
+              <MaterialIcons
+                name="directions"
+                size={16}
+                color={Colors.secondary}
+              />
               <Text style={styles.navigationButtonText}>Get Directions</Text>
             </TouchableOpacity>
-            
-            <TouchableOpacity 
-              style={[styles.navigationButton, { backgroundColor: Colors.secondary + '20' }]}
+
+            <TouchableOpacity
+              style={[
+                styles.navigationButton,
+                { backgroundColor: Colors.secondary + '20' },
+              ]}
               onPress={() => navigation.navigate('RouteMap', { jobId: job.id })}
             >
               <MaterialIcons name="map" size={16} color={Colors.secondary} />
-              <Text style={[styles.navigationButtonText, { color: Colors.secondary }]}>View Route Map</Text>
+              <Text
+                style={[
+                  styles.navigationButtonText,
+                  { color: Colors.secondary },
+                ]}
+              >
+                View Route Map
+              </Text>
             </TouchableOpacity>
-            
+
             {job.delivery_date && (
               <View style={styles.infoRow}>
-                <MaterialIcons name="event" size={20} color={Colors.secondary} />
+                <MaterialIcons
+                  name="event"
+                  size={20}
+                  color={Colors.secondary}
+                />
                 <Text style={styles.infoLabel}>Expected Date:</Text>
-                <Text style={styles.infoValue}>{new Date(job.delivery_date).toLocaleDateString()}</Text>
+                <Text style={styles.infoValue}>
+                  {new Date(job.delivery_date).toLocaleDateString()}
+                </Text>
               </View>
             )}
-            
+
             <View style={styles.notesContainer}>
               <Text style={styles.notesLabel}>Notes:</Text>
               <Text style={styles.notesText}>{job.delivery_notes}</Text>
             </View>
           </View>
         </View>
-        
+
         {/* Shipment Details */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Shipment Details</Text>
           <View style={styles.infoCard}>
             <View style={styles.detailsGrid}>
               <View style={styles.detailItem}>
-                <MaterialIcons name="straighten" size={20} color={Colors.text.secondary} />
+                <MaterialIcons
+                  name="straighten"
+                  size={20}
+                  color={Colors.text.secondary}
+                />
                 <Text style={styles.detailLabel}>Distance</Text>
                 <Text style={styles.detailValue}>{job.distance} miles</Text>
               </View>
               <View style={styles.detailItem}>
-                <MaterialIcons name="local-shipping" size={20} color={Colors.text.secondary} />
+                <MaterialIcons
+                  name="local-shipping"
+                  size={20}
+                  color={Colors.text.secondary}
+                />
                 <Text style={styles.detailLabel}>Vehicle Type</Text>
                 <Text style={styles.detailValue}>{job.vehicle_type}</Text>
               </View>
               <View style={styles.detailItem}>
-                <MaterialIcons name="category" size={20} color={Colors.text.secondary} />
+                <MaterialIcons
+                  name="category"
+                  size={20}
+                  color={Colors.text.secondary}
+                />
                 <Text style={styles.detailLabel}>Cargo Type</Text>
                 <Text style={styles.detailValue}>{job.cargo_type}</Text>
               </View>
               <View style={styles.detailItem}>
-                <MaterialIcons name="fitness-center" size={20} color={Colors.text.secondary} />
+                <MaterialIcons
+                  name="fitness-center"
+                  size={20}
+                  color={Colors.text.secondary}
+                />
                 <Text style={styles.detailLabel}>Weight</Text>
                 <Text style={styles.detailValue}>{job.weight} lbs</Text>
               </View>
               <View style={styles.detailItem}>
-                <MaterialIcons name="aspect-ratio" size={20} color={Colors.text.secondary} />
+                <MaterialIcons
+                  name="aspect-ratio"
+                  size={20}
+                  color={Colors.text.secondary}
+                />
                 <Text style={styles.detailLabel}>Dimensions</Text>
                 <Text style={styles.detailValue}>{job.dimensions}</Text>
               </View>
               <View style={styles.detailItem}>
-                <MaterialIcons name="today" size={20} color={Colors.text.secondary} />
+                <MaterialIcons
+                  name="today"
+                  size={20}
+                  color={Colors.text.secondary}
+                />
                 <Text style={styles.detailLabel}>Created On</Text>
-                <Text style={styles.detailValue}>{new Date(job.created_at).toLocaleDateString()}</Text>
+                <Text style={styles.detailValue}>
+                  {new Date(job.created_at).toLocaleDateString()}
+                </Text>
               </View>
             </View>
           </View>
         </View>
-        
+
         {/* Message Client Button */}
-        <TouchableOpacity 
+        <TouchableOpacity
           style={styles.messageButton}
-          onPress={() => navigation.navigate('Messages', { contactId: job.client_id })}
+          onPress={() =>
+            navigation.navigate('Messages', { contactId: job.client_id })
+          }
         >
           <MaterialIcons name="chat" size={20} color={Colors.text.inverse} />
           <Text style={styles.messageButtonText}>Message Client</Text>
         </TouchableOpacity>
-        
+
         {/* Spacer for bottom actions */}
         <View style={{ height: 100 }} />
       </ScrollView>
@@ -453,7 +571,7 @@ export default function JobDetailsScreen({ route, navigation }: any) {
       {/* Next Action Button - Only show for certain statuses */}
       {['accepted', 'picked_up', 'in_transit'].includes(job.status) && (
         <View style={styles.actionContainer}>
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.actionButton}
             onPress={handleNextAction}
             disabled={statusUpdating}
@@ -462,8 +580,14 @@ export default function JobDetailsScreen({ route, navigation }: any) {
               <ActivityIndicator color={Colors.text.inverse} />
             ) : (
               <>
-                <Text style={styles.actionButtonText}>{getNextActionText()}</Text>
-                <MaterialIcons name="arrow-forward" size={20} color={Colors.text.inverse} />
+                <Text style={styles.actionButtonText}>
+                  {getNextActionText()}
+                </Text>
+                <MaterialIcons
+                  name="arrow-forward"
+                  size={20}
+                  color={Colors.text.inverse}
+                />
               </>
             )}
           </TouchableOpacity>

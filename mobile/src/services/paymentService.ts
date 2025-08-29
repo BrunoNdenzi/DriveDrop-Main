@@ -38,7 +38,7 @@ export interface StripeConfig {
 
 class PaymentService {
   private readonly apiUrl: string;
-  
+
   constructor() {
     this.apiUrl = `${getApiUrl()}/api/v1/payments`;
     console.log('Payment service initialized with API URL:', this.apiUrl);
@@ -57,13 +57,13 @@ class PaymentService {
           'Content-Type': 'application/json',
         },
       });
-      
+
       console.log('API connectivity test result:', {
         status: response.status,
         statusText: response.statusText,
-        ok: response.ok
+        ok: response.ok,
       });
-      
+
       return response.ok;
     } catch (error) {
       console.error('API connectivity test failed:', error);
@@ -90,11 +90,17 @@ class PaymentService {
   /**
    * Create a payment intent for a shipment
    */
-  async createPaymentIntent(shipmentId: string, amount: number, description?: string): Promise<PaymentIntent> {
+  async createPaymentIntent(
+    shipmentId: string,
+    amount: number,
+    description?: string
+  ): Promise<PaymentIntent> {
     try {
       // Get the user session
-      const { data: { session } } = await supabase.auth.getSession();
-      
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
       if (!session) {
         throw new Error('User not authenticated');
       }
@@ -103,12 +109,12 @@ class PaymentService {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session.access_token}`
+          Authorization: `Bearer ${session.access_token}`,
         },
         body: JSON.stringify({
           amount,
           shipmentId,
-          description
+          description,
         }),
       });
 
@@ -116,22 +122,26 @@ class PaymentService {
       console.log('Payment intent request payload:', {
         amount,
         shipmentId,
-        description
+        description,
       });
 
       if (!response.ok) {
         const errorData = await response.json();
         console.error('Payment intent API error response:', errorData);
-        throw new Error(errorData.message || errorData.error || 'Failed to create payment intent');
+        throw new Error(
+          errorData.message ||
+            errorData.error ||
+            'Failed to create payment intent'
+        );
       }
 
       // Parse response
       const responseData = await response.json();
       console.log('Payment intent API response:', responseData);
-      
+
       // Extract data from the response - handle both nested data formats
       let paymentIntent: PaymentIntent;
-      
+
       if (responseData.data && responseData.data.data) {
         // Handle double-nested data structure
         paymentIntent = responseData.data.data;
@@ -145,19 +155,22 @@ class PaymentService {
         paymentIntent = responseData;
         console.log('Extracted payment intent from direct response');
       }
-      
+
       // Log the extracted payment intent ID
       console.log('Extracted payment intent ID:', paymentIntent.id);
-      
+
       if (!paymentIntent.id) {
-        console.error('Payment intent ID is missing in the response', responseData);
+        console.error(
+          'Payment intent ID is missing in the response',
+          responseData
+        );
         throw new Error('Invalid payment intent response: Missing ID');
       }
 
       return paymentIntent;
     } catch (error) {
       console.error('Error creating payment intent (full details):', error);
-      
+
       // Log more specific details depending on error type
       if (error instanceof Error) {
         console.error('Error message:', error.message);
@@ -168,18 +181,23 @@ class PaymentService {
       }
 
       // Check if there's a network issue
-      if (error instanceof TypeError && error.message.includes('Network request failed')) {
+      if (
+        error instanceof TypeError &&
+        error.message.includes('Network request failed')
+      ) {
         Alert.alert(
-          'Network Error', 
+          'Network Error',
           'Could not connect to the payment server. Please check your internet connection and try again.'
         );
         throw new Error('Network connection failed');
       }
-      
+
       // Display more specific error message to user
       Alert.alert(
-        'Payment Error', 
-        error instanceof Error ? error.message : 'Failed to initialize payment. Please try again later.'
+        'Payment Error',
+        error instanceof Error
+          ? error.message
+          : 'Failed to initialize payment. Please try again later.'
       );
       throw error;
     }
@@ -189,13 +207,15 @@ class PaymentService {
    * Confirm a payment intent with payment method
    */
   async confirmPaymentIntent(
-    paymentIntentId: string, 
+    paymentIntentId: string,
     paymentMethod: PaymentMethodRequest
   ): Promise<{ success: boolean; error?: string }> {
     try {
       // Get the user session
-      const { data: { session } } = await supabase.auth.getSession();
-      
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
       if (!session) {
         throw new Error('User not authenticated');
       }
@@ -212,38 +232,43 @@ class PaymentService {
         card: {
           ...paymentMethod.card,
           number: '****' + paymentMethod.card.number.slice(-4),
-          cvc: '***'
-        }
+          cvc: '***',
+        },
       });
 
       // Use a test payment method ID for now
       // In production, you would need to create a payment method first using Stripe API
-      const testPaymentMethodId = "pm_card_visa"; 
+      const testPaymentMethodId = 'pm_card_visa';
 
-      const response = await fetch(`${this.apiUrl}/confirm/${paymentIntentId}`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session.access_token}`
-        },
-        body: JSON.stringify({
-          paymentMethodId: testPaymentMethodId
-        }),
-      });
+      const response = await fetch(
+        `${this.apiUrl}/confirm/${paymentIntentId}`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${session.access_token}`,
+          },
+          body: JSON.stringify({
+            paymentMethodId: testPaymentMethodId,
+          }),
+        }
+      );
 
       if (!response.ok) {
         const errorData = await response.json();
         console.error('Payment confirmation API error response:', errorData);
-        throw new Error(JSON.stringify(errorData) || 'Failed to confirm payment');
+        throw new Error(
+          JSON.stringify(errorData) || 'Failed to confirm payment'
+        );
       }
 
       // Parse response
       const responseData = await response.json();
       console.log('Payment confirmation API response:', responseData);
-      
+
       // Extract data from the response - handle both nested data formats
       let paymentConfirmation;
-      
+
       if (responseData.data && responseData.data.data) {
         // Handle double-nested data structure
         paymentConfirmation = responseData.data.data;
@@ -257,15 +282,18 @@ class PaymentService {
         paymentConfirmation = responseData;
         console.log('Extracted confirmation from direct response');
       }
-      
-      console.log('Payment confirmed successfully with status:', paymentConfirmation.status);
+
+      console.log(
+        'Payment confirmed successfully with status:',
+        paymentConfirmation.status
+      );
 
       return { success: true };
     } catch (error) {
       console.error('Error confirming payment:', error);
-      return { 
-        success: false, 
-        error: error instanceof Error ? error.message : 'Unknown payment error'
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown payment error',
       };
     }
   }

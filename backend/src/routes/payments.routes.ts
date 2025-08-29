@@ -14,11 +14,7 @@ router.post(
   paymentsController.createPaymentIntent
 );
 
-router.get(
-  '/intent/:id',
-  authenticate,
-  paymentsController.getPaymentIntent
-);
+router.get('/intent/:id', authenticate, paymentsController.getPaymentIntent);
 
 router.post(
   '/confirm/:id',
@@ -27,18 +23,10 @@ router.post(
 );
 
 // Customer routes
-router.post(
-  '/customer',
-  authenticate,
-  paymentsController.createCustomer
-);
+router.post('/customer', authenticate, paymentsController.createCustomer);
 
 // Payment method routes
-router.post(
-  '/methods',
-  authenticate,
-  paymentsController.addPaymentMethod
-);
+router.post('/methods', authenticate, paymentsController.addPaymentMethod);
 
 router.get(
   '/methods/:customerId',
@@ -53,11 +41,7 @@ router.delete(
 );
 
 // Refund routes (admin only)
-router.post(
-  '/refund',
-  authenticate,
-  paymentsController.createRefund
-);
+router.post('/refund', authenticate, paymentsController.createRefund);
 
 // New split payment routes
 router.get(
@@ -66,11 +50,7 @@ router.get(
   paymentsController.checkRefundEligibility
 );
 
-router.post(
-  '/:id/refund',
-  authenticate,
-  paymentsController.processRefund
-);
+router.post('/:id/refund', authenticate, paymentsController.processRefund);
 
 router.post(
   '/:id/final-payment',
@@ -113,17 +93,10 @@ router.get(
 );
 
 // Analytics (admin only)
-router.get(
-  '/analytics',
-  authenticate,
-  paymentsController.getPaymentAnalytics
-);
+router.get('/analytics', authenticate, paymentsController.getPaymentAnalytics);
 
 // Payment config - public endpoint for mobile app initialization
-router.get(
-  '/config',
-  paymentsController.getConfig
-);
+router.get('/config', paymentsController.getConfig);
 
 // Diagnostic routes
 router.get(
@@ -132,10 +105,6 @@ router.get(
   paymentsController.checkStripeStatus
 );
 
-router.get(
-  '/status',
-  authenticate,
-  paymentsController.getPaymentStatus
-);
+router.get('/status', authenticate, paymentsController.getPaymentStatus);
 
 export default router;

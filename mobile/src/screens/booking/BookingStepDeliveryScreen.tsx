@@ -1,10 +1,5 @@
 import React, { useEffect } from 'react';
-import {
-  StyleSheet,
-  View,
-  Text,
-  ScrollView,
-} from 'react-native';
+import { StyleSheet, View, Text, ScrollView } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { StatusBar } from 'expo-status-bar';
 
@@ -15,9 +10,14 @@ import { Input } from '../../components/ui/Input';
 import { RootStackParamList } from '../../navigation/types';
 import { useBooking } from '../../context/BookingContext';
 
-type BookingStepDeliveryProps = NativeStackScreenProps<RootStackParamList, 'BookingStepDelivery'>;
+type BookingStepDeliveryProps = NativeStackScreenProps<
+  RootStackParamList,
+  'BookingStepDelivery'
+>;
 
-export default function BookingStepDeliveryScreen({ navigation }: BookingStepDeliveryProps) {
+export default function BookingStepDeliveryScreen({
+  navigation,
+}: BookingStepDeliveryProps) {
   const { state, updateFormData, setStepValidity, goToNextStep } = useBooking();
   const { deliveryDetails } = state.formData;
 
@@ -35,9 +35,9 @@ export default function BookingStepDeliveryScreen({ navigation }: BookingStepDel
   }, [deliveryDetails, setStepValidity]);
 
   const handleInputChange = (field: string, value: string) => {
-    const updatedData = { 
+    const updatedData = {
       ...deliveryDetails,
-      [field]: value 
+      [field]: value,
     };
     updateFormData('delivery', updatedData);
   };
@@ -56,7 +56,7 @@ export default function BookingStepDeliveryScreen({ navigation }: BookingStepDel
   return (
     <View style={styles.container}>
       <StatusBar style="dark" />
-      
+
       {/* Header */}
       <View style={styles.header}>
         <Text style={styles.title}>Delivery Details</Text>
@@ -66,8 +66,8 @@ export default function BookingStepDeliveryScreen({ navigation }: BookingStepDel
         </View>
       </View>
 
-      <ScrollView 
-        style={styles.content} 
+      <ScrollView
+        style={styles.content}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
         contentContainerStyle={{ flexGrow: 1 }}
@@ -83,7 +83,7 @@ export default function BookingStepDeliveryScreen({ navigation }: BookingStepDel
               label="Delivery Address"
               placeholder="Enter full delivery address"
               value={deliveryDetails.address || ''}
-              onChangeText={(value) => handleInputChange('address', value)}
+              onChangeText={value => handleInputChange('address', value)}
               leftIcon="location-on"
               multiline
               numberOfLines={2}
@@ -94,7 +94,7 @@ export default function BookingStepDeliveryScreen({ navigation }: BookingStepDel
               label="Delivery Date"
               placeholder="Select delivery date (if specific)"
               value={deliveryDetails.date || ''}
-              onChangeText={(value) => handleInputChange('date', value)}
+              onChangeText={value => handleInputChange('date', value)}
               leftIcon="calendar-today"
               helper="Leave blank for ASAP delivery"
             />
@@ -103,7 +103,7 @@ export default function BookingStepDeliveryScreen({ navigation }: BookingStepDel
               label="Delivery Time"
               placeholder="Preferred time window"
               value={deliveryDetails.time || ''}
-              onChangeText={(value) => handleInputChange('time', value)}
+              onChangeText={value => handleInputChange('time', value)}
               leftIcon="access-time"
               helper="e.g., Morning (8AM-12PM), Afternoon (12PM-5PM)"
             />
@@ -112,7 +112,7 @@ export default function BookingStepDeliveryScreen({ navigation }: BookingStepDel
               label="Contact Person"
               placeholder="Name of person at delivery location"
               value={deliveryDetails.contactPerson || ''}
-              onChangeText={(value) => handleInputChange('contactPerson', value)}
+              onChangeText={value => handleInputChange('contactPerson', value)}
               leftIcon="person"
               required
             />
@@ -121,7 +121,7 @@ export default function BookingStepDeliveryScreen({ navigation }: BookingStepDel
               label="Contact Phone"
               placeholder="Phone number for delivery coordination"
               value={deliveryDetails.contactPhone || ''}
-              onChangeText={(value) => handleInputChange('contactPhone', value)}
+              onChangeText={value => handleInputChange('contactPhone', value)}
               leftIcon="phone"
               keyboardType="phone-pad"
               required
@@ -131,7 +131,9 @@ export default function BookingStepDeliveryScreen({ navigation }: BookingStepDel
               label="Special Instructions"
               placeholder="Any special delivery instructions or requirements"
               value={deliveryDetails.specialInstructions || ''}
-              onChangeText={(value) => handleInputChange('specialInstructions', value)}
+              onChangeText={value =>
+                handleInputChange('specialInstructions', value)
+              }
               leftIcon="note"
               multiline
               numberOfLines={3}

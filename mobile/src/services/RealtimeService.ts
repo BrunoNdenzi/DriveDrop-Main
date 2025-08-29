@@ -54,7 +54,8 @@ export class RealtimeService {
     }
 
     // Create a new channel for this shipment
-    const channel = supabase.channel(`shipment:${shipmentId}`)
+    const channel = supabase
+      .channel(`shipment:${shipmentId}`)
       // Listen for shipment updates
       .on(
         'postgres_changes',
@@ -64,10 +65,10 @@ export class RealtimeService {
           table: 'shipments',
           filter: `id=eq.${shipmentId}`,
         },
-        (payload) => {
+        payload => {
           console.log('Shipment updated:', payload);
           onShipmentUpdate(payload.new as ShipmentData);
-          
+
           // Check status changes to show notifications
           if (payload.old.status !== payload.new.status) {
             notificationService.sendLocalNotification(
@@ -91,14 +92,15 @@ export class RealtimeService {
           table: 'messages',
           filter: `shipment_id=eq.${shipmentId}`,
         },
-        (payload) => {
+        payload => {
           console.log('New message:', payload);
           onNewMessage(payload.new as MessageData);
-          
+
           // Show notification for new message
           notificationService.sendLocalNotification(
             'New Message',
-            payload.new.content.substring(0, 100) + (payload.new.content.length > 100 ? '...' : ''),
+            payload.new.content.substring(0, 100) +
+              (payload.new.content.length > 100 ? '...' : ''),
             {
               type: 'new_message',
               shipmentId: shipmentId,
@@ -116,14 +118,15 @@ export class RealtimeService {
           table: 'tracking_events',
           filter: `shipment_id=eq.${shipmentId}`,
         },
-        (payload) => {
+        payload => {
           console.log('New tracking event:', payload);
           onTrackingEvent(payload.new as TrackingEventData);
-          
+
           // Show notification for tracking events
           notificationService.sendLocalNotification(
             'Shipment Update',
-            `Tracking update: ${payload.new.event_type}` + (payload.new.notes ? ` - ${payload.new.notes}` : ''),
+            `Tracking update: ${payload.new.event_type}` +
+              (payload.new.notes ? ` - ${payload.new.notes}` : ''),
             {
               type: 'tracking_event',
               shipmentId: shipmentId,
@@ -133,29 +136,29 @@ export class RealtimeService {
           );
         }
       );
-      
-      // If driver location update callback is provided, listen for driver location updates
-      if (onDriverLocationUpdate) {
-        channel.on(
-          'postgres_changes',
-          {
-            event: 'INSERT',
-            schema: 'public',
-            table: 'driver_locations',
-            filter: `shipment_id=eq.${shipmentId}`,
-          },
-          (payload) => {
-            console.log('Driver location updated:', payload);
-            onDriverLocationUpdate(payload.new as DriverLocation);
-          }
-        );
-      }
 
-      channel.subscribe();
+    // If driver location update callback is provided, listen for driver location updates
+    if (onDriverLocationUpdate) {
+      channel.on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'driver_locations',
+          filter: `shipment_id=eq.${shipmentId}`,
+        },
+        payload => {
+          console.log('Driver location updated:', payload);
+          onDriverLocationUpdate(payload.new as DriverLocation);
+        }
+      );
+    }
+
+    channel.subscribe();
 
     // Store the channel for later reference
     this.shipmentChannels.set(shipmentId, channel);
-    
+
     return channel;
   }
 
@@ -181,7 +184,8 @@ export class RealtimeService {
       supabase.removeChannel(this.profileChannel);
     }
 
-    this.profileChannel = supabase.channel(`profile:${userId}`)
+    this.profileChannel = supabase
+      .channel(`profile:${userId}`)
       .on(
         'postgres_changes',
         {
@@ -190,7 +194,7 @@ export class RealtimeService {
           table: 'profiles',
           filter: `id=eq.${userId}`,
         },
-        (payload) => {
+        payload => {
           console.log('Profile updated:', payload);
           onProfileUpdate(payload.new);
         }
@@ -205,7 +209,7 @@ export class RealtimeService {
    */
   unsubscribeAll(): void {
     // Remove all shipment channels
-    this.shipmentChannels.forEach((channel) => {
+    this.shipmentChannels.forEach(channel => {
       supabase.removeChannel(channel);
     });
     this.shipmentChannels.clear();
@@ -215,17 +219,17 @@ export class RealtimeService {
       supabase.removeChannel(this.profileChannel);
       this.profileChannel = null;
     }
-    
+
     // Stop location tracking
     this.stopLocationTracking();
-    
+
     // Remove location channel
     if (this.locationChannel) {
       supabase.removeChannel(this.locationChannel);
       this.locationChannel = null;
     }
   }
-  
+
   /**
    * Start tracking driver location for a specific shipment
    * @param shipmentId The ID of the shipment being delivered
@@ -233,17 +237,17 @@ export class RealtimeService {
    * @param onPermissionDenied Callback when location permissions are denied
    */
   async startLocationTracking(
-    shipmentId: string, 
+    shipmentId: string,
     driverId: string,
     onPermissionDenied?: () => void
   ): Promise<boolean> {
     try {
       // Save the current shipment ID
       this.currentShipmentId = shipmentId;
-      
+
       // Request location permissions
       const { status } = await Location.requestForegroundPermissionsAsync();
-      
+
       if (status !== 'granted') {
         console.log('Location permission denied');
         if (onPermissionDenied) {
@@ -251,18 +255,18 @@ export class RealtimeService {
         }
         return false;
       }
-      
+
       // Start watching position
       this.locationUpdateInterval = setInterval(async () => {
         try {
           // Skip if no current shipment
           if (!this.currentShipmentId) return;
-          
+
           // Get current location
           const location = await Location.getCurrentPositionAsync({
-            accuracy: Location.Accuracy.High
+            accuracy: Location.Accuracy.High,
           });
-          
+
           // Send to Supabase
           await supabase.from('driver_locations').insert({
             shipment_id: this.currentShipmentId,
@@ -272,20 +276,20 @@ export class RealtimeService {
             heading: location.coords.heading || null,
             speed: location.coords.speed || null,
             accuracy: location.coords.accuracy || null,
-            location_timestamp: new Date().toISOString()
+            location_timestamp: new Date().toISOString(),
           });
         } catch (error) {
           console.error('Error updating location:', error);
         }
       }, 30000); // Update every 30 seconds
-      
+
       return true;
     } catch (error) {
       console.error('Error setting up location tracking:', error);
       return false;
     }
   }
-  
+
   /**
    * Stop tracking driver location
    */
@@ -296,7 +300,7 @@ export class RealtimeService {
     }
     this.currentShipmentId = null;
   }
-  
+
   /**
    * Subscribe to driver location updates for a specific shipment
    * This is used by clients to track the driver's location
@@ -308,8 +312,9 @@ export class RealtimeService {
     if (this.locationChannel) {
       supabase.removeChannel(this.locationChannel);
     }
-    
-    this.locationChannel = supabase.channel(`driver-location:${shipmentId}`)
+
+    this.locationChannel = supabase
+      .channel(`driver-location:${shipmentId}`)
       .on(
         'postgres_changes',
         {
@@ -318,16 +323,16 @@ export class RealtimeService {
           table: 'driver_locations',
           filter: `shipment_id=eq.${shipmentId}`,
         },
-        (payload) => {
+        payload => {
           console.log('Driver location update:', payload);
           onLocationUpdate(payload.new as DriverLocation);
         }
       )
       .subscribe();
-      
+
     return this.locationChannel;
   }
-  
+
   /**
    * Unsubscribe from driver location updates
    */

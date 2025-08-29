@@ -1,5 +1,12 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, Alert, TouchableOpacity, ActivityIndicator } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  Alert,
+  TouchableOpacity,
+  ActivityIndicator,
+} from 'react-native';
 
 // Simple diagnostic screen without external dependencies
 export default function NetworkDiagnosticScreen() {
@@ -19,19 +26,22 @@ export default function NetworkDiagnosticScreen() {
       setErrorDetails('API URL is not defined in environment variables');
       return;
     }
-    
+
     try {
       setTesting(true);
       setErrorDetails(null);
-      
+
       // Test API connection with health endpoint
-      const response = await fetch(`${process.env.EXPO_PUBLIC_API_URL}/api/health`, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
-      
+      const response = await fetch(
+        `${process.env.EXPO_PUBLIC_API_URL}/api/health`,
+        {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        }
+      );
+
       if (response.ok) {
         Alert.alert('Success', 'API connection successful!');
       } else {
@@ -53,25 +63,31 @@ export default function NetworkDiagnosticScreen() {
       Alert.alert('Error', 'API URL is not defined in environment variables');
       return;
     }
-    
+
     try {
       setTesting(true);
       setErrorDetails(null);
-      
+
       console.log('Testing driver applications API...');
-      console.log('URL:', `${process.env.EXPO_PUBLIC_API_URL}/api/v1/drivers/applications`);
-      
+      console.log(
+        'URL:',
+        `${process.env.EXPO_PUBLIC_API_URL}/api/v1/drivers/applications`
+      );
+
       // Test the specific endpoint
-      const response = await fetch(`${process.env.EXPO_PUBLIC_API_URL}/api/v1/drivers/applications`, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
-      
+      const response = await fetch(
+        `${process.env.EXPO_PUBLIC_API_URL}/api/v1/drivers/applications`,
+        {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        }
+      );
+
       const contentType = response.headers.get('content-type');
       let result;
-      
+
       try {
         if (contentType && contentType.includes('application/json')) {
           result = await response.json();
@@ -82,10 +98,10 @@ export default function NetworkDiagnosticScreen() {
       } catch (e) {
         result = { parseError: (e as Error).message };
       }
-      
+
       Alert.alert(
         response.ok ? 'Success' : 'Error',
-        `Status: ${response.status} ${response.statusText}\n\nResponse: ${JSON.stringify(result, null, 2)}`,
+        `Status: ${response.status} ${response.statusText}\n\nResponse: ${JSON.stringify(result, null, 2)}`
       );
     } catch (error: any) {
       Alert.alert('Network Error', error.message);
@@ -98,7 +114,7 @@ export default function NetworkDiagnosticScreen() {
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Network Diagnostic Tool</Text>
-      
+
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Environment</Text>
         <View style={styles.infoRow}>
@@ -110,11 +126,11 @@ export default function NetworkDiagnosticScreen() {
           <Text style={styles.value}>{supabaseUrl}</Text>
         </View>
       </View>
-      
+
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Connection Tests</Text>
-        
-        <TouchableOpacity 
+
+        <TouchableOpacity
           style={[styles.button, testing ? styles.buttonDisabled : null]}
           onPress={testApiConnection}
           disabled={testing}
@@ -125,8 +141,8 @@ export default function NetworkDiagnosticScreen() {
             <Text style={styles.buttonText}>Test API Connection</Text>
           )}
         </TouchableOpacity>
-        
-        <TouchableOpacity 
+
+        <TouchableOpacity
           style={[styles.button, testing ? styles.buttonDisabled : null]}
           onPress={testDriverApplicationsApi}
           disabled={testing}
@@ -138,7 +154,7 @@ export default function NetworkDiagnosticScreen() {
           )}
         </TouchableOpacity>
       </View>
-      
+
       {errorDetails && (
         <View style={styles.errorContainer}>
           <Text style={styles.errorTitle}>Error Details:</Text>

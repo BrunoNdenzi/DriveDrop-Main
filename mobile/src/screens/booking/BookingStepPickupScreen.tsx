@@ -1,10 +1,5 @@
 import React, { useEffect } from 'react';
-import {
-  StyleSheet,
-  View,
-  Text,
-  ScrollView,
-} from 'react-native';
+import { StyleSheet, View, Text, ScrollView } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { StatusBar } from 'expo-status-bar';
 
@@ -15,9 +10,14 @@ import { Input } from '../../components/ui/Input';
 import { RootStackParamList } from '../../navigation/types';
 import { useBooking } from '../../context/BookingContext';
 
-type BookingStepPickupProps = NativeStackScreenProps<RootStackParamList, 'BookingStepPickup'>;
+type BookingStepPickupProps = NativeStackScreenProps<
+  RootStackParamList,
+  'BookingStepPickup'
+>;
 
-export default function BookingStepPickupScreen({ navigation }: BookingStepPickupProps) {
+export default function BookingStepPickupScreen({
+  navigation,
+}: BookingStepPickupProps) {
   const { state, updateFormData, setStepValidity, goToNextStep } = useBooking();
   const { pickupDetails } = state.formData;
 
@@ -33,9 +33,9 @@ export default function BookingStepPickupScreen({ navigation }: BookingStepPicku
   }, [pickupDetails, setStepValidity]);
 
   const handleInputChange = (field: string, value: string) => {
-    const updatedData = { 
+    const updatedData = {
       ...pickupDetails,
-      [field]: value 
+      [field]: value,
     };
     updateFormData('pickup', updatedData);
   };
@@ -54,7 +54,7 @@ export default function BookingStepPickupScreen({ navigation }: BookingStepPicku
   return (
     <View style={styles.container}>
       <StatusBar style="dark" />
-      
+
       {/* Header */}
       <View style={styles.header}>
         <Text style={styles.title}>Pickup Details</Text>
@@ -64,8 +64,8 @@ export default function BookingStepPickupScreen({ navigation }: BookingStepPicku
         </View>
       </View>
 
-      <ScrollView 
-        style={styles.content} 
+      <ScrollView
+        style={styles.content}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
         contentContainerStyle={{ flexGrow: 1 }}
@@ -81,7 +81,7 @@ export default function BookingStepPickupScreen({ navigation }: BookingStepPicku
               label="Pickup Address"
               placeholder="Enter full pickup address"
               value={pickupDetails.address || ''}
-              onChangeText={(value) => handleInputChange('address', value)}
+              onChangeText={value => handleInputChange('address', value)}
               leftIcon="location-on"
               multiline
               numberOfLines={2}
@@ -92,7 +92,7 @@ export default function BookingStepPickupScreen({ navigation }: BookingStepPicku
               label="Pickup Date"
               placeholder="Select pickup date"
               value={pickupDetails.date || ''}
-              onChangeText={(value) => handleInputChange('date', value)}
+              onChangeText={value => handleInputChange('date', value)}
               leftIcon="calendar-today"
               required
               helper="Preferred pickup date (flexible dates may reduce cost)"
@@ -102,7 +102,7 @@ export default function BookingStepPickupScreen({ navigation }: BookingStepPicku
               label="Pickup Time"
               placeholder="Preferred time window"
               value={pickupDetails.time || ''}
-              onChangeText={(value) => handleInputChange('time', value)}
+              onChangeText={value => handleInputChange('time', value)}
               leftIcon="access-time"
               helper="e.g., Morning (8AM-12PM), Afternoon (12PM-5PM)"
             />
@@ -111,7 +111,7 @@ export default function BookingStepPickupScreen({ navigation }: BookingStepPicku
               label="Contact Person"
               placeholder="Name of person at pickup location"
               value={pickupDetails.contactPerson || ''}
-              onChangeText={(value) => handleInputChange('contactPerson', value)}
+              onChangeText={value => handleInputChange('contactPerson', value)}
               leftIcon="person"
               required
             />
@@ -120,7 +120,7 @@ export default function BookingStepPickupScreen({ navigation }: BookingStepPicku
               label="Contact Phone"
               placeholder="Phone number for pickup coordination"
               value={pickupDetails.contactPhone || ''}
-              onChangeText={(value) => handleInputChange('contactPhone', value)}
+              onChangeText={value => handleInputChange('contactPhone', value)}
               leftIcon="phone"
               keyboardType="phone-pad"
               required

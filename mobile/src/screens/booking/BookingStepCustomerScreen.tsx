@@ -18,18 +18,24 @@ import { RootStackParamList } from '../../navigation/types';
 import { useBooking } from '../../context/BookingContext';
 import { useAuth } from '../../context/AuthContext';
 
-type BookingStepCustomerProps = NativeStackScreenProps<RootStackParamList, 'BookingStepCustomer'>;
+type BookingStepCustomerProps = NativeStackScreenProps<
+  RootStackParamList,
+  'BookingStepCustomer'
+>;
 
-export default function BookingStepCustomerScreen({ navigation }: BookingStepCustomerProps) {
+export default function BookingStepCustomerScreen({
+  navigation,
+}: BookingStepCustomerProps) {
   const { state, updateFormData, setStepValidity, goToNextStep } = useBooking();
   const { userProfile } = useAuth();
   const { customerDetails } = state.formData;
 
   // Pre-populate with user profile data
   useEffect(() => {
-    if (userProfile && (!customerDetails.fullName && !customerDetails.email)) {
+    if (userProfile && !customerDetails.fullName && !customerDetails.email) {
       updateFormData('customer', {
-        fullName: `${userProfile.first_name || ''} ${userProfile.last_name || ''}`.trim(),
+        fullName:
+          `${userProfile.first_name || ''} ${userProfile.last_name || ''}`.trim(),
         email: userProfile.email || '',
         phone: userProfile.phone || '',
         address: customerDetails.address || '', // Keep existing address if any
@@ -53,9 +59,9 @@ export default function BookingStepCustomerScreen({ navigation }: BookingStepCus
   }, [customerDetails, setStepValidity]);
 
   const handleInputChange = (field: string, value: string) => {
-    const updatedData = { 
+    const updatedData = {
       ...customerDetails,
-      [field]: value 
+      [field]: value,
     };
     updateFormData('customer', updatedData);
   };
@@ -74,7 +80,7 @@ export default function BookingStepCustomerScreen({ navigation }: BookingStepCus
   return (
     <View style={styles.container}>
       <StatusBar style="dark" />
-      
+
       {/* Header */}
       <View style={styles.header}>
         <Text style={styles.title}>Customer Details</Text>
@@ -84,8 +90,8 @@ export default function BookingStepCustomerScreen({ navigation }: BookingStepCus
         </View>
       </View>
 
-      <ScrollView 
-        style={styles.content} 
+      <ScrollView
+        style={styles.content}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
         contentContainerStyle={{ flexGrow: 1 }}
@@ -101,7 +107,7 @@ export default function BookingStepCustomerScreen({ navigation }: BookingStepCus
               label="Full Name"
               placeholder="Enter your full name"
               value={customerDetails.fullName}
-              onChangeText={(value) => handleInputChange('fullName', value)}
+              onChangeText={value => handleInputChange('fullName', value)}
               leftIcon="person"
               required
             />
@@ -110,7 +116,7 @@ export default function BookingStepCustomerScreen({ navigation }: BookingStepCus
               label="Email Address"
               placeholder="Enter your email"
               value={customerDetails.email}
-              onChangeText={(value) => handleInputChange('email', value)}
+              onChangeText={value => handleInputChange('email', value)}
               leftIcon="email"
               keyboardType="email-address"
               autoCapitalize="none"
@@ -121,7 +127,7 @@ export default function BookingStepCustomerScreen({ navigation }: BookingStepCus
               label="Phone Number"
               placeholder="Enter your phone number"
               value={customerDetails.phone}
-              onChangeText={(value) => handleInputChange('phone', value)}
+              onChangeText={value => handleInputChange('phone', value)}
               leftIcon="phone"
               keyboardType="phone-pad"
               required
@@ -131,7 +137,7 @@ export default function BookingStepCustomerScreen({ navigation }: BookingStepCus
               label="Address"
               placeholder="Enter your full address"
               value={customerDetails.address}
-              onChangeText={(value) => handleInputChange('address', value)}
+              onChangeText={value => handleInputChange('address', value)}
               leftIcon="location-on"
               multiline
               numberOfLines={3}

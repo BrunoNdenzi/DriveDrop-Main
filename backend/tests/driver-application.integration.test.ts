@@ -1,6 +1,6 @@
 /**
  * Integration tests for Driver Application API endpoints
- * 
+ *
  * Prerequisites:
  * 1. Database with proper schema and stored procedures installed
  * 2. Test environment configuration
@@ -20,7 +20,7 @@ const TEST_CONFIG = {
     token: '', // Will be set during login
   },
   driver: {
-    email: 'driver@test.com', 
+    email: 'driver@test.com',
     password: 'testpass123',
     token: '', // Will be set during login
     id: '', // Will be set during login
@@ -36,15 +36,14 @@ const TEST_CONFIG = {
   },
   application: {
     id: '', // Will be created during test
-  }
+  },
 };
 
 describe('Driver Application API Integration Tests', () => {
-  
   beforeAll(async () => {
     // Login and get tokens for all test users
     await loginTestUsers();
-    
+
     // Create a test shipment
     await createTestShipment();
   });
@@ -55,13 +54,12 @@ describe('Driver Application API Integration Tests', () => {
   });
 
   describe('POST /api/v1/shipments/:id/apply', () => {
-    
     test('should allow driver to apply for shipment successfully', async () => {
       const response = await request(app)
         .post(`/api/v1/shipments/${TEST_CONFIG.shipment.id}/apply`)
         .set('Authorization', `Bearer ${TEST_CONFIG.driver.token}`)
         .send({
-          notes: 'I am available and have experience with similar deliveries'
+          notes: 'I am available and have experience with similar deliveries',
         })
         .expect(201);
 
@@ -71,7 +69,7 @@ describe('Driver Application API Integration Tests', () => {
         driver_id: TEST_CONFIG.driver.id,
         status: 'pending',
         notes: 'I am available and have experience with similar deliveries',
-        is_new_application: true
+        is_new_application: true,
       });
 
       // Store application ID for later tests
@@ -83,7 +81,7 @@ describe('Driver Application API Integration Tests', () => {
         .post(`/api/v1/shipments/${TEST_CONFIG.shipment.id}/apply`)
         .set('Authorization', `Bearer ${TEST_CONFIG.driver.token}`)
         .send({
-          notes: 'Trying to apply again'
+          notes: 'Trying to apply again',
         })
         .expect(200); // Should return existing application, not create new one
 
@@ -102,7 +100,7 @@ describe('Driver Application API Integration Tests', () => {
         .post(`/api/v1/shipments/${TEST_CONFIG.shipment.id}/apply`)
         .set('Authorization', `Bearer ${TEST_CONFIG.client.token}`)
         .send({
-          notes: 'Client trying to apply'
+          notes: 'Client trying to apply',
         })
         .expect(403);
     });
@@ -111,7 +109,7 @@ describe('Driver Application API Integration Tests', () => {
       await request(app)
         .post(`/api/v1/shipments/${TEST_CONFIG.shipment.id}/apply`)
         .send({
-          notes: 'Unauthenticated application'
+          notes: 'Unauthenticated application',
         })
         .expect(401);
     });
@@ -121,26 +119,25 @@ describe('Driver Application API Integration Tests', () => {
         .post('/api/v1/shipments/invalid-uuid/apply')
         .set('Authorization', `Bearer ${TEST_CONFIG.driver.token}`)
         .send({
-          notes: 'Invalid shipment ID'
+          notes: 'Invalid shipment ID',
         })
         .expect(400);
     });
 
     test('should reject non-existent shipment', async () => {
       const fakeShipmentId = '00000000-0000-0000-0000-000000000000';
-      
+
       await request(app)
         .post(`/api/v1/shipments/${fakeShipmentId}/apply`)
         .set('Authorization', `Bearer ${TEST_CONFIG.driver.token}`)
         .send({
-          notes: 'Non-existent shipment'
+          notes: 'Non-existent shipment',
         })
         .expect(404);
     });
   });
 
   describe('GET /api/v1/drivers/applications', () => {
-    
     test('should return driver applications successfully', async () => {
       const response = await request(app)
         .get('/api/v1/drivers/applications')
@@ -150,7 +147,7 @@ describe('Driver Application API Integration Tests', () => {
       expect(response.body.success).toBe(true);
       expect(response.body.data).toBeInstanceOf(Array);
       expect(response.body.data.length).toBeGreaterThan(0);
-      
+
       const application = response.body.data[0];
       expect(application).toHaveProperty('id');
       expect(application).toHaveProperty('shipment_id');
@@ -167,9 +164,9 @@ describe('Driver Application API Integration Tests', () => {
 
       expect(response.body.success).toBe(true);
       expect(response.body.data).toBeInstanceOf(Array);
-      
+
       if (response.body.data.length > 0) {
-        response.body.data.forEach((app: any) => {
+        response.body.data.forEach((app: { status: string }) => {
           expect(app.status).toBe('pending');
         });
       }
@@ -183,9 +180,7 @@ describe('Driver Application API Integration Tests', () => {
     });
 
     test('should reject unauthenticated requests', async () => {
-      await request(app)
-        .get('/api/v1/drivers/applications')
-        .expect(401);
+      await request(app).get('/api/v1/drivers/applications').expect(401);
     });
 
     test('should reject invalid status filter', async () => {
@@ -197,14 +192,13 @@ describe('Driver Application API Integration Tests', () => {
   });
 
   describe('PUT /api/v1/applications/:id/status', () => {
-    
     test('should allow admin to accept application', async () => {
       const response = await request(app)
         .put(`/api/v1/applications/${TEST_CONFIG.application.id}/status`)
         .set('Authorization', `Bearer ${TEST_CONFIG.admin.token}`)
         .send({
           status: 'accepted',
-          notes: 'Driver has excellent ratings'
+          notes: 'Driver has excellent ratings',
         })
         .expect(200);
 
@@ -235,23 +229,26 @@ describe('Driver Application API Integration Tests', () => {
           pickup_location: { type: 'Point', coordinates: [0, 0] },
           delivery_location: { type: 'Point', coordinates: [1, 1] },
           estimated_price: 100,
-          status: 'pending'
+          status: 'pending',
         })
         .select('id')
         .single();
 
-      const { data: newApplication } = await supabase.rpc('apply_for_shipment', {
-        p_shipment_id: newShipment.id,
-        p_driver_id: TEST_CONFIG.driver.id,
-        p_notes: 'Application to be cancelled'
-      });
+      const { data: newApplication } = await supabase.rpc(
+        'apply_for_shipment',
+        {
+          p_shipment_id: newShipment.id,
+          p_driver_id: TEST_CONFIG.driver.id,
+          p_notes: 'Application to be cancelled',
+        }
+      );
 
       const response = await request(app)
         .put(`/api/v1/applications/${newApplication.id}/status`)
         .set('Authorization', `Bearer ${TEST_CONFIG.driver.token}`)
         .send({
           status: 'cancelled',
-          notes: 'No longer available'
+          notes: 'No longer available',
         })
         .expect(200);
 
@@ -265,7 +262,7 @@ describe('Driver Application API Integration Tests', () => {
         .set('Authorization', `Bearer ${TEST_CONFIG.driver.token}`)
         .send({
           status: 'accepted',
-          notes: 'Driver trying to accept'
+          notes: 'Driver trying to accept',
         })
         .expect(403);
     });
@@ -274,13 +271,13 @@ describe('Driver Application API Integration Tests', () => {
       // This test would need another driver and application
       // For now, just test with a fake application ID
       const fakeApplicationId = '00000000-0000-0000-0000-000000000000';
-      
+
       await request(app)
         .put(`/api/v1/applications/${fakeApplicationId}/status`)
         .set('Authorization', `Bearer ${TEST_CONFIG.driver.token}`)
         .send({
           status: 'cancelled',
-          notes: 'Trying to cancel someone else\'s application'
+          notes: "Trying to cancel someone else's application",
         })
         .expect(404);
     });
@@ -291,7 +288,7 @@ describe('Driver Application API Integration Tests', () => {
         .set('Authorization', `Bearer ${TEST_CONFIG.admin.token}`)
         .send({
           status: 'invalid_status',
-          notes: 'Invalid status test'
+          notes: 'Invalid status test',
         })
         .expect(400);
     });
@@ -301,7 +298,7 @@ describe('Driver Application API Integration Tests', () => {
         .put(`/api/v1/applications/${TEST_CONFIG.application.id}/status`)
         .send({
           status: 'accepted',
-          notes: 'Unauthenticated update'
+          notes: 'Unauthenticated update',
         })
         .expect(401);
     });
@@ -312,31 +309,25 @@ describe('Driver Application API Integration Tests', () => {
 
 async function loginTestUsers() {
   // Login admin
-  const adminLogin = await request(app)
-    .post('/api/v1/auth/login')
-    .send({
-      email: TEST_CONFIG.admin.email,
-      password: TEST_CONFIG.admin.password
-    });
+  const adminLogin = await request(app).post('/api/v1/auth/login').send({
+    email: TEST_CONFIG.admin.email,
+    password: TEST_CONFIG.admin.password,
+  });
   TEST_CONFIG.admin.token = adminLogin.body.data.token;
 
   // Login driver
-  const driverLogin = await request(app)
-    .post('/api/v1/auth/login')
-    .send({
-      email: TEST_CONFIG.driver.email,
-      password: TEST_CONFIG.driver.password
-    });
+  const driverLogin = await request(app).post('/api/v1/auth/login').send({
+    email: TEST_CONFIG.driver.email,
+    password: TEST_CONFIG.driver.password,
+  });
   TEST_CONFIG.driver.token = driverLogin.body.data.token;
   TEST_CONFIG.driver.id = driverLogin.body.data.user.id;
 
   // Login client
-  const clientLogin = await request(app)
-    .post('/api/v1/auth/login')
-    .send({
-      email: TEST_CONFIG.client.email,
-      password: TEST_CONFIG.client.password
-    });
+  const clientLogin = await request(app).post('/api/v1/auth/login').send({
+    email: TEST_CONFIG.client.email,
+    password: TEST_CONFIG.client.password,
+  });
   TEST_CONFIG.client.token = clientLogin.body.data.token;
   TEST_CONFIG.client.id = clientLogin.body.data.user.id;
 }
@@ -352,7 +343,7 @@ async function createTestShipment() {
       pickup_location: { type: 'Point', coordinates: [0, 0] },
       delivery_location: { type: 'Point', coordinates: [1, 1] },
       estimated_price: 150,
-      status: 'pending'
+      status: 'pending',
     })
     .select('id')
     .single();

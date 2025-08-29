@@ -38,20 +38,20 @@ import { PaymentPolicyCard } from '../components/payment/PaymentPolicyCard';
 // Inside the render function
 <View style={styles.container}>
   <Text style={styles.title}>Payment Details</Text>
-  
+
   <PaymentPolicyCard
     totalAmount={shipmentAmount}
     paymentType="initial"
     isRefundable={true}
   />
-  
+
   <StripePaymentForm
     amount={Math.round(shipmentAmount * 0.2)}
     shipmentId={shipmentId}
     onPaymentSuccess={handlePaymentSuccess}
     onPaymentError={handlePaymentError}
   />
-</View>
+</View>;
 ```
 
 ### 2. Update the Shipment Details Screen
@@ -63,11 +63,11 @@ import { PaymentPolicyCard } from '../components/payment/PaymentPolicyCard';
 // Add this section
 const renderPaymentSection = () => {
   if (!payment) return null;
-  
+
   return (
     <View style={styles.section}>
       <Text style={styles.sectionTitle}>Payment Information</Text>
-      
+
       <PaymentPolicyCard
         totalAmount={payment.amount}
         initialAmount={payment.initial_amount}
@@ -76,7 +76,7 @@ const renderPaymentSection = () => {
         isRefundable={payment.is_refundable}
         paymentType={payment.payment_type}
       />
-      
+
       {payment.is_refundable && (
         <Button
           title="Request Refund"
@@ -98,24 +98,24 @@ import { PaymentPolicyCard } from '../components/payment/PaymentPolicyCard';
 // Inside the render function
 <View style={styles.container}>
   <Text style={styles.title}>Delivery Completed</Text>
-  
+
   <View style={styles.paymentSection}>
     <Text style={styles.sectionTitle}>Final Payment Required</Text>
-    
+
     <PaymentPolicyCard
       totalAmount={shipment.payment.amount}
       initialAmount={shipment.payment.initial_amount}
       remainingAmount={shipment.payment.remaining_amount}
       paymentType="final"
     />
-    
+
     <Button
       title="Make Final Payment"
       onPress={handleFinalPayment}
       style={styles.paymentButton}
     />
   </View>
-</View>
+</View>;
 ```
 
 ## API Integration
@@ -124,13 +124,10 @@ To fully implement this UI, make sure the following API endpoints are called:
 
 1. **Get Payment Details**
    - `GET /api/v1/payments/:id` - Get payment details including initial/remaining amounts
-   
 2. **Check Refund Eligibility**
    - `GET /api/v1/payments/:id/refund-eligibility` - Check if payment is eligible for refund
-   
 3. **Process Refund**
    - `POST /api/v1/payments/:id/refund` - Process a refund for the initial payment
-   
 4. **Create Final Payment**
    - `POST /api/v1/payments/:id/final-payment` - Create the final payment for a shipment
 
@@ -140,13 +137,11 @@ To fully implement this UI, make sure the following API endpoints are called:
    - Create a new shipment
    - Verify the payment card shows 20% of total
    - Complete payment and check payment status
-   
 2. **Refund Testing**
    - Create a shipment and make initial payment
    - View shipment details within 1-hour window
    - Verify refund countdown is displayed
    - Test requesting a refund
-   
 3. **Final Payment Flow**
    - Complete a shipment delivery
    - Verify final payment shows correct 80% amount

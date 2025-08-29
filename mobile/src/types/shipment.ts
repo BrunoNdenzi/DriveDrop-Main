@@ -16,7 +16,13 @@ export interface Shipment {
   price?: number;
 }
 
-export type ShipmentStatus = 'pending' | 'accepted' | 'picked_up' | 'in_transit' | 'delivered' | 'cancelled';
+export type ShipmentStatus =
+  | 'pending'
+  | 'accepted'
+  | 'picked_up'
+  | 'in_transit'
+  | 'delivered'
+  | 'cancelled';
 
 export interface ShipmentItem {
   id: string;

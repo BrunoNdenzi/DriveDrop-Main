@@ -5,34 +5,35 @@ import { Alert } from 'react-native';
  * Request location permissions and get the current position
  * @returns {Promise<Location.LocationObject | null>} The current location or null if there was an error
  */
-export const getCurrentLocation = async (): Promise<Location.LocationObject | null> => {
-  try {
-    const { status } = await Location.requestForegroundPermissionsAsync();
-    
-    if (status !== 'granted') {
+export const getCurrentLocation =
+  async (): Promise<Location.LocationObject | null> => {
+    try {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+
+      if (status !== 'granted') {
+        Alert.alert(
+          'Permission Required',
+          'Location permission is required to use this feature.',
+          [{ text: 'OK' }]
+        );
+        return null;
+      }
+
+      const location = await Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.High,
+      });
+
+      return location;
+    } catch (error) {
+      console.error('Error getting location:', error);
       Alert.alert(
-        'Permission Required',
-        'Location permission is required to use this feature.',
+        'Location Error',
+        'Unable to get your current location. Please try again.',
         [{ text: 'OK' }]
       );
       return null;
     }
-    
-    const location = await Location.getCurrentPositionAsync({
-      accuracy: Location.Accuracy.High,
-    });
-    
-    return location;
-  } catch (error) {
-    console.error('Error getting location:', error);
-    Alert.alert(
-      'Location Error',
-      'Unable to get your current location. Please try again.',
-      [{ text: 'OK' }]
-    );
-    return null;
-  }
-};
+  };
 
 /**
  * Calculate the route between two points
@@ -59,12 +60,18 @@ export const getRoute = async (
           distance: { text: '5 km', value: 5000 },
           duration: { text: '8 mins', value: 480 },
           start_location: { lat: startLat, lng: startLng },
-          end_location: { lat: (startLat + endLat) / 2, lng: (startLng + endLng) / 2 },
+          end_location: {
+            lat: (startLat + endLat) / 2,
+            lng: (startLng + endLng) / 2,
+          },
         },
         {
           distance: { text: '5 km', value: 5000 },
           duration: { text: '7 mins', value: 420 },
-          start_location: { lat: (startLat + endLat) / 2, lng: (startLng + endLng) / 2 },
+          start_location: {
+            lat: (startLat + endLat) / 2,
+            lng: (startLng + endLng) / 2,
+          },
           end_location: { lat: endLat, lng: endLng },
         },
       ],
@@ -90,21 +97,21 @@ export const getRandomLocation = (
   const y0 = centerLat;
   const x0 = centerLng;
   const rd = radiusInKm / 111.32; // Convert km to degrees
-  
+
   const u = Math.random();
   const v = Math.random();
-  
+
   const w = rd * Math.sqrt(u);
   const t = 2 * Math.PI * v;
   const x = w * Math.cos(t);
   const y = w * Math.sin(t);
-  
+
   // Adjust the x-coordinate for the shrinking of the east-west distances
   const xp = x / Math.cos(y0);
-  
+
   const newlat = y + y0;
   const newlon = xp + x0;
-  
+
   return {
     latitude: newlat,
     longitude: newlon,
@@ -139,7 +146,10 @@ export const calculateDistance = (
   const dLon = deg2rad(lon2 - lon1);
   const a =
     Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-    Math.cos(deg2rad(lat1)) * Math.cos(deg2rad(lat2)) * Math.sin(dLon / 2) * Math.sin(dLon / 2);
+    Math.cos(deg2rad(lat1)) *
+      Math.cos(deg2rad(lat2)) *
+      Math.sin(dLon / 2) *
+      Math.sin(dLon / 2);
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
   const d = R * c; // Distance in km
   return d;

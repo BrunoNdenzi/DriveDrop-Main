@@ -17,9 +17,14 @@ import { Card } from '../../components/ui/Card';
 import { RootStackParamList } from '../../navigation/types';
 import { useBooking } from '../../context/BookingContext';
 
-type BookingConfirmationProps = NativeStackScreenProps<RootStackParamList, 'BookingConfirmation'>;
+type BookingConfirmationProps = NativeStackScreenProps<
+  RootStackParamList,
+  'BookingConfirmation'
+>;
 
-export default function BookingConfirmationScreen({ navigation }: BookingConfirmationProps) {
+export default function BookingConfirmationScreen({
+  navigation,
+}: BookingConfirmationProps) {
   const { state, resetForm, submitShipment } = useBooking();
   const [shipmentId, setShipmentId] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -28,7 +33,7 @@ export default function BookingConfirmationScreen({ navigation }: BookingConfirm
   useEffect(() => {
     const submitToSupabase = async () => {
       if (shipmentId) return; // Already submitted
-      
+
       try {
         setIsSubmitting(true);
         const shipment = await submitShipment();
@@ -39,9 +44,7 @@ export default function BookingConfirmationScreen({ navigation }: BookingConfirm
         Alert.alert(
           'Submission Error',
           'There was an error submitting your shipment. Please try again or contact support.',
-          [
-            { text: 'OK', onPress: () => navigation.goBack() }
-          ]
+          [{ text: 'OK', onPress: () => navigation.goBack() }]
         );
       } finally {
         setIsSubmitting(false);
@@ -69,7 +72,9 @@ export default function BookingConfirmationScreen({ navigation }: BookingConfirm
   };
 
   const generateBookingReference = () => {
-    return shipmentId ? `DD${shipmentId.substring(0, 6).toUpperCase()}` : `DD${Date.now().toString().slice(-6)}`;
+    return shipmentId
+      ? `DD${shipmentId.substring(0, 6).toUpperCase()}`
+      : `DD${Date.now().toString().slice(-6)}`;
   };
 
   const bookingRef = generateBookingReference();
@@ -77,9 +82,9 @@ export default function BookingConfirmationScreen({ navigation }: BookingConfirm
   return (
     <View style={styles.container}>
       <StatusBar style="dark" />
-      
-      <ScrollView 
-        style={styles.content} 
+
+      <ScrollView
+        style={styles.content}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ flexGrow: 1 }}
       >
@@ -87,20 +92,21 @@ export default function BookingConfirmationScreen({ navigation }: BookingConfirm
           {/* Success Header */}
           <View style={styles.successHeader}>
             <View style={styles.successIcon}>
-              <MaterialIcons 
-                name={isSubmitting ? "hourglass-empty" : "check-circle"} 
-                size={64} 
-                color={isSubmitting ? Colors.warning : Colors.success} 
+              <MaterialIcons
+                name={isSubmitting ? 'hourglass-empty' : 'check-circle'}
+                size={64}
+                color={isSubmitting ? Colors.warning : Colors.success}
               />
             </View>
             <Text style={styles.successTitle}>
-              {isSubmitting ? 'Submitting Request...' : 'Booking Request Submitted!'}
+              {isSubmitting
+                ? 'Submitting Request...'
+                : 'Booking Request Submitted!'}
             </Text>
             <Text style={styles.successSubtitle}>
-              {isSubmitting 
+              {isSubmitting
                 ? 'Please wait while we process your shipment request...'
-                : 'Your vehicle shipment request has been successfully submitted and is being reviewed by our team.'
-              }
+                : 'Your vehicle shipment request has been successfully submitted and is being reviewed by our team.'}
             </Text>
           </View>
 
@@ -110,7 +116,11 @@ export default function BookingConfirmationScreen({ navigation }: BookingConfirm
             <View style={styles.referenceRow}>
               <Text style={styles.referenceNumber}>{bookingRef}</Text>
               <TouchableOpacity style={styles.copyButton}>
-                <MaterialIcons name="content-copy" size={20} color={Colors.primary} />
+                <MaterialIcons
+                  name="content-copy"
+                  size={20}
+                  color={Colors.primary}
+                />
               </TouchableOpacity>
             </View>
             <Text style={styles.referenceNote}>
@@ -121,9 +131,13 @@ export default function BookingConfirmationScreen({ navigation }: BookingConfirm
           {/* Quick Summary */}
           <Card variant="default" padding="lg" style={styles.summaryCard}>
             <Text style={styles.sectionTitle}>Shipment Summary</Text>
-            
+
             <View style={styles.summaryRow}>
-              <MaterialIcons name="person" size={20} color={Colors.text.secondary} />
+              <MaterialIcons
+                name="person"
+                size={20}
+                color={Colors.text.secondary}
+              />
               <Text style={styles.summaryLabel}>Customer:</Text>
               <Text style={styles.summaryValue}>
                 {state.formData.customerDetails.fullName || 'Not provided'}
@@ -131,15 +145,24 @@ export default function BookingConfirmationScreen({ navigation }: BookingConfirm
             </View>
 
             <View style={styles.summaryRow}>
-              <MaterialIcons name="directions-car" size={20} color={Colors.text.secondary} />
+              <MaterialIcons
+                name="directions-car"
+                size={20}
+                color={Colors.text.secondary}
+              />
               <Text style={styles.summaryLabel}>Vehicle:</Text>
               <Text style={styles.summaryValue}>
-                {`${state.formData.vehicleInformation.year || ''} ${state.formData.vehicleInformation.make || ''} ${state.formData.vehicleInformation.model || ''}`.trim() || 'Not provided'}
+                {`${state.formData.vehicleInformation.year || ''} ${state.formData.vehicleInformation.make || ''} ${state.formData.vehicleInformation.model || ''}`.trim() ||
+                  'Not provided'}
               </Text>
             </View>
 
             <View style={styles.summaryRow}>
-              <MaterialIcons name="location-on" size={20} color={Colors.text.secondary} />
+              <MaterialIcons
+                name="location-on"
+                size={20}
+                color={Colors.text.secondary}
+              />
               <Text style={styles.summaryLabel}>Pickup:</Text>
               <Text style={styles.summaryValue}>
                 {state.formData.pickupDetails.address || 'Not provided'}
@@ -147,7 +170,11 @@ export default function BookingConfirmationScreen({ navigation }: BookingConfirm
             </View>
 
             <View style={styles.summaryRow}>
-              <MaterialIcons name="flag" size={20} color={Colors.text.secondary} />
+              <MaterialIcons
+                name="flag"
+                size={20}
+                color={Colors.text.secondary}
+              />
               <Text style={styles.summaryLabel}>Delivery:</Text>
               <Text style={styles.summaryValue}>
                 {state.formData.deliveryDetails.address || 'Not provided'}
@@ -158,7 +185,7 @@ export default function BookingConfirmationScreen({ navigation }: BookingConfirm
           {/* Next Steps */}
           <Card variant="default" padding="lg" style={styles.stepsCard}>
             <Text style={styles.sectionTitle}>What happens next?</Text>
-            
+
             <View style={styles.timelineItem}>
               <View style={styles.timelineIcon}>
                 <MaterialIcons name="email" size={20} color={Colors.primary} />
@@ -173,7 +200,11 @@ export default function BookingConfirmationScreen({ navigation }: BookingConfirm
 
             <View style={styles.timelineItem}>
               <View style={styles.timelineIcon}>
-                <MaterialIcons name="assignment" size={20} color={Colors.primary} />
+                <MaterialIcons
+                  name="assignment"
+                  size={20}
+                  color={Colors.primary}
+                />
               </View>
               <View style={styles.timelineContent}>
                 <Text style={styles.timelineTitle}>Quote Review</Text>
@@ -190,7 +221,8 @@ export default function BookingConfirmationScreen({ navigation }: BookingConfirm
               <View style={styles.timelineContent}>
                 <Text style={styles.timelineTitle}>Contact & Scheduling</Text>
                 <Text style={styles.timelineDescription}>
-                  We'll contact you within 24 hours to discuss pricing and schedule pickup
+                  We'll contact you within 24 hours to discuss pricing and
+                  schedule pickup
                 </Text>
               </View>
             </View>
@@ -200,9 +232,10 @@ export default function BookingConfirmationScreen({ navigation }: BookingConfirm
           <Card variant="default" padding="lg" style={styles.contactCard}>
             <Text style={styles.sectionTitle}>Need Help?</Text>
             <Text style={styles.contactText}>
-              If you have any questions about your booking, feel free to contact us:
+              If you have any questions about your booking, feel free to contact
+              us:
             </Text>
-            
+
             <TouchableOpacity style={styles.contactRow}>
               <MaterialIcons name="phone" size={20} color={Colors.primary} />
               <Text style={styles.contactValue}>1-800-DRIVEDROP</Text>

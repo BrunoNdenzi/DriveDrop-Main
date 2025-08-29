@@ -1,7 +1,13 @@
 import React, { useState } from 'react';
 import { View, Text, TextInput, StyleSheet, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Colors, Typography, Spacing, BorderRadius, ComponentTokens } from '../../constants/DesignSystem';
+import {
+  Colors,
+  Typography,
+  Spacing,
+  BorderRadius,
+  ComponentTokens,
+} from '../../constants/DesignSystem';
 import { Input } from '../../components/ui/Input';
 import { Button } from '../../components/ui/Button';
 
@@ -30,7 +36,7 @@ export const TestInputScreen: React.FC = () => {
     <SafeAreaView style={styles.container}>
       <View style={styles.content}>
         <Text style={styles.title}>Input Test Screen</Text>
-        
+
         <Text style={styles.subtitle}>Basic React Native TextInput:</Text>
         <TextInput
           style={styles.basicInput}

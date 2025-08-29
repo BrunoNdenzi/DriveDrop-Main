@@ -11,10 +11,11 @@ export const Colors = {
   secondaryLight: '#FFB74D',
 
   // Neutral palette
+  white: '#FFFFFF',
   background: '#F7F9FC',
   surface: '#FFFFFF',
   border: '#E1E8ED',
-  
+
   // Text colors
   text: {
     primary: '#263238',
@@ -22,13 +23,14 @@ export const Colors = {
     disabled: '#9E9E9E',
     inverse: '#FFFFFF',
   },
+  textLight: '#607D8B', // Alias for text.secondary
 
   // Status colors
   success: '#4CAF50',
   warning: '#FF9800',
   error: '#F44336',
   info: '#2196F3',
-  
+
   // Shipment status colors
   status: {
     pending: '#FFB74D', // Orange

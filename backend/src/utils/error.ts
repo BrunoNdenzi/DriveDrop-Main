@@ -11,7 +11,7 @@ export const createError = (
   message: string,
   statusCode = 500,
   code = 'INTERNAL_SERVER_ERROR',
-  errors: unknown[] = [],
+  errors: unknown[] = []
 ): ApiError => {
   const error = new Error(message) as ApiError;
   error.statusCode = statusCode;

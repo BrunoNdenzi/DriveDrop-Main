@@ -34,21 +34,21 @@ export function useFetch<T = any>(
         if (!options.headers) {
           options.headers = {};
         }
-        
+
         // Add as object to avoid TypeScript errors with Headers
         options.headers = {
-          ...options.headers as object,
+          ...(options.headers as object),
           Authorization: `Bearer ${session.access_token}`,
         };
       }
 
       const response = await fetch(url, options);
-      
+
       if (!response.ok) {
         const errorText = await response.text();
         throw new Error(errorText || `HTTP error ${response.status}`);
       }
-      
+
       const result = await response.json();
       setData(result);
     } catch (err) {

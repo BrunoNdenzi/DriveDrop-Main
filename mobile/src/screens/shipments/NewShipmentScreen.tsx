@@ -16,19 +16,26 @@ import { Colors } from '../../constants/Colors';
 import { RootStackParamList } from '../../navigation/types';
 import { useAuth } from '../../context/AuthContext';
 
-type NewShipmentNavigationProp = NativeStackScreenProps<RootStackParamList, 'CreateShipment'>['navigation'];
+type NewShipmentNavigationProp = NativeStackScreenProps<
+  RootStackParamList,
+  'CreateShipment'
+>['navigation'];
 
 type NewShipmentScreenProps = {
   navigation: NewShipmentNavigationProp;
 };
 
-export default function NewShipmentScreen({ navigation }: NewShipmentScreenProps) {
+export default function NewShipmentScreen({
+  navigation,
+}: NewShipmentScreenProps) {
   const { userProfile } = useAuth();
   const [pickupZip, setPickupZip] = useState('');
   const [deliveryZip, setDeliveryZip] = useState('');
   const [pickupDate, setPickupDate] = useState('');
   const [deliveryDate, setDeliveryDate] = useState('');
-  const [vehicleType, setVehicleType] = useState<'sedan' | 'suv' | 'truck'>('sedan');
+  const [vehicleType, setVehicleType] = useState<'sedan' | 'suv' | 'truck'>(
+    'sedan'
+  );
   const [vehicleMake, setVehicleMake] = useState('');
   const [vehicleModel, setVehicleModel] = useState('');
   const [loading, setLoading] = useState(false);
@@ -47,14 +54,14 @@ export default function NewShipmentScreen({ navigation }: NewShipmentScreenProps
 
     try {
       setLoading(true);
-      
+
       // TODO: Implement quote calculation with backend
       Alert.alert(
         'Quote Generated',
         `Estimated cost: $250 for ${vehicleType} transport from ${pickupZip} to ${deliveryZip}`,
         [
           { text: 'Cancel', style: 'cancel' },
-          { text: 'Book Shipment', onPress: () => handleBookShipment() }
+          { text: 'Book Shipment', onPress: () => handleBookShipment() },
         ]
       );
     } catch (error) {
@@ -77,17 +84,17 @@ export default function NewShipmentScreen({ navigation }: NewShipmentScreenProps
       vehicleModel,
       estimatedCost: 250, // This would come from the actual quote API
     };
-    
+
     // Navigate to the booking flow
-    navigation.navigate('BookingStepCustomer', { 
-      quoteId: `quote_${Date.now()}` 
+    navigation.navigate('BookingStepCustomer', {
+      quoteId: `quote_${Date.now()}`,
     });
   };
 
   return (
     <View style={styles.container}>
       <StatusBar style="dark" />
-      
+
       {/* Header */}
       <View style={styles.header}>
         <Text style={styles.title}>New Shipment</Text>
@@ -97,7 +104,7 @@ export default function NewShipmentScreen({ navigation }: NewShipmentScreenProps
         {/* Pickup Information */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Pickup Information</Text>
-          
+
           <View style={styles.inputContainer}>
             <TextInput
               style={styles.input}
@@ -117,13 +124,12 @@ export default function NewShipmentScreen({ navigation }: NewShipmentScreenProps
               onChangeText={setPickupDate}
             />
           </View>
-
         </View>
 
         {/* Delivery Information */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Delivery Information</Text>
-          
+
           <View style={styles.inputContainer}>
             <TextInput
               style={styles.input}
@@ -148,22 +154,24 @@ export default function NewShipmentScreen({ navigation }: NewShipmentScreenProps
         {/* Vehicle Information */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Vehicle Information</Text>
-          
+
           {/* Vehicle Type Selection */}
           <View style={styles.vehicleTypeContainer}>
-            {(['sedan', 'suv', 'truck'] as const).map((type) => (
+            {(['sedan', 'suv', 'truck'] as const).map(type => (
               <TouchableOpacity
                 key={type}
                 style={[
                   styles.vehicleTypeButton,
-                  vehicleType === type && styles.vehicleTypeButtonSelected
+                  vehicleType === type && styles.vehicleTypeButtonSelected,
                 ]}
                 onPress={() => setVehicleType(type)}
               >
-                <Text style={[
-                  styles.vehicleTypeText,
-                  vehicleType === type && styles.vehicleTypeTextSelected
-                ]}>
+                <Text
+                  style={[
+                    styles.vehicleTypeText,
+                    vehicleType === type && styles.vehicleTypeTextSelected,
+                  ]}
+                >
                   {type.toUpperCase()}
                 </Text>
               </TouchableOpacity>

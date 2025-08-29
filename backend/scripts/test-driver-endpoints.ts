@@ -11,20 +11,25 @@ const testConfig = {
   driverToken: 'your_driver_jwt_token_here',
   adminToken: 'your_admin_jwt_token_here',
   testShipmentId: 'your_test_shipment_id_here',
-  testApplicationId: 'your_test_application_id_here'
+  testApplicationId: 'your_test_application_id_here',
 };
 
 /**
  * Helper function to make HTTP requests
  */
-async function makeRequest(endpoint: string, method: string, token: string, body?: any) {
+async function makeRequest(
+  endpoint: string,
+  method: string,
+  token: string,
+  body?: Record<string, unknown>
+) {
   const url = `${BASE_URL}${endpoint}`;
   const options: RequestInit = {
     method,
     headers: {
       'Content-Type': 'application/json',
-      'Authorization': `Bearer ${token}`
-    }
+      Authorization: `Bearer ${token}`,
+    },
   };
 
   if (body) {
@@ -34,11 +39,11 @@ async function makeRequest(endpoint: string, method: string, token: string, body
   try {
     const response = await fetch(url, options);
     const data = await response.json();
-    
+
     console.log(`\n${method} ${endpoint}`);
     console.log(`Status: ${response.status}`);
     console.log('Response:', JSON.stringify(data, null, 2));
-    
+
     return { response, data };
   } catch (error) {
     console.error(`Error making request to ${endpoint}:`, error);
@@ -51,7 +56,7 @@ async function makeRequest(endpoint: string, method: string, token: string, body
  */
 async function testDriverApplicationEndpoints() {
   console.log('=== Testing Driver Application Endpoints ===');
-  
+
   try {
     // 1. Test applying for a shipment
     console.log('\n1. Testing POST /shipments/:id/apply');
@@ -60,17 +65,13 @@ async function testDriverApplicationEndpoints() {
       'POST',
       testConfig.driverToken,
       {
-        notes: 'I am available and have experience with similar deliveries'
+        notes: 'I am available and have experience with similar deliveries',
       }
     );
 
     // 2. Test getting driver applications
     console.log('\n2. Testing GET /drivers/applications');
-    await makeRequest(
-      '/drivers/applications',
-      'GET',
-      testConfig.driverToken
-    );
+    await makeRequest('/drivers/applications', 'GET', testConfig.driverToken);
 
     // 3. Test getting driver applications with status filter
     console.log('\n3. Testing GET /drivers/applications?status=pending');
@@ -88,7 +89,7 @@ async function testDriverApplicationEndpoints() {
       testConfig.adminToken,
       {
         status: 'accepted',
-        notes: 'Driver has excellent ratings'
+        notes: 'Driver has excellent ratings',
       }
     );
 
@@ -100,12 +101,11 @@ async function testDriverApplicationEndpoints() {
       testConfig.driverToken,
       {
         status: 'cancelled',
-        notes: 'No longer available'
+        notes: 'No longer available',
       }
     );
 
     console.log('\n=== All endpoint tests completed ===');
-    
   } catch (error) {
     console.error('Test failed:', error);
   }
@@ -129,11 +129,7 @@ async function testErrorScenarios() {
 
     // Test unauthorized access
     console.log('\n2. Testing unauthorized access');
-    await makeRequest(
-      '/drivers/applications',
-      'GET',
-      'invalid_token'
-    );
+    await makeRequest('/drivers/applications', 'GET', 'invalid_token');
 
     // Test invalid status
     console.log('\n3. Testing invalid status');
@@ -143,8 +139,8 @@ async function testErrorScenarios() {
       testConfig.adminToken,
       { status: 'invalid_status' }
     );
-
-  } catch (error) {
+  } catch (_error) {
+    // TODO: Handle specific error types if needed
     console.log('Expected error scenarios completed');
   }
 }
@@ -155,15 +151,15 @@ async function testErrorScenarios() {
 async function runTests() {
   console.log('Driver Application API Test Suite');
   console.log('=====================================');
-  
+
   // Check if we have the required configuration
-  if (!testConfig.driverToken.startsWith('your_') && 
-      !testConfig.adminToken.startsWith('your_') &&
-      !testConfig.testShipmentId.startsWith('your_')) {
-    
+  if (
+    !testConfig.driverToken.startsWith('your_') &&
+    !testConfig.adminToken.startsWith('your_') &&
+    !testConfig.testShipmentId.startsWith('your_')
+  ) {
     await testDriverApplicationEndpoints();
     await testErrorScenarios();
-    
   } else {
     console.log('\n⚠️  Test configuration incomplete!');
     console.log('Please update the testConfig object with actual values:');

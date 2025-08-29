@@ -17,7 +17,10 @@ import { RootStackParamList, ClientTabParamList } from '../../navigation/types';
 import { useAuth } from '../../context/AuthContext';
 import { auth } from '../../lib/supabase';
 
-type ProfileScreenProps = NativeStackScreenProps<ClientTabParamList, 'Profile'> & {
+type ProfileScreenProps = NativeStackScreenProps<
+  ClientTabParamList,
+  'Profile'
+> & {
   navigation: NativeStackScreenProps<RootStackParamList>['navigation'];
 };
 
@@ -27,29 +30,25 @@ export default function ProfileScreen({ navigation }: ProfileScreenProps) {
   const [pushNotifications, setPushNotifications] = useState(true);
 
   async function handleSignOut() {
-    Alert.alert(
-      'Sign Out',
-      'Are you sure you want to sign out?',
-      [
-        {
-          text: 'Cancel',
-          style: 'cancel',
+    Alert.alert('Sign Out', 'Are you sure you want to sign out?', [
+      {
+        text: 'Cancel',
+        style: 'cancel',
+      },
+      {
+        text: 'Sign Out',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            await auth.signOut();
+            // The auth context will handle navigation
+          } catch (error) {
+            console.error('Error signing out:', error);
+            Alert.alert('Error', 'Failed to sign out');
+          }
         },
-        {
-          text: 'Sign Out',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await auth.signOut();
-              // The auth context will handle navigation
-            } catch (error) {
-              console.error('Error signing out:', error);
-              Alert.alert('Error', 'Failed to sign out');
-            }
-          },
-        },
-      ]
-    );
+      },
+    ]);
   }
 
   const getUserInitial = () => {
@@ -69,7 +68,7 @@ export default function ProfileScreen({ navigation }: ProfileScreenProps) {
   return (
     <View style={styles.container}>
       <StatusBar style="dark" />
-      
+
       {/* Header */}
       <View style={styles.header}>
         <Text style={styles.title}>My Profile</Text>
@@ -93,9 +92,13 @@ export default function ProfileScreen({ navigation }: ProfileScreenProps) {
         {/* Account Information */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Account Information</Text>
-          
+
           <View style={styles.infoRow}>
-            <MaterialIcons name="person" size={20} color={Colors.text.secondary} />
+            <MaterialIcons
+              name="person"
+              size={20}
+              color={Colors.text.secondary}
+            />
             <Text style={styles.infoLabel}>Name:</Text>
             <Text style={styles.infoValue}>{getUserName()}</Text>
           </View>
@@ -106,25 +109,45 @@ export default function ProfileScreen({ navigation }: ProfileScreenProps) {
               style={styles.adminButton}
               onPress={() => navigation.navigate('AdminAssignment')}
             >
-              <MaterialIcons name="assignment" size={20} color={Colors.primary} />
+              <MaterialIcons
+                name="assignment"
+                size={20}
+                color={Colors.primary}
+              />
               <Text style={styles.adminButtonText}>Admin Assignment</Text>
             </TouchableOpacity>
           )}
 
           <View style={styles.infoRow}>
-            <MaterialIcons name="email" size={20} color={Colors.text.secondary} />
+            <MaterialIcons
+              name="email"
+              size={20}
+              color={Colors.text.secondary}
+            />
             <Text style={styles.infoLabel}>Email:</Text>
-            <Text style={styles.infoValue}>{userProfile?.email || 'clientdefault@gmail.com'}</Text>
+            <Text style={styles.infoValue}>
+              {userProfile?.email || 'clientdefault@gmail.com'}
+            </Text>
           </View>
 
           <View style={styles.infoRow}>
-            <MaterialIcons name="phone" size={20} color={Colors.text.secondary} />
+            <MaterialIcons
+              name="phone"
+              size={20}
+              color={Colors.text.secondary}
+            />
             <Text style={styles.infoLabel}>Phone:</Text>
-            <Text style={styles.infoValue}>{userProfile?.phone || '1234567890'}</Text>
+            <Text style={styles.infoValue}>
+              {userProfile?.phone || '1234567890'}
+            </Text>
           </View>
 
           <View style={styles.infoRow}>
-            <MaterialIcons name="location-on" size={20} color={Colors.text.secondary} />
+            <MaterialIcons
+              name="location-on"
+              size={20}
+              color={Colors.text.secondary}
+            />
             <Text style={styles.infoLabel}>Address:</Text>
             <Text style={styles.infoValue}>Not set</Text>
           </View>
@@ -133,34 +156,46 @@ export default function ProfileScreen({ navigation }: ProfileScreenProps) {
         {/* Notification Preferences */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Notification Preferences</Text>
-          
+
           <View style={styles.notificationRow}>
             <View style={styles.notificationInfo}>
-              <MaterialIcons name="email" size={20} color={Colors.text.secondary} />
+              <MaterialIcons
+                name="email"
+                size={20}
+                color={Colors.text.secondary}
+              />
               <Text style={styles.notificationLabel}>Email Notifications</Text>
             </View>
             <Switch
               value={emailNotifications}
               onValueChange={setEmailNotifications}
               trackColor={{ false: Colors.border, true: Colors.primaryLight }}
-              thumbColor={emailNotifications ? Colors.primary : Colors.text.disabled}
+              thumbColor={
+                emailNotifications ? Colors.primary : Colors.text.disabled
+              }
             />
           </View>
 
           <View style={styles.notificationRow}>
             <View style={styles.notificationInfo}>
-              <MaterialIcons name="notifications" size={20} color={Colors.text.secondary} />
+              <MaterialIcons
+                name="notifications"
+                size={20}
+                color={Colors.text.secondary}
+              />
               <Text style={styles.notificationLabel}>Push Notifications</Text>
             </View>
             <Switch
               value={pushNotifications}
               onValueChange={setPushNotifications}
               trackColor={{ false: Colors.border, true: Colors.primaryLight }}
-              thumbColor={pushNotifications ? Colors.primary : Colors.text.disabled}
+              thumbColor={
+                pushNotifications ? Colors.primary : Colors.text.disabled
+              }
             />
           </View>
-          
-          <TouchableOpacity 
+
+          <TouchableOpacity
             style={{
               flexDirection: 'row',
               justifyContent: 'space-between',
@@ -174,12 +209,20 @@ export default function ProfileScreen({ navigation }: ProfileScreenProps) {
               navigation.getParent()?.navigate('Settings');
             }}
           >
-            <Text style={{
-              fontSize: 14,
-              color: Colors.primary,
-              fontWeight: '500',
-            }}>Manage All Notification Settings</Text>
-            <MaterialIcons name="chevron-right" size={20} color={Colors.primary} />
+            <Text
+              style={{
+                fontSize: 14,
+                color: Colors.primary,
+                fontWeight: '500',
+              }}
+            >
+              Manage All Notification Settings
+            </Text>
+            <MaterialIcons
+              name="chevron-right"
+              size={20}
+              color={Colors.primary}
+            />
           </TouchableOpacity>
         </View>
 

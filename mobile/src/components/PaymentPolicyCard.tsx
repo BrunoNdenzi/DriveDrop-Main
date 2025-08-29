@@ -8,9 +8,9 @@ interface PaymentPolicyCardProps {
   showDetailed?: boolean;
 }
 
-export const PaymentPolicyCard: React.FC<PaymentPolicyCardProps> = ({ 
-  totalAmount, 
-  showDetailed = false 
+export const PaymentPolicyCard: React.FC<PaymentPolicyCardProps> = ({
+  totalAmount,
+  showDetailed = false,
 }) => {
   const initialAmount = Math.round(totalAmount * 0.2);
   const finalAmount = totalAmount - initialAmount;
@@ -21,7 +21,7 @@ export const PaymentPolicyCard: React.FC<PaymentPolicyCardProps> = ({
         <MaterialIcons name="payment" size={20} color={Colors.primary} />
         <Text style={styles.title}>Payment Policy</Text>
       </View>
-      
+
       <View style={styles.paymentBreakdown}>
         <View style={styles.paymentStep}>
           <View style={styles.stepIndicator}>
@@ -33,9 +33,9 @@ export const PaymentPolicyCard: React.FC<PaymentPolicyCardProps> = ({
             <Text style={styles.stepDescription}>20% of total amount</Text>
           </View>
         </View>
-        
+
         <View style={styles.connector} />
-        
+
         <View style={styles.paymentStep}>
           <View style={styles.stepIndicator}>
             <Text style={styles.stepNumber}>2</Text>
@@ -47,11 +47,15 @@ export const PaymentPolicyCard: React.FC<PaymentPolicyCardProps> = ({
           </View>
         </View>
       </View>
-      
+
       {showDetailed && (
         <View style={styles.policyDetails}>
           <View style={styles.policyItem}>
-            <MaterialIcons name="access-time" size={16} color={Colors.warning} />
+            <MaterialIcons
+              name="access-time"
+              size={16}
+              color={Colors.warning}
+            />
             <Text style={styles.policyText}>
               Refund available within 1 hour of booking
             </Text>
@@ -70,7 +74,7 @@ export const PaymentPolicyCard: React.FC<PaymentPolicyCardProps> = ({
           </View>
         </View>
       )}
-      
+
       <View style={styles.totalRow}>
         <Text style={styles.totalLabel}>Total Amount:</Text>
         <Text style={styles.totalAmount}>${totalAmount}</Text>

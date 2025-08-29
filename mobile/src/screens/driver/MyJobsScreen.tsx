@@ -1,5 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, View, Text, FlatList, TouchableOpacity, RefreshControl, Alert } from 'react-native';
+import {
+  StyleSheet,
+  View,
+  Text,
+  FlatList,
+  TouchableOpacity,
+  RefreshControl,
+  Alert,
+} from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { MaterialIcons } from '@expo/vector-icons';
 import { createMaterialTopTabNavigator } from '@react-navigation/material-top-tabs';
@@ -37,31 +45,35 @@ function ActiveJobsTab({ navigation }: any) {
 
   const fetchActiveJobs = async () => {
     if (!userProfile) return;
-    
+
     setLoading(true);
     try {
       // Query jobs assigned to this driver that are in active statuses
       const { data, error } = await supabase
         .from('shipments')
-        .select(`
+        .select(
+          `
           *,
           profiles:client_id(first_name, last_name)
-        `)
+        `
+        )
         .eq('driver_id', userProfile.id)
         .in('status', ['accepted', 'in_transit'])
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      
+
       // Transform the data for our UI
-      const formattedJobs = data.map((job) => ({
+      const formattedJobs = data.map(job => ({
         id: job.id,
         title: `Shipment #${job.id.substring(0, 8)}`,
         pickup_location: job.pickup_address || 'Address not specified',
         delivery_location: job.delivery_address || 'Address not specified',
         distance: job.distance || 0,
         earnings: job.price || 0,
-        customer_name: job.profiles ? `${job.profiles.first_name} ${job.profiles.last_name}` : 'Customer',
+        customer_name: job.profiles
+          ? `${job.profiles.first_name} ${job.profiles.last_name}`
+          : 'Customer',
         status: job.status,
         pickup_date: job.pickup_date || new Date().toISOString(),
         created_at: job.created_at,
@@ -70,7 +82,10 @@ function ActiveJobsTab({ navigation }: any) {
       setActiveJobs(formattedJobs);
     } catch (error) {
       console.error('Error fetching active jobs:', error);
-      Alert.alert('Error', 'Failed to load your active jobs. Please try again.');
+      Alert.alert(
+        'Error',
+        'Failed to load your active jobs. Please try again.'
+      );
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -113,14 +128,21 @@ function ActiveJobsTab({ navigation }: any) {
   };
 
   const renderJobItem = ({ item }: { item: Job }) => (
-    <TouchableOpacity 
+    <TouchableOpacity
       style={styles.jobCard}
       onPress={() => handleJobPress(item)}
     >
       <View style={styles.jobHeader}>
         <Text style={styles.jobTitle}>{item.title}</Text>
-        <View style={[styles.statusBadge, { backgroundColor: getStatusColor(item.status) + '20' }]}>
-          <Text style={[styles.statusText, { color: getStatusColor(item.status) }]}>
+        <View
+          style={[
+            styles.statusBadge,
+            { backgroundColor: getStatusColor(item.status) + '20' },
+          ]}
+        >
+          <Text
+            style={[styles.statusText, { color: getStatusColor(item.status) }]}
+          >
             {getStatusLabel(item.status)}
           </Text>
         </View>
@@ -129,11 +151,15 @@ function ActiveJobsTab({ navigation }: any) {
       <View style={styles.locationContainer}>
         <View style={styles.locationRow}>
           <MaterialIcons name="location-on" size={16} color={Colors.primary} />
-          <Text style={styles.locationText}>Pickup: {item.pickup_location}</Text>
+          <Text style={styles.locationText}>
+            Pickup: {item.pickup_location}
+          </Text>
         </View>
         <View style={styles.locationRow}>
           <MaterialIcons name="flag" size={16} color={Colors.secondary} />
-          <Text style={styles.locationText}>Delivery: {item.delivery_location}</Text>
+          <Text style={styles.locationText}>
+            Delivery: {item.delivery_location}
+          </Text>
         </View>
       </View>
 
@@ -144,11 +170,19 @@ function ActiveJobsTab({ navigation }: any) {
 
       <View style={styles.detailsRow}>
         <View style={styles.detailItem}>
-          <MaterialIcons name="straighten" size={16} color={Colors.text.secondary} />
+          <MaterialIcons
+            name="straighten"
+            size={16}
+            color={Colors.text.secondary}
+          />
           <Text style={styles.detailText}>{item.distance} miles</Text>
         </View>
         <View style={styles.detailItem}>
-          <MaterialIcons name="attach-money" size={16} color={Colors.text.secondary} />
+          <MaterialIcons
+            name="attach-money"
+            size={16}
+            color={Colors.text.secondary}
+          />
           <Text style={styles.detailText}>${item.earnings.toFixed(2)}</Text>
         </View>
         <View style={styles.detailItem}>
@@ -176,7 +210,7 @@ function ActiveJobsTab({ navigation }: any) {
       <FlatList
         data={activeJobs}
         renderItem={renderJobItem}
-        keyExtractor={(item) => item.id}
+        keyExtractor={item => item.id}
         contentContainerStyle={styles.listContainer}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
@@ -200,31 +234,35 @@ function CompletedJobsTab({ navigation }: any) {
 
   const fetchCompletedJobs = async () => {
     if (!userProfile) return;
-    
+
     setLoading(true);
     try {
       // Query jobs assigned to this driver that are completed
       const { data, error } = await supabase
         .from('shipments')
-        .select(`
+        .select(
+          `
           *,
           profiles:client_id(first_name, last_name)
-        `)
+        `
+        )
         .eq('driver_id', userProfile.id)
         .eq('status', 'delivered')
         .order('updated_at', { ascending: false });
 
       if (error) throw error;
-      
+
       // Transform the data for our UI
-      const formattedJobs = data.map((job) => ({
+      const formattedJobs = data.map(job => ({
         id: job.id,
         title: `Shipment #${job.id.substring(0, 8)}`,
         pickup_location: job.pickup_address || 'Address not specified',
         delivery_location: job.delivery_address || 'Address not specified',
         distance: job.distance || 0,
         earnings: job.price || 0,
-        customer_name: job.profiles ? `${job.profiles.first_name} ${job.profiles.last_name}` : 'Customer',
+        customer_name: job.profiles
+          ? `${job.profiles.first_name} ${job.profiles.last_name}`
+          : 'Customer',
         status: job.status,
         pickup_date: job.pickup_date || new Date().toISOString(),
         created_at: job.created_at,
@@ -233,7 +271,10 @@ function CompletedJobsTab({ navigation }: any) {
       setCompletedJobs(formattedJobs);
     } catch (error) {
       console.error('Error fetching completed jobs:', error);
-      Alert.alert('Error', 'Failed to load your completed jobs. Please try again.');
+      Alert.alert(
+        'Error',
+        'Failed to load your completed jobs. Please try again.'
+      );
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -250,13 +291,18 @@ function CompletedJobsTab({ navigation }: any) {
   };
 
   const renderJobItem = ({ item }: { item: Job }) => (
-    <TouchableOpacity 
+    <TouchableOpacity
       style={styles.jobCard}
       onPress={() => handleJobPress(item)}
     >
       <View style={styles.jobHeader}>
         <Text style={styles.jobTitle}>{item.title}</Text>
-        <View style={[styles.statusBadge, { backgroundColor: Colors.status.delivered + '20' }]}>
+        <View
+          style={[
+            styles.statusBadge,
+            { backgroundColor: Colors.status.delivered + '20' },
+          ]}
+        >
           <Text style={[styles.statusText, { color: Colors.status.delivered }]}>
             Delivered
           </Text>
@@ -266,11 +312,15 @@ function CompletedJobsTab({ navigation }: any) {
       <View style={styles.locationContainer}>
         <View style={styles.locationRow}>
           <MaterialIcons name="location-on" size={16} color={Colors.primary} />
-          <Text style={styles.locationText}>Pickup: {item.pickup_location}</Text>
+          <Text style={styles.locationText}>
+            Pickup: {item.pickup_location}
+          </Text>
         </View>
         <View style={styles.locationRow}>
           <MaterialIcons name="flag" size={16} color={Colors.secondary} />
-          <Text style={styles.locationText}>Delivery: {item.delivery_location}</Text>
+          <Text style={styles.locationText}>
+            Delivery: {item.delivery_location}
+          </Text>
         </View>
       </View>
 
@@ -281,11 +331,19 @@ function CompletedJobsTab({ navigation }: any) {
 
       <View style={styles.detailsRow}>
         <View style={styles.detailItem}>
-          <MaterialIcons name="straighten" size={16} color={Colors.text.secondary} />
+          <MaterialIcons
+            name="straighten"
+            size={16}
+            color={Colors.text.secondary}
+          />
           <Text style={styles.detailText}>{item.distance} miles</Text>
         </View>
         <View style={styles.detailItem}>
-          <MaterialIcons name="attach-money" size={16} color={Colors.text.secondary} />
+          <MaterialIcons
+            name="attach-money"
+            size={16}
+            color={Colors.text.secondary}
+          />
           <Text style={styles.detailText}>${item.earnings.toFixed(2)}</Text>
         </View>
         <View style={styles.detailItem}>
@@ -300,7 +358,11 @@ function CompletedJobsTab({ navigation }: any) {
 
   const renderEmptyList = () => (
     <View style={styles.emptyContainer}>
-      <MaterialIcons name="check-circle" size={64} color={Colors.text.disabled} />
+      <MaterialIcons
+        name="check-circle"
+        size={64}
+        color={Colors.text.disabled}
+      />
       <Text style={styles.emptyTitle}>No Completed Jobs</Text>
       <Text style={styles.emptyMessage}>
         Your completed jobs will appear here.
@@ -313,7 +375,7 @@ function CompletedJobsTab({ navigation }: any) {
       <FlatList
         data={completedJobs}
         renderItem={renderJobItem}
-        keyExtractor={(item) => item.id}
+        keyExtractor={item => item.id}
         contentContainerStyle={styles.listContainer}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
@@ -328,7 +390,7 @@ export default function MyJobsScreen() {
   return (
     <View style={styles.container}>
       <StatusBar style="light" />
-      
+
       {/* Header */}
       <View style={styles.header}>
         <Text style={styles.headerTitle}>My Jobs</Text>

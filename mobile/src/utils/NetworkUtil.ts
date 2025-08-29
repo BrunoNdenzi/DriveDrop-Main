@@ -42,20 +42,23 @@ class NetworkUtil {
       return { data, error: null };
     } catch (error: any) {
       console.error('Network request failed:', error);
-      
+
       // Handle different types of errors
       if (!silent) {
         if (error.message === 'Network request failed') {
           Alert.alert('Connection Error', errorMessage);
         } else if (error.status === 401 || error.code === 'PGRST301') {
-          Alert.alert('Authentication Error', 'Your session has expired. Please log in again.');
+          Alert.alert(
+            'Authentication Error',
+            'Your session has expired. Please log in again.'
+          );
         } else if (error.code && error.message) {
           Alert.alert('Error', `${error.message} (${error.code})`);
         } else {
           Alert.alert('Error', errorMessage);
         }
       }
-      
+
       return { data: null, error };
     }
   }
@@ -72,17 +75,19 @@ class NetworkUtil {
     baseDelay = 1000
   ): Promise<T> {
     let lastError: any;
-    
+
     for (let i = 0; i < maxRetries; i++) {
       try {
         return await fn();
       } catch (error) {
         lastError = error;
         // Wait with exponential backoff
-        await new Promise(resolve => setTimeout(resolve, baseDelay * Math.pow(2, i)));
+        await new Promise(resolve =>
+          setTimeout(resolve, baseDelay * Math.pow(2, i))
+        );
       }
     }
-    
+
     throw lastError;
   }
 }

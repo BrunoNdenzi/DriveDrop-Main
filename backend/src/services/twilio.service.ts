@@ -10,8 +10,11 @@ import { logger } from '@utils/logger';
 let twilio: Twilio;
 try {
   twilio = new Twilio(config.twilio.accountSid, config.twilio.authToken);
-} catch (error) {
-  logger.warn('Failed to initialize Twilio client. SMS features will be mocked in development.');
+} catch (_error) {
+  // TODO: Log specific Twilio initialization errors in development
+  logger.warn(
+    'Failed to initialize Twilio client. SMS features will be mocked in development.'
+  );
   // Create a mock Twilio client for development
   twilio = {} as Twilio;
 }
@@ -42,7 +45,11 @@ export const twilioService = {
   async sendSMS(data: SMSData): Promise<string> {
     try {
       if (!config.twilio.phoneNumber) {
-        throw createError('Twilio phone number not configured', 500, 'TWILIO_CONFIG_ERROR');
+        throw createError(
+          'Twilio phone number not configured',
+          500,
+          'TWILIO_CONFIG_ERROR'
+        );
       }
 
       const message = await twilio.messages.create({
@@ -74,7 +81,11 @@ export const twilioService = {
   async sendVerificationCode(data: VerificationData): Promise<string> {
     try {
       if (!config.twilio.verifyServiceSid) {
-        throw createError('Twilio Verify service not configured', 500, 'TWILIO_CONFIG_ERROR');
+        throw createError(
+          'Twilio Verify service not configured',
+          500,
+          'TWILIO_CONFIG_ERROR'
+        );
       }
 
       const verification = await twilio.verify.v2
@@ -94,7 +105,9 @@ export const twilioService = {
     } catch (error) {
       logger.error('Error sending verification code', { error, to: data.to });
       throw createError(
-        error instanceof Error ? error.message : 'Verification code sending failed',
+        error instanceof Error
+          ? error.message
+          : 'Verification code sending failed',
         400,
         'VERIFICATION_SEND_FAILED'
       );
@@ -107,7 +120,11 @@ export const twilioService = {
   async verifyPhoneNumber(data: VerificationCheckData): Promise<boolean> {
     try {
       if (!config.twilio.verifyServiceSid) {
-        throw createError('Twilio Verify service not configured', 500, 'TWILIO_CONFIG_ERROR');
+        throw createError(
+          'Twilio Verify service not configured',
+          500,
+          'TWILIO_CONFIG_ERROR'
+        );
       }
 
       const verificationCheck = await twilio.verify.v2
@@ -147,7 +164,7 @@ export const twilioService = {
   ): Promise<string> {
     try {
       let message = `DriveDrop: Your shipment ${shipmentId} is now ${status}.`;
-      
+
       if (trackingUrl) {
         message += ` Track here: ${trackingUrl}`;
       }
@@ -157,7 +174,11 @@ export const twilioService = {
         message,
       });
     } catch (error) {
-      logger.error('Error sending shipment notification', { error, phoneNumber, shipmentId });
+      logger.error('Error sending shipment notification', {
+        error,
+        phoneNumber,
+        shipmentId,
+      });
       throw error;
     }
   },
@@ -173,11 +194,11 @@ export const twilioService = {
   ): Promise<string> {
     try {
       let message = `DriveDrop: Driver ${driverName} has been assigned to your shipment.`;
-      
+
       if (estimatedArrival) {
         message += ` Estimated arrival: ${estimatedArrival}.`;
       }
-      
+
       message += ` Driver contact: ${driverPhone}`;
 
       return await this.sendSMS({
@@ -185,7 +206,10 @@ export const twilioService = {
         message,
       });
     } catch (error) {
-      logger.error('Error sending driver assignment notification', { error, clientPhone });
+      logger.error('Error sending driver assignment notification', {
+        error,
+        clientPhone,
+      });
       throw error;
     }
   },
@@ -201,11 +225,11 @@ export const twilioService = {
   ): Promise<string> {
     try {
       let message = `DriveDrop: Shipment ${shipmentId} has been delivered`;
-      
+
       if (recipientName) {
         message += ` to ${recipientName}`;
       }
-      
+
       message += ` at ${deliveryTime}. Thank you for using DriveDrop!`;
 
       return await this.sendSMS({
@@ -213,7 +237,11 @@ export const twilioService = {
         message,
       });
     } catch (error) {
-      logger.error('Error sending delivery confirmation', { error, phoneNumber, shipmentId });
+      logger.error('Error sending delivery confirmation', {
+        error,
+        phoneNumber,
+        shipmentId,
+      });
       throw error;
     }
   },
@@ -221,10 +249,13 @@ export const twilioService = {
   /**
    * Send promotional SMS (with opt-out)
    */
-  async sendPromotionalSMS(phoneNumber: string, message: string): Promise<string> {
+  async sendPromotionalSMS(
+    phoneNumber: string,
+    message: string
+  ): Promise<string> {
     try {
       const fullMessage = `${message}\n\nReply STOP to opt out.`;
-      
+
       return await this.sendSMS({
         to: phoneNumber,
         message: fullMessage,
@@ -238,10 +269,12 @@ export const twilioService = {
   /**
    * Validate phone number format
    */
-  async validatePhoneNumber(phoneNumber: string): Promise<{ isValid: boolean; formatted?: string }> {
+  async validatePhoneNumber(
+    phoneNumber: string
+  ): Promise<{ isValid: boolean; formatted?: string }> {
     try {
       const lookup = await twilio.lookups.v2.phoneNumbers(phoneNumber).fetch();
-      
+
       return {
         isValid: lookup.valid || false,
         formatted: lookup.phoneNumber,

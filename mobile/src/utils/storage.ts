@@ -48,7 +48,7 @@ export const secureStorage = {
     const value = await secureStorage.getItem(key);
     return value !== null;
   },
-  
+
   /**
    * Store an object securely by stringifying it
    */
@@ -67,7 +67,7 @@ export const secureStorage = {
   getObject: async <T = object>(key: string): Promise<T | null> => {
     try {
       const jsonValue = await SecureStore.getItemAsync(`${PREFIX}${key}`);
-      return jsonValue != null ? JSON.parse(jsonValue) as T : null;
+      return jsonValue != null ? (JSON.parse(jsonValue) as T) : null;
     } catch (error) {
       console.error('Error retrieving secure object', error);
       return null;

@@ -1,10 +1,5 @@
 import React, { useEffect } from 'react';
-import {
-  StyleSheet,
-  View,
-  Text,
-  ScrollView,
-} from 'react-native';
+import { StyleSheet, View, Text, ScrollView } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { StatusBar } from 'expo-status-bar';
 
@@ -15,9 +10,14 @@ import { Input } from '../../components/ui/Input';
 import { RootStackParamList } from '../../navigation/types';
 import { useBooking } from '../../context/BookingContext';
 
-type BookingStepVehicleProps = NativeStackScreenProps<RootStackParamList, 'BookingStepVehicle'>;
+type BookingStepVehicleProps = NativeStackScreenProps<
+  RootStackParamList,
+  'BookingStepVehicle'
+>;
 
-export default function BookingStepVehicleScreen({ navigation }: BookingStepVehicleProps) {
+export default function BookingStepVehicleScreen({
+  navigation,
+}: BookingStepVehicleProps) {
   const { state, updateFormData, setStepValidity, goToNextStep } = useBooking();
   const { vehicleInformation } = state.formData;
 
@@ -36,9 +36,9 @@ export default function BookingStepVehicleScreen({ navigation }: BookingStepVehi
 
   const handleInputChange = (field: string, value: string) => {
     console.log('Vehicle input change:', field, value);
-    const updatedData = { 
+    const updatedData = {
       ...vehicleInformation,
-      [field]: value 
+      [field]: value,
     };
     updateFormData('vehicle', updatedData);
   };
@@ -57,7 +57,7 @@ export default function BookingStepVehicleScreen({ navigation }: BookingStepVehi
   return (
     <View style={styles.container}>
       <StatusBar style="dark" />
-      
+
       {/* Header */}
       <View style={styles.header}>
         <Text style={styles.title}>Vehicle Information</Text>
@@ -67,8 +67,8 @@ export default function BookingStepVehicleScreen({ navigation }: BookingStepVehi
         </View>
       </View>
 
-      <ScrollView 
-        style={styles.content} 
+      <ScrollView
+        style={styles.content}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
         contentContainerStyle={{ flexGrow: 1 }}
@@ -84,7 +84,7 @@ export default function BookingStepVehicleScreen({ navigation }: BookingStepVehi
               label="Make"
               placeholder="e.g., Ford, Toyota, BMW"
               value={vehicleInformation.make || ''}
-              onChangeText={(value) => handleInputChange('make', value)}
+              onChangeText={value => handleInputChange('make', value)}
               leftIcon="directions-car"
               required
             />
@@ -93,7 +93,7 @@ export default function BookingStepVehicleScreen({ navigation }: BookingStepVehi
               label="Model"
               placeholder="e.g., F-150, Camry, X5"
               value={vehicleInformation.model || ''}
-              onChangeText={(value) => handleInputChange('model', value)}
+              onChangeText={value => handleInputChange('model', value)}
               leftIcon="directions-car"
               required
             />
@@ -102,7 +102,7 @@ export default function BookingStepVehicleScreen({ navigation }: BookingStepVehi
               label="Year"
               placeholder="e.g., 2020"
               value={vehicleInformation.year || ''}
-              onChangeText={(value) => handleInputChange('year', value)}
+              onChangeText={value => handleInputChange('year', value)}
               leftIcon="calendar-today"
               keyboardType="numeric"
               maxLength={4}
@@ -113,7 +113,9 @@ export default function BookingStepVehicleScreen({ navigation }: BookingStepVehi
               label="VIN Number"
               placeholder="17-character VIN (optional)"
               value={vehicleInformation.vin || ''}
-              onChangeText={(value) => handleInputChange('vin', value.toUpperCase())}
+              onChangeText={value =>
+                handleInputChange('vin', value.toUpperCase())
+              }
               leftIcon="confirmation-number"
               autoCapitalize="characters"
               maxLength={17}
@@ -124,7 +126,9 @@ export default function BookingStepVehicleScreen({ navigation }: BookingStepVehi
               label="License Plate"
               placeholder="License plate number (optional)"
               value={vehicleInformation.licensePlate || ''}
-              onChangeText={(value) => handleInputChange('licensePlate', value.toUpperCase())}
+              onChangeText={value =>
+                handleInputChange('licensePlate', value.toUpperCase())
+              }
               leftIcon="credit-card"
               autoCapitalize="characters"
             />
@@ -133,7 +137,7 @@ export default function BookingStepVehicleScreen({ navigation }: BookingStepVehi
               label="Condition Notes"
               placeholder="Any special conditions, modifications, or damage to note"
               value={vehicleInformation.conditionNotes || ''}
-              onChangeText={(value) => handleInputChange('conditionNotes', value)}
+              onChangeText={value => handleInputChange('conditionNotes', value)}
               leftIcon="note"
               multiline
               numberOfLines={3}

@@ -83,11 +83,16 @@ export class OfflineService {
   /**
    * Update the timestamp of when data was last synced
    */
-  private async updateSyncTimestamp(type: 'shipments' | 'messages'): Promise<void> {
+  private async updateSyncTimestamp(
+    type: 'shipments' | 'messages'
+  ): Promise<void> {
     try {
       const timestamps = await this.getSyncTimestamps();
       timestamps[type] = new Date().toISOString();
-      await AsyncStorage.setItem(SYNC_TIMESTAMPS_KEY, JSON.stringify(timestamps));
+      await AsyncStorage.setItem(
+        SYNC_TIMESTAMPS_KEY,
+        JSON.stringify(timestamps)
+      );
     } catch (error) {
       console.error('Error updating sync timestamp:', error);
     }
@@ -117,7 +122,7 @@ export class OfflineService {
         .from('shipments')
         .select('*')
         .eq('client_id', userId);
-      
+
       if (clientError) {
         throw clientError;
       }
@@ -133,14 +138,18 @@ export class OfflineService {
       }
 
       // Combine both sets of shipments and remove duplicates
-      const allShipments = [...(clientShipments || []), ...(driverShipments || [])];
-      const uniqueShipments = allShipments.filter((shipment, index, self) =>
-        index === self.findIndex((s) => s.id === shipment.id)
+      const allShipments = [
+        ...(clientShipments || []),
+        ...(driverShipments || []),
+      ];
+      const uniqueShipments = allShipments.filter(
+        (shipment, index, self) =>
+          index === self.findIndex(s => s.id === shipment.id)
       );
 
       // Save shipments to offline storage
       await this.saveShipments(uniqueShipments);
-      
+
       return uniqueShipments;
     } catch (error) {
       console.error('Error syncing shipments:', error);
@@ -169,7 +178,7 @@ export class OfflineService {
       if (data) {
         await this.saveMessages(data);
       }
-      
+
       return data || [];
     } catch (error) {
       console.error('Error syncing messages:', error);
@@ -182,19 +191,21 @@ export class OfflineService {
   /**
    * Queue a message to be sent when online
    */
-  async queueMessage(message: Omit<MessageData, 'id' | 'created_at'>): Promise<void> {
+  async queueMessage(
+    message: Omit<MessageData, 'id' | 'created_at'>
+  ): Promise<void> {
     try {
       // Store the queue in AsyncStorage
       const queueKey = `@drivedrop:message_queue`;
       const queueJson = await AsyncStorage.getItem(queueKey);
       const queue = queueJson ? JSON.parse(queueJson) : [];
-      
+
       // Add message to queue
       queue.push({
         ...message,
         queued_at: new Date().toISOString(),
       });
-      
+
       await AsyncStorage.setItem(queueKey, JSON.stringify(queue));
     } catch (error) {
       console.error('Error queueing message:', error);
@@ -210,25 +221,23 @@ export class OfflineService {
       const queueKey = `@drivedrop:message_queue`;
       const queueJson = await AsyncStorage.getItem(queueKey);
       if (!queueJson) return;
-      
+
       const queue = JSON.parse(queueJson);
       if (queue.length === 0) return;
-      
+
       // Try to send each message
       const newQueue = [];
-      
+
       for (const message of queue) {
         try {
           // Try to insert the message
-          const { error } = await supabase
-            .from('messages')
-            .insert({
-              shipment_id: message.shipment_id,
-              sender_id: message.sender_id,
-              content: message.content,
-              is_read: message.is_read || false,
-            });
-          
+          const { error } = await supabase.from('messages').insert({
+            shipment_id: message.shipment_id,
+            sender_id: message.sender_id,
+            content: message.content,
+            is_read: message.is_read || false,
+          });
+
           if (error) {
             // Keep in queue if failed
             newQueue.push(message);
@@ -238,7 +247,7 @@ export class OfflineService {
           newQueue.push(message);
         }
       }
-      
+
       // Update the queue
       await AsyncStorage.setItem(queueKey, JSON.stringify(newQueue));
     } catch (error) {

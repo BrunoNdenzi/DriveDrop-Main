@@ -3,7 +3,7 @@
  */
 import { Router } from 'express';
 import { authenticate, authorize } from '@middlewares/auth.middleware';
-import { 
+import {
   getShipmentById,
   getShipments,
   createShipment,
@@ -12,7 +12,7 @@ import {
   getShipmentTracking,
   createTrackingEvent,
   assignDriverToShipment,
-  getShipmentApplicants
+  getShipmentApplicants,
 } from '@controllers/shipment.controller';
 import { applyForShipment } from '@controllers/application.controller';
 
@@ -51,7 +51,12 @@ router.get('/:id', authenticate, getShipmentById);
  * @desc Update shipment status
  * @access Private (Driver/Admin)
  */
-router.patch('/:id/status', authenticate, authorize(['driver', 'admin']), updateShipmentStatus);
+router.patch(
+  '/:id/status',
+  authenticate,
+  authorize(['driver', 'admin']),
+  updateShipmentStatus
+);
 
 /**
  * @route GET /api/v1/shipments/:id/tracking
@@ -65,27 +70,47 @@ router.get('/:id/tracking', authenticate, getShipmentTracking);
  * @desc Create tracking event
  * @access Private (Driver or Admin)
  */
-router.post('/:id/events', authenticate, authorize(['driver', 'admin']), createTrackingEvent);
+router.post(
+  '/:id/events',
+  authenticate,
+  authorize(['driver', 'admin']),
+  createTrackingEvent
+);
 
 /**
  * @route PUT /api/v1/shipments/:id/assign
  * @desc Assign a driver to a shipment
  * @access Private (Admin only)
  */
-router.put('/:id/assign', authenticate, authorize(['admin']), assignDriverToShipment);
+router.put(
+  '/:id/assign',
+  authenticate,
+  authorize(['admin']),
+  assignDriverToShipment
+);
 
 /**
  * @route GET /api/v1/shipments/:id/applicants
  * @desc Get shipment applicants
  * @access Private (Admin only)
  */
-router.get('/:id/applicants', authenticate, authorize(['admin']), getShipmentApplicants);
+router.get(
+  '/:id/applicants',
+  authenticate,
+  authorize(['admin']),
+  getShipmentApplicants
+);
 
 /**
  * @route POST /api/v1/shipments/:id/apply
  * @desc Apply for a shipment (Driver only)
  * @access Private (Driver only)
  */
-router.post('/:id/apply', authenticate, authorize(['driver']), applyForShipment);
+router.post(
+  '/:id/apply',
+  authenticate,
+  authorize(['driver']),
+  applyForShipment
+);
 
 export default router;

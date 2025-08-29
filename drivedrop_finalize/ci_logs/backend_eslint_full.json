@@ -1,0 +1,12 @@
+
+> backend@1.0.0 lint
+> eslint . --ext .ts --max-warnings 0 json
+
+
+Oops! Something went wrong! :(
+
+ESLint: 9.30.1
+
+No files matching the pattern "json" were found.
+Please check for typing mistakes in the pattern.
+
