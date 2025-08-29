@@ -3,9 +3,11 @@
     "jsx": "react-native",
     "allowJs": true,
     "strict": true,
-    "module": "node16",
+    // Use native ES modules so TypeScript doesn't downlevel to CommonJS 'require' calls
+    "module": "esnext",
     "target": "esnext",
-    "moduleResolution": "node16",
+    // Bundler resolution works well with React Native / Expo and ESM packages
+    "moduleResolution": "bundler",
     "esModuleInterop": true,
     "skipLibCheck": true,
     "resolveJsonModule": true,

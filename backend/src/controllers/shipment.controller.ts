@@ -5,6 +5,7 @@ import { Request, Response } from 'express';
 import { asyncHandler, createError } from '@utils/error';
 import { successResponse } from '@utils/response';
 import { shipmentService } from '@services/supabase.service';
+import { pricingService } from '@services/pricing.service';
 import { isValidUuid } from '@utils/validation';
 import { ShipmentStatus } from '../types/api.types';
 
@@ -111,7 +112,11 @@ export const createShipment = asyncHandler(async (req: Request, res: Response) =
     pickup_address,
     delivery_address,
     description,
-    estimated_price,
+    vehicle_type, // expected from client (sedan, suv, pickup, luxury, motorcycle, heavy)
+    distance_miles, // numeric distance precomputed client or server
+    is_accident_recovery,
+    vehicle_count,
+    estimated_price, // optional override
     scheduled_pickup,
   } = req.body;
 
@@ -129,6 +134,28 @@ export const createShipment = asyncHandler(async (req: Request, res: Response) =
     throw createError('Only clients can create shipments', 403, 'FORBIDDEN');
   }
 
+  let finalEstimatedPrice = estimated_price;
+  if (!finalEstimatedPrice && vehicle_type && distance_miles) {
+    try {
+      const allowedVehicleTypes = ['sedan','suv','pickup','luxury','motorcycle','heavy'] as const;
+      const vt = typeof vehicle_type === 'string' && (allowedVehicleTypes as readonly string[]).includes(vehicle_type)
+        ? vehicle_type as typeof allowedVehicleTypes[number]
+        : undefined;
+      if (!vt) {
+        throw new Error('Unsupported vehicle type');
+      }
+      const { total } = pricingService.calculateQuote({
+        vehicleType: vt,
+        distanceMiles: Number(distance_miles),
+        isAccidentRecovery: Boolean(is_accident_recovery),
+        vehicleCount: vehicle_count ? Number(vehicle_count) : 1,
+      });
+      finalEstimatedPrice = total;
+    } catch {
+      // Fallback: leave undefined, don't block creation
+    }
+  }
+
   const shipment = await shipmentService.createShipment({
     client_id: req.user.id,
     pickup_location,
@@ -136,7 +163,7 @@ export const createShipment = asyncHandler(async (req: Request, res: Response) =
     pickup_address,
     delivery_address,
     description,
-    estimated_price,
+    estimated_price: finalEstimatedPrice,
     scheduled_pickup,
   });
 

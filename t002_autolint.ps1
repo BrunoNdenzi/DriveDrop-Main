@@ -17,7 +17,7 @@ function Write-Log {
 
 # Safety check: clean repo
 $gitStatus = git status --porcelain
-if ($gitStatus) {
+if ([string]::IsNullOrEmpty($gitStatus) -eq $false) {
     $errorMsg = "ERROR: Please commit/stash working tree before running."
     Write-Host $errorMsg
     Set-Content -Path "$OUT\error.txt" -Value $errorMsg
@@ -69,9 +69,15 @@ function Add-TsExcludes {
 if (Test-Path "backend") {
     Write-Log "=== BACKEND T002 ==="
     git fetch origin 2>&1 | Out-Null
-    git checkout -b feat/T002-backend-lint-fixes 2>&1 | Out-Null
-    if ($LASTEXITCODE -ne 0) {
+    
+    # Check if branch exists and handle accordingly
+    $branchExists = git show-ref --verify --quiet refs/heads/feat/T002-backend-lint-fixes
+    if ($LASTEXITCODE -eq 0) {
+        Write-Log "Branch feat/T002-backend-lint-fixes already exists, checking it out"
         git checkout feat/T002-backend-lint-fixes 2>&1 | Out-Null
+    } else {
+        Write-Log "Creating new branch feat/T002-backend-lint-fixes"
+        git checkout -b feat/T002-backend-lint-fixes 2>&1 | Out-Null
     }
 
     # write eslintignore
@@ -125,7 +131,7 @@ if (Test-Path "backend") {
 
     # stage and commit backend changes if any
     git add backend\.eslintignore $TSC backend\ 2>$null
-    $hasStagedChanges = git diff --staged --quiet
+    git diff --staged --quiet
     if ($LASTEXITCODE -eq 0) {
         Write-Log "No staged changes to commit for backend"
     } else {
@@ -137,9 +143,15 @@ if (Test-Path "backend") {
 if (Test-Path "mobile") {
     Write-Log "=== MOBILE T002 ==="
     git fetch origin 2>&1 | Out-Null
-    git checkout -b feat/T002-mobile-lint-fixes 2>&1 | Out-Null
-    if ($LASTEXITCODE -ne 0) {
+    
+    # Check if branch exists and handle accordingly
+    $branchExists = git show-ref --verify --quiet refs/heads/feat/T002-mobile-lint-fixes
+    if ($LASTEXITCODE -eq 0) {
+        Write-Log "Branch feat/T002-mobile-lint-fixes already exists, checking it out"
         git checkout feat/T002-mobile-lint-fixes 2>&1 | Out-Null
+    } else {
+        Write-Log "Creating new branch feat/T002-mobile-lint-fixes"
+        git checkout -b feat/T002-mobile-lint-fixes 2>&1 | Out-Null
     }
 
     # write eslintignore
@@ -186,7 +198,7 @@ if (Test-Path "mobile") {
 
     # stage and commit mobile changes if any
     git add mobile\.eslintignore $MTSC mobile\ 2>$null
-    $hasStagedChanges = git diff --staged --quiet
+    git diff --staged --quiet
     if ($LASTEXITCODE -eq 0) {
         Write-Log "No staged changes to commit for mobile"
     } else {

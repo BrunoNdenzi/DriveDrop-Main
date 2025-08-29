@@ -217,31 +217,29 @@ export class NotificationService {
         console.error('Error getting user:', userError);
         return;
       }
+      // Use RPC so we can safely reassign ownership (deletes old + inserts new) under a SECURITY DEFINER function
+      const { error: rpcError } = await supabase.rpc('register_push_token', {
+        p_token: token,
+        p_device_type: Platform.OS,
+      });
 
-      // Check if token already exists
-      const { data: existingTokens, error: queryError } = await supabase
-        .from('push_tokens')
-        .select('*')
-        .eq('user_id', user.user.id)
-        .eq('token', token);
-
-      if (queryError) {
-        console.error('Error querying push tokens:', queryError);
-        return;
-      }
-
-      // If token doesn't exist, save it
-      if (!existingTokens || existingTokens.length === 0) {
-        const { error } = await supabase.from('push_tokens').insert({
-          user_id: user.user.id,
-          token,
-          device_type: Platform.OS,
-          is_active: true,
-          created_at: new Date().toISOString(),
-        });
-
-        if (error) {
-          console.error('Error saving push token:', error);
+      if (rpcError) {
+        // 42883 = undefined function (not yet deployed), 42501 = RLS / permission, 23505 = duplicate unique constraint
+        if (['42883'].includes(rpcError.code || '')) {
+          console.warn('register_push_token RPC not found – falling back to legacy insert (consider deploying SQL).');
+          const { error: legacyError } = await supabase.from('push_tokens').insert({
+            user_id: user.user.id,
+            token,
+            device_type: Platform.OS,
+            is_active: true,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          });
+          if (legacyError && !['23505', '42501'].includes(legacyError.code || '')) {
+            console.error('Legacy push token save failed:', legacyError);
+          }
+        } else if (!['23505'].includes(rpcError.code || '')) {
+          console.error('Error saving push token via RPC:', rpcError);
         }
       }
     } catch (error) {

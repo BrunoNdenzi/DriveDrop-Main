@@ -1,12 +1,22 @@
 import React from 'react';
 import { StyleSheet, Text, View, TouchableOpacity, ViewStyle } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { Shipment, shipmentStatusMap, formatDate } from '../types';
+import { shipmentStatusMap, formatDate } from '../types/shipment';
 import { Colors } from '../constants/Colors';
 
+interface ApiShipment {
+  id: string;
+  title?: string;
+  pickup_address?: string;
+  delivery_address?: string;
+  status?: string;
+  created_at?: string;
+  estimated_price?: number;
+}
+
 interface ShipmentListItemProps {
-  shipment: Shipment;
-  onPress: (shipment: Shipment) => void;
+  shipment: ApiShipment;
+  onPress: (shipment: ApiShipment) => void;
   style?: ViewStyle;
 }
 
@@ -20,16 +30,16 @@ export function ShipmentListItem({ shipment, onPress, style }: ShipmentListItemP
       <View style={styles.contentContainer}>
         <View style={styles.header}>
           <Text style={styles.title} numberOfLines={1}>
-            {shipment.title}
+            {shipment.title || 'Shipment'}
           </Text>
           <View
             style={[
               styles.statusBadge,
-              { backgroundColor: Colors.status[shipment.status] || Colors.text.secondary },
+              { backgroundColor: shipment.status ? (Colors.status as any)[shipment.status] || Colors.text.secondary : Colors.text.secondary },
             ]}
           >
             <Text style={styles.statusText}>
-              {shipmentStatusMap[shipment.status]}
+              {shipment.status ? shipmentStatusMap[shipment.status as keyof typeof shipmentStatusMap] : 'Unknown'}
             </Text>
           </View>
         </View>
@@ -38,24 +48,24 @@ export function ShipmentListItem({ shipment, onPress, style }: ShipmentListItemP
           <View style={styles.addressRow}>
             <Ionicons name="location" size={16} color={Colors.primary} style={styles.icon} />
             <Text style={styles.addressText} numberOfLines={1}>
-              {shipment.pickupAddress}
+              {shipment.pickup_address || 'Pickup TBD'}
             </Text>
           </View>
           <View style={styles.addressRow}>
             <Ionicons name="location" size={16} color={Colors.secondary} style={styles.icon} />
             <Text style={styles.addressText} numberOfLines={1}>
-              {shipment.deliveryAddress}
+              {shipment.delivery_address || 'Delivery TBD'}
             </Text>
           </View>
         </View>
 
         <View style={styles.footer}>
           <Text style={styles.dateText}>
-            {formatDate(shipment.pickupDate)}
+            {shipment.created_at ? formatDate(shipment.created_at) : ''}
           </Text>
-          {shipment.price && (
+          {(shipment.estimated_price) && (
             <Text style={styles.priceText}>
-              ${shipment.price.toFixed(2)}
+              ${Number(shipment.estimated_price).toFixed(2)}
             </Text>
           )}
         </View>

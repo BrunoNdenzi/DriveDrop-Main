@@ -15,7 +15,6 @@ import { MaterialIcons } from '@expo/vector-icons';
 import { Colors } from '../../constants/Colors';
 import { ClientTabParamList, RootStackParamList } from '../../navigation/types';
 import { useAuth } from '../../context/AuthContext';
-import { supabase } from '../../lib/supabase';
 import { ShipmentService } from '../../services/shipmentService';
 
 type ShipmentsScreenProps = NativeStackScreenProps<ClientTabParamList, 'Shipments'> & {
@@ -60,10 +59,12 @@ export default function ShipmentsScreen({ navigation }: ShipmentsScreenProps) {
           statusFilter = ['pending'];
           break;
         case 'active':
-          statusFilter = ['accepted', 'in_transit'];
+          // Include all in-progress lifecycle statuses visible to client
+          statusFilter = ['assigned', 'picked_up', 'in_transit'];
           break;
         case 'past':
-          statusFilter = ['delivered', 'cancelled'];
+          // Completed lifecycle statuses
+          statusFilter = ['delivered', 'completed', 'cancelled'];
           break;
       }
 

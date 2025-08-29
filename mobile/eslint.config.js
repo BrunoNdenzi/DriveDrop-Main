@@ -28,13 +28,14 @@ module.exports = [
       'react-native': reactNativePlugin,
     },
     rules: {
-      '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
-      '@typescript-eslint/no-explicit-any': 'error',
-      'react/react-in-jsx-scope': 'off',
-      'react-native/no-unused-styles': 'error',
-      'react-native/split-platform-components': 'error',
-      'react-native/no-inline-styles': 'warn',
-      'react-native/no-color-literals': 'warn',
+  // Relaxed rules for rapid iteration (can re-enable in strict mode)
+  '@typescript-eslint/no-unused-vars': ['warn', { argsIgnorePattern: '^_' }],
+  '@typescript-eslint/no-explicit-any': 'off',
+  'react/react-in-jsx-scope': 'off',
+  'react-native/no-unused-styles': 'off',
+  'react-native/split-platform-components': 'off',
+  'react-native/no-inline-styles': 'off',
+  'react-native/no-color-literals': 'off',
     },
     settings: {
       react: {

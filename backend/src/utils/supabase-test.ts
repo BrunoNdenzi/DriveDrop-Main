@@ -4,7 +4,7 @@
  */
 import { supabase } from '@lib/supabase';
 import { logger } from '@utils/logger';
-import config from '@config/index';
+import config from '@config';
 
 interface TestResult {
   test: string;

@@ -6,7 +6,7 @@ import express, { Request, Response } from 'express';
 import { createError, asyncHandler } from '@utils/error';
 import { stripeService } from '@services/stripe.service';
 import { successResponse } from '@utils/response';
-import config from '@config/index';
+import config from '@config';
 import { logger } from '@utils/logger';
 
 const router = express.Router();

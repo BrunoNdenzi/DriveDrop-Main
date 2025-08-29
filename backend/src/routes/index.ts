@@ -11,6 +11,7 @@ import mapsRoutes from './maps.routes';
 import applicationRoutes from './application.routes';
 import driverRoutes from './driver.routes';
 import { diagnosticsRoutes } from './diagnostics.routes';
+import pricingRoutes from './pricing.routes';
 
 const router = Router();
 
@@ -43,5 +44,6 @@ router.use('/maps', mapsRoutes);
 router.use('/applications', applicationRoutes);
 router.use('/drivers', driverRoutes);
 router.use('/diagnostics', diagnosticsRoutes);
+router.use('/pricing', pricingRoutes);
 
 export default router;

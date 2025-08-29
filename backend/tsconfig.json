@@ -25,8 +25,9 @@
     "noUncheckedIndexedAccess": true,
     "baseUrl": "./src",
     "paths": {
-      "@/*": ["./*"],
-      "@config/*": ["config/*"],
+  "@/*": ["./*"],
+  "@config": ["config/index.ts"],
+  "@config/*": ["config/*"],
       "@controllers/*": ["controllers/*"],
       "@middlewares/*": ["middlewares/*"],
       "@routes/*": ["routes/*"],
