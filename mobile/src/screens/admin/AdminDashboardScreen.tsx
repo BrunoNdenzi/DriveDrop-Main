@@ -19,7 +19,9 @@ import { Colors } from '../../constants/Colors';
 import { useNavigation } from '@react-navigation/native';
 
 // Create a simple admin-only HOC
-function withAdminOnly<P extends object>(WrappedComponent: React.ComponentType<P>) {
+function withAdminOnly<P extends object>(
+  WrappedComponent: React.ComponentType<P>
+) {
   return function WithAdminCheck(props: P) {
     const { userProfile, loading } = useAuth();
     const navigation = useNavigation();
@@ -40,7 +42,9 @@ function withAdminOnly<P extends object>(WrappedComponent: React.ComponentType<P
 
     if (loading) {
       return (
-        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+        <View
+          style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}
+        >
           <ActivityIndicator size="large" color={Colors.primary} />
         </View>
       );
@@ -50,7 +54,10 @@ function withAdminOnly<P extends object>(WrappedComponent: React.ComponentType<P
   };
 }
 
-type AdminDashboardScreenProps = NativeStackScreenProps<RootStackParamList, 'AdminDashboard'>;
+type AdminDashboardScreenProps = NativeStackScreenProps<
+  RootStackParamList,
+  'AdminDashboard'
+>;
 
 interface DashboardStats {
   pendingShipments: number;
@@ -75,33 +82,29 @@ function AdminDashboardScreen({ navigation }: AdminDashboardScreenProps) {
 
   // Handle sign out
   const handleSignOut = async () => {
-    Alert.alert(
-      'Sign Out',
-      'Are you sure you want to sign out?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Sign Out',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              const { error } = await supabase.auth.signOut();
-              if (error) {
-                throw error;
-              }
-              // Navigate to login screen after successful logout
-              navigation.reset({
-                index: 0,
-                routes: [{ name: 'Login' }],
-              });
-            } catch (err) {
-              console.error('Error signing out:', err);
-              Alert.alert('Error', 'Failed to sign out');
+    Alert.alert('Sign Out', 'Are you sure you want to sign out?', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Sign Out',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            const { error } = await supabase.auth.signOut();
+            if (error) {
+              throw error;
             }
-          },
+            // Navigate to login screen after successful logout
+            navigation.reset({
+              index: 0,
+              routes: [{ name: 'Login' }],
+            });
+          } catch (err) {
+            console.error('Error signing out:', err);
+            Alert.alert('Error', 'Failed to sign out');
+          }
         },
-      ]
-    );
+      },
+    ]);
   };
 
   // Load dashboard stats on mount
@@ -112,7 +115,7 @@ function AdminDashboardScreen({ navigation }: AdminDashboardScreenProps) {
   const loadDashboardStats = async () => {
     try {
       setLoading(true);
-      
+
       // Get pending shipments count
       const { count: pendingShipments, error: pendingError } = await supabase
         .from('shipments')
@@ -135,23 +138,28 @@ function AdminDashboardScreen({ navigation }: AdminDashboardScreenProps) {
       }
 
       // Get completed shipments count
-      const { count: completedShipments, error: completedError } = await supabase
-        .from('shipments')
-        .select('*', { count: 'exact', head: true })
-        .eq('status', 'delivered');
+      const { count: completedShipments, error: completedError } =
+        await supabase
+          .from('shipments')
+          .select('*', { count: 'exact', head: true })
+          .eq('status', 'delivered');
 
       if (completedError) {
         console.error('Error fetching completed shipments:', completedError);
       }
 
       // Get pending applications count
-      const { count: pendingApplications, error: applicationsError } = await supabase
-        .from('job_applications')
-        .select('*', { count: 'exact', head: true })
-        .eq('status', 'pending');
+      const { count: pendingApplications, error: applicationsError } =
+        await supabase
+          .from('job_applications')
+          .select('*', { count: 'exact', head: true })
+          .eq('status', 'pending');
 
       if (applicationsError) {
-        console.error('Error fetching pending applications:', applicationsError);
+        console.error(
+          'Error fetching pending applications:',
+          applicationsError
+        );
       }
 
       // Get total drivers count
@@ -185,7 +193,10 @@ function AdminDashboardScreen({ navigation }: AdminDashboardScreenProps) {
       });
     } catch (err) {
       console.error('Error in loadDashboardStats:', err);
-      Alert.alert('Error', 'An unexpected error occurred while loading dashboard');
+      Alert.alert(
+        'Error',
+        'An unexpected error occurred while loading dashboard'
+      );
     } finally {
       setLoading(false);
     }
@@ -217,17 +228,29 @@ function AdminDashboardScreen({ navigation }: AdminDashboardScreenProps) {
             <View style={styles.statCard}>
               <Text style={styles.statValue}>{stats.pendingShipments}</Text>
               <Text style={styles.statLabel}>Pending</Text>
-              <MaterialIcons name="pending-actions" size={24} color={Colors.warning} />
+              <MaterialIcons
+                name="pending-actions"
+                size={24}
+                color={Colors.warning}
+              />
             </View>
             <View style={styles.statCard}>
               <Text style={styles.statValue}>{stats.activeShipments}</Text>
               <Text style={styles.statLabel}>Active</Text>
-              <MaterialIcons name="local-shipping" size={24} color={Colors.success} />
+              <MaterialIcons
+                name="local-shipping"
+                size={24}
+                color={Colors.success}
+              />
             </View>
             <View style={styles.statCard}>
               <Text style={styles.statValue}>{stats.completedShipments}</Text>
               <Text style={styles.statLabel}>Completed</Text>
-              <MaterialIcons name="check-circle" size={24} color={Colors.success} />
+              <MaterialIcons
+                name="check-circle"
+                size={24}
+                color={Colors.success}
+              />
             </View>
           </View>
 
@@ -236,7 +259,11 @@ function AdminDashboardScreen({ navigation }: AdminDashboardScreenProps) {
             <View style={styles.statCard}>
               <Text style={styles.statValue}>{stats.totalDrivers}</Text>
               <Text style={styles.statLabel}>Drivers</Text>
-              <MaterialIcons name="drive-eta" size={24} color={Colors.primary} />
+              <MaterialIcons
+                name="drive-eta"
+                size={24}
+                color={Colors.primary}
+              />
             </View>
             <View style={styles.statCard}>
               <Text style={styles.statValue}>{stats.totalClients}</Text>
@@ -246,7 +273,11 @@ function AdminDashboardScreen({ navigation }: AdminDashboardScreenProps) {
             <View style={styles.statCard}>
               <Text style={styles.statValue}>{stats.pendingApplications}</Text>
               <Text style={styles.statLabel}>Applications</Text>
-              <MaterialIcons name="person-add" size={24} color={Colors.warning} />
+              <MaterialIcons
+                name="person-add"
+                size={24}
+                color={Colors.warning}
+              />
             </View>
           </View>
         </View>
@@ -254,41 +285,57 @@ function AdminDashboardScreen({ navigation }: AdminDashboardScreenProps) {
         <View style={styles.actionContainer}>
           <Text style={styles.sectionTitle}>Quick Actions</Text>
           <View style={styles.actionButtonsContainer}>
-            <TouchableOpacity 
+            <TouchableOpacity
               style={styles.actionButton}
               onPress={() => navigation.navigate('AdminAssignment')}
             >
-              <MaterialIcons name="assignment" size={32} color={Colors.text.inverse} />
+              <MaterialIcons
+                name="assignment"
+                size={32}
+                color={Colors.text.inverse}
+              />
               <Text style={styles.actionButtonText}>Assign Drivers</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity 
+            <TouchableOpacity
               style={styles.actionButton}
               onPress={() => alert('Shipment List - Feature coming soon')}
             >
-              <MaterialIcons name="view-list" size={32} color={Colors.text.inverse} />
+              <MaterialIcons
+                name="view-list"
+                size={32}
+                color={Colors.text.inverse}
+              />
               <Text style={styles.actionButtonText}>Manage Shipments</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity 
+            <TouchableOpacity
               style={styles.actionButton}
               onPress={() => alert('Manage Drivers - Feature coming soon')}
             >
-              <MaterialIcons name="group" size={32} color={Colors.text.inverse} />
+              <MaterialIcons
+                name="group"
+                size={32}
+                color={Colors.text.inverse}
+              />
               <Text style={styles.actionButtonText}>Manage Drivers</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity 
+            <TouchableOpacity
               style={styles.actionButton}
               onPress={() => alert('Driver Applications - Feature coming soon')}
             >
-              <MaterialIcons name="assignment-ind" size={32} color={Colors.text.inverse} />
+              <MaterialIcons
+                name="assignment-ind"
+                size={32}
+                color={Colors.text.inverse}
+              />
               <Text style={styles.actionButtonText}>Driver Applications</Text>
             </TouchableOpacity>
           </View>
         </View>
 
-        <TouchableOpacity 
+        <TouchableOpacity
           style={styles.refreshButton}
           onPress={loadDashboardStats}
         >

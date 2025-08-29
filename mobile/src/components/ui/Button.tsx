@@ -7,7 +7,13 @@ import {
   ViewStyle,
   TextStyle,
 } from 'react-native';
-import { Colors, ComponentTokens, Typography, BorderRadius, Shadows } from '../../constants/DesignSystem';
+import {
+  Colors,
+  ComponentTokens,
+  Typography,
+  BorderRadius,
+  Shadows,
+} from '../../constants/DesignSystem';
 
 interface ButtonProps {
   title: string;
@@ -80,6 +86,7 @@ const styles = StyleSheet.create({
     width: '100%',
   },
 
+  // TODO: These styles are used dynamically via styles[variant] but ESLint doesn't detect them
   // Variants
   primary: {
     backgroundColor: Colors.primary,
@@ -96,6 +103,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'transparent',
   },
 
+  // TODO: These styles are used dynamically via styles[size] but ESLint doesn't detect them
   // Sizes
   sm: {
     height: ComponentTokens.button.height.sm,
@@ -110,6 +118,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: ComponentTokens.button.padding.lg.horizontal,
   },
 
+  // TODO: These styles are used dynamically via styles[`${variant}Text`] but ESLint doesn't detect them
   // Text styles
   text: {
     fontWeight: Typography.fontWeight.semibold,
@@ -128,6 +137,7 @@ const styles = StyleSheet.create({
     color: Colors.primary,
   },
 
+  // TODO: These styles are used dynamically via styles[`${size}Text`] but ESLint doesn't detect them
   // Size text
   smText: {
     fontSize: Typography.fontSize.sm,

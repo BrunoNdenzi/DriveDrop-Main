@@ -6,7 +6,11 @@ import {
   TouchableOpacity,
   TouchableOpacityProps,
 } from 'react-native';
-import { Colors, ComponentTokens, BorderRadius, Shadows, Spacing } from '../../constants/DesignSystem';
+import {
+  Colors,
+  ComponentTokens,
+  Shadows,
+} from '../../constants/DesignSystem';
 
 interface CardProps extends TouchableOpacityProps {
   children: React.ReactNode;
@@ -47,7 +51,8 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.surface,
     borderRadius: ComponentTokens.card.borderRadius,
   },
-  
+
+  // TODO: These styles are used dynamically via styles[variant] but ESLint doesn't detect them
   // Variants
   default: {
     ...Shadows.sm,
@@ -59,7 +64,8 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: Colors.border,
   },
-  
+
+  // TODO: These styles are used dynamically via styles[`${padding}Padding`] but ESLint doesn't detect them
   // Padding variants
   smPadding: {
     padding: ComponentTokens.card.padding.sm,

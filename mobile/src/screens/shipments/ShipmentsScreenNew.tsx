@@ -16,7 +16,10 @@ import { Colors } from '../../constants/Colors';
 import { ClientTabParamList, RootStackParamList } from '../../navigation/types';
 import { useAuth } from '../../context/AuthContext';
 
-type ShipmentsScreenProps = NativeStackScreenProps<ClientTabParamList, 'Shipments'> & {
+type ShipmentsScreenProps = NativeStackScreenProps<
+  ClientTabParamList,
+  'Shipments'
+> & {
   navigation: NativeStackScreenProps<RootStackParamList>['navigation'];
 };
 
@@ -32,7 +35,7 @@ interface Shipment {
 }
 
 export default function ShipmentsScreen({ navigation }: ShipmentsScreenProps) {
-  const { userProfile } = useAuth();
+  const { userProfile: _userProfile } = useAuth(); // TODO: Will be used for filtering user's shipments
   const [refreshing, setRefreshing] = useState(false);
   const [shipments, setShipments] = useState<Shipment[]>([]);
   const [filter, setFilter] = useState<ShipmentFilter>('pending');
@@ -66,9 +69,18 @@ export default function ShipmentsScreen({ navigation }: ShipmentsScreenProps) {
     navigation.navigate('ShipmentDetails', { shipmentId });
   };
 
-  const FilterButton = ({ title, value }: { title: string; value: ShipmentFilter }) => (
+  const FilterButton = ({
+    title,
+    value,
+  }: {
+    title: string;
+    value: ShipmentFilter;
+  }) => (
     <TouchableOpacity
-      style={[styles.filterButton, filter === value && styles.filterButtonActive]}
+      style={[
+        styles.filterButton,
+        filter === value && styles.filterButtonActive,
+      ]}
       onPress={() => setFilter(value)}
     >
       <Text
@@ -95,12 +107,12 @@ export default function ShipmentsScreen({ navigation }: ShipmentsScreenProps) {
   return (
     <View style={styles.container}>
       <StatusBar style="dark" />
-      
+
       {/* Header */}
       <View style={styles.header}>
         <Text style={styles.title}>My Shipments</Text>
       </View>
-      
+
       {/* Filter Tabs */}
       <View style={styles.filtersContainer}>
         <FilterButton title="Pending" value="pending" />
@@ -119,7 +131,7 @@ export default function ShipmentsScreen({ navigation }: ShipmentsScreenProps) {
         ) : (
           <FlatList
             data={shipments}
-            keyExtractor={(item) => item.id}
+            keyExtractor={item => item.id}
             renderItem={({ item }) => (
               <TouchableOpacity
                 style={styles.shipmentCard}
