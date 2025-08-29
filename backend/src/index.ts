@@ -3,6 +3,7 @@ import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
 import dotenv from 'dotenv';
+import 'module-alias/register';
 
 // Config and utilities
 import config, { validateConfig } from '@config';

@@ -2,6 +2,16 @@
   "name": "backend",
   "version": "1.1.0",
   "main": "dist/index.js",
+  "_moduleAliases": {
+    "@config": "dist/config/index.js",
+    "@utils": "dist/utils",
+    "@controllers": "dist/controllers",
+    "@middlewares": "dist/middlewares",
+    "@routes": "dist/routes",
+    "@services": "dist/services",
+    "@lib": "dist/lib",
+    "@types": "dist/types"
+  },
   "scripts": {
     "dev": "nodemon src/index.ts",
     "build": "tsc",
