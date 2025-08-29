@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, Alert, TouchableOpacity, ActivityIndicator } from 'react-native';
+import colors from '../theme/colors';
 
 // Simple diagnostic screen without external dependencies
 export default function NetworkDiagnosticScreen() {
@@ -120,7 +121,7 @@ export default function NetworkDiagnosticScreen() {
           disabled={testing}
         >
           {testing ? (
-            <ActivityIndicator size="small" color="#ffffff" />
+            <ActivityIndicator size="small" color={colors.white} />
           ) : (
             <Text style={styles.buttonText}>Test API Connection</Text>
           )}
@@ -132,7 +133,7 @@ export default function NetworkDiagnosticScreen() {
           disabled={testing}
         >
           {testing ? (
-            <ActivityIndicator size="small" color="#ffffff" />
+            <ActivityIndicator size="small" color={colors.white} />
           ) : (
             <Text style={styles.buttonText}>Test Applications API</Text>
           )}
@@ -153,7 +154,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     padding: 16,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: colors.tokens.c_f5f5f5,
   },
   title: {
     fontSize: 24,
@@ -193,30 +194,30 @@ const styles = StyleSheet.create({
     color: '#333',
   },
   button: {
-    backgroundColor: '#1E88E5',
+    backgroundColor: colors.primary,
     borderRadius: 8,
     paddingVertical: 12,
     alignItems: 'center',
     marginBottom: 16,
   },
   buttonDisabled: {
-    backgroundColor: '#90CAF9',
+    backgroundColor: colors.tokens.c_90caf9,
   },
   buttonText: {
-    color: '#fff',
+    color: colors.white,
     fontWeight: '600',
     fontSize: 14,
   },
   errorContainer: {
     padding: 16,
-    backgroundColor: '#FFF5F5',
+    backgroundColor: colors.tokens.c_fff5f5,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#E53935',
+    borderColor: colors.tokens.c_e53935,
   },
   errorTitle: {
     fontWeight: 'bold',
-    color: '#E53935',
+    color: colors.tokens.c_e53935,
     marginBottom: 8,
   },
   errorMessage: {

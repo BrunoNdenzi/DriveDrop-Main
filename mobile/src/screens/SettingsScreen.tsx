@@ -8,6 +8,7 @@ import { useNotifications } from '../contexts/NotificationContext';
 import { useAuth } from '../context/AuthContext';
 import { NotificationPreferences } from '../services/NotificationService';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import colors from '../theme/colors';
 import { RootStackParamList } from '../navigation/types';
 import { supabase } from '../lib/supabase';
 
@@ -264,17 +265,17 @@ const styles = StyleSheet.create({
   saveButton: {
     marginHorizontal: 16,
     marginVertical: 16,
-    backgroundColor: '#1E88E5',
+    backgroundColor: colors.primary,
   },
   testButton: {
     marginVertical: 8,
   },
   signOutButton: {
     marginVertical: 8,
-    borderColor: '#f44336',
+    borderColor: colors.tokens.c_f44336,
   },
   signOutButtonText: {
-    color: '#f44336',
+    color: colors.tokens.c_f44336,
   },
   infoText: {
     fontSize: 16,

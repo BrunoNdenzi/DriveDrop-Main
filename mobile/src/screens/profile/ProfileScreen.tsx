@@ -13,6 +13,7 @@ import { StatusBar } from 'expo-status-bar';
 import { MaterialIcons } from '@expo/vector-icons';
 
 import { Colors } from '../../constants/Colors';
+import colors from '../../theme/colors';
 import { RootStackParamList, ClientTabParamList } from '../../navigation/types';
 import { useAuth } from '../../context/AuthContext';
 import { auth } from '../../lib/supabase';
@@ -322,7 +323,7 @@ const styles = StyleSheet.create({
   adminButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#E3F2FD',
+    backgroundColor: colors.tokens.c_e3f2fd,
     paddingVertical: 12,
     paddingHorizontal: 16,
     borderRadius: 8,
