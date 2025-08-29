@@ -12,7 +12,7 @@
     "format:check": "prettier --check \"**/*.{ts,js,json,md}\"",
     "type-check": "tsc --noEmit",
     "clean": "rimraf dist",
-    "env:check": "node -e \"if (process.env.NODE_ENV !== 'production' && !require('fs').existsSync('.env')) { console.error('Error: .env file not found'); process.exit(1) }\""
+    "env:check": "node -e \"if (process.env.NODE_ENV !== 'production' && !require('fs').existsSync('.env')) { console.error('Error: .env file not found'); process.exit(1) }\"",
     "check:node": "node scripts/check-env.js",
     "test:supabase": "npm run build && node scripts/test-supabase.js",
     "predev": "npm run env:check && npm run check:node",
