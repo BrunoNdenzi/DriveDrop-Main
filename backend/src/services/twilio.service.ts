@@ -3,7 +3,7 @@
  */
 // Use a type-only import so that runtime doesn't eagerly require the Twilio package
 import type { Twilio as TwilioType } from 'twilio';
-import config from '@config/index';
+import config from '@config';
 import { createError } from '@utils/error';
 import { logger } from '@utils/logger';
 

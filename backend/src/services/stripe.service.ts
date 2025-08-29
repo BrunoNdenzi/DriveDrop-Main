@@ -2,7 +2,7 @@
  * Stripe payment service
  */
 import Stripe from 'stripe';
-import config from '@config/index';
+import config from '@config';
 import { createError } from '@utils/error';
 import { logger } from '@utils/logger';
 import { supabase } from '@lib/supabase';

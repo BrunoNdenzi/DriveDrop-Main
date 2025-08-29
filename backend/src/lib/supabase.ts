@@ -2,7 +2,7 @@
 // Cast to any to allow generic usage with local Database type when upstream types missing
 // (shim declared in types/shims.d.ts)
 import { createClient } from '@supabase/supabase-js';
-import config from '@config/index';
+import config from '@config';
 
 if (!config.supabase.url || !config.supabase.anonKey) {
   throw new Error('Missing Supabase environment variables');

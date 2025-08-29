@@ -5,7 +5,7 @@ import morgan from 'morgan';
 import dotenv from 'dotenv';
 
 // Config and utilities
-import config, { validateConfig } from '@config/index';
+import config, { validateConfig } from '@config';
 import { logger } from '@utils/logger';
 import { errorHandler } from '@middlewares/error.middleware';
 

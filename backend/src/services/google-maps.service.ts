@@ -2,7 +2,7 @@
  * Google Maps service for geocoding, directions, and distance calculations
  */
 import { Client, TravelMode } from '@googlemaps/google-maps-services-js';
-import config from '@config/index';
+import config from '@config';
 import { createError } from '@utils/error';
 import { logger } from '@utils/logger';
 
