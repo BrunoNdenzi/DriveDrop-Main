@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 import { asyncHandler } from '@utils/error';
 import { successResponse } from '@utils/response';
-import config from '@config/index';
+import config from '@config';
 
 /**
  * Get Stripe configuration
