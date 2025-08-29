@@ -148,8 +148,8 @@ export default function JobDetailsScreen({ route, navigation }: any) {
           changed_by: userProfile.id,
           changed_at: new Date().toISOString(),
           notes: `Status updated to ${newStatus} by driver`,
-          location_lat: locationData[`${newStatus}_lat`] || null,
-          location_lng: locationData[`${newStatus}_lng`] || null,
+          location_lat: (locationData as Record<string, any>)[`${newStatus}_lat`] || null,
+          location_lng: (locationData as Record<string, any>)[`${newStatus}_lng`] || null,
         },
       ]);
 

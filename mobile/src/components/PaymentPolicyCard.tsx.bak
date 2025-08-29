@@ -1,0 +1,193 @@
+import React from 'react';
+import { View, Text, StyleSheet } from 'react-native';
+import { MaterialIcons } from '@expo/vector-icons';
+import { Colors } from '../constants/Colors';
+import colors from './../theme/colors';
+
+interface PaymentPolicyCardProps {
+  totalAmount: number;
+  showDetailed?: boolean;
+}
+
+export const PaymentPolicyCard: React.FC<PaymentPolicyCardProps> = ({
+  totalAmount,
+  showDetailed = false,
+}) => {
+  const initialAmount = Math.round(totalAmount * 0.2);
+  const finalAmount = totalAmount - initialAmount;
+
+  return (
+    <View style={styles.container}>
+      <View style={styles.header}>
+        <MaterialIcons name="payment" size={20} color={Colors.primary} />
+        <Text style={styles.title}>Payment Policy</Text>
+      </View>
+
+      <View style={styles.paymentBreakdown}>
+        <View style={styles.paymentStep}>
+          <View style={styles.stepIndicator}>
+            <Text style={styles.stepNumber}>1</Text>
+          </View>
+          <View style={styles.stepContent}>
+            <Text style={styles.stepTitle}>At Booking</Text>
+            <Text style={styles.stepAmount}>${initialAmount}</Text>
+            <Text style={styles.stepDescription}>20% of total amount</Text>
+          </View>
+        </View>
+
+        <View style={styles.connector} />
+
+        <View style={styles.paymentStep}>
+          <View style={styles.stepIndicator}>
+            <Text style={styles.stepNumber}>2</Text>
+          </View>
+          <View style={styles.stepContent}>
+            <Text style={styles.stepTitle}>On Delivery</Text>
+            <Text style={styles.stepAmount}>${finalAmount}</Text>
+            <Text style={styles.stepDescription}>80% of total amount</Text>
+          </View>
+        </View>
+      </View>
+
+      {showDetailed && (
+        <View style={styles.policyDetails}>
+          <View style={styles.policyItem}>
+            <MaterialIcons
+              name="access-time"
+              size={16}
+              color={Colors.warning}
+            />
+            <Text style={styles.policyText}>
+              Refund available within 1 hour of booking
+            </Text>
+          </View>
+          <View style={styles.policyItem}>
+            <MaterialIcons name="security" size={16} color={Colors.success} />
+            <Text style={styles.policyText}>
+              Secure payment processing via Stripe
+            </Text>
+          </View>
+          <View style={styles.policyItem}>
+            <MaterialIcons name="verified" size={16} color={Colors.primary} />
+            <Text style={styles.policyText}>
+              Final payment charged after successful delivery
+            </Text>
+          </View>
+        </View>
+      )}
+
+      <View style={styles.totalRow}>
+        <Text style={styles.totalLabel}>Total Amount:</Text>
+        <Text style={styles.totalAmount}>${totalAmount}</Text>
+      </View>
+    </View>
+  );
+};
+
+const styles = StyleSheet.create({
+  container: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    padding: 16,
+    marginVertical: 8,
+    shadowColor: colors.c_000,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  title: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: Colors.text.primary,
+    marginLeft: 8,
+  },
+  paymentBreakdown: {
+    marginBottom: 16,
+  },
+  paymentStep: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  stepIndicator: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: Colors.primary,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  stepNumber: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: 'bold',
+  },
+  stepContent: {
+    flex: 1,
+  },
+  stepTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: Colors.text.primary,
+    marginBottom: 2,
+  },
+  stepAmount: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: Colors.primary,
+    marginBottom: 2,
+  },
+  stepDescription: {
+    fontSize: 14,
+    color: Colors.text.secondary,
+  },
+  connector: {
+    width: 2,
+    height: 12,
+    backgroundColor: Colors.border,
+    marginLeft: 15,
+    marginBottom: 8,
+  },
+  policyDetails: {
+    backgroundColor: '#F8F9FA',
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 16,
+  },
+  policyItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  policyText: {
+    fontSize: 14,
+    color: Colors.text.secondary,
+    marginLeft: 8,
+    flex: 1,
+  },
+  totalRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: Colors.border,
+  },
+  totalLabel: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: Colors.text.primary,
+  },
+  totalAmount: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: Colors.success,
+  },
+});

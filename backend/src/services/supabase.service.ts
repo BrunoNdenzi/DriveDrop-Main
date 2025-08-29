@@ -1,7 +1,7 @@
 /**
  * Supabase service for handling database operations
  */
-import { supabase } from '@lib/supabase';
+import { supabase, supabaseAdmin } from '@lib/supabase';
 import { createError } from '@utils/error';
 import { logger } from '@utils/logger';
 import { ShipmentStatus, UserRole } from '../types/api.types';
@@ -315,19 +315,19 @@ export const shipmentService = {
    */
   async updateShipmentStatus(id: string, status: ShipmentStatus, driverId?: string) {
     try {
-      const updateData: any = {
+  const updateData: Record<string, unknown> = {
         status,
         updated_at: new Date().toISOString(),
       };
 
       if (driverId) {
-        updateData.driver_id = driverId;
+        updateData['driver_id'] = driverId;
       }
 
       if (status === 'accepted') {
-        updateData.accepted_at = new Date().toISOString();
+        updateData['accepted_at'] = new Date().toISOString();
       } else if (status === 'delivered') {
-        updateData.delivered_at = new Date().toISOString();
+        updateData['delivered_at'] = new Date().toISOString();
       }
 
       const { data, error } = await supabase
@@ -496,7 +496,8 @@ export const shipmentService = {
    */
   async getShipmentApplicants(shipmentId: string) {
     try {
-      const { data, error } = await supabase
+      // Use admin client to ensure RLS does not hide pending applications from authorized admins
+      const { data, error } = await supabaseAdmin
         .from('job_applications')
         .select(`
           *,

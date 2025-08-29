@@ -207,9 +207,10 @@ export default function ShipmentDetailsScreen({ route, navigation }: ShipmentDet
       <StatusBar style="dark" />
       <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.header}>
+          {/* Tracking number temporarily hidden until feature finalized */}
           <View style={styles.trackingContainer}>
-            <Text style={styles.trackingLabel}>Tracking Number</Text>
-            <Text style={styles.trackingNumber}>#{shipment.tracking_number}</Text>
+            <Text style={styles.trackingLabel}>Shipment</Text>
+            <Text style={styles.trackingNumber}>#{(shipment.id || '').toString().slice(0,8)}</Text>
           </View>
           
           <View
@@ -232,12 +233,14 @@ export default function ShipmentDetailsScreen({ route, navigation }: ShipmentDet
             <Text style={styles.detailValue}>{formatDate(shipment.created_at)}</Text>
           </View>
           
-          <View style={styles.detailRow}>
-            <Text style={styles.detailLabel}>Est. Delivery</Text>
-            <Text style={styles.detailValue}>
-              {formatDate(shipment.estimated_delivery)}
-            </Text>
-          </View>
+          {shipment.estimated_delivery && (
+            <View style={styles.detailRow}>
+              <Text style={styles.detailLabel}>Est. Delivery</Text>
+              <Text style={styles.detailValue}>
+                {formatDate(shipment.estimated_delivery)}
+              </Text>
+            </View>
+          )}
           
           {shipment.delivered_at && (
             <View style={styles.detailRow}>
@@ -246,10 +249,10 @@ export default function ShipmentDetailsScreen({ route, navigation }: ShipmentDet
             </View>
           )}
           
-          {shipment.price && (
+      {(shipment.estimated_price) && (
             <View style={styles.detailRow}>
               <Text style={styles.detailLabel}>Price</Text>
-              <Text style={styles.detailValue}>${shipment.price.toFixed(2)}</Text>
+        <Text style={styles.detailValue}>${Number(shipment.estimated_price).toFixed(2)}</Text>
             </View>
           )}
           
@@ -273,12 +276,12 @@ export default function ShipmentDetailsScreen({ route, navigation }: ShipmentDet
           
           <View style={styles.addressContainer}>
             <Text style={styles.addressLabel}>From</Text>
-            <Text style={styles.addressValue}>{shipment.origin_address}</Text>
+            <Text style={styles.addressValue}>{shipment.origin_address || shipment.pickup_address}</Text>
           </View>
           
           <View style={styles.addressContainer}>
             <Text style={styles.addressLabel}>To</Text>
-            <Text style={styles.addressValue}>{shipment.destination_address}</Text>
+            <Text style={styles.addressValue}>{shipment.destination_address || shipment.delivery_address}</Text>
           </View>
         </View>
 

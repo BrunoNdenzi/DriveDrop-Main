@@ -1,6 +1,7 @@
 // Update for database.types.ts - new push_tokens and notification_preferences tables
 
-import { Database as ExistingDatabase } from './database.types';
+// This file provides supplementary table typings; not merged to avoid conflicts.
+
 
 export type Json =
   | string
@@ -10,7 +11,8 @@ export type Json =
   | { [key: string]: Json | undefined }
   | Json[]
 
-export interface Database extends ExistingDatabase {
+// NOTE: This file augments schema; to avoid interface incompatibility we export a separate type.
+export interface PushTokensTableDefinitions {
   public: {
     Tables: {
       // Existing tables...
@@ -85,6 +87,5 @@ export interface Database extends ExistingDatabase {
         }
       }
     }
-    // ...other existing properties
   }
 }

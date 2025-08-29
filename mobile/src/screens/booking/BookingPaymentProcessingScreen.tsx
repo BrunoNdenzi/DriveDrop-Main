@@ -92,14 +92,12 @@ export default function BookingPaymentProcessingScreen({ navigation, route }: Bo
   const handlePaymentSuccess = () => {
     setPaymentSuccess(true);
     Alert.alert(
-      'Payment Successful!',
-      'Your shipment request has been submitted. You will receive a confirmation email shortly.',
+  'Payment Successful!',
+  'Your shipment request has been submitted.',
       [
         {
-          text: 'View Confirmation',
-          onPress: () => navigation.navigate('BookingConfirmation', { 
-            shipmentId: shipmentId || '' 
-          })
+          text: 'View Shipment',
+          onPress: () => shipmentId && navigation.navigate('ShipmentDetails', { shipmentId })
         }
       ]
     );

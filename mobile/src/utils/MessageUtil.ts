@@ -1,5 +1,5 @@
 import { Alert } from 'react-native';
-import { supabase } from '../supabase';
+import { supabase } from '../lib/supabase';
 import NetworkUtil from './NetworkUtil';
 
 /**
@@ -46,7 +46,7 @@ export const MessageUtil = {
       });
       
       // If RPC function doesn't exist, fall back to direct insert
-      if (rpcError && rpcError.code === '42883') { // Function doesn't exist
+  if (rpcError && rpcError.code === '42883') { // Function doesn't exist
         const { error } = await supabase
           .from('messages')
           .insert({
@@ -75,7 +75,11 @@ export const MessageUtil = {
           return { success: false, error: error.message };
         }
       } else if (rpcError) {
-        Alert.alert('Error', `Failed to send message: ${rpcError.message}`);
+        if (rpcError.code === '42501') {
+          Alert.alert('Permission Error', 'You are not allowed to send messages for this shipment.');
+        } else {
+          Alert.alert('Error', `Failed to send message: ${rpcError.message}`);
+        }
         return { success: false, error: rpcError.message };
       }
       

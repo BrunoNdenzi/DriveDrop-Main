@@ -6,7 +6,7 @@ import { asyncHandler, createError } from '@utils/error';
 import { successResponse } from '@utils/response';
 import { stripeService } from '@services/stripe.service';
 import { logger } from '@utils/logger';
-import config from '@config/index';
+import config from '@config';
 import Stripe from 'stripe';
 import { getConfig } from './payments.controller.getConfig';
 import { supabase } from '@lib/supabase';

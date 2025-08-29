@@ -1,20 +1,25 @@
 /**
  * Twilio SMS and phone verification service
  */
-import { Twilio } from 'twilio';
-import config from '@config/index';
+// Use a type-only import so that runtime doesn't eagerly require the Twilio package
+import type { Twilio as TwilioType } from 'twilio';
+import config from '@config';
 import { createError } from '@utils/error';
 import { logger } from '@utils/logger';
 
 // Initialize Twilio client with error handling for development
-let twilio: Twilio;
-try {
-  twilio = new Twilio(config.twilio.accountSid, config.twilio.authToken);
-} catch (error) {
-  logger.warn('Failed to initialize Twilio client. SMS features will be mocked in development.');
-  // Create a mock Twilio client for development
-  twilio = {} as Twilio;
-}
+let twilio: TwilioType | undefined;
+(() => {
+  try {
+    // Dynamically require so a broken transitive dependency (e.g. xmlbuilder missing file) doesn't crash app startup
+  const twilioModule = require('twilio');
+    const TwilioCtor = (twilioModule.Twilio || twilioModule) as typeof TwilioType;
+    twilio = new TwilioCtor(config.twilio.accountSid, config.twilio.authToken);
+  } catch (error) {
+    logger.warn('Twilio dependency failed to load – SMS features will be mocked. Reason: ' + (error instanceof Error ? error.message : String(error)));
+    // Leave twilio undefined; methods below will guard and throw a controlled error or skip real sending.
+  }
+})();
 
 export interface SMSData {
   to: string;
@@ -45,7 +50,10 @@ export const twilioService = {
         throw createError('Twilio phone number not configured', 500, 'TWILIO_CONFIG_ERROR');
       }
 
-      const message = await twilio.messages.create({
+      if (!twilio || !('messages' in twilio)) {
+        throw createError('Twilio client unavailable', 503, 'TWILIO_UNAVAILABLE');
+      }
+  const message = await (twilio as TwilioType).messages.create({
         body: data.message,
         from: data.from || config.twilio.phoneNumber,
         to: data.to,
@@ -77,7 +85,10 @@ export const twilioService = {
         throw createError('Twilio Verify service not configured', 500, 'TWILIO_CONFIG_ERROR');
       }
 
-      const verification = await twilio.verify.v2
+      if (!twilio || !('verify' in twilio)) {
+        throw createError('Twilio verify unavailable', 503, 'TWILIO_UNAVAILABLE');
+      }
+  const verification = await (twilio as TwilioType).verify.v2
         .services(config.twilio.verifyServiceSid)
         .verifications.create({
           to: data.to,
@@ -110,7 +121,10 @@ export const twilioService = {
         throw createError('Twilio Verify service not configured', 500, 'TWILIO_CONFIG_ERROR');
       }
 
-      const verificationCheck = await twilio.verify.v2
+      if (!twilio || !('verify' in twilio)) {
+        throw createError('Twilio verify unavailable', 503, 'TWILIO_UNAVAILABLE');
+      }
+  const verificationCheck = await (twilio as TwilioType).verify.v2
         .services(config.twilio.verifyServiceSid)
         .verificationChecks.create({
           to: data.to,
@@ -240,7 +254,10 @@ export const twilioService = {
    */
   async validatePhoneNumber(phoneNumber: string): Promise<{ isValid: boolean; formatted?: string }> {
     try {
-      const lookup = await twilio.lookups.v2.phoneNumbers(phoneNumber).fetch();
+      if (!twilio || !('lookups' in twilio)) {
+        return { isValid: false };
+      }
+  const lookup = await (twilio as TwilioType).lookups.v2.phoneNumbers(phoneNumber).fetch();
       
       return {
         isValid: lookup.valid || false,
@@ -257,7 +274,10 @@ export const twilioService = {
    */
   async getMessageStatus(messageSid: string): Promise<string> {
     try {
-      const message = await twilio.messages(messageSid).fetch();
+      if (!twilio || !('messages' in twilio)) {
+        throw createError('Twilio client unavailable', 503, 'TWILIO_UNAVAILABLE');
+      }
+  const message = await (twilio as TwilioType).messages(messageSid).fetch();
       return message.status;
     } catch (error) {
       logger.error('Error getting message status', { error, messageSid });

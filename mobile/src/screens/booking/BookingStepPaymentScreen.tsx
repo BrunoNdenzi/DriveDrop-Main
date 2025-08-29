@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect } from 'react';
 import {
   StyleSheet,
   View,
@@ -17,7 +17,6 @@ const { Colors, Typography, Spacing } = DesignSystem;
 
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
-import { Input } from '../../components/ui/Input';
 import { PaymentPolicyCard } from '../../components/payment/PaymentPolicyCard';
 import { RootStackParamList } from '../../navigation/types';
 import { useBooking } from '../../context/BookingContext';
@@ -25,44 +24,33 @@ import { useBooking } from '../../context/BookingContext';
 type BookingStepPaymentProps = NativeStackScreenProps<RootStackParamList, 'BookingStepPayment'>;
 
 export default function BookingStepPaymentScreen({ navigation }: BookingStepPaymentProps) {
-  const { state, updateFormData, setStepValidity } = useBooking();
-  const [selectedQuote, setSelectedQuote] = useState<'standard' | 'express' | 'premium'>('standard');
+  const { state, setStepValidity } = useBooking();
 
-  // Mock quote data - in real app this would come from API
-  const quotes = {
-    standard: { price: 1250, days: '7-10', title: 'Standard Shipping' },
-    express: { price: 1650, days: '3-5', title: 'Express Shipping' },
-    premium: { price: 2100, days: '1-2', title: 'Premium Shipping' }
-  };
+  // Use quote price stored earlier (fallback 0)
+  const quotePrice = (state.formData as any).customerDetails?.quotePrice || (state.formData as any).quotePrice || 0;
+  const quoteMeta = { service: 'Standard Transport', days: '7-10' };
 
   // Validate form data - only check if quote is selected
   useEffect(() => {
-    // Only require quote selection since we're using Stripe for payment
-    const isValid = true;
-    setStepValidity('payment', isValid);
-  }, [selectedQuote, setStepValidity]);
-
-  const handleQuoteSelection = (quote: 'standard' | 'express' | 'premium') => {
-    setSelectedQuote(quote);
-  };
+    setStepValidity('payment', quotePrice > 0);
+  }, [quotePrice, setStepValidity]);
 
   const handleSubmit = () => {
-    const quotePrice = quotes[selectedQuote].price * 100; // Convert to cents for Stripe
-    
+    if (!quotePrice) {
+      Alert.alert('Quote Missing', 'No quote found. Please go back and generate a quote.');
+      return;
+    }
+    const cents = quotePrice * 100;
     Alert.alert(
       'Confirm Booking',
-      `You selected ${quotes[selectedQuote].title} for $${quotes[selectedQuote].price}. Continue to payment?`,
+      `You will be charged an initial payment based on quote $${quotePrice.toFixed(2)}. Continue?`,
       [
         { text: 'Cancel', style: 'cancel' },
         { 
           text: 'Continue to Payment', 
           onPress: () => navigation.navigate('BookingPaymentProcessing', {
-            amount: quotePrice,
-            quote: {
-              service: quotes[selectedQuote].title,
-              price: quotes[selectedQuote].price,
-              days: quotes[selectedQuote].days
-            }
+            amount: cents,
+            quote: { service: quoteMeta.service, price: quotePrice, days: quoteMeta.days }
           })
         },
       ]
@@ -126,57 +114,22 @@ export default function BookingStepPaymentScreen({ navigation }: BookingStepPaym
             </View>
           </Card>
 
-          {/* Quote Selection */}
+          {/* Quote Display */}
           <Card variant="default" padding="lg" style={styles.quoteCard}>
-            <Text style={styles.sectionTitle}>Select Your Quote</Text>
-            <Text style={styles.sectionSubtitle}>Choose your preferred shipping option</Text>
-
-            {Object.entries(quotes).map(([key, quote]) => (
-              <TouchableOpacity
-                key={key}
-                style={[
-                  styles.quoteOption,
-                  selectedQuote === key && styles.selectedQuoteOption
-                ]}
-                onPress={() => handleQuoteSelection(key as 'standard' | 'express' | 'premium')}
-              >
-                <View style={styles.quoteHeader}>
-                  <View style={styles.quoteInfo}>
-                    <Text style={[
-                      styles.quoteTitle,
-                      selectedQuote === key && styles.selectedQuoteText
-                    ]}>
-                      {quote.title}
-                    </Text>
-                    <Text style={[
-                      styles.quoteDays,
-                      selectedQuote === key && styles.selectedQuoteText
-                    ]}>
-                      {quote.days} business days
-                    </Text>
-                  </View>
-                  <Text style={[
-                    styles.quotePrice,
-                    selectedQuote === key && styles.selectedQuoteText
-                  ]}>
-                    ${quote.price}
-                  </Text>
-                </View>
-                {selectedQuote === key && (
-                  <Ionicons 
-                    name="checkmark-circle" 
-                    size={24} 
-                    color={Colors.primary} 
-                    style={styles.quoteCheckmark}
-                  />
-                )}
-              </TouchableOpacity>
-            ))}
+            <Text style={styles.sectionTitle}>Shipment Quote</Text>
+            <Text style={styles.sectionSubtitle}>Derived from your initial estimate</Text>
+            <View style={styles.quoteHeader}>
+              <View style={styles.quoteInfo}>
+                <Text style={styles.quoteTitle}>{quoteMeta.service}</Text>
+                <Text style={styles.quoteDays}>{quoteMeta.days} business days</Text>
+              </View>
+              <Text style={styles.quotePrice}>${quotePrice.toFixed(2)}</Text>
+            </View>
           </Card>
 
           {/* Payment Policy Card */}
           <PaymentPolicyCard
-            totalAmount={quotes[selectedQuote].price * 100}
+            totalAmount={quotePrice * 100}
             paymentType="initial"
             isRefundable={true}
             refundDeadline={new Date(Date.now() + 60 * 60 * 1000).toISOString()}
@@ -186,11 +139,11 @@ export default function BookingStepPaymentScreen({ navigation }: BookingStepPaym
           <Card variant="outlined" padding="lg" style={styles.totalCard}>
             <View style={styles.totalRow}>
               <Text style={styles.totalLabel}>Initial Payment (20%):</Text>
-              <Text style={styles.totalAmount}>${(quotes[selectedQuote].price * 0.2).toFixed(2)}</Text>
+              <Text style={styles.totalAmount}>${(quotePrice * 0.2).toFixed(2)}</Text>
             </View>
             <View style={styles.totalRow}>
               <Text style={styles.totalLabel}>Total Shipment Value:</Text>
-              <Text style={styles.totalValue}>${quotes[selectedQuote].price.toFixed(2)}</Text>
+              <Text style={styles.totalValue}>${quotePrice.toFixed(2)}</Text>
             </View>
             <Text style={styles.totalNote}>
               After confirming, you will be redirected to our secure payment processor to complete your booking.
@@ -211,7 +164,7 @@ export default function BookingStepPaymentScreen({ navigation }: BookingStepPaym
           variant="primary"
           onPress={handleSubmit}
           style={styles.submitButton}
-          title={`Continue to Payment ($${quotes[selectedQuote].price})`}
+          title={`Continue to Payment ($${quotePrice.toFixed(2)})`}
         />
       </View>
     </View>

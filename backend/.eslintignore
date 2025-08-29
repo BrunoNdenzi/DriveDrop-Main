@@ -1,0 +1,3 @@
+# Ignore backup and temporary files
+**/*.bak.ts
+src/controllers/temp_payments.controller.ts
