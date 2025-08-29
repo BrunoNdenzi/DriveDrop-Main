@@ -13,7 +13,7 @@ interface Environment {
 }
 
 // Change this to your computer's LAN IP when testing on a real device!
-const DEV_API_URL = 'http://192.168.1.64:3000'; // <--- YOUR IP HERE
+const DEV_API_URL = 'https://drivedrop-main-production.up.railway.app';
 
 const getEnvironment = (): Environment => {
   // Use type assertion to access releaseChannel since it's available at runtime
@@ -35,7 +35,7 @@ const getEnvironment = (): Environment => {
   // Production environment
   if (releaseChannel.indexOf('prod') !== -1) {
     return {
-      apiUrl: 'https://api.drivedrop.com',
+  apiUrl: 'https://drivedrop-main-production.up.railway.app',
       supabaseUrl: expoConfig?.extra?.supabaseUrl || '',
       supabaseAnonKey: expoConfig?.extra?.supabaseAnonKey || '',
       googleMapsApiKey: expoConfig?.extra?.googleMapsApiKey || '',
@@ -46,7 +46,7 @@ const getEnvironment = (): Environment => {
   // Staging environment
   if (releaseChannel.indexOf('staging') !== -1) {
     return {
-      apiUrl: 'https://staging-api.drivedrop.com',
+  apiUrl: 'https://drivedrop-main-production.up.railway.app',
       supabaseUrl: expoConfig?.extra?.supabaseUrl || '',
       supabaseAnonKey: expoConfig?.extra?.supabaseAnonKey || '',
       googleMapsApiKey: expoConfig?.extra?.googleMapsApiKey || '',
