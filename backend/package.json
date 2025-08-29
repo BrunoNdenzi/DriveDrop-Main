@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "nodemon src/index.ts",
     "build": "tsc",
-    "start": "node dist/index.js",
+    "start": "node -r tsconfig-paths/register dist/index.js",
     "lint": "eslint . --ext .ts --max-warnings 0",
     "lint:fix": "eslint . --ext .ts --fix",
     "format": "prettier --write \"**/*.{ts,js,json,md}\"",
@@ -38,7 +38,8 @@
     "morgan": "^1.10.0",
     "stripe": "^18.3.0",
     "supertest": "^7.1.4",
-    "twilio": "^5.7.3"
+    "twilio": "^5.7.3",
+    "tsconfig-paths": "^4.2.0"
   },
   "devDependencies": {
     "@types/bcryptjs": "^2.4.6",
@@ -57,13 +58,12 @@
     "prettier": "^3.6.2",
     "rimraf": "^6.0.1",
     "ts-node": "^10.9.2",
-    "tsconfig-paths": "^4.2.0",
     "typescript": "^5.8.3"
   },
   "_moduleAliases": {
-  "@config": "dist/config",
-  "@routes": "dist/routes",
-  "@utils": "dist/utils",
-  "@middlewares": "dist/middlewares"
-}
+    "@config": "dist/config",
+    "@routes": "dist/routes",
+    "@utils": "dist/utils",
+    "@middlewares": "dist/middlewares"
+  }
 }
