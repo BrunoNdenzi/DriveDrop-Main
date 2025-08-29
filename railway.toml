@@ -1,0 +1,14 @@
+# railway.toml
+[build]
+builder = "NIXPACKS"
+
+[deploy]
+# Change directory into backend, install deps, and start
+startCommand = "cd backend && npm install && npm run dev"
+
+# Optional: set the working directory for builds
+root = "backend"
+
+[env]
+PORT = "8080"
+NODE_ENV = "production"
