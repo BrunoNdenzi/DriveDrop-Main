@@ -1,0 +1,174 @@
+// Client service for DriveDrop frontend
+// This service handles all client-specific operations
+
+import { ApiResponse, Shipment, CreateShipmentData, ShipmentFilters, TrackingEvent } from '../types';
+
+/**
+ * Service class for client-specific operations
+ * TODO: Implement actual API calls to backend endpoints
+ * TODO: Add proper error handling and retry logic
+ * TODO: Implement authentication token management
+ * TODO: Add request/response logging for debugging
+ */
+export class ClientService {
+  private static readonly BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:3000/api/v1';
+
+  /**
+   * Create a new shipment
+   * TODO: Implement actual API call to POST /shipments
+   * TODO: Add validation for required fields
+   * TODO: Handle file uploads for shipment attachments
+   * 
+   * @param data Shipment data
+   * @returns Promise resolving to created shipment
+   */
+  static async createShipment(data: CreateShipmentData): Promise<ApiResponse<Shipment>> {
+    try {
+      // TODO: Replace with actual fetch call
+      const response = await fetch(`${this.BASE_URL}/shipments`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          // TODO: Add Authorization header with JWT token
+          // 'Authorization': `Bearer ${await this.getAuthToken()}`
+        },
+        body: JSON.stringify(data),
+      });
+
+      // TODO: Implement proper response handling
+      throw new Error('TODO: Implement actual API call in createShipment');
+    } catch (error) {
+      console.error('ClientService.createShipment error:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error occurred',
+      };
+    }
+  }
+
+  /**
+   * Get shipments for the authenticated client
+   * TODO: Implement actual API call to GET /shipments
+   * TODO: Add pagination support
+   * TODO: Implement caching strategy for performance
+   * 
+   * @param filters Optional filters for shipment query
+   * @returns Promise resolving to shipments array
+   */
+  static async getShipments(filters?: ShipmentFilters): Promise<ApiResponse<Shipment[]>> {
+    try {
+      // TODO: Build query parameters from filters
+      const queryParams = new URLSearchParams();
+      if (filters?.status) {
+        queryParams.append('status', filters.status.join(','));
+      }
+      if (filters?.date_from) {
+        queryParams.append('date_from', filters.date_from);
+      }
+      if (filters?.date_to) {
+        queryParams.append('date_to', filters.date_to);
+      }
+      if (filters?.limit) {
+        queryParams.append('limit', filters.limit.toString());
+      }
+      if (filters?.offset) {
+        queryParams.append('offset', filters.offset.toString());
+      }
+
+      // TODO: Replace with actual fetch call
+      const response = await fetch(`${this.BASE_URL}/shipments?${queryParams}`, {
+        method: 'GET',
+        headers: {
+          // TODO: Add Authorization header with JWT token
+          // 'Authorization': `Bearer ${await this.getAuthToken()}`
+        },
+      });
+
+      // TODO: Implement proper response handling
+      throw new Error('TODO: Implement actual API call in getShipments');
+    } catch (error) {
+      console.error('ClientService.getShipments error:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error occurred',
+        data: [],
+      };
+    }
+  }
+
+  /**
+   * Get tracking events for a specific shipment
+   * TODO: Implement actual API call to GET /shipments/:id/tracking
+   * TODO: Add real-time updates via WebSocket or SSE
+   * 
+   * @param shipmentId ID of the shipment to track
+   * @returns Promise resolving to tracking events
+   */
+  static async getTrackingEvents(shipmentId: string): Promise<ApiResponse<TrackingEvent[]>> {
+    try {
+      // TODO: Replace with actual fetch call
+      const response = await fetch(`${this.BASE_URL}/shipments/${shipmentId}/tracking`, {
+        method: 'GET',
+        headers: {
+          // TODO: Add Authorization header with JWT token
+          // 'Authorization': `Bearer ${await this.getAuthToken()}`
+        },
+      });
+
+      // TODO: Implement proper response handling
+      throw new Error('TODO: Implement actual API call in getTrackingEvents');
+    } catch (error) {
+      console.error('ClientService.getTrackingEvents error:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error occurred',
+        data: [],
+      };
+    }
+  }
+
+  /**
+   * Cancel a shipment
+   * TODO: Implement actual API call to PATCH /shipments/:id
+   * TODO: Add confirmation dialog in UI before calling this
+   * 
+   * @param shipmentId ID of the shipment to cancel
+   * @returns Promise resolving to updated shipment
+   */
+  static async cancelShipment(shipmentId: string): Promise<ApiResponse<Shipment>> {
+    try {
+      // TODO: Replace with actual fetch call
+      const response = await fetch(`${this.BASE_URL}/shipments/${shipmentId}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          // TODO: Add Authorization header with JWT token
+          // 'Authorization': `Bearer ${await this.getAuthToken()}`
+        },
+        body: JSON.stringify({ status: 'cancelled' }),
+      });
+
+      // TODO: Implement proper response handling
+      throw new Error('TODO: Implement actual API call in cancelShipment');
+    } catch (error) {
+      console.error('ClientService.cancelShipment error:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error occurred',
+      };
+    }
+  }
+
+  /**
+   * Get authentication token from secure storage
+   * TODO: Implement token retrieval from React Native Keychain or AsyncStorage
+   * TODO: Handle token refresh logic
+   * 
+   * @private
+   * @returns Promise resolving to auth token
+   */
+  private static async getAuthToken(): Promise<string> {
+    // TODO: Implement actual token retrieval
+    throw new Error('TODO: Implement getAuthToken method');
+  }
+}
