@@ -315,19 +315,19 @@ export const shipmentService = {
    */
   async updateShipmentStatus(id: string, status: ShipmentStatus, driverId?: string) {
     try {
-      const updateData: any = {
+  const updateData: Record<string, unknown> = {
         status,
         updated_at: new Date().toISOString(),
       };
 
       if (driverId) {
-        updateData.driver_id = driverId;
+        updateData['driver_id'] = driverId;
       }
 
       if (status === 'accepted') {
-        updateData.accepted_at = new Date().toISOString();
+        updateData['accepted_at'] = new Date().toISOString();
       } else if (status === 'delivered') {
-        updateData.delivered_at = new Date().toISOString();
+        updateData['delivered_at'] = new Date().toISOString();
       }
 
       const { data, error } = await supabase

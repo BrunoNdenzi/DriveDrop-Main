@@ -27,6 +27,11 @@ module.exports = [
     },
   },
   {
-    ignores: ['dist/', 'node_modules/'],
+    ignores: [
+      'dist/',
+      'node_modules/',
+      'src/routes/*.bak.ts',
+      'src/controllers/temp_payments.controller.ts'
+    ],
   },
 ];

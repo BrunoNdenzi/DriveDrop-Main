@@ -17,10 +17,11 @@ const testConfig = {
 /**
  * Helper function to make HTTP requests
  */
-async function makeRequest(endpoint: string, method: string, token: string, body?: any) {
+type JsonBody = Record<string, unknown>;
+async function makeRequest(endpoint: string, method: 'GET'|'POST'|'PUT'|'DELETE', token: string, body?: JsonBody) {
   const url = `${BASE_URL}${endpoint}`;
   const options: RequestInit = {
-    method,
+  method,
     headers: {
       'Content-Type': 'application/json',
       'Authorization': `Bearer ${token}`
@@ -40,9 +41,9 @@ async function makeRequest(endpoint: string, method: string, token: string, body
     console.log('Response:', JSON.stringify(data, null, 2));
     
     return { response, data };
-  } catch (error) {
-    console.error(`Error making request to ${endpoint}:`, error);
-    throw error;
+  } catch (err) {
+    console.error(`Error making request to ${endpoint}:`, err);
+    throw err;
   }
 }
 
@@ -144,7 +145,7 @@ async function testErrorScenarios() {
       { status: 'invalid_status' }
     );
 
-  } catch (error) {
+  } catch {
     console.log('Expected error scenarios completed');
   }
 }

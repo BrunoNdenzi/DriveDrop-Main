@@ -12,8 +12,7 @@ let twilio: TwilioType | undefined;
 (() => {
   try {
     // Dynamically require so a broken transitive dependency (e.g. xmlbuilder missing file) doesn't crash app startup
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
-    const twilioModule = require('twilio');
+  const twilioModule = require('twilio');
     const TwilioCtor = (twilioModule.Twilio || twilioModule) as typeof TwilioType;
     twilio = new TwilioCtor(config.twilio.accountSid, config.twilio.authToken);
   } catch (error) {
@@ -54,7 +53,7 @@ export const twilioService = {
       if (!twilio || !('messages' in twilio)) {
         throw createError('Twilio client unavailable', 503, 'TWILIO_UNAVAILABLE');
       }
-      const message = await (twilio as any).messages.create({
+  const message = await (twilio as TwilioType).messages.create({
         body: data.message,
         from: data.from || config.twilio.phoneNumber,
         to: data.to,
@@ -89,7 +88,7 @@ export const twilioService = {
       if (!twilio || !('verify' in twilio)) {
         throw createError('Twilio verify unavailable', 503, 'TWILIO_UNAVAILABLE');
       }
-      const verification = await (twilio as any).verify.v2
+  const verification = await (twilio as TwilioType).verify.v2
         .services(config.twilio.verifyServiceSid)
         .verifications.create({
           to: data.to,
@@ -125,7 +124,7 @@ export const twilioService = {
       if (!twilio || !('verify' in twilio)) {
         throw createError('Twilio verify unavailable', 503, 'TWILIO_UNAVAILABLE');
       }
-      const verificationCheck = await (twilio as any).verify.v2
+  const verificationCheck = await (twilio as TwilioType).verify.v2
         .services(config.twilio.verifyServiceSid)
         .verificationChecks.create({
           to: data.to,
@@ -258,7 +257,7 @@ export const twilioService = {
       if (!twilio || !('lookups' in twilio)) {
         return { isValid: false };
       }
-      const lookup = await (twilio as any).lookups.v2.phoneNumbers(phoneNumber).fetch();
+  const lookup = await (twilio as TwilioType).lookups.v2.phoneNumbers(phoneNumber).fetch();
       
       return {
         isValid: lookup.valid || false,
@@ -278,7 +277,7 @@ export const twilioService = {
       if (!twilio || !('messages' in twilio)) {
         throw createError('Twilio client unavailable', 503, 'TWILIO_UNAVAILABLE');
       }
-      const message = await (twilio as any).messages(messageSid).fetch();
+  const message = await (twilio as TwilioType).messages(messageSid).fetch();
       return message.status;
     } catch (error) {
       logger.error('Error getting message status', { error, messageSid });

@@ -137,14 +137,21 @@ export const createShipment = asyncHandler(async (req: Request, res: Response) =
   let finalEstimatedPrice = estimated_price;
   if (!finalEstimatedPrice && vehicle_type && distance_miles) {
     try {
+      const allowedVehicleTypes = ['sedan','suv','pickup','luxury','motorcycle','heavy'] as const;
+      const vt = typeof vehicle_type === 'string' && (allowedVehicleTypes as readonly string[]).includes(vehicle_type)
+        ? vehicle_type as typeof allowedVehicleTypes[number]
+        : undefined;
+      if (!vt) {
+        throw new Error('Unsupported vehicle type');
+      }
       const { total } = pricingService.calculateQuote({
-        vehicleType: vehicle_type,
+        vehicleType: vt,
         distanceMiles: Number(distance_miles),
         isAccidentRecovery: Boolean(is_accident_recovery),
         vehicleCount: vehicle_count ? Number(vehicle_count) : 1,
-      } as any);
+      });
       finalEstimatedPrice = total;
-    } catch (err) {
+    } catch {
       // Fallback: leave undefined, don't block creation
     }
   }

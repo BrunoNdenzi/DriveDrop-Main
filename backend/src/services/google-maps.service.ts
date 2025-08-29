@@ -93,19 +93,20 @@ export const googleMapsService = {
       // Parse address components
       const addressComponents: GeocodingResult['addressComponents'] = {};
       result.address_components?.forEach((component) => {
-        if (component.types.includes('street_number' as any)) {
+        const types: string[] = component.types || [];
+        if (types.includes('street_number')) {
           addressComponents.streetNumber = component.long_name;
-        } else if (component.types.includes('route' as any)) {
+        } else if (types.includes('route')) {
           addressComponents.route = component.long_name;
-        } else if (component.types.includes('locality' as any)) {
+        } else if (types.includes('locality')) {
           addressComponents.locality = component.long_name;
-        } else if (component.types.includes('administrative_area_level_1' as any)) {
+        } else if (types.includes('administrative_area_level_1')) {
           addressComponents.administrativeAreaLevel1 = component.short_name;
-        } else if (component.types.includes('administrative_area_level_2' as any)) {
+        } else if (types.includes('administrative_area_level_2')) {
           addressComponents.administrativeAreaLevel2 = component.long_name;
-        } else if (component.types.includes('country' as any)) {
+        } else if (types.includes('country')) {
           addressComponents.country = component.long_name;
-        } else if (component.types.includes('postal_code' as any)) {
+        } else if (types.includes('postal_code')) {
           addressComponents.postalCode = component.long_name;
         }
       });
@@ -347,13 +348,13 @@ export const googleMapsService = {
     location: { lat: number; lng: number },
     radius: number,
     type?: string
-  ): Promise<any[]> {
+  ): Promise<Array<{ name?: string; place_id?: string; vicinity?: string }>> {
     try {
       if (!config.googleMaps.apiKey) {
         throw createError('Google Maps API key not configured', 500, 'MAPS_CONFIG_ERROR');
       }
 
-      const params: any = {
+      const params: { location: { lat: number; lng: number }; radius: number; key: string; type?: string } = {
         location,
         radius,
         key: config.googleMaps.apiKey,

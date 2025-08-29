@@ -20,7 +20,7 @@
     "secrets:rotate:dev": "echo \"This would rotate development secrets in a real application.\"",
     "verify:env": "node scripts/verify-env.js",
     "create:admin": "node scripts/create-admin-user.js",
-  "create:review-users": "node scripts/create-review-users.js",
+    "create:review-users": "node scripts/create-review-users.js",
     "setup": "npm run build && npm run create:admin && npm run start"
   },
   "keywords": [],
@@ -36,6 +36,7 @@
     "express": "^5.1.0",
     "helmet": "^8.1.0",
     "jsonwebtoken": "^9.0.2",
+    "module-alias": "^2.2.3",
     "morgan": "^1.10.0",
     "stripe": "^18.3.0",
     "supertest": "^7.1.4",

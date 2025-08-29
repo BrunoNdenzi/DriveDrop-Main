@@ -587,8 +587,8 @@ export const stripeService = {
   async handleInvoicePaymentSucceeded(invoice: Stripe.Invoice): Promise<void> {
     try {
       // Using type assertion to access properties that might not be in the type definitions
-      const invoiceData = invoice as any;
-      const subscriptionId = invoiceData.subscription || null;
+  const invoiceWithSub = invoice as Stripe.Invoice & { subscription?: string | null };
+  const subscriptionId = typeof invoiceWithSub.subscription === 'string' ? invoiceWithSub.subscription : null;
         
       logger.info('Invoice payment succeeded', {
         invoiceId: invoice.id,
@@ -611,8 +611,8 @@ export const stripeService = {
   async handleInvoicePaymentFailed(invoice: Stripe.Invoice): Promise<void> {
     try {
       // Using type assertion to access properties that might not be in the type definitions
-      const invoiceData = invoice as any;
-      const subscriptionId = invoiceData.subscription || null;
+  const invoiceWithSub = invoice as Stripe.Invoice & { subscription?: string | null };
+  const subscriptionId = typeof invoiceWithSub.subscription === 'string' ? invoiceWithSub.subscription : null;
         
       logger.info('Invoice payment failed', {
         invoiceId: invoice.id,
