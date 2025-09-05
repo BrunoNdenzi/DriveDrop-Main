@@ -5,12 +5,12 @@ module.exports = ({ config }) => {
     ...config,
     name: "DriveDrop",
     slug: "drivedrop",
-    version: "1.0.0",
+    version: "1.2.0", // Matching app.json version
     orientation: "portrait",
     icon: "./assets/icon.png",
     userInterfaceStyle: "light",
     splash: {
-      image: "./assets/splash.png",
+      image: "./assets/splash_icon.png", // Matching app.json
       resizeMode: "contain",
       backgroundColor: "#ffffff"
     },
@@ -32,8 +32,8 @@ module.exports = ({ config }) => {
       favicon: "./assets/favicon.png"
     },
     extra: {
-      supabaseUrl: process.env.SUPABASE_URL,
-      supabaseAnonKey: process.env.SUPABASE_ANON_KEY,
+      supabaseUrl: process.env.EXPO_PUBLIC_SUPABASE_URL,
+      supabaseAnonKey: process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY,
       apiUrl: process.env.EXPO_PUBLIC_API_URL,
       env: process.env.EXPO_PUBLIC_ENV || 'development',
       enableAnalytics: process.env.EXPO_PUBLIC_ENABLE_ANALYTICS === 'true',
@@ -41,6 +41,7 @@ module.exports = ({ config }) => {
       enableCrashReporting: process.env.EXPO_PUBLIC_ENABLE_CRASH_REPORTING === 'true',
       googleMapsApiKey: process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY || '',
       stripePublishableKey: process.env.EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY || '',
+      sentryDsn: process.env.SENTRY_DSN || '',
       projectId: "ce011283-21f8-4f0d-adb1-206f02d37e65", // This should be replaced with your actual Expo project ID
       eas: {
         projectId: "ce011283-21f8-4f0d-adb1-206f02d37e65" // This should be replaced with your actual EAS project ID
