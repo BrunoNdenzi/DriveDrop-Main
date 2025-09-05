@@ -5,9 +5,9 @@ buildscript {
     mavenCentral()
   }
   dependencies {
-    classpath('com.android.tools.build:gradle')
+    classpath('com.android.tools.build:gradle:8.2.2')
     classpath('com.facebook.react:react-native-gradle-plugin')
-    classpath('org.jetbrains.kotlin:kotlin-gradle-plugin')
+    classpath('org.jetbrains.kotlin:kotlin-gradle-plugin:1.9.22')
   }
 }
 
@@ -35,3 +35,13 @@ url(reactNativeAndroidDir)
 apply plugin: "expo-root-project"
 apply plugin: "com.facebook.react.rootproject"
 // NOTE: defaultConfig must be declared inside the module (app) build.gradle, not here.
+
+// Define versions in a central place
+ext {
+    minSdkVersion = 24
+    targetSdkVersion = 34
+    compileSdkVersion = 34
+    buildToolsVersion = "34.0.0"
+    ndkVersion = "26.1.10909125"
+    kotlinVersion = "1.9.22"
+}
