@@ -21,24 +21,16 @@
     <meta-data android:name="expo.modules.updates.ENABLED" android:value="false"/>
     <meta-data android:name="expo.modules.updates.EXPO_UPDATES_CHECK_ON_LAUNCH" android:value="ALWAYS"/>
     <meta-data android:name="expo.modules.updates.EXPO_UPDATES_LAUNCH_WAIT_MS" android:value="0"/>
+    <meta-data android:name="io.sentry.dsn" android:value="https://70bb3d6be7948f6e7f9c8dfbdf342387@o4509960738701312.ingest.us.sentry.io/4509960742502400"/>
+    <meta-data android:name="io.sentry.traces.user-interaction.enable" android:value="true"/>
+    <meta-data android:name="io.sentry.attach-screenshot" android:value="true"/>
+    <meta-data android:name="io.sentry.attach-view-hierarchy" android:value="true"/>
+    <meta-data android:name="io.sentry.traces.sample-rate" android:value="1.0"/>
     <activity android:name=".MainActivity" android:configChanges="keyboard|keyboardHidden|orientation|screenSize|screenLayout|uiMode" android:launchMode="singleTask" android:windowSoftInputMode="adjustResize" android:theme="@style/Theme.App.SplashScreen" android:exported="true" android:screenOrientation="portrait">
       <intent-filter>
         <action android:name="android.intent.action.MAIN"/>
         <category android:name="android.intent.category.LAUNCHER"/>
       </intent-filter>
     </activity>
-  
-    <!-- Required: set your sentry.io project identifier (DSN) -->
-    <meta-data android:name="io.sentry.dsn" android:value="https://70bb3d6be7948f6e7f9c8dfbdf342387@o4509960738701312.ingest.us.sentry.io/4509960742502400" />
-
-    <!-- enable automatic breadcrumbs for user interactions (clicks, swipes, scrolls) -->
-    <meta-data android:name="io.sentry.traces.user-interaction.enable" android:value="true" />
-    <!-- enable screenshot for crashes (could contain sensitive/PII data) -->
-    <meta-data android:name="io.sentry.attach-screenshot" android:value="true" />
-    <!-- enable view hierarchy for crashes -->
-    <meta-data android:name="io.sentry.attach-view-hierarchy" android:value="true" />
-
-    <!-- enable the performance API by setting a sample-rate, adjust in production env -->
-    <meta-data android:name="io.sentry.traces.sample-rate" android:value="1.0" />
-</application>
+  </application>
 </manifest>
