@@ -1,11 +1,10 @@
 
-plugins {
-    id 'io.sentry.android.gradle' version '4.2.0'
-}
-
 apply plugin: "com.android.application"
 apply plugin: "org.jetbrains.kotlin.android"
 apply plugin: "com.facebook.react"
+
+// Apply Sentry plugin after other plugins to avoid configuration cache issues
+apply plugin: "io.sentry.android.gradle"
 
 def projectRoot = rootDir.getAbsoluteFile().getParentFile().getAbsolutePath()
 
@@ -189,4 +188,10 @@ sentry {
     // this will upload your source code to Sentry to show it as part of the stack traces
     // disable if you don't want to expose your sources
     includeSourceContext = true
+    
+    // Disable tasks that might cause configuration cache issues
+    autoUploadProguardMapping = false
+    
+    // Disable source context for release builds since it's causing issues
+    ignoredBuildTypes = ["release"]
 }
