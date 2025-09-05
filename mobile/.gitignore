@@ -44,3 +44,6 @@ yarn-error.*
 
 # typescript
 *.tsbuildinfo
+
+# Sentry Config File
+sentry.properties

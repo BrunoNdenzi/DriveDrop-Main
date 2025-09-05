@@ -16,6 +16,7 @@
     "dev": "nodemon src/index.ts",
     "build": "tsc",
     "start": "node -r tsconfig-paths/register dist/index.js",
+    "railway:start": "npm install && npm run build && npm run start",
     "lint": "eslint . --ext .ts --max-warnings 0",
     "lint:fix": "eslint . --ext .ts --fix",
     "format": "prettier --write \"**/*.{ts,js,json,md}\"",
