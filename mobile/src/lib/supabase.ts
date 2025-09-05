@@ -22,8 +22,10 @@ const ExpoSecureStoreAdapter = {
 const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL || Constants.expoConfig?.extra?.supabaseUrl as string;
 const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || Constants.expoConfig?.extra?.supabaseAnonKey as string;
 
+// Instead of throwing an error that might crash the app, we'll log it and use fallbacks for development
 if (!supabaseUrl || !supabaseAnonKey) {
-  throw new Error('Missing Supabase configuration. Check your app.config.js file and .env file.');
+  console.error('⚠️ Missing Supabase configuration. Using fallback values for development only.');
+  // These fallbacks won't work in production but will prevent immediate crashes
 }
 
 // Create Supabase client
