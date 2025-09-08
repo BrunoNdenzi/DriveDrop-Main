@@ -17,6 +17,14 @@ import { Card } from '../../components/ui/Card';
 import { ClientTabParamList } from '../../navigation/types';
 import { useAuth } from '../../context/AuthContext';
 
+type StatItem = {
+  label: string;
+  value: string;
+  icon: string;
+  color: string;
+  formattedValue?: [string, string]; // Optional formatted value for splitting currency values
+};
+
 type HomeScreenProps = NativeStackScreenProps<ClientTabParamList, 'Home'>;
 
 export default function HomeScreen({ navigation }: HomeScreenProps) {
@@ -46,9 +54,25 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
   };
 
   const quickStats = [
-    { label: 'Active Shipments', value: '2', icon: 'local-shipping', color: Colors.primary },
-    { label: 'Completed', value: '12', icon: 'check-circle', color: Colors.success },
-    { label: 'This Month', value: '$2,450', icon: 'account-balance-wallet', color: Colors.secondary },
+    { 
+      label: 'Active Shipments', 
+      value: '2', 
+      icon: 'local-shipping', 
+      color: Colors.primary 
+    },
+    { 
+      label: 'Completed', 
+      value: '12', 
+      icon: 'check-circle', 
+      color: Colors.success 
+    },
+    { 
+      label: 'This Month', 
+      value: '$2,450', 
+      formattedValue: ['$2,', '450'],  // Split the value for better alignment
+      icon: 'account-balance-wallet', 
+      color: Colors.secondary 
+    },
   ];
 
   const quickActions = [
@@ -108,7 +132,14 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
             {quickStats.map((stat, index) => (
               <Card key={index} variant="default" padding="base" style={styles.statCard}>
                 <MaterialIcons name={stat.icon as any} size={24} color={stat.color} />
-                <Text style={styles.statValue}>{stat.value}</Text>
+                {stat.formattedValue ? (
+                  <View style={styles.formattedValueContainer}>
+                    <Text style={styles.currencySymbol}>{stat.formattedValue[0]}</Text>
+                    <Text style={styles.statValue}>{stat.formattedValue[1]}</Text>
+                  </View>
+                ) : (
+                  <Text style={styles.statValue}>{stat.value}</Text>
+                )}
                 <Text style={styles.statLabel}>{stat.label}</Text>
               </Card>
             ))}
@@ -310,18 +341,37 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     marginHorizontal: Spacing[1],
+    height: 110, // Fixed height for all cards
+    justifyContent: 'space-between', // Distribute space evenly
+    paddingVertical: Spacing[2],
   },
   statValue: {
     fontSize: Typography.fontSize['2xl'],
     fontWeight: Typography.fontWeight.bold,
     color: Colors.text.primary,
     marginTop: Spacing[2],
+    height: 35, // Fixed height for value area
+    textAlignVertical: 'center', // Center text vertically
   },
   statLabel: {
     fontSize: Typography.fontSize.xs,
     color: Colors.text.secondary,
     textAlign: 'center',
     marginTop: Spacing[1],
+  },
+  formattedValueContainer: {
+    flexDirection: 'row',
+    alignItems: 'baseline', // Align text at the baseline for better alignment
+    justifyContent: 'center',
+    marginTop: Spacing[2],
+    height: 35, // Match height of regular statValue
+  },
+  currencySymbol: {
+    fontSize: Typography.fontSize.lg,
+    fontWeight: Typography.fontWeight.bold,
+    color: Colors.text.primary,
+    lineHeight: Typography.fontSize.lg * 1.2,
+    marginRight: 2, // Small spacing between currency symbol and amount
   },
   ctaCard: {
     marginTop: Spacing[8],

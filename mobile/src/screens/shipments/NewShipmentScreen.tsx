@@ -141,9 +141,11 @@ export default function NewShipmentScreen({ navigation }: NewShipmentScreenProps
           <Text style={styles.sectionTitle}>Pickup Information</Text>
           
           <View style={styles.inputContainer}>
+            <Text style={styles.inputLabel}>ZIP Code</Text>
             <TextInput
               style={styles.input}
-              placeholder="Pickup ZIP Code"
+              placeholder="e.g., 90210"
+              placeholderTextColor={Colors.text.disabled}
               value={pickupZip}
               onChangeText={setPickupZip}
               keyboardType="numeric"
@@ -152,9 +154,11 @@ export default function NewShipmentScreen({ navigation }: NewShipmentScreenProps
           </View>
 
           <View style={styles.inputContainer}>
+            <Text style={styles.inputLabel}>Pickup Date</Text>
             <TextInput
               style={styles.input}
-              placeholder="Jun 8, 2025"
+              placeholder="e.g., Jun 8, 2025"
+              placeholderTextColor={Colors.text.disabled}
               value={pickupDate}
               onChangeText={setPickupDate}
             />
@@ -167,9 +171,11 @@ export default function NewShipmentScreen({ navigation }: NewShipmentScreenProps
           <Text style={styles.sectionTitle}>Delivery Information</Text>
           
           <View style={styles.inputContainer}>
+            <Text style={styles.inputLabel}>ZIP Code</Text>
             <TextInput
               style={styles.input}
-              placeholder="Delivery ZIP Code"
+              placeholder="e.g., 10001"
+              placeholderTextColor={Colors.text.disabled}
               value={deliveryZip}
               onChangeText={setDeliveryZip}
               keyboardType="numeric"
@@ -178,9 +184,11 @@ export default function NewShipmentScreen({ navigation }: NewShipmentScreenProps
           </View>
 
           <View style={styles.inputContainer}>
+            <Text style={styles.inputLabel}>Expected Delivery Date</Text>
             <TextInput
               style={styles.input}
-              placeholder="Jun 15, 2025"
+              placeholder="e.g., Jun 15, 2025"
+              placeholderTextColor={Colors.text.disabled}
               value={deliveryDate}
               onChangeText={setDeliveryDate}
             />
@@ -192,6 +200,7 @@ export default function NewShipmentScreen({ navigation }: NewShipmentScreenProps
           <Text style={styles.sectionTitle}>Vehicle Information</Text>
           
           {/* Vehicle Type Selection */}
+          <Text style={styles.inputLabel}>Vehicle Type</Text>
           <View style={styles.vehicleTypeContainer}>
             {(['sedan', 'suv', 'truck'] as const).map((type) => (
               <TouchableOpacity
@@ -201,21 +210,37 @@ export default function NewShipmentScreen({ navigation }: NewShipmentScreenProps
                   vehicleType === type && styles.vehicleTypeButtonSelected
                 ]}
                 onPress={() => setVehicleType(type)}
+                activeOpacity={0.7}
               >
+                {vehicleType === type && (
+                  <View style={styles.selectedIndicator}>
+                    <MaterialIcons name="check" size={14} color="#FFFFFF" />
+                  </View>
+                )}
+                <MaterialIcons 
+                  name={
+                    type === 'sedan' ? 'directions-car' : 
+                    type === 'suv' ? 'time-to-leave' : 'local-shipping'
+                  } 
+                  size={32} 
+                  color={vehicleType === type ? '#FFFFFF' : Colors.text.primary} 
+                />
                 <Text style={[
                   styles.vehicleTypeText,
                   vehicleType === type && styles.vehicleTypeTextSelected
                 ]}>
-                  {type.toUpperCase()}
+                  {type.charAt(0).toUpperCase() + type.slice(1)}
                 </Text>
               </TouchableOpacity>
             ))}
           </View>
 
           <View style={styles.inputContainer}>
+            <Text style={styles.inputLabel}>Vehicle Make</Text>
             <TextInput
               style={styles.input}
-              placeholder="Vehicle Make (e.g., Toyota, Honda)"
+              placeholder="e.g., Toyota, Honda, Ford"
+              placeholderTextColor={Colors.text.disabled}
               value={vehicleMake}
               onChangeText={setVehicleMake}
               autoCapitalize="words"
@@ -223,9 +248,11 @@ export default function NewShipmentScreen({ navigation }: NewShipmentScreenProps
           </View>
 
           <View style={styles.inputContainer}>
+            <Text style={styles.inputLabel}>Vehicle Model</Text>
             <TextInput
               style={styles.input}
-              placeholder="Vehicle Model (e.g., Camry, Civic)"
+              placeholder="e.g., Camry, Civic, F-150"
+              placeholderTextColor={Colors.text.disabled}
               value={vehicleModel}
               onChangeText={setVehicleModel}
               autoCapitalize="words"
@@ -240,8 +267,11 @@ export default function NewShipmentScreen({ navigation }: NewShipmentScreenProps
           disabled={loading}
         >
           <Text style={styles.quoteButtonText}>
-            {loading ? 'Getting Quote...' : 'Get Quote'}
+            {loading ? 'Getting Quote...' : 'Get Free Quote'}
           </Text>
+          {!loading && <Text style={{color: Colors.text.inverse, marginTop: 4, fontSize: 12}}>
+            No commitment required
+          </Text>}
         </TouchableOpacity>
       </ScrollView>
   </View>
@@ -272,67 +302,120 @@ const styles = StyleSheet.create({
   },
   section: {
     backgroundColor: Colors.surface,
-    borderRadius: 12,
-    padding: 20,
-    marginBottom: 20,
+    borderRadius: 16,
+    padding: 24,
+    marginBottom: 24,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 3,
   },
   sectionTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: Colors.text.primary,
-    marginBottom: 16,
+    fontSize: 20,
+    fontWeight: '700',
+    color: Colors.primary,
+    marginBottom: 20,
+    letterSpacing: 0.3,
   },
   inputContainer: {
-    marginBottom: 16,
+    marginBottom: 20,
+  },
+  inputLabel: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: Colors.text.primary,
+    marginBottom: 8,
+    letterSpacing: 0.3,
   },
   input: {
-    backgroundColor: Colors.background,
+    backgroundColor: Colors.white,
     borderWidth: 1,
     borderColor: Colors.border,
-    borderRadius: 8,
+    borderRadius: 10,
     padding: 16,
     fontSize: 16,
     color: Colors.text.primary,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.08,
+    shadowRadius: 3,
+    elevation: 2,
   },
   vehicleTypeContainer: {
     flexDirection: 'row',
-    marginBottom: 16,
-    gap: 8,
+    marginBottom: 20,
+    gap: 12,
   },
   vehicleTypeButton: {
     flex: 1,
-    backgroundColor: Colors.background,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    borderRadius: 8,
-    paddingVertical: 12,
+    backgroundColor: '#F5F7FA',
+    borderWidth: 2,
+    borderColor: 'transparent',
+    borderRadius: 16,
+    paddingVertical: 20,
     alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.08,
+    shadowRadius: 3,
+    elevation: 2,
+    position: 'relative',
+    overflow: 'hidden',
   },
   vehicleTypeButtonSelected: {
     backgroundColor: Colors.primary,
     borderColor: Colors.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    elevation: 8,
+    transform: [{ scale: 1.03 }],
   },
   vehicleTypeText: {
-    fontSize: 14,
+    fontSize: 16,
     fontWeight: '600',
     color: Colors.text.primary,
+    marginTop: 10,
   },
   vehicleTypeTextSelected: {
-    color: Colors.text.inverse,
+    color: '#FFFFFF',
+    fontWeight: '700',
+  },
+  selectedIndicator: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    backgroundColor: '#4CAF50', // Green for confirmation
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: '#FFFFFF',
   },
   quoteButton: {
     backgroundColor: Colors.primary,
-    borderRadius: 12,
-    paddingVertical: 16,
+    borderRadius: 14,
+    paddingVertical: 18,
     alignItems: 'center',
+    marginTop: 10,
     marginBottom: 32,
+    shadowColor: Colors.primary,
+    shadowOffset: { width: 0, height: 5 },
+    shadowOpacity: 0.3,
+    shadowRadius: 10,
+    elevation: 6,
   },
   quoteButtonDisabled: {
     backgroundColor: Colors.primaryLight,
+    shadowOpacity: 0.1,
+    elevation: 2,
   },
   quoteButtonText: {
     color: Colors.text.inverse,
-    fontSize: 16,
-    fontWeight: '600',
+    fontSize: 20,
+    fontWeight: '700',
+    letterSpacing: 0.5,
   },
 });
