@@ -5,7 +5,7 @@ module.exports = ({ config }) => {
     ...config,
     name: "DriveDrop",
     slug: "drivedrop",
-    version: "1.2.0", // Matching app.json version
+    version: "1.3.0", // Updated version for new release
     orientation: "portrait",
     icon: "./assets/icon.png",
     userInterfaceStyle: "light",
