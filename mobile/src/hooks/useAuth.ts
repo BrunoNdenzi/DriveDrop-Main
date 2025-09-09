@@ -45,7 +45,7 @@ export default function useAuth(): UseAuthReturn {
           setUser({
             id: session.user.id,
             email: session.user.email || '',
-            role: profile?.role
+            role: (profile as any)?.role
           });
         }
       } catch (err) {
@@ -74,7 +74,7 @@ export default function useAuth(): UseAuthReturn {
         setUser({
           id: session.user.id,
           email: session.user.email || '',
-          role: profile?.role
+          role: (profile as any)?.role
         });
       } else {
         setUser(null);

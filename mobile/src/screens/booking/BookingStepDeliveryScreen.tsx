@@ -1,12 +1,18 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   StyleSheet,
   View,
   Text,
   ScrollView,
+  KeyboardAvoidingView,
+  Platform,
+  TouchableOpacity,
 } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { StatusBar } from 'expo-status-bar';
+import { MaterialIcons } from '@expo/vector-icons';
+import { format, addDays, isBefore, startOfDay } from 'date-fns';
+import DateTimePicker from '@react-native-community/datetimepicker';
 
 import { Colors, Typography, Spacing } from '../../constants/DesignSystem';
 import { Button } from '../../components/ui/Button';
@@ -19,7 +25,130 @@ type BookingStepDeliveryProps = NativeStackScreenProps<RootStackParamList, 'Book
 
 export default function BookingStepDeliveryScreen({ navigation }: BookingStepDeliveryProps) {
   const { state, updateFormData, setStepValidity, goToNextStep } = useBooking();
-  const { deliveryDetails } = state.formData;
+  const { deliveryDetails, customerDetails, pickupDetails } = state.formData;
+  const [formattedPhone, setFormattedPhone] = useState('');
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [showTimePicker, setShowTimePicker] = useState(false);
+  const [selectedDate, setSelectedDate] = useState(new Date());
+
+  // Time slots for delivery
+  const timeSlots = [
+    { value: 'morning', label: 'Morning (8AM - 12PM)', time: '8:00 AM - 12:00 PM' },
+    { value: 'afternoon', label: 'Afternoon (12PM - 5PM)', time: '12:00 PM - 5:00 PM' },
+    { value: 'evening', label: 'Evening (5PM - 8PM)', time: '5:00 PM - 8:00 PM' },
+    { value: 'flexible', label: 'Flexible (Any time)', time: 'Flexible timing' },
+    { value: 'asap', label: 'ASAP', time: 'As soon as possible' },
+  ];
+
+  // Format phone number to US format
+  const formatPhoneNumber = (text: string) => {
+    const cleaned = text.replace(/\D/g, '');
+    const match = cleaned.substring(0, 10).match(/^(\d{0,3})(\d{0,3})(\d{0,4})$/);
+    
+    if (match) {
+      const formatted = !match[2] 
+        ? match[1] 
+        : `(${match[1]}) ${match[2]}${match[3] ? `-${match[3]}` : ''}`;
+      return formatted;
+    }
+    return text;
+  };
+
+  // Auto-fill delivery data from customer details and quote data on component mount
+  useEffect(() => {
+    if (customerDetails && (!deliveryDetails.address || !deliveryDetails.contactPerson || !deliveryDetails.contactPhone)) {
+      const quoteData = customerDetails as any; // Quote data may be embedded in customer details
+      
+      const autoFillData = {
+        address: deliveryDetails.address || '',
+        contactPerson: deliveryDetails.contactPerson || customerDetails.fullName || '',
+        contactPhone: deliveryDetails.contactPhone || customerDetails.phone || '',
+        date: deliveryDetails.date || (quoteData.deliveryDate ? format(new Date(quoteData.deliveryDate), 'yyyy-MM-dd') : ''),
+        time: deliveryDetails.time || '',
+        specialInstructions: deliveryDetails.specialInstructions || '',
+      };
+      
+      updateFormData('delivery', autoFillData);
+      
+      // Set formatted phone
+      if (autoFillData.contactPhone) {
+        setFormattedPhone(formatPhoneNumber(autoFillData.contactPhone));
+      }
+      
+      // Set selected date for date picker
+      if (quoteData.deliveryDate) {
+        try {
+          const deliveryDateObj = new Date(quoteData.deliveryDate);
+          if (!isNaN(deliveryDateObj.getTime())) {
+            setSelectedDate(deliveryDateObj);
+          }
+        } catch (error) {
+          console.warn('Error parsing delivery date:', error);
+        }
+      }
+    }
+  }, [customerDetails, deliveryDetails.address, deliveryDetails.contactPerson, deliveryDetails.contactPhone]);
+
+  // Initialize selected date when delivery date changes
+  useEffect(() => {
+    if (deliveryDetails.date) {
+      try {
+        const parsedDate = new Date(deliveryDetails.date);
+        if (!isNaN(parsedDate.getTime())) {
+          setSelectedDate(parsedDate);
+        }
+      } catch (error) {
+        console.warn('Error parsing delivery date:', error);
+      }
+    }
+  }, [deliveryDetails.date]);
+
+  const handleDateChange = (event: any, date?: Date) => {
+    setShowDatePicker(false);
+    if (date) {
+      try {
+        // Business logic: delivery date should be after pickup date
+        let minDeliveryDate = startOfDay(new Date()); // Default to today
+        
+        if (pickupDetails.date) {
+          const pickupDate = new Date(pickupDetails.date);
+          if (!isNaN(pickupDate.getTime())) {
+            minDeliveryDate = startOfDay(pickupDate); // Same day or later
+          }
+        }
+        
+        if (isBefore(startOfDay(date), minDeliveryDate)) {
+          // Don't allow delivery before pickup
+          return;
+        }
+        
+        setSelectedDate(date);
+        const formattedDate = format(date, 'yyyy-MM-dd');
+        handleInputChange('date', formattedDate);
+      } catch (error) {
+        console.warn('Error handling date change:', error);
+      }
+    }
+  };
+
+  const handleTimeSlotSelect = (timeSlot: any) => {
+    handleInputChange('time', timeSlot.value);
+    setShowTimePicker(false);
+  };
+
+  const getMinimumDate = () => {
+    if (pickupDetails.date) {
+      try {
+        const pickupDate = new Date(pickupDetails.date);
+        if (!isNaN(pickupDate.getTime())) {
+          return pickupDate;
+        }
+      } catch (error) {
+        console.warn('Error parsing pickup date:', error);
+      }
+    }
+    return new Date(); // Today if no valid pickup date
+  };
 
   // Validate form data
   useEffect(() => {
@@ -35,9 +164,17 @@ export default function BookingStepDeliveryScreen({ navigation }: BookingStepDel
   }, [deliveryDetails, setStepValidity]);
 
   const handleInputChange = (field: string, value: string) => {
+    let processedValue = value;
+    
+    // Format phone number if it's the contactPhone field
+    if (field === 'contactPhone') {
+      processedValue = value.replace(/\D/g, '').substring(0, 10);
+      setFormattedPhone(formatPhoneNumber(processedValue));
+    }
+    
     const updatedData = { 
       ...deliveryDetails,
-      [field]: value 
+      [field]: processedValue 
     };
     updateFormData('delivery', updatedData);
   };
@@ -54,7 +191,11 @@ export default function BookingStepDeliveryScreen({ navigation }: BookingStepDel
   };
 
   return (
-    <View style={styles.container}>
+    <KeyboardAvoidingView 
+      style={styles.container}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+    >
       <StatusBar style="dark" />
       
       {/* Header */}
@@ -79,64 +220,169 @@ export default function BookingStepDeliveryScreen({ navigation }: BookingStepDel
               Where should we deliver your vehicle?
             </Text>
 
-            <Input
-              label="Delivery Address"
-              placeholder="Enter full delivery address"
-              value={deliveryDetails.address || ''}
-              onChangeText={(value) => handleInputChange('address', value)}
-              leftIcon="location-on"
-              multiline
-              numberOfLines={2}
-              required
-            />
+            <View style={styles.inputContainer}>
+              <Text style={styles.inputLabel}>
+                Delivery Address <Text style={styles.required}>*</Text>
+              </Text>
+              <Input
+                placeholder="Enter delivery full address"
+                value={deliveryDetails.address || ''}
+                onChangeText={(value) => handleInputChange('address', value)}
+                leftIcon="location-on"
+                multiline
+                numberOfLines={2}
+              />
+            </View>
 
-            <Input
-              label="Delivery Date"
-              placeholder="Select delivery date (if specific)"
-              value={deliveryDetails.date || ''}
-              onChangeText={(value) => handleInputChange('date', value)}
-              leftIcon="calendar-today"
-              helper="Leave blank for ASAP delivery"
-            />
+            <View style={styles.inputContainer}>
+              <Text style={styles.inputLabel}>
+                Delivery Date <Text style={styles.required}>*</Text>
+              </Text>
+              <TouchableOpacity 
+                style={styles.datePickerButton}
+                onPress={() => setShowDatePicker(true)}
+              >
+                <MaterialIcons 
+                  name="calendar-today" 
+                  size={20} 
+                  color={Colors.text.secondary} 
+                  style={styles.dateIcon} 
+                />
+                <Text style={[
+                  styles.datePickerText, 
+                  !deliveryDetails.date && styles.placeholderText
+                ]}>
+                  {deliveryDetails.date 
+                    ? (() => {
+                        try {
+                          const date = new Date(deliveryDetails.date);
+                          return !isNaN(date.getTime()) ? format(date, 'MMMM d, yyyy') : 'Invalid date';
+                        } catch {
+                          return 'Invalid date';
+                        }
+                      })()
+                    : 'Select delivery date'
+                  }
+                </Text>
+              </TouchableOpacity>
+              <Text style={styles.helper}>
+                Delivery date must be after pickup date ({
+                  pickupDetails.date ? 
+                    (() => {
+                      try {
+                        const date = new Date(pickupDetails.date);
+                        return !isNaN(date.getTime()) ? format(date, 'MMM d, yyyy') : 'Invalid date';
+                      } catch {
+                        return 'Invalid date';
+                      }
+                    })() 
+                    : 'TBD'
+                })
+              </Text>
+            </View>
 
-            <Input
-              label="Delivery Time"
-              placeholder="Preferred time window"
-              value={deliveryDetails.time || ''}
-              onChangeText={(value) => handleInputChange('time', value)}
-              leftIcon="access-time"
-              helper="e.g., Morning (8AM-12PM), Afternoon (12PM-5PM)"
-            />
+            {showDatePicker && (
+              <DateTimePicker
+                value={selectedDate}
+                mode="date"
+                display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                onChange={handleDateChange}
+                minimumDate={getMinimumDate()}
+              />
+            )}
 
-            <Input
-              label="Contact Person"
-              placeholder="Name of person at delivery location"
-              value={deliveryDetails.contactPerson || ''}
-              onChangeText={(value) => handleInputChange('contactPerson', value)}
-              leftIcon="person"
-              required
-            />
+            <View style={styles.inputContainer}>
+              <Text style={styles.inputLabel}>Delivery Time</Text>
+              <TouchableOpacity 
+                style={styles.timePickerButton}
+                onPress={() => setShowTimePicker(!showTimePicker)}
+              >
+                <MaterialIcons 
+                  name="access-time" 
+                  size={20} 
+                  color={Colors.text.secondary} 
+                  style={styles.timeIcon} 
+                />
+                <Text style={[
+                  styles.timePickerText, 
+                  !deliveryDetails.time && styles.placeholderText
+                ]}>
+                  {deliveryDetails.time 
+                    ? timeSlots.find(slot => slot.value === deliveryDetails.time)?.time || deliveryDetails.time
+                    : 'Select preferred time window'
+                  }
+                </Text>
+              </TouchableOpacity>
+              
+              {showTimePicker && (
+                <View style={styles.timePickerContainer}>
+                  {timeSlots.map((slot) => (
+                    <TouchableOpacity
+                      key={slot.value}
+                      style={[
+                        styles.timeSlotOption,
+                        deliveryDetails.time === slot.value && styles.selectedTimeSlot,
+                      ]}
+                      onPress={() => handleTimeSlotSelect(slot)}
+                    >
+                      <Text style={[
+                        styles.timeSlotText,
+                        deliveryDetails.time === slot.value && styles.selectedTimeSlotText,
+                      ]}>
+                        {slot.time}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                  <TouchableOpacity 
+                    style={styles.closeTimePicker}
+                    onPress={() => setShowTimePicker(false)}
+                  >
+                    <Text style={styles.closeTimePickerText}>Close</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
+              <Text style={styles.helper}>Leave blank for flexible timing</Text>
+            </View>
 
-            <Input
-              label="Contact Phone"
-              placeholder="Phone number for delivery coordination"
-              value={deliveryDetails.contactPhone || ''}
-              onChangeText={(value) => handleInputChange('contactPhone', value)}
-              leftIcon="phone"
-              keyboardType="phone-pad"
-              required
-            />
+            <View style={styles.inputContainer}>
+              <Text style={styles.inputLabel}>
+                Contact Person <Text style={styles.required}>*</Text>
+              </Text>
+              <Input
+                placeholder="Name of person at delivery location"
+                value={deliveryDetails.contactPerson || ''}
+                onChangeText={(value) => handleInputChange('contactPerson', value)}
+                leftIcon="person"
+              />
+            </View>
 
-            <Input
-              label="Special Instructions"
-              placeholder="Any special delivery instructions or requirements"
-              value={deliveryDetails.specialInstructions || ''}
-              onChangeText={(value) => handleInputChange('specialInstructions', value)}
-              leftIcon="note"
-              multiline
-              numberOfLines={3}
-              helper="Gate codes, specific location details, timing preferences, etc."
-            />
+            <View style={styles.inputContainer}>
+              <Text style={styles.inputLabel}>
+                Contact Phone <Text style={styles.required}>*</Text>
+              </Text>
+              <Input
+                placeholder="Phone number for delivery coordination"
+                value={formattedPhone}
+                onChangeText={(value) => handleInputChange('contactPhone', value)}
+                leftIcon="phone"
+                keyboardType="phone-pad"
+                maxLength={14}
+              />
+              <Text style={styles.helper}>US phone number format</Text>
+            </View>
+
+            <View style={styles.inputContainer}>
+              <Text style={styles.inputLabel}>Special Instructions</Text>
+              <Input
+                placeholder="Any special delivery instructions or requirements"
+                value={deliveryDetails.specialInstructions || ''}
+                onChangeText={(value) => handleInputChange('specialInstructions', value)}
+                leftIcon="note"
+                multiline
+                numberOfLines={3}
+              />
+              <Text style={styles.helper}>Gate codes, specific location details, timing preferences, etc.</Text>
+            </View>
           </Card>
 
           <View style={styles.bottomSpacing} />
@@ -159,7 +405,7 @@ export default function BookingStepDeliveryScreen({ navigation }: BookingStepDel
           style={styles.nextButton}
         />
       </View>
-    </View>
+    </KeyboardAvoidingView>
   );
 }
 
@@ -170,9 +416,11 @@ const styles = StyleSheet.create({
   },
   header: {
     backgroundColor: Colors.surface,
-    paddingTop: 60,
+    paddingTop: Platform.OS === 'ios' ? 60 : 40,
     paddingBottom: Spacing[6],
     paddingHorizontal: Spacing[6],
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.border,
   },
   title: {
     fontSize: Typography.fontSize['2xl'],
@@ -202,9 +450,18 @@ const styles = StyleSheet.create({
   scrollContent: {
     flex: 1,
     paddingHorizontal: Spacing[6],
+    paddingTop: Spacing[4],
   },
   formCard: {
-    marginTop: Spacing[6],
+    marginBottom: Spacing[4],
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 3.84,
+    elevation: 5,
   },
   sectionTitle: {
     fontSize: Typography.fontSize.lg,
@@ -218,6 +475,112 @@ const styles = StyleSheet.create({
     marginBottom: Spacing[6],
     lineHeight: Typography.lineHeight.relaxed * Typography.fontSize.sm,
   },
+  inputContainer: {
+    marginBottom: Spacing[4],
+  },
+  inputLabel: {
+    fontSize: Typography.fontSize.sm,
+    fontWeight: Typography.fontWeight.medium,
+    color: Colors.text.primary,
+    marginBottom: Spacing[2],
+  },
+  required: {
+    color: Colors.error,
+  },
+  datePickerButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.surface,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    borderRadius: 8,
+    paddingHorizontal: Spacing[4],
+    paddingVertical: Spacing[3],
+    minHeight: 48,
+  },
+  timePickerButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.surface,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    borderRadius: 8,
+    paddingHorizontal: Spacing[4],
+    paddingVertical: Spacing[3],
+    minHeight: 48,
+  },
+  dateIcon: {
+    marginRight: Spacing[3],
+  },
+  timeIcon: {
+    marginRight: Spacing[3],
+  },
+  datePickerText: {
+    flex: 1,
+    fontSize: Typography.fontSize.base,
+    color: Colors.text.primary,
+  },
+  timePickerText: {
+    flex: 1,
+    fontSize: Typography.fontSize.base,
+    color: Colors.text.primary,
+  },
+  placeholderText: {
+    color: Colors.text.disabled,
+  },
+  timePickerContainer: {
+    position: 'absolute',
+    top: 80,
+    left: 0,
+    right: 0,
+    backgroundColor: Colors.surface,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    borderRadius: 8,
+    maxHeight: 250,
+    zIndex: 1000,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 5.84,
+    elevation: 8,
+  },
+  timeSlotOption: {
+    paddingVertical: Spacing[4],
+    paddingHorizontal: Spacing[4],
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.border,
+  },
+  selectedTimeSlot: {
+    backgroundColor: Colors.primary,
+  },
+  timeSlotText: {
+    fontSize: Typography.fontSize.base,
+    color: Colors.text.primary,
+    textAlign: 'center',
+  },
+  selectedTimeSlotText: {
+    color: Colors.surface,
+    fontWeight: Typography.fontWeight.semibold,
+  },
+  closeTimePicker: {
+    paddingVertical: Spacing[3],
+    backgroundColor: Colors.primary,
+    alignItems: 'center',
+  },
+  closeTimePickerText: {
+    color: Colors.surface,
+    fontSize: Typography.fontSize.sm,
+    fontWeight: Typography.fontWeight.semibold,
+  },
+  helper: {
+    fontSize: Typography.fontSize.xs,
+    color: Colors.text.secondary,
+    marginTop: Spacing[1],
+  },
   navigationContainer: {
     flexDirection: 'row',
     paddingHorizontal: Spacing[6],
@@ -225,6 +588,7 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.surface,
     borderTopWidth: 1,
     borderTopColor: Colors.border,
+    paddingBottom: Platform.OS === 'ios' ? Spacing[8] : Spacing[4],
   },
   backButton: {
     flex: 1,
@@ -234,6 +598,6 @@ const styles = StyleSheet.create({
     flex: 2,
   },
   bottomSpacing: {
-    height: Spacing[6],
+    height: Spacing[8],
   },
 });

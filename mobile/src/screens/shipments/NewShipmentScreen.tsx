@@ -13,6 +13,8 @@ import {
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { StatusBar } from 'expo-status-bar';
 import { MaterialIcons } from '@expo/vector-icons';
+import { format, addDays, isBefore, startOfDay, isAfter } from 'date-fns';
+import DateTimePicker from '@react-native-community/datetimepicker';
 
 import { Colors } from '../../constants/Colors';
 import { RootStackParamList } from '../../navigation/types';
@@ -30,12 +32,43 @@ export default function NewShipmentScreen({ navigation }: NewShipmentScreenProps
   const { updateFormData } = useBooking();
   const [pickupZip, setPickupZip] = useState('');
   const [deliveryZip, setDeliveryZip] = useState('');
-  const [pickupDate, setPickupDate] = useState('');
-  const [deliveryDate, setDeliveryDate] = useState('');
+  const [pickupDate, setPickupDate] = useState(new Date());
+  const [deliveryDate, setDeliveryDate] = useState(addDays(new Date(), 1));
+  const [showPickupDatePicker, setShowPickupDatePicker] = useState(false);
+  const [showDeliveryDatePicker, setShowDeliveryDatePicker] = useState(false);
   const [vehicleType, setVehicleType] = useState<'sedan' | 'suv' | 'truck'>('sedan');
   const [vehicleMake, setVehicleMake] = useState('');
   const [vehicleModel, setVehicleModel] = useState('');
   const [loading, setLoading] = useState(false);
+
+  // Date picker handlers
+  const onPickupDateChange = (event: any, selectedDate?: Date) => {
+    setShowPickupDatePicker(false);
+    if (selectedDate) {
+      const today = startOfDay(new Date());
+      if (isBefore(selectedDate, today)) {
+        Alert.alert('Invalid Date', 'Pickup date cannot be in the past');
+        return;
+      }
+      setPickupDate(selectedDate);
+      
+      // If delivery date is before pickup date, adjust it
+      if (isBefore(deliveryDate, selectedDate) || deliveryDate.getTime() === selectedDate.getTime()) {
+        setDeliveryDate(addDays(selectedDate, 1));
+      }
+    }
+  };
+
+  const onDeliveryDateChange = (event: any, selectedDate?: Date) => {
+    setShowDeliveryDatePicker(false);
+    if (selectedDate) {
+      if (isBefore(selectedDate, pickupDate) || selectedDate.getTime() === pickupDate.getTime()) {
+        Alert.alert('Invalid Date', 'Delivery date must be after pickup date');
+        return;
+      }
+      setDeliveryDate(selectedDate);
+    }
+  };
 
   const handleGetQuote = async () => {
     // Validate inputs
@@ -119,7 +152,17 @@ export default function NewShipmentScreen({ navigation }: NewShipmentScreenProps
   const handleBookShipment = async (estimatedCost: number = 0, distanceMiles: number = 0) => {
     // Navigate to booking flow with the quote information
     // Persist quote price in booking context (using customer step bucket)
-    updateFormData('customer', { quotePrice: estimatedCost });
+    updateFormData('customer', { 
+      quotePrice: estimatedCost,
+      pickupZip,
+      deliveryZip,
+      pickupDate: format(pickupDate, 'yyyy-MM-dd'),
+      deliveryDate: format(deliveryDate, 'yyyy-MM-dd'),
+      vehicleType,
+      vehicleMake,
+      vehicleModel,
+      distanceMiles
+    });
     navigation.navigate('BookingStepCustomer', { 
       quoteId: `quote_${Date.now()}`
     });
@@ -155,13 +198,24 @@ export default function NewShipmentScreen({ navigation }: NewShipmentScreenProps
 
           <View style={styles.inputContainer}>
             <Text style={styles.inputLabel}>Pickup Date</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="e.g., Jun 8, 2025"
-              placeholderTextColor={Colors.text.disabled}
-              value={pickupDate}
-              onChangeText={setPickupDate}
-            />
+            <TouchableOpacity 
+              style={styles.datePickerButton}
+              onPress={() => setShowPickupDatePicker(true)}
+            >
+              <Text style={styles.datePickerText}>
+                {format(pickupDate, 'MMM dd, yyyy')}
+              </Text>
+              <MaterialIcons name="date-range" size={20} color={Colors.text.secondary} />
+            </TouchableOpacity>
+            {showPickupDatePicker && (
+              <DateTimePicker
+                value={pickupDate}
+                mode="date"
+                display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                onChange={onPickupDateChange}
+                minimumDate={new Date()}
+              />
+            )}
           </View>
 
         </View>
@@ -185,13 +239,24 @@ export default function NewShipmentScreen({ navigation }: NewShipmentScreenProps
 
           <View style={styles.inputContainer}>
             <Text style={styles.inputLabel}>Expected Delivery Date</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="e.g., Jun 15, 2025"
-              placeholderTextColor={Colors.text.disabled}
-              value={deliveryDate}
-              onChangeText={setDeliveryDate}
-            />
+            <TouchableOpacity 
+              style={styles.datePickerButton}
+              onPress={() => setShowDeliveryDatePicker(true)}
+            >
+              <Text style={styles.datePickerText}>
+                {format(deliveryDate, 'MMM dd, yyyy')}
+              </Text>
+              <MaterialIcons name="date-range" size={20} color={Colors.text.secondary} />
+            </TouchableOpacity>
+            {showDeliveryDatePicker && (
+              <DateTimePicker
+                value={deliveryDate}
+                mode="date"
+                display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                onChange={onDeliveryDateChange}
+                minimumDate={addDays(pickupDate, 1)}
+              />
+            )}
           </View>
         </View>
 
@@ -417,5 +482,25 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: '700',
     letterSpacing: 0.5,
+  },
+  datePickerButton: {
+    backgroundColor: Colors.white,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    borderRadius: 10,
+    padding: 16,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.08,
+    shadowRadius: 3,
+    elevation: 2,
+  },
+  datePickerText: {
+    fontSize: 16,
+    color: Colors.text.primary,
+    fontWeight: '500',
   },
 });

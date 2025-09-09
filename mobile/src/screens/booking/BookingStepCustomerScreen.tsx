@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   StyleSheet,
   View,
@@ -24,18 +24,51 @@ export default function BookingStepCustomerScreen({ navigation }: BookingStepCus
   const { state, updateFormData, setStepValidity, goToNextStep } = useBooking();
   const { userProfile } = useAuth();
   const { customerDetails } = state.formData;
+  const [formattedPhone, setFormattedPhone] = useState('');
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
+
+  // Format phone number to US format
+  const formatPhoneNumber = (text: string) => {
+    // Remove all non-digits
+    const cleaned = text.replace(/\D/g, '');
+    
+    // Limit to 10 digits (US format)
+    const match = cleaned.substring(0, 10).match(/^(\d{0,3})(\d{0,3})(\d{0,4})$/);
+    
+    if (match) {
+      const formatted = !match[2] 
+        ? match[1] 
+        : `(${match[1]}) ${match[2]}${match[3] ? `-${match[3]}` : ''}`;
+      return formatted;
+    }
+    return text;
+  };
+
+  // Validate US phone number
+  const isValidPhoneNumber = (phone: string) => {
+    const cleaned = phone.replace(/\D/g, '');
+    return cleaned.length === 10;
+  };
 
   // Pre-populate with user profile data
   useEffect(() => {
     if (userProfile && (!customerDetails.fullName && !customerDetails.email)) {
+      const userPhone = userProfile.phone || '';
+      const formattedUserPhone = formatPhoneNumber(userPhone);
+      
       updateFormData('customer', {
         fullName: `${userProfile.first_name || ''} ${userProfile.last_name || ''}`.trim(),
         email: userProfile.email || '',
-        phone: userProfile.phone || '',
+        phone: userPhone, // Store unformatted for validation
         address: customerDetails.address || '', // Keep existing address if any
       });
+      
+      setFormattedPhone(formattedUserPhone);
+    } else if (customerDetails.phone && !formattedPhone) {
+      // Initialize formatted phone if customerDetails already has phone
+      setFormattedPhone(formatPhoneNumber(customerDetails.phone));
     }
-  }, [userProfile, updateFormData]);
+  }, [userProfile, updateFormData, customerDetails.phone, formattedPhone]);
 
   // Validate form data
   useEffect(() => {
@@ -46,18 +79,35 @@ export default function BookingStepCustomerScreen({ navigation }: BookingStepCus
       customerDetails.address &&
       customerDetails.fullName.trim().length > 0 &&
       customerDetails.email.includes('@') &&
-      customerDetails.phone.trim().length >= 10 &&
+      isValidPhoneNumber(customerDetails.phone) &&
       customerDetails.address.trim().length > 0
     );
     setStepValidity('customer', isValid);
   }, [customerDetails, setStepValidity]);
 
   const handleInputChange = (field: string, value: string) => {
-    const updatedData = { 
-      ...customerDetails,
-      [field]: value 
-    };
-    updateFormData('customer', updatedData);
+    if (field === 'phone') {
+      // Remove all non-digits for storage
+      const cleaned = value.replace(/\D/g, '');
+      // Limit to 10 digits
+      const limitedCleaned = cleaned.substring(0, 10);
+      // Format for display
+      const formatted = formatPhoneNumber(limitedCleaned);
+      
+      setFormattedPhone(formatted);
+      
+      const updatedData = { 
+        ...customerDetails,
+        [field]: limitedCleaned // Store unformatted number
+      };
+      updateFormData('customer', updatedData);
+    } else {
+      const updatedData = { 
+        ...customerDetails,
+        [field]: value 
+      };
+      updateFormData('customer', updatedData);
+    }
   };
 
   const handleNext = () => {
@@ -72,7 +122,11 @@ export default function BookingStepCustomerScreen({ navigation }: BookingStepCus
   };
 
   return (
-    <View style={styles.container}>
+    <KeyboardAvoidingView 
+      style={styles.container}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+    >
       <StatusBar style="dark" />
       
       {/* Header */}
@@ -88,7 +142,8 @@ export default function BookingStepCustomerScreen({ navigation }: BookingStepCus
         style={styles.content} 
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
-        contentContainerStyle={{ flexGrow: 1 }}
+        contentContainerStyle={{ flexGrow: 1, paddingBottom: 40 }}
+        bounces={false}
       >
         <View style={styles.scrollContent}>
           <Card variant="default" padding="lg" style={styles.formCard}>
@@ -119,12 +174,14 @@ export default function BookingStepCustomerScreen({ navigation }: BookingStepCus
 
             <Input
               label="Phone Number"
-              placeholder="Enter your phone number"
-              value={customerDetails.phone}
+              placeholder="(555) 123-4567"
+              value={formattedPhone}
               onChangeText={(value) => handleInputChange('phone', value)}
               leftIcon="phone"
               keyboardType="phone-pad"
               required
+              helper={isValidPhoneNumber(customerDetails.phone || '') ? "✓ Valid US phone number" : "Enter a valid 10-digit US phone number"}
+              maxLength={14} // (555) 123-4567 format
             />
 
             <Input
@@ -160,7 +217,7 @@ export default function BookingStepCustomerScreen({ navigation }: BookingStepCus
           style={styles.nextButton}
         />
       </View>
-    </View>
+    </KeyboardAvoidingView>
   );
 }
 
@@ -171,9 +228,11 @@ const styles = StyleSheet.create({
   },
   header: {
     backgroundColor: Colors.surface,
-    paddingTop: 60,
+    paddingTop: Platform.OS === 'ios' ? 60 : 40,
     paddingBottom: Spacing[6],
     paddingHorizontal: Spacing[6],
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.border,
   },
   title: {
     fontSize: Typography.fontSize['2xl'],
@@ -203,9 +262,18 @@ const styles = StyleSheet.create({
   scrollContent: {
     flex: 1,
     paddingHorizontal: Spacing[6],
+    paddingTop: Spacing[4],
   },
   formCard: {
-    marginTop: Spacing[6],
+    marginBottom: Spacing[4],
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 3.84,
+    elevation: 5,
   },
   sectionTitle: {
     fontSize: Typography.fontSize.lg,
@@ -226,6 +294,7 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.surface,
     borderTopWidth: 1,
     borderTopColor: Colors.border,
+    paddingBottom: Platform.OS === 'ios' ? Spacing[8] : Spacing[4],
   },
   backButton: {
     flex: 1,
@@ -235,6 +304,6 @@ const styles = StyleSheet.create({
     flex: 2,
   },
   bottomSpacing: {
-    height: Spacing[6],
+    height: Spacing[8],
   },
 });

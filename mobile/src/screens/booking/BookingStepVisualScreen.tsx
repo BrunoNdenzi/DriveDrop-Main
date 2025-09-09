@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   StyleSheet,
   View,
@@ -6,10 +6,16 @@ import {
   ScrollView,
   TouchableOpacity,
   Alert,
+  Image,
+  KeyboardAvoidingView,
+  Platform,
+  Dimensions,
 } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { StatusBar } from 'expo-status-bar';
 import { MaterialIcons } from '@expo/vector-icons';
+import * as ImagePicker from 'expo-image-picker';
+import * as MediaLibrary from 'expo-media-library';
 
 import { Colors, Typography, Spacing } from '../../constants/DesignSystem';
 import { Button } from '../../components/ui/Button';
@@ -22,6 +28,41 @@ type BookingStepVisualProps = NativeStackScreenProps<RootStackParamList, 'Bookin
 export default function BookingStepVisualScreen({ navigation }: BookingStepVisualProps) {
   const { state, updateFormData, setStepValidity, goToNextStep } = useBooking();
   const { visualDocumentation } = state.formData;
+  const [capturing, setCapturing] = useState(false);
+  const [permissionsGranted, setPermissionsGranted] = useState(false);
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+
+  const screenWidth = Dimensions.get('window').width;
+
+  // Request permissions on component mount
+  useEffect(() => {
+    requestPermissions();
+  }, []);
+
+  const requestPermissions = async () => {
+    try {
+      // Request camera permissions
+      const cameraPermission = await ImagePicker.requestCameraPermissionsAsync();
+      
+      // Request media library permissions
+      const mediaLibraryPermission = await MediaLibrary.requestPermissionsAsync();
+      
+      if (cameraPermission.status === 'granted' && mediaLibraryPermission.status === 'granted') {
+        setPermissionsGranted(true);
+      } else {
+        Alert.alert(
+          'Permissions Required',
+          'Camera and photo library access are required to take vehicle photos.',
+          [
+            { text: 'Cancel', style: 'cancel' },
+            { text: 'Settings', onPress: () => Alert.alert('Please enable permissions in your device settings') }
+          ]
+        );
+      }
+    } catch (error) {
+      console.error('Error requesting permissions:', error);
+    }
+  };
 
   const photoCategories = [
     {
@@ -79,30 +120,79 @@ export default function BookingStepVisualScreen({ navigation }: BookingStepVisua
   }, [visualDocumentation, setStepValidity]);
 
   const handlePhotoCapture = (category: string) => {
+    if (!permissionsGranted) {
+      Alert.alert('Permissions Required', 'Please grant camera and photo permissions to take vehicle photos.');
+      return;
+    }
+
+    const categoryInfo = photoCategories.find(c => c.key === category);
+    setSelectedCategory(category);
+    
     Alert.alert(
       'Add Photos',
-      `Add photos for ${photoCategories.find(c => c.key === category)?.title}`,
+      `Add photos for ${categoryInfo?.title}`,
       [
-        { text: 'Camera', onPress: () => capturePhoto(category, 'camera') },
-        { text: 'Gallery', onPress: () => capturePhoto(category, 'gallery') },
-        { text: 'Cancel', style: 'cancel' },
+        { text: 'Take Photo', onPress: () => capturePhoto(category, 'camera') },
+        { text: 'Choose from Gallery', onPress: () => capturePhoto(category, 'gallery') },
+        { text: 'Cancel', style: 'cancel', onPress: () => setSelectedCategory(null) },
       ]
     );
   };
 
-  const capturePhoto = (category: string, source: 'camera' | 'gallery') => {
-    // Placeholder implementation - in real app, would use expo-image-picker
-    const mockPhotoUri = `file://mock-${category}-${Date.now()}.jpg`;
-    const currentPhotos = visualDocumentation[category as keyof typeof visualDocumentation] || [];
+  const capturePhoto = async (category: string, source: 'camera' | 'gallery') => {
+    if (capturing) return;
     
-    const updatedData = {
-      ...visualDocumentation,
-      [category]: [...currentPhotos, mockPhotoUri],
-    };
+    setCapturing(true);
     
-    updateFormData('visual', updatedData);
-    
-    Alert.alert('Success', 'Photo added successfully!');
+    try {
+      let result: any = null;
+      
+      const imageOptions = {
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [4, 3] as [number, number],
+        quality: 0.8,
+        base64: false,
+      };
+      
+      if (source === 'camera') {
+        result = await ImagePicker.launchCameraAsync(imageOptions);
+      } else {
+        result = await ImagePicker.launchImageLibraryAsync(imageOptions);
+      }
+
+      if (result && !result.cancelled && result.assets?.[0]) {
+        const asset = result.assets[0];
+        
+        // Create photo info object
+        const photoInfo = {
+          uri: asset.uri,
+          width: asset.width,
+          height: asset.height,
+          type: asset.type || 'image/jpeg',
+          fileSize: asset.fileSize || 0,
+          capturedAt: new Date().toISOString(),
+          category: category,
+        };
+
+        // Update the form data
+        const currentPhotos = visualDocumentation[category as keyof typeof visualDocumentation] || [];
+        const updatedData = {
+          ...visualDocumentation,
+          [category]: [...currentPhotos, photoInfo],
+        };
+        
+        updateFormData('visual', updatedData);
+        
+        Alert.alert('Success', 'Photo added successfully!');
+      }
+    } catch (error) {
+      console.error('Photo capture error:', error);
+      Alert.alert('Capture Failed', 'There was an error capturing your photo. Please try again.');
+    } finally {
+      setCapturing(false);
+      setSelectedCategory(null);
+    }
   };
 
   const removePhoto = (category: string, index: number) => {
@@ -129,7 +219,11 @@ export default function BookingStepVisualScreen({ navigation }: BookingStepVisua
   };
 
   return (
-    <View style={styles.container}>
+    <KeyboardAvoidingView 
+      style={styles.container}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+    >
       <StatusBar style="dark" />
       
       {/* Header */}
@@ -165,15 +259,25 @@ export default function BookingStepVisualScreen({ navigation }: BookingStepVisua
                       style={[
                         styles.photoButton,
                         hasPhotos && styles.photoButtonComplete,
-                        category.required && !hasPhotos && styles.photoButtonRequired
+                        category.required && !hasPhotos && styles.photoButtonRequired,
+                        capturing && selectedCategory === category.key && styles.photoButtonCapturing
                       ]}
                       onPress={() => handlePhotoCapture(category.key)}
+                      disabled={capturing}
                     >
-                      <MaterialIcons 
-                        name={hasPhotos ? "check-circle" : category.icon as any} 
-                        size={32} 
-                        color={hasPhotos ? Colors.success : Colors.text.secondary} 
-                      />
+                      {capturing && selectedCategory === category.key ? (
+                        <MaterialIcons 
+                          name="hourglass-empty" 
+                          size={32} 
+                          color={Colors.text.disabled} 
+                        />
+                      ) : (
+                        <MaterialIcons 
+                          name={hasPhotos ? "check-circle" : category.icon as any} 
+                          size={32} 
+                          color={hasPhotos ? Colors.success : Colors.text.secondary} 
+                        />
+                      )}
                       <Text style={[
                         styles.photoButtonText,
                         hasPhotos && styles.photoButtonTextComplete
@@ -192,21 +296,33 @@ export default function BookingStepVisualScreen({ navigation }: BookingStepVisua
                     </TouchableOpacity>
 
                     {hasPhotos && (
-                      <View style={styles.photoList}>
-                        {photos.map((photo, index) => (
-                          <View key={index} style={styles.photoItem}>
-                            <MaterialIcons name="photo" size={16} color={Colors.text.secondary} />
-                            <Text style={styles.photoName}>
-                              Photo {index + 1}
-                            </Text>
+                      <View style={styles.photoThumbnailGrid}>
+                        {photos.map((photo: any, index) => (
+                          <View key={index} style={styles.thumbnailContainer}>
+                            <Image 
+                              source={{ uri: photo.uri || photo }} 
+                              style={styles.photoThumbnail}
+                              resizeMode="cover"
+                            />
                             <TouchableOpacity
                               onPress={() => removePhoto(category.key, index)}
-                              style={styles.removeButton}
+                              style={styles.thumbnailRemoveButton}
                             >
-                              <MaterialIcons name="close" size={16} color={Colors.error} />
+                              <MaterialIcons name="close" size={16} color={Colors.surface} />
                             </TouchableOpacity>
+                            <View style={styles.thumbnailInfo}>
+                              <Text style={styles.thumbnailLabel}>
+                                {index + 1}
+                              </Text>
+                            </View>
                           </View>
                         ))}
+                        <TouchableOpacity 
+                          style={styles.addMoreButton}
+                          onPress={() => handlePhotoCapture(category.key)}
+                        >
+                          <MaterialIcons name="add" size={24} color={Colors.primary} />
+                        </TouchableOpacity>
                       </View>
                     )}
                   </View>
@@ -251,7 +367,7 @@ export default function BookingStepVisualScreen({ navigation }: BookingStepVisua
           style={styles.nextButton}
         />
       </View>
-    </View>
+    </KeyboardAvoidingView>
   );
 }
 
@@ -262,9 +378,11 @@ const styles = StyleSheet.create({
   },
   header: {
     backgroundColor: Colors.surface,
-    paddingTop: 60,
+    paddingTop: Platform.OS === 'ios' ? 60 : 40,
     paddingBottom: Spacing[6],
     paddingHorizontal: Spacing[6],
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.border,
   },
   title: {
     fontSize: Typography.fontSize['2xl'],
@@ -333,6 +451,10 @@ const styles = StyleSheet.create({
   photoButtonRequired: {
     borderColor: Colors.error,
   },
+  photoButtonCapturing: {
+    borderColor: Colors.text.disabled,
+    backgroundColor: Colors.neutral.gray[50],
+  },
   photoButtonText: {
     fontSize: Typography.fontSize.base,
     fontWeight: Typography.fontWeight.medium,
@@ -361,6 +483,65 @@ const styles = StyleSheet.create({
   photoList: {
     marginTop: Spacing[3],
     paddingLeft: Spacing[4],
+  },
+  photoThumbnailGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    marginTop: Spacing[3],
+    paddingLeft: Spacing[4],
+    gap: Spacing[2],
+  },
+  thumbnailContainer: {
+    position: 'relative',
+    width: 80,
+    height: 80,
+  },
+  photoThumbnail: {
+    width: 80,
+    height: 80,
+    borderRadius: 8,
+    backgroundColor: Colors.neutral.gray[100],
+  },
+  thumbnailRemoveButton: {
+    position: 'absolute',
+    top: -6,
+    right: -6,
+    backgroundColor: Colors.error,
+    borderRadius: 12,
+    width: 24,
+    height: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
+  },
+  thumbnailInfo: {
+    position: 'absolute',
+    bottom: 4,
+    left: 4,
+    backgroundColor: 'rgba(0,0,0,0.7)',
+    borderRadius: 4,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+  },
+  thumbnailLabel: {
+    color: Colors.surface,
+    fontSize: Typography.fontSize.xs,
+    fontWeight: Typography.fontWeight.bold,
+  },
+  addMoreButton: {
+    width: 80,
+    height: 80,
+    borderRadius: 8,
+    borderWidth: 2,
+    borderColor: Colors.primary,
+    borderStyle: 'dashed',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: Colors.surface,
   },
   photoItem: {
     flexDirection: 'row',
@@ -405,6 +586,7 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.surface,
     borderTopWidth: 1,
     borderTopColor: Colors.border,
+    paddingBottom: Platform.OS === 'ios' ? Spacing[8] : Spacing[4],
   },
   backButton: {
     flex: 1,

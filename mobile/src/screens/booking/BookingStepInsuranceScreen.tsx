@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   StyleSheet,
   View,
@@ -6,10 +6,16 @@ import {
   ScrollView,
   TouchableOpacity,
   Alert,
+  Image,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { StatusBar } from 'expo-status-bar';
 import { MaterialIcons } from '@expo/vector-icons';
+import * as ImagePicker from 'expo-image-picker';
+import * as DocumentPicker from 'expo-document-picker';
+import * as MediaLibrary from 'expo-media-library';
 
 import { Colors, Typography, Spacing } from '../../constants/DesignSystem';
 import { Button } from '../../components/ui/Button';
@@ -22,6 +28,38 @@ type BookingStepInsuranceProps = NativeStackScreenProps<RootStackParamList, 'Boo
 export default function BookingStepInsuranceScreen({ navigation }: BookingStepInsuranceProps) {
   const { state, updateFormData, setStepValidity, goToNextStep } = useBooking();
   const { insuranceDocumentation } = state.formData;
+  const [uploading, setUploading] = useState(false);
+  const [permissionsGranted, setPermissionsGranted] = useState(false);
+
+  // Request permissions on component mount
+  useEffect(() => {
+    requestPermissions();
+  }, []);
+
+  const requestPermissions = async () => {
+    try {
+      // Request camera permissions
+      const cameraPermission = await ImagePicker.requestCameraPermissionsAsync();
+      
+      // Request media library permissions
+      const mediaLibraryPermission = await MediaLibrary.requestPermissionsAsync();
+      
+      if (cameraPermission.status === 'granted' && mediaLibraryPermission.status === 'granted') {
+        setPermissionsGranted(true);
+      } else {
+        Alert.alert(
+          'Permissions Required',
+          'Camera and photo library access are required to upload documents.',
+          [
+            { text: 'Cancel', style: 'cancel' },
+            { text: 'Settings', onPress: () => Alert.alert('Please enable permissions in your device settings') }
+          ]
+        );
+      }
+    } catch (error) {
+      console.error('Error requesting permissions:', error);
+    }
+  };
 
   const documentTypes = [
     {
@@ -56,31 +94,87 @@ export default function BookingStepInsuranceScreen({ navigation }: BookingStepIn
   }, [insuranceDocumentation, setStepValidity]);
 
   const handleDocumentUpload = (documentType: string) => {
-    // Placeholder for document upload functionality
+    if (!permissionsGranted) {
+      Alert.alert('Permissions Required', 'Please grant camera and photo permissions to upload documents.');
+      return;
+    }
+
+    const docTypeInfo = documentTypes.find(d => d.key === documentType);
     Alert.alert(
-      'Document Upload',
-      `Would you like to upload ${documentTypes.find(d => d.key === documentType)?.title}?`,
+      'Upload Document',
+      `Upload ${docTypeInfo?.title}`,
       [
-        { text: 'Camera', onPress: () => uploadDocument(documentType, 'camera') },
-        { text: 'Gallery', onPress: () => uploadDocument(documentType, 'gallery') },
+        { text: 'Take Photo', onPress: () => uploadDocument(documentType, 'camera') },
+        { text: 'Choose from Gallery', onPress: () => uploadDocument(documentType, 'gallery') },
+        { text: 'Choose File', onPress: () => uploadDocument(documentType, 'document') },
         { text: 'Cancel', style: 'cancel' },
       ]
     );
   };
 
-  const uploadDocument = (documentType: string, source: 'camera' | 'gallery') => {
-    // Placeholder implementation - in real app, would use expo-image-picker
-    const mockFileUri = `file://mock-${documentType}-${Date.now()}.jpg`;
-    const currentDocs = insuranceDocumentation[documentType as keyof typeof insuranceDocumentation] || [];
+  const uploadDocument = async (documentType: string, source: 'camera' | 'gallery' | 'document') => {
+    if (uploading) return;
     
-    const updatedData = {
-      ...insuranceDocumentation,
-      [documentType]: [...currentDocs, mockFileUri],
-    };
+    setUploading(true);
     
-    updateFormData('insurance', updatedData);
-    
-    Alert.alert('Success', 'Document uploaded successfully!');
+    try {
+      let result: any = null;
+      
+      if (source === 'camera') {
+        result = await ImagePicker.launchCameraAsync({
+          mediaTypes: ImagePicker.MediaTypeOptions.Images,
+          allowsEditing: true,
+          aspect: [4, 3],
+          quality: 0.8,
+          base64: false,
+        });
+      } else if (source === 'gallery') {
+        result = await ImagePicker.launchImageLibraryAsync({
+          mediaTypes: ImagePicker.MediaTypeOptions.Images,
+          allowsEditing: true,
+          aspect: [4, 3],
+          quality: 0.8,
+          base64: false,
+        });
+      } else if (source === 'document') {
+        result = await DocumentPicker.getDocumentAsync({
+          type: ['application/pdf', 'image/*'],
+          copyToCacheDirectory: true,
+          multiple: false,
+        });
+      }
+
+      if (result && !result.cancelled && (result.assets?.[0] || result.uri)) {
+        const fileUri = result.assets?.[0]?.uri || result.uri;
+        const fileName = result.assets?.[0]?.fileName || result.name || `document-${Date.now()}`;
+        const fileType = result.assets?.[0]?.type || result.mimeType || 'image/jpeg';
+        
+        // Create document info object
+        const documentInfo = {
+          uri: fileUri,
+          name: fileName,
+          type: fileType,
+          size: result.assets?.[0]?.fileSize || result.size || 0,
+          uploadedAt: new Date().toISOString(),
+        };
+
+        // Update the form data
+        const currentDocs = insuranceDocumentation[documentType as keyof typeof insuranceDocumentation] || [];
+        const updatedData = {
+          ...insuranceDocumentation,
+          [documentType]: [...currentDocs, documentInfo],
+        };
+        
+        updateFormData('insurance', updatedData);
+        
+        Alert.alert('Success', 'Document uploaded successfully!');
+      }
+    } catch (error) {
+      console.error('Upload error:', error);
+      Alert.alert('Upload Failed', 'There was an error uploading your document. Please try again.');
+    } finally {
+      setUploading(false);
+    }
   };
 
   const removeDocument = (documentType: string, index: number) => {
@@ -107,7 +201,11 @@ export default function BookingStepInsuranceScreen({ navigation }: BookingStepIn
   };
 
   return (
-    <View style={styles.container}>
+    <KeyboardAvoidingView 
+      style={styles.container}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+    >
       <StatusBar style="dark" />
       
       {/* Header */}
@@ -158,34 +256,72 @@ export default function BookingStepInsuranceScreen({ navigation }: BookingStepIn
                     <TouchableOpacity
                       style={[
                         styles.uploadButton,
-                        hasDocuments && styles.uploadButtonSuccess
+                        hasDocuments && styles.uploadButtonSuccess,
+                        uploading && styles.uploadButtonDisabled
                       ]}
                       onPress={() => handleDocumentUpload(docType.key)}
+                      disabled={uploading}
                     >
-                      <MaterialIcons 
-                        name={hasDocuments ? "check" : "add"} 
-                        size={20} 
-                        color={hasDocuments ? Colors.success : Colors.primary} 
-                      />
+                      {uploading ? (
+                        <MaterialIcons 
+                          name="hourglass-empty" 
+                          size={20} 
+                          color={Colors.text.disabled} 
+                        />
+                      ) : (
+                        <MaterialIcons 
+                          name={hasDocuments ? "check" : "add"} 
+                          size={20} 
+                          color={hasDocuments ? Colors.surface : Colors.primary} 
+                        />
+                      )}
                     </TouchableOpacity>
                   </View>
 
                   {hasDocuments && (
                     <View style={styles.documentList}>
-                      {documents.map((doc, index) => (
-                        <View key={index} style={styles.documentItem}>
-                          <MaterialIcons name="description" size={16} color={Colors.text.secondary} />
-                          <Text style={styles.documentName}>
-                            Document {index + 1}
-                          </Text>
-                          <TouchableOpacity
-                            onPress={() => removeDocument(docType.key, index)}
-                            style={styles.removeButton}
-                          >
-                            <MaterialIcons name="close" size={16} color={Colors.error} />
-                          </TouchableOpacity>
-                        </View>
-                      ))}
+                      {documents.map((doc: any, index) => {
+                        const isImage = doc && typeof doc === 'object' && doc.type?.startsWith('image/');
+                        const isPDF = doc && typeof doc === 'object' && doc.type === 'application/pdf';
+                        const fileName = doc && typeof doc === 'object' ? doc.name : `Document ${index + 1}`;
+                        const fileSize = doc && typeof doc === 'object' && doc.size ? `${Math.round(doc.size / 1024)}KB` : '';
+                        
+                        return (
+                          <View key={index} style={styles.documentItem}>
+                            <View style={styles.documentPreview}>
+                              {isImage ? (
+                                <Image 
+                                  source={{ uri: doc.uri }} 
+                                  style={styles.documentThumbnail}
+                                  resizeMode="cover"
+                                />
+                              ) : (
+                                <View style={styles.documentIcon}>
+                                  <MaterialIcons 
+                                    name={isPDF ? "picture-as-pdf" : "description"} 
+                                    size={24} 
+                                    color={isPDF ? Colors.error : Colors.text.secondary} 
+                                  />
+                                </View>
+                              )}
+                            </View>
+                            <View style={styles.documentInfoContent}>
+                              <Text style={styles.documentName} numberOfLines={1}>
+                                {fileName}
+                              </Text>
+                              {fileSize && (
+                                <Text style={styles.documentSize}>{fileSize}</Text>
+                              )}
+                            </View>
+                            <TouchableOpacity
+                              onPress={() => removeDocument(docType.key, index)}
+                              style={styles.removeButton}
+                            >
+                              <MaterialIcons name="close" size={18} color={Colors.error} />
+                            </TouchableOpacity>
+                          </View>
+                        );
+                      })}
                     </View>
                   )}
                 </View>
@@ -228,7 +364,7 @@ export default function BookingStepInsuranceScreen({ navigation }: BookingStepIn
           style={styles.nextButton}
         />
       </View>
-    </View>
+    </KeyboardAvoidingView>
   );
 }
 
@@ -239,9 +375,11 @@ const styles = StyleSheet.create({
   },
   header: {
     backgroundColor: Colors.surface,
-    paddingTop: 60,
+    paddingTop: Platform.OS === 'ios' ? 60 : 40,
     paddingBottom: Spacing[6],
     paddingHorizontal: Spacing[6],
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.border,
   },
   title: {
     fontSize: Typography.fontSize['2xl'],
@@ -334,6 +472,10 @@ const styles = StyleSheet.create({
     borderColor: Colors.success,
     backgroundColor: Colors.success,
   },
+  uploadButtonDisabled: {
+    borderColor: Colors.text.disabled,
+    backgroundColor: Colors.neutral.gray[100],
+  },
   documentList: {
     marginTop: Spacing[4],
   },
@@ -345,11 +487,37 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     marginBottom: Spacing[2],
   },
-  documentName: {
+  documentPreview: {
+    width: 40,
+    height: 40,
+    marginRight: Spacing[3],
+  },
+  documentThumbnail: {
+    width: 40,
+    height: 40,
+    borderRadius: 6,
+    backgroundColor: Colors.neutral.gray[100],
+  },
+  documentIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 6,
+    backgroundColor: Colors.neutral.gray[100],
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  documentInfoContent: {
     flex: 1,
+  },
+  documentName: {
     fontSize: Typography.fontSize.sm,
     color: Colors.text.primary,
-    marginLeft: Spacing[2],
+    fontWeight: Typography.fontWeight.medium,
+  },
+  documentSize: {
+    fontSize: Typography.fontSize.xs,
+    color: Colors.text.secondary,
+    marginTop: 2,
   },
   removeButton: {
     padding: Spacing[1],
@@ -380,6 +548,7 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.surface,
     borderTopWidth: 1,
     borderTopColor: Colors.border,
+    paddingBottom: Platform.OS === 'ios' ? Spacing[8] : Spacing[4],
   },
   backButton: {
     flex: 1,
