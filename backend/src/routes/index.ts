@@ -10,6 +10,7 @@ import smsRoutes from './sms.routes';
 import mapsRoutes from './maps.routes';
 import applicationRoutes from './application.routes';
 import driverRoutes from './driver.routes';
+import messagesRoutes from './messages.routes';
 import { diagnosticsRoutes } from './diagnostics.routes';
 import pricingRoutes from './pricing.routes';
 
@@ -30,6 +31,7 @@ router.get('/', (_req, res) => {
       maps: '/api/v1/maps',
       applications: '/api/v1/applications',
       drivers: '/api/v1/drivers',
+      messages: '/api/v1/messages',
     },
   });
 });
@@ -43,6 +45,7 @@ router.use('/sms', smsRoutes);
 router.use('/maps', mapsRoutes);
 router.use('/applications', applicationRoutes);
 router.use('/drivers', driverRoutes);
+router.use('/messages', messagesRoutes);
 router.use('/diagnostics', diagnosticsRoutes);
 router.use('/pricing', pricingRoutes);
 

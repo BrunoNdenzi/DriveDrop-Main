@@ -4,7 +4,6 @@ import {
   View,
   Text,
   FlatList,
-  TextInput,
   TouchableOpacity,
   KeyboardAvoidingView,
   Platform,
@@ -15,45 +14,22 @@ import {
   Animated,
   Dimensions,
   RefreshControl,
+  TextInput,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { MaterialIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { formatDistanceToNow } from 'date-fns';
-import { Colors } from '../../constants/Colors';
+import { Colors, Typography } from '../../constants/DesignSystem';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../context/AuthContext';
 import { MessageUtil } from '../../utils/MessageUtil';
-
-// Define types
-interface Contact {
-  id: string;
-  name: string;
-  avatar?: string;
-  lastMessage?: string;
-  lastMessageTime?: string;
-  unreadCount?: number;
-  shipmentId?: string; // Add shipmentId to track which shipment this contact is associated with
-  shipmentStatus?: string; // Add shipment status to enforce business rules
-  isAdmin?: boolean; // Flag to identify admin contacts
-  role?: string; // User role (client, driver, admin)
-}
-
-interface Message {
-  id: string;
-  sender_id: string;
-  receiver_id: string;
-  content: string;
-  created_at: string;
-  is_read: boolean;
-  shipment_id: string;
-}
-
-interface MessageGroup {
-  date: string;
-  messages: Message[];
-}
+import { MessageList } from '../../components/MessageList';
+import { ContactsList } from '../../components/ContactsList';
+import { MessageInput } from '../../components/MessageInput';
+import { Contact, Message, MessageGroup } from '../../types/MessageTypes';
+import { assertType } from '../../utils/TypeUtils';
 
 export default function MessagesScreen() {
   const route = useRoute<any>();
@@ -168,7 +144,7 @@ export default function MessagesScreen() {
       .subscribe();
   };
 
-  // Fetch all contacts (clients from shipments driver is assigned to and admin)
+  // Fetch all contacts (drivers assigned to user's shipments and admin)
   const fetchContacts = async (isRefreshing = false) => {
     if (!userProfile) return;
     
@@ -179,43 +155,44 @@ export default function MessagesScreen() {
     }
     
     try {
-      // For drivers, contacts would primarily be clients they've worked with
+      // For clients, contacts would primarily be drivers assigned to their shipments
       // and potentially admin support staff
       const { data: shipments, error: shipmentsError } = await supabase
         .from('shipments')
         .select(`
           id,
           status,
-          client_id,
-          profiles:client_id(id, first_name, last_name, avatar_url, role),
+          driver_id,
+          profiles:driver_id(id, first_name, last_name, avatar_url, role),
           updated_at
         `)
-        .eq('driver_id', userProfile.id);
+        .eq('client_id', userProfile.id)
+        .not('driver_id', 'is', null);
 
       if (shipmentsError) throw shipmentsError;
 
-      // Extract unique clients from shipments
-      const uniqueClients: Record<string, Contact> = {};
+      // Extract unique drivers from shipments
+      const uniqueDrivers: Record<string, Contact> = {};
       
-      // Filter clients based on shipment status - only active or recently delivered shipments
+      // Filter drivers based on shipment status - only active or recently delivered shipments
       shipments.forEach((shipment) => {
         const profile = shipment.profiles as any;
-        if (profile && !uniqueClients[profile.id]) {
+        if (profile && profile.id && !uniqueDrivers[profile.id]) {
           // Only allow messaging for shipments that are accepted, in_transit, or delivered within last 24h
           const isDelivered = shipment.status === 'delivered';
           const deliveredWithin24h = isDelivered ? 
             (new Date().getTime() - new Date(shipment.updated_at).getTime() < 24 * 60 * 60 * 1000) : 
             true;
             
-          // Check business rules: not pending, and if delivered, within 24h
+          // Check business rules: driver assigned, not pending, and if delivered, within 24h
           if (['accepted', 'in_transit'].includes(shipment.status) || (isDelivered && deliveredWithin24h)) {
-            uniqueClients[profile.id] = {
+            uniqueDrivers[profile.id] = {
               id: profile.id,
               name: `${profile.first_name} ${profile.last_name}`,
               avatar: profile.avatar_url,
               shipmentId: shipment.id,
               shipmentStatus: shipment.status,
-              role: 'client'
+              role: 'driver'
             };
           }
         }
@@ -231,7 +208,7 @@ export default function MessagesScreen() {
       
       // Add admin users to contacts
       adminUsers?.forEach(admin => {
-        uniqueClients[admin.id] = {
+        uniqueDrivers[admin.id] = {
           id: admin.id,
           name: `${admin.first_name} ${admin.last_name} (Support)`,
           avatar: admin.avatar_url,
@@ -241,7 +218,7 @@ export default function MessagesScreen() {
       });
       
       // Get last messages and unread counts for each contact
-      const contactsArray = Object.values(uniqueClients);
+      const contactsArray = Object.values(uniqueDrivers);
       await Promise.all(
         contactsArray.map(async (contact) => {
           try {
@@ -506,7 +483,7 @@ export default function MessagesScreen() {
     // Admins can always be messaged
     if (contact.isAdmin || contact.role === 'admin') return true;
     
-    // For clients, check the shipment status
+    // For drivers, check the shipment status
     if (contact.shipmentStatus === 'delivered') {
       // Check if delivered within 24h
       if (contact.lastMessageTime) {
@@ -575,11 +552,7 @@ export default function MessagesScreen() {
         onPress={() => handleSelectContact(item)}
         disabled={!canMessage}
       >
-        <View style={[
-          styles.contactAvatar, 
-          item.role === 'admin' && styles.adminAvatar,
-          item.role === 'client' && styles.clientAvatar
-        ]}>
+        <View style={[styles.contactAvatar, item.isAdmin && styles.adminAvatar]}>
           {item.avatar ? (
             <Image source={{ uri: item.avatar }} style={styles.avatarImage} />
           ) : (
@@ -600,7 +573,7 @@ export default function MessagesScreen() {
         
         <View style={styles.contactMeta}>
           {item.lastMessageTime && (
-            <Text style={styles.messageTime}>
+            <Text style={styles.contactMessageTime}>
               {formatRelativeTime(item.lastMessageTime)}
             </Text>
           )}
@@ -623,9 +596,9 @@ export default function MessagesScreen() {
       <MaterialIcons name="forum" size={64} color={Colors.text.disabled} />
       <Text style={styles.emptyTitle}>No Conversations Yet</Text>
       <Text style={styles.emptyMessage}>
-        {userProfile?.role === 'driver' 
-          ? "You'll see your message contacts here after you're assigned to jobs."
-          : "Conversations will appear here when you have active shipments with assigned drivers."}
+        {userProfile?.role === 'client' 
+          ? 'Conversations will appear here when you have active shipments with assigned drivers.'
+          : "You'll see your message contacts here after you're assigned to jobs."}
       </Text>
     </View>
   );
@@ -692,6 +665,13 @@ export default function MessagesScreen() {
   // Layout based on screen width
   const isTablet = screenWidth >= 768;
 
+  // Empty contact list message based on user role
+  const getEmptyContactsMessage = () => {
+    return userProfile?.role === 'client' 
+      ? 'Conversations will appear here when you have active shipments with assigned drivers.'
+      : "You'll see your message contacts here after you're assigned to jobs.";
+  }
+
   return (
     <View style={styles.container}>
       <StatusBar style="dark" />
@@ -730,33 +710,68 @@ export default function MessagesScreen() {
                 <ActivityIndicator size="large" color={Colors.primary} />
               </View>
             ) : (
-              <FlatList
-                data={getFilteredContacts()}
-                renderItem={renderContactItem}
-                keyExtractor={(item) => item.id}
-                contentContainerStyle={styles.contactsList}
-                ListEmptyComponent={renderEmptyContactsList}
-                refreshControl={
-                  <RefreshControl
-                    refreshing={refreshing}
-                    onRefresh={() => fetchContacts(true)}
-                    colors={[Colors.primary]}
-                  />
-                }
+              <ContactsList 
+                contacts={getFilteredContacts()}
+                selectedContactId={selectedContact ? selectedContact.id : null}
+                onSelectContact={handleSelectContact}
+                emptyMessage="No Conversations Yet"
+                emptySubMessage={getEmptyContactsMessage()}
+                refreshing={refreshing}
+                onRefresh={() => fetchContacts(true)}
               />
             )}
           </View>
         ) : (
           // Show contacts button on mobile
           <>
-            {renderContactsModal()}
+            <Modal
+              visible={isContactsVisible}
+              animationType="slide"
+              transparent={false}
+              onRequestClose={() => setIsContactsVisible(false)}
+            >
+              <View style={styles.modalContainer}>
+                <View style={styles.modalHeader}>
+                  <Text style={styles.modalTitle}>Conversations</Text>
+                  <TouchableOpacity onPress={() => setIsContactsVisible(false)}>
+                    <MaterialIcons name="close" size={24} color={Colors.text.primary} />
+                  </TouchableOpacity>
+                </View>
+                
+                <View style={styles.searchContainer}>
+                  <MaterialIcons name="search" size={20} color={Colors.text.secondary} />
+                  <TextInput
+                    style={styles.searchInput}
+                    placeholder="Search conversations..."
+                    value={searchQuery}
+                    onChangeText={setSearchQuery}
+                  />
+                  {searchQuery ? (
+                    <TouchableOpacity onPress={() => setSearchQuery('')}>
+                      <MaterialIcons name="cancel" size={20} color={Colors.text.secondary} />
+                    </TouchableOpacity>
+                  ) : null}
+                </View>
+                
+                <ContactsList 
+                  contacts={getFilteredContacts()}
+                  selectedContactId={selectedContact ? selectedContact.id : null}
+                  onSelectContact={handleSelectContact}
+                  emptyMessage="No Conversations Yet"
+                  emptySubMessage={getEmptyContactsMessage()}
+                  refreshing={refreshing}
+                  onRefresh={() => fetchContacts(true)}
+                />
+              </View>
+            </Modal>
+            
             {!selectedContact && (
               <View style={styles.mobileContactsView}>
                 <View style={styles.mobilePrompt}>
                   <MaterialIcons name="chat" size={64} color={Colors.primary} />
                   <Text style={styles.mobilePromptTitle}>Your Conversations</Text>
                   <Text style={styles.mobilePromptText}>
-                    View your conversations with clients and support staff
+                    View your conversations with drivers and support staff
                   </Text>
                   <TouchableOpacity
                     style={styles.mobileContactsButton}
@@ -773,7 +788,15 @@ export default function MessagesScreen() {
                 ) : contacts.length > 0 ? (
                   <View style={styles.recentContactsContainer}>
                     <Text style={styles.recentContactsTitle}>Recent Conversations</Text>
-                    {contacts.slice(0, 3).map(contact => renderContactItem({ item: contact }))}
+                    <ContactsList 
+                      contacts={contacts.slice(0, 3)}
+                      selectedContactId={selectedContact ? assertType<Contact>(selectedContact).id : null}
+                      onSelectContact={handleSelectContact}
+                      emptyMessage="No Conversations Yet"
+                      emptySubMessage={getEmptyContactsMessage()}
+                      refreshing={refreshing}
+                      onRefresh={() => fetchContacts(true)}
+                    />
                     {contacts.length > 3 && (
                       <TouchableOpacity
                         style={styles.viewAllButton}
@@ -794,7 +817,7 @@ export default function MessagesScreen() {
         {/* Messages Area */}
         <Animated.View style={[
           styles.messagesColumn, 
-          { opacity: fadeAnim }
+          { opacity: fadeAnim, flex: 1 }
         ]}>
           {selectedContact ? (
             <KeyboardAvoidingView
@@ -816,11 +839,7 @@ export default function MessagesScreen() {
                   </TouchableOpacity>
                 )}
                 
-                <View style={[
-                  styles.chatContactAvatar, 
-                  selectedContact.role === 'admin' && styles.adminAvatar,
-                  selectedContact.role === 'client' && styles.clientAvatar
-                ]}>
+                <View style={[styles.chatContactAvatar, selectedContact.isAdmin && styles.adminAvatar]}>
                   {selectedContact.avatar ? (
                     <Image source={{ uri: selectedContact.avatar }} style={styles.avatarImage} />
                   ) : (
@@ -842,48 +861,31 @@ export default function MessagesScreen() {
                 </View>
               </View>
               
-              {/* Messages List - Grouped by Date */}
-              <FlatList
-                ref={messageListRef}
-                style={styles.messagesList}
-                data={messageGroups}
-                renderItem={({ item: group }) => (
-                  <View>
-                    {renderDateSeparator(group.date)}
-                    {group.messages.map((message: Message) => renderMessageItem({ item: message }))}
+              {/* Messages List - Using the MessageList component */}
+              <View style={styles.messageListContainer}>
+                {messages.length > 0 ? (
+                  <MessageList 
+                    messageGroups={messageGroups} 
+                    userId={userProfile?.id || ''}
+                  />
+                ) : (
+                  <View style={styles.emptyContainer}>
+                    <MaterialIcons name="chat" size={64} color={Colors.text.disabled} />
+                    <Text style={styles.emptyTitle}>No Messages Yet</Text>
+                    <Text style={styles.emptyMessage}>
+                      Start the conversation by sending a message below.
+                    </Text>
                   </View>
                 )}
-                keyExtractor={(item) => item.date}
-                contentContainerStyle={styles.messagesListContent}
-                ListEmptyComponent={renderEmptyMessagesList}
-              />
-              
-              {/* Message Input */}
-              <View style={styles.inputContainer}>
-                <TextInput
-                  style={styles.messageInput}
-                  placeholder="Type a message..."
-                  value={newMessage}
-                  onChangeText={setNewMessage}
-                  multiline
-                  maxLength={500}
-                  placeholderTextColor={Colors.text.secondary}
-                />
-                <TouchableOpacity
-                  style={[
-                    styles.sendButton,
-                    (!newMessage.trim() || sendingMessage) && styles.disabledSendButton,
-                  ]}
-                  onPress={handleSendMessage}
-                  disabled={!newMessage.trim() || sendingMessage}
-                >
-                  {sendingMessage ? (
-                    <ActivityIndicator size="small" color={Colors.text.inverse} />
-                  ) : (
-                    <MaterialIcons name="send" size={20} color="#FFFFFF" />
-                  )}
-                </TouchableOpacity>
               </View>
+              
+              {/* Message Input - Using the MessageInput component */}
+              <MessageInput
+                message={newMessage}
+                onChangeText={setNewMessage}
+                onSend={handleSendMessage}
+                isSending={sendingMessage}
+              />
             </KeyboardAvoidingView>
           ) : isTablet ? (
             <View style={styles.noSelectedContactContainer}>
@@ -925,12 +927,13 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
   },
   contactsColumn: {
-    width: '35%',
+    width: '30%', // Reduced from 35% to give more space for messages
     borderRightWidth: 1,
     borderRightColor: Colors.border,
   },
   messagesColumn: {
     flex: 1,
+    width: '70%', // Explicitly set width to take remaining space
   },
   searchContainer: {
     flexDirection: 'row',
@@ -944,7 +947,7 @@ const styles = StyleSheet.create({
   searchInput: {
     flex: 1,
     marginLeft: 8,
-    fontSize: 14,
+    fontSize: Typography.fontSize.sm,
     color: Colors.text.primary,
   },
   contactItem: {
@@ -970,9 +973,6 @@ const styles = StyleSheet.create({
   },
   adminAvatar: {
     backgroundColor: Colors.error,
-  },
-  clientAvatar: {
-    backgroundColor: Colors.success,
   },
   avatarImage: {
     width: 48,
@@ -1005,7 +1005,7 @@ const styles = StyleSheet.create({
     alignItems: 'flex-end',
     justifyContent: 'center',
   },
-  messageTime: {
+  contactMessageTime: {
     fontSize: 11,
     color: Colors.text.secondary,
     marginBottom: 4,
@@ -1126,6 +1126,11 @@ const styles = StyleSheet.create({
   },
   theirMessageText: {
     color: Colors.text.primary,
+  },
+  messageTime: {
+    fontSize: 11,
+    color: Colors.text.secondary,
+    opacity: 0.7,
   },
   myMessageTime: {
     alignSelf: 'flex-end',
@@ -1273,5 +1278,9 @@ const styles = StyleSheet.create({
     color: Colors.primary,
     fontSize: 14,
     fontWeight: '600',
+  },
+  messageListContainer: {
+    flex: 1, 
+    backgroundColor: Colors.background,
   },
 });
