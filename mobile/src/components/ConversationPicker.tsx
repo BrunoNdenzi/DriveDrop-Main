@@ -80,7 +80,7 @@ export default function ConversationPicker({ onSelectRecipient, selectedShipment
         <FlatList
           data={data}
           renderItem={renderContact}
-          keyExtractor={(item) => item.id}
+          keyExtractor={(item, index) => item?.id || `contact-${index}`}
           scrollEnabled={false}
         />
       </View>

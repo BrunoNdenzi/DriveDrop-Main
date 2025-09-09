@@ -38,10 +38,13 @@ export class MessagingService {
    */
   async checkMessagingStatus(shipmentId: string, userId?: string): Promise<MessagingStatus> {
     try {
+      const currentUserId = userId || (await supabase.auth.getUser()).data.user?.id;
+      
       const { data, error } = await supabase.rpc('is_messaging_allowed', {
         p_shipment_id: shipmentId,
-        p_user1_id: userId || (await supabase.auth.getUser()).data.user?.id
-      });
+        p_user1_id: currentUserId,
+        p_user2_id: null
+      } as any);
 
       if (error) throw error;
 
@@ -53,8 +56,8 @@ export class MessagingService {
         .single();
 
       let expiresAt = undefined;
-      if (shipment?.status === 'delivered') {
-        const updatedAt = new Date(shipment.updated_at);
+      if ((shipment as any)?.status === 'delivered') {
+        const updatedAt = new Date((shipment as any).updated_at);
         expiresAt = new Date(updatedAt.getTime() + 24 * 60 * 60 * 1000).toISOString();
       }
 
@@ -74,31 +77,81 @@ export class MessagingService {
    */
   async sendMessage(request: SendMessageRequest): Promise<SendMessageResponse> {
     try {
+      console.log('🚀 SendMessage called with request:', JSON.stringify(request, null, 2));
+      
       // Validate request
       if (!request.content?.trim()) {
+        console.log('❌ Validation failed: Message content cannot be empty');
         return { success: false, error: 'Message content cannot be empty' };
       }
 
       if (request.content.length > 2000) {
+        console.log('❌ Validation failed: Message too long');
         return { success: false, error: 'Message too long (max 2000 characters)' };
       }
 
-      const { data, error } = await supabase.rpc('send_message_v2', {
+      const rpcParams = {
         p_shipment_id: request.shipment_id,
         p_content: request.content.trim(),
         p_receiver_id: request.receiver_id || null,
         p_message_type: request.message_type || 'text'
-      });
+      };
+      
+      console.log('📤 Calling send_message_v2 with params:', JSON.stringify(rpcParams, null, 2));
+
+      const { data, error } = await supabase.rpc('send_message_v2', rpcParams as any);
 
       if (error) {
-        console.error('Error sending message:', error);
+        console.error('❌ Database error from send_message_v2:', error);
+        console.error('❌ Error details:', JSON.stringify(error, null, 2));
+        console.error('❌ Error code:', error.code);
+        console.error('❌ Error hint:', error.hint);
+        console.error('❌ Error details:', error.details);
+        
+        // Handle specific error types
+        let friendlyMessage = error.message || 'Failed to send message';
+        if (error.message?.includes('Missing required fields')) {
+          friendlyMessage = 'Database validation error. Please check if shipment and user data exists.';
+        } else if (error.message?.includes('not found')) {
+          friendlyMessage = 'Shipment not found. Please select a valid conversation.';
+        } else if (error.message?.includes('not allowed')) {
+          friendlyMessage = 'Messaging not allowed for this shipment or has expired.';
+        } else if (error.message?.includes('authenticated')) {
+          friendlyMessage = 'Please log in to send messages.';
+        }
+        
         return { 
           success: false, 
-          error: error.message || 'Failed to send message' 
+          error: friendlyMessage
         };
       }
 
-      return { success: true, message: data as Message };
+      console.log('✅ Database response:', JSON.stringify(data, null, 2));
+
+      if (data && (data as any).success) {
+        console.log('✅ Message sent successfully, message ID:', (data as any).message_id);
+        return {
+          success: true,
+          message: {
+            id: (data as any).message_id,
+            content: request.content.trim(),
+            sender_id: (data as any).sender_id,
+            receiver_id: request.receiver_id || null,
+            shipment_id: request.shipment_id,
+            message_type: request.message_type || 'text',
+            created_at: new Date().toISOString(),
+            is_read: false,
+            expires_at: null,
+            sender: null
+          } as any
+        };
+      } else {
+        console.log('❌ Database returned unsuccessful response:', data);
+        return { 
+          success: false, 
+          error: (data as any)?.error || 'Failed to send message' 
+        };
+      }
     } catch (error) {
       console.error('Error sending message:', error);
       return { 
@@ -121,7 +174,7 @@ export class MessagingService {
         p_shipment_id: shipmentId,
         p_limit: limit,
         p_offset: offset
-      });
+      } as any);
 
       if (error) throw error;
 
@@ -155,7 +208,7 @@ export class MessagingService {
     try {
       const { data, error } = await supabase.rpc('mark_message_as_read', {
         p_message_id: messageId
-      });
+      } as any);
 
       if (error) throw error;
 
@@ -365,7 +418,7 @@ export class MessagingService {
         admins: UserProfile[];
       } = { clients: [], drivers: [], admins: [] };
 
-      if (profile?.role === 'admin') {
+      if ((profile as any)?.role === 'admin') {
         // Admins can message anyone
         const { data: allUsers } = await supabase
           .from('profiles')
@@ -412,7 +465,7 @@ export class MessagingService {
               new Date().getTime() - new Date(shipment.updated_at).getTime() < 24 * 60 * 60 * 1000;
             
             if (shipment.status !== 'delivered' || isRecentlyDelivered) {
-              if (profile?.role === 'client' && shipment.driver) {
+              if ((profile as any)?.role === 'client' && shipment.driver) {
                 const driver = Array.isArray(shipment.driver) ? shipment.driver[0] : shipment.driver;
                 if (driver) {
                   const driverProfile: UserProfile = {
@@ -424,7 +477,7 @@ export class MessagingService {
                   };
                   contactMap.set(driver.id, driverProfile);
                 }
-              } else if (profile?.role === 'driver' && shipment.client) {
+              } else if ((profile as any)?.role === 'driver' && shipment.client) {
                 const client = Array.isArray(shipment.client) ? shipment.client[0] : shipment.client;
                 if (client) {
                   const clientProfile: UserProfile = {

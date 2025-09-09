@@ -198,23 +198,23 @@ export default function MessagesScreen() {
       const uniqueClients: Record<string, Contact> = {};
       
       // Filter clients based on shipment status - only active or recently delivered shipments
-      shipments.forEach((shipment) => {
+      shipments.forEach((shipment: any) => {
         const profile = shipment.profiles as any;
         if (profile && !uniqueClients[profile.id]) {
           // Only allow messaging for shipments that are accepted, in_transit, or delivered within last 24h
-          const isDelivered = shipment.status === 'delivered';
+          const isDelivered = (shipment as any).status === 'delivered';
           const deliveredWithin24h = isDelivered ? 
-            (new Date().getTime() - new Date(shipment.updated_at).getTime() < 24 * 60 * 60 * 1000) : 
+            (new Date().getTime() - new Date((shipment as any).updated_at).getTime() < 24 * 60 * 60 * 1000) : 
             true;
             
           // Check business rules: not pending, and if delivered, within 24h
-          if (['accepted', 'in_transit'].includes(shipment.status) || (isDelivered && deliveredWithin24h)) {
+          if (['accepted', 'in_transit'].includes((shipment as any).status) || (isDelivered && deliveredWithin24h)) {
             uniqueClients[profile.id] = {
-              id: profile.id,
-              name: `${profile.first_name} ${profile.last_name}`,
-              avatar: profile.avatar_url,
-              shipmentId: shipment.id,
-              shipmentStatus: shipment.status,
+              id: (shipment as any).id,
+              name: `${(profile as any).first_name} ${(profile as any).last_name}`,
+              avatar: (profile as any).avatar_url,
+              shipmentId: (shipment as any).id,
+              shipmentStatus: (shipment as any).status,
               role: 'client'
             };
           }
@@ -230,11 +230,11 @@ export default function MessagesScreen() {
       if (adminError) throw adminError;
       
       // Add admin users to contacts
-      adminUsers?.forEach(admin => {
-        uniqueClients[admin.id] = {
-          id: admin.id,
-          name: `${admin.first_name} ${admin.last_name} (Support)`,
-          avatar: admin.avatar_url,
+      adminUsers?.forEach((admin: any) => {
+        uniqueClients[(admin as any).id] = {
+          id: (admin as any).id,
+          name: `${(admin as any).first_name} ${(admin as any).last_name} (Support)`,
+          avatar: (admin as any).avatar_url,
           isAdmin: true,
           role: 'admin'
         };
@@ -258,18 +258,18 @@ export default function MessagesScreen() {
               .rpc('count_unread_messages', {
                 p_user_id: userProfile.id, 
                 p_contact_id: contact.id
-              });
+              } as any);
             
             const unreadCount = unreadCountData || 0;
             
             if (lastMessage && lastMessage.length > 0) {
-              contact.lastMessage = lastMessage[0].content;
-              contact.lastMessageTime = lastMessage[0].created_at;
+              contact.lastMessage = (lastMessage[0] as any).content;
+              contact.lastMessageTime = (lastMessage[0] as any).created_at;
               contact.unreadCount = unreadCount;
               
               // If there's a shipment_id in the message but not in the contact, add it
-              if (lastMessage[0].shipment_id && !contact.shipmentId) {
-                contact.shipmentId = lastMessage[0].shipment_id;
+              if ((lastMessage[0] as any).shipment_id && !contact.shipmentId) {
+                contact.shipmentId = (lastMessage[0] as any).shipment_id;
               }
             }
           } catch (error) {
@@ -329,11 +329,11 @@ export default function MessagesScreen() {
       // Mark unread messages as read
       if (data) {
         const unreadMessages = data.filter(
-          msg => msg.sender_id === contactId && !msg.is_read
+          (msg: any) => (msg as any).sender_id === contactId && !(msg as any).is_read
         );
         
         for (const msg of unreadMessages) {
-          await MessageUtil.markAsRead(msg.id, userProfile.id);
+          await MessageUtil.markAsRead((msg as any).id, userProfile.id);
         }
       }
       
@@ -773,7 +773,11 @@ export default function MessagesScreen() {
                 ) : contacts.length > 0 ? (
                   <View style={styles.recentContactsContainer}>
                     <Text style={styles.recentContactsTitle}>Recent Conversations</Text>
-                    {contacts.slice(0, 3).map(contact => renderContactItem({ item: contact }))}
+                    {contacts.slice(0, 3).map((contact, index) => 
+                      <View key={contact.id || `contact-${index}`}>
+                        {renderContactItem({ item: contact })}
+                      </View>
+                    )}
                     {contacts.length > 3 && (
                       <TouchableOpacity
                         style={styles.viewAllButton}
@@ -850,7 +854,11 @@ export default function MessagesScreen() {
                 renderItem={({ item: group }) => (
                   <View>
                     {renderDateSeparator(group.date)}
-                    {group.messages.map((message: Message) => renderMessageItem({ item: message }))}
+                    {group.messages.map((message: Message) => 
+                      <View key={message.id}>
+                        {renderMessageItem({ item: message })}
+                      </View>
+                    )}
                   </View>
                 )}
                 keyExtractor={(item) => item.date}

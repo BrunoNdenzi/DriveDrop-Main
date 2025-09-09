@@ -45,8 +45,14 @@ interface MessagingScreenProps {
 }
 
 export default function MessagingScreen({ route, navigation }: MessagingScreenProps) {
+  console.log('🎬 MessagingScreen rendered with route params:', route.params);
+  
   const { user } = useAuth();
   const { shipmentId, conversationMode = 'list', recipientId, recipientName } = route.params || {};
+  
+  console.log('👤 Current user:', user);
+  console.log('📦 Shipment ID:', shipmentId);
+  console.log('🔄 Conversation mode:', conversationMode);
   
   const [messageText, setMessageText] = useState('');
   const [selectedConversation, setSelectedConversation] = useState<string | null>(shipmentId || null);
@@ -71,18 +77,27 @@ export default function MessagingScreen({ route, navigation }: MessagingScreenPr
     loadInitialMessages: true,
   });
 
-  // Set navigation title
+  // Set navigation title and improved header
   useEffect(() => {
     if (conversationMode === 'single' && recipientName) {
       navigation.setOptions({
-        title: `Chat with ${recipientName}`,
-        headerStyle: { backgroundColor: '#2563eb' },
+        title: recipientName,
+        headerStyle: { 
+          backgroundColor: '#1e40af',
+          elevation: 0,
+          shadowOpacity: 0,
+          borderBottomWidth: 0,
+        },
         headerTintColor: '#fff',
+        headerTitleStyle: {
+          fontSize: 18,
+          fontWeight: '600',
+        },
         headerRight: () => (
           <View style={styles.headerStatus}>
             <View style={[styles.connectionDot, { backgroundColor: connected ? '#10b981' : '#ef4444' }]} />
             <Text style={styles.connectionText}>
-              {connected ? 'Connected' : 'Connecting...'}
+              {connected ? 'Online' : 'Connecting...'}
             </Text>
           </View>
         ),
@@ -90,8 +105,16 @@ export default function MessagingScreen({ route, navigation }: MessagingScreenPr
     } else {
       navigation.setOptions({
         title: 'Messages',
-        headerStyle: { backgroundColor: '#2563eb' },
+        headerStyle: { 
+          backgroundColor: '#1e40af',
+          elevation: 0,
+          shadowOpacity: 0,
+        },
         headerTintColor: '#fff',
+        headerTitleStyle: {
+          fontSize: 20,
+          fontWeight: '700',
+        },
       });
     }
   }, [navigation, conversationMode, recipientName, connected]);
@@ -361,6 +384,13 @@ export default function MessagingScreen({ route, navigation }: MessagingScreenPr
 
   return (
     <SafeAreaView style={styles.container}>
+      {/* Debug header to verify full screen and data */}
+      <View style={{ backgroundColor: '#ff6b6b', padding: 8, zIndex: 1000 }}>
+        <Text style={{ color: 'white', fontSize: 12, fontWeight: 'bold' }}>
+          🔧 DEBUG: Mode={conversationMode} | ShipmentID={selectedConversation || 'none'} | User={user?.role || 'none'}
+        </Text>
+      </View>
+      
       {conversationMode === 'single' ? renderConversationView() : renderConversationsList()}
     </SafeAreaView>
   );
@@ -369,7 +399,7 @@ export default function MessagingScreen({ route, navigation }: MessagingScreenPr
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f9fafb',
+    backgroundColor: '#f8fafc',
   },
   headerStatus: {
     flexDirection: 'row',
@@ -429,18 +459,23 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   messageBubble: {
-    maxWidth: '75%',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 16,
+    maxWidth: '80%',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+    elevation: 2,
   },
   ownBubble: {
-    backgroundColor: '#3b82f6',
+    backgroundColor: '#1e40af',
   },
   otherBubble: {
     backgroundColor: '#fff',
     borderWidth: 1,
-    borderColor: '#e5e7eb',
+    borderColor: '#e2e8f0',
   },
   senderName: {
     fontSize: 12,
@@ -476,37 +511,52 @@ const styles = StyleSheet.create({
   readStatus: {
     marginLeft: 4,
   },
-  // Input styles
+  // Enhanced input styles
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'flex-end',
     paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingVertical: 16,
     backgroundColor: '#fff',
     borderTopWidth: 1,
-    borderTopColor: '#e5e7eb',
+    borderTopColor: '#e2e8f0',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 8,
   },
   messageInput: {
     flex: 1,
     borderWidth: 1,
-    borderColor: '#d1d5db',
-    borderRadius: 20,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
+    borderColor: '#e2e8f0',
+    borderRadius: 24,
+    paddingHorizontal: 18,
+    paddingVertical: 12,
     marginRight: 12,
-    maxHeight: 100,
+    maxHeight: 120,
+    minHeight: 48,
     fontSize: 16,
+    backgroundColor: '#f8fafc',
+    color: '#1e293b',
   },
   sendButton: {
-    backgroundColor: '#3b82f6',
-    borderRadius: 20,
-    width: 40,
-    height: 40,
+    backgroundColor: '#1e40af',
+    borderRadius: 24,
+    width: 48,
+    height: 48,
     justifyContent: 'center',
     alignItems: 'center',
+    shadowColor: '#1e40af',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 4,
   },
   sendButtonDisabled: {
-    backgroundColor: '#9ca3af',
+    backgroundColor: '#94a3b8',
+    shadowOpacity: 0,
+    elevation: 0,
   },
   // Conversations list styles
   conversationsList: {

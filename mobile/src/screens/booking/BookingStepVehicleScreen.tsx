@@ -1,12 +1,16 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   StyleSheet,
   View,
   Text,
   ScrollView,
+  KeyboardAvoidingView,
+  Platform,
+  TouchableOpacity,
 } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { StatusBar } from 'expo-status-bar';
+import { MaterialIcons } from '@expo/vector-icons';
 
 import { Colors, Typography, Spacing } from '../../constants/DesignSystem';
 import { Button } from '../../components/ui/Button';
@@ -19,7 +23,34 @@ type BookingStepVehicleProps = NativeStackScreenProps<RootStackParamList, 'Booki
 
 export default function BookingStepVehicleScreen({ navigation }: BookingStepVehicleProps) {
   const { state, updateFormData, setStepValidity, goToNextStep } = useBooking();
-  const { vehicleInformation } = state.formData;
+  const { vehicleInformation, customerDetails } = state.formData;
+  const [showYearPicker, setShowYearPicker] = useState(false);
+  
+  // Generate years array (current year + 1 down to 1980)
+  const currentYear = new Date().getFullYear();
+  const years = Array.from({ length: currentYear - 1979 }, (_, i) => currentYear + 1 - i);
+
+  // Auto-fill from quote data when component mounts
+  useEffect(() => {
+    // Check if we have quote data from customer details that was passed from NewShipmentScreen
+    if (customerDetails && !vehicleInformation.make && !vehicleInformation.model) {
+      const quoteData = customerDetails as any; // Quote data was stored in customer step
+      
+      if (quoteData.vehicleMake && quoteData.vehicleModel) {
+        console.log('Auto-filling vehicle data from quote:', {
+          make: quoteData.vehicleMake,
+          model: quoteData.vehicleModel,
+          type: quoteData.vehicleType
+        });
+        
+        updateFormData('vehicle', {
+          ...vehicleInformation,
+          make: quoteData.vehicleMake,
+          model: quoteData.vehicleModel,
+        });
+      }
+    }
+  }, [customerDetails, vehicleInformation.make, vehicleInformation.model, updateFormData]);
 
   // Validate form data
   useEffect(() => {
@@ -29,18 +60,45 @@ export default function BookingStepVehicleScreen({ navigation }: BookingStepVehi
       vehicleInformation.year &&
       vehicleInformation.make.trim().length > 0 &&
       vehicleInformation.model.trim().length > 0 &&
-      vehicleInformation.year.trim().length === 4
+      vehicleInformation.year.trim().length === 4 &&
+      parseInt(vehicleInformation.year) >= 1980 &&
+      parseInt(vehicleInformation.year) <= currentYear + 1
     );
     setStepValidity('vehicle', isValid);
-  }, [vehicleInformation, setStepValidity]);
+  }, [vehicleInformation, setStepValidity, currentYear]);
 
   const handleInputChange = (field: string, value: string) => {
     console.log('Vehicle input change:', field, value);
-    const updatedData = { 
-      ...vehicleInformation,
-      [field]: value 
-    };
-    updateFormData('vehicle', updatedData);
+    
+    // Special handling for year field
+    if (field === 'year') {
+      // Only allow numbers and limit to 4 digits
+      const numericValue = value.replace(/\D/g, '').substring(0, 4);
+      const updatedData = { 
+        ...vehicleInformation,
+        [field]: numericValue 
+      };
+      updateFormData('vehicle', updatedData);
+    } else if (field === 'licensePlate') {
+      // Format license plate (uppercase, remove special chars except dashes and spaces)
+      const formatted = value.toUpperCase().replace(/[^A-Z0-9\-\s]/g, '');
+      const updatedData = { 
+        ...vehicleInformation,
+        [field]: formatted 
+      };
+      updateFormData('vehicle', updatedData);
+    } else {
+      const updatedData = { 
+        ...vehicleInformation,
+        [field]: value 
+      };
+      updateFormData('vehicle', updatedData);
+    }
+  };
+
+  const handleYearSelect = (selectedYear: number) => {
+    handleInputChange('year', selectedYear.toString());
+    setShowYearPicker(false);
   };
 
   const handleNext = () => {
@@ -55,7 +113,11 @@ export default function BookingStepVehicleScreen({ navigation }: BookingStepVehi
   };
 
   return (
-    <View style={styles.container}>
+    <KeyboardAvoidingView 
+      style={styles.container}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+    >
       <StatusBar style="dark" />
       
       {/* Header */}
@@ -71,7 +133,8 @@ export default function BookingStepVehicleScreen({ navigation }: BookingStepVehi
         style={styles.content} 
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
-        contentContainerStyle={{ flexGrow: 1 }}
+        contentContainerStyle={{ flexGrow: 1, paddingBottom: 40 }}
+        bounces={false}
       >
         <View style={styles.scrollContent}>
           <Card variant="default" padding="lg" style={styles.formCard}>
@@ -87,6 +150,7 @@ export default function BookingStepVehicleScreen({ navigation }: BookingStepVehi
               onChangeText={(value) => handleInputChange('make', value)}
               leftIcon="directions-car"
               required
+              helper={vehicleInformation.make && customerDetails ? "✓ Auto-filled from quote" : ""}
             />
 
             <Input
@@ -96,18 +160,59 @@ export default function BookingStepVehicleScreen({ navigation }: BookingStepVehi
               onChangeText={(value) => handleInputChange('model', value)}
               leftIcon="directions-car"
               required
+              helper={vehicleInformation.model && customerDetails ? "✓ Auto-filled from quote" : ""}
             />
 
-            <Input
-              label="Year"
-              placeholder="e.g., 2020"
-              value={vehicleInformation.year || ''}
-              onChangeText={(value) => handleInputChange('year', value)}
-              leftIcon="calendar-today"
-              keyboardType="numeric"
-              maxLength={4}
-              required
-            />
+            {/* Year Picker */}
+            <View style={styles.inputContainer}>
+              <Text style={styles.inputLabel}>
+                Year <Text style={styles.required}>*</Text>
+              </Text>
+              <TouchableOpacity 
+                style={styles.yearPickerButton}
+                onPress={() => setShowYearPicker(true)}
+              >
+                <MaterialIcons name="calendar-today" size={20} color={Colors.text.secondary} style={styles.yearIcon} />
+                <Text style={[styles.yearPickerText, !vehicleInformation.year && styles.placeholderText]}>
+                  {vehicleInformation.year || 'Select vehicle year'}
+                </Text>
+                <MaterialIcons name="keyboard-arrow-down" size={24} color={Colors.text.secondary} />
+              </TouchableOpacity>
+              
+              {showYearPicker && (
+                <View style={styles.yearPickerContainer}>
+                  <ScrollView style={styles.yearsList} showsVerticalScrollIndicator={true}>
+                    {years.map((year) => (
+                      <TouchableOpacity
+                        key={year}
+                        style={[
+                          styles.yearOption,
+                          year.toString() === vehicleInformation.year && styles.selectedYearOption
+                        ]}
+                        onPress={() => handleYearSelect(year)}
+                      >
+                        <Text style={[
+                          styles.yearOptionText,
+                          year.toString() === vehicleInformation.year && styles.selectedYearText
+                        ]}>
+                          {year}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </ScrollView>
+                  <TouchableOpacity 
+                    style={styles.closeYearPicker}
+                    onPress={() => setShowYearPicker(false)}
+                  >
+                    <Text style={styles.closeYearPickerText}>Close</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
+              
+              <Text style={styles.helper}>
+                Vehicle manufacturing year (1980-{currentYear + 1})
+              </Text>
+            </View>
 
             <Input
               label="VIN Number"
@@ -122,22 +227,23 @@ export default function BookingStepVehicleScreen({ navigation }: BookingStepVehi
 
             <Input
               label="License Plate"
-              placeholder="License plate number (optional)"
+              placeholder="e.g., ABC-1234, 123 ABC"
               value={vehicleInformation.licensePlate || ''}
-              onChangeText={(value) => handleInputChange('licensePlate', value.toUpperCase())}
+              onChangeText={(value) => handleInputChange('licensePlate', value)}
               leftIcon="credit-card"
               autoCapitalize="characters"
+              helper="Current license plate number (optional)"
             />
 
             <Input
               label="Condition Notes"
-              placeholder="Any special conditions, modifications, or damage to note"
+              placeholder="Describe any damage, modifications, or special conditions..."
               value={vehicleInformation.conditionNotes || ''}
               onChangeText={(value) => handleInputChange('conditionNotes', value)}
               leftIcon="note"
               multiline
-              numberOfLines={3}
-              helper="This helps us prepare the right equipment and handling"
+              numberOfLines={4}
+              helper="This helps us prepare the right equipment and handling procedures"
             />
           </Card>
 
@@ -161,7 +267,7 @@ export default function BookingStepVehicleScreen({ navigation }: BookingStepVehi
           style={styles.nextButton}
         />
       </View>
-    </View>
+    </KeyboardAvoidingView>
   );
 }
 
@@ -172,9 +278,11 @@ const styles = StyleSheet.create({
   },
   header: {
     backgroundColor: Colors.surface,
-    paddingTop: 60,
+    paddingTop: Platform.OS === 'ios' ? 60 : 40,
     paddingBottom: Spacing[6],
     paddingHorizontal: Spacing[6],
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.border,
   },
   title: {
     fontSize: Typography.fontSize['2xl'],
@@ -204,9 +312,18 @@ const styles = StyleSheet.create({
   scrollContent: {
     flex: 1,
     paddingHorizontal: Spacing[6],
+    paddingTop: Spacing[4],
   },
   formCard: {
-    marginTop: Spacing[6],
+    marginBottom: Spacing[4],
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 3.84,
+    elevation: 5,
   },
   sectionTitle: {
     fontSize: Typography.fontSize.lg,
@@ -220,6 +337,96 @@ const styles = StyleSheet.create({
     marginBottom: Spacing[6],
     lineHeight: Typography.lineHeight.relaxed * Typography.fontSize.sm,
   },
+  inputContainer: {
+    marginBottom: Spacing[4],
+  },
+  inputLabel: {
+    fontSize: Typography.fontSize.sm,
+    fontWeight: Typography.fontWeight.medium,
+    color: Colors.text.primary,
+    marginBottom: Spacing[2],
+  },
+  required: {
+    color: Colors.error,
+  },
+  yearPickerButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.surface,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    borderRadius: 8,
+    paddingHorizontal: Spacing[4],
+    paddingVertical: Spacing[3],
+    minHeight: 48,
+  },
+  yearIcon: {
+    marginRight: Spacing[3],
+  },
+  yearPickerText: {
+    flex: 1,
+    fontSize: Typography.fontSize.base,
+    color: Colors.text.primary,
+  },
+  placeholderText: {
+    color: Colors.text.disabled,
+  },
+  yearPickerContainer: {
+    position: 'absolute',
+    top: 80,
+    left: 0,
+    right: 0,
+    backgroundColor: Colors.surface,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    borderRadius: 8,
+    maxHeight: 250,
+    zIndex: 1000,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 5.84,
+    elevation: 8,
+  },
+  yearsList: {
+    maxHeight: 200,
+  },
+  yearOption: {
+    paddingVertical: Spacing[3],
+    paddingHorizontal: Spacing[4],
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.border,
+  },
+  selectedYearOption: {
+    backgroundColor: Colors.primary,
+  },
+  yearOptionText: {
+    fontSize: Typography.fontSize.base,
+    color: Colors.text.primary,
+    textAlign: 'center',
+  },
+  selectedYearText: {
+    color: Colors.surface,
+    fontWeight: Typography.fontWeight.semibold,
+  },
+  closeYearPicker: {
+    paddingVertical: Spacing[3],
+    backgroundColor: Colors.primary,
+    alignItems: 'center',
+  },
+  closeYearPickerText: {
+    color: Colors.surface,
+    fontSize: Typography.fontSize.sm,
+    fontWeight: Typography.fontWeight.semibold,
+  },
+  helper: {
+    fontSize: Typography.fontSize.xs,
+    color: Colors.text.secondary,
+    marginTop: Spacing[1],
+  },
   navigationContainer: {
     flexDirection: 'row',
     paddingHorizontal: Spacing[6],
@@ -227,6 +434,7 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.surface,
     borderTopWidth: 1,
     borderTopColor: Colors.border,
+    paddingBottom: Platform.OS === 'ios' ? Spacing[8] : Spacing[4],
   },
   backButton: {
     flex: 1,
@@ -236,6 +444,6 @@ const styles = StyleSheet.create({
     flex: 2,
   },
   bottomSpacing: {
-    height: Spacing[6],
+    height: Spacing[8],
   },
 });

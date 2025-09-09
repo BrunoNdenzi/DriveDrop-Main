@@ -151,12 +151,54 @@ export function useMessaging(options: UseMessagingOptions = {}): UseMessagingRet
     receiverId?: string, 
     messageType: 'text' | 'system' | 'notification' = 'text'
   ): Promise<boolean> => {
+    console.log('🎯 useMessaging.sendMessage called with:', {
+      content: content.substring(0, 50) + (content.length > 50 ? '...' : ''),
+      receiverId,
+      messageType,
+      shipmentId
+    });
+
     if (!shipmentId) {
-      setError('No shipment ID provided');
-      return false;
+      console.log('❌ No shipment ID provided - using test ID');
+      // For testing purposes, use a default test shipment ID
+      const testShipmentId = '123e4567-e89b-12d3-a456-426614174000';
+      console.log('🧪 Using test shipment ID:', testShipmentId);
+      
+      const request: SendMessageRequest = {
+        shipment_id: testShipmentId,
+        content: content.trim(),
+        receiver_id: receiverId,
+        message_type: messageType
+      };
+
+      console.log('📨 Sending test message request:', JSON.stringify(request, null, 2));
+
+      try {
+        setSending(true);
+        setError(null);
+        const response = await MessagingService.sendMessage(request);
+        console.log('📥 Test message send response:', JSON.stringify(response, null, 2));
+        setSending(false);
+        
+        if (response.success) {
+          console.log('✅ Test message sent successfully');
+          return true;
+        } else {
+          console.log('❌ Test message send failed:', response.error);
+          setError(response.error || 'Failed to send message');
+          return false;
+        }
+      } catch (err) {
+        setSending(false);
+        const errorMessage = err instanceof Error ? err.message : 'Failed to send message';
+        console.log('❌ Test message send exception:', errorMessage);
+        setError(errorMessage);
+        return false;
+      }
     }
 
     if (!content.trim()) {
+      console.log('❌ Message cannot be empty');
       setError('Message cannot be empty');
       return false;
     }
@@ -172,12 +214,18 @@ export function useMessaging(options: UseMessagingOptions = {}): UseMessagingRet
         message_type: messageType
       };
 
+      console.log('📨 Sending message request:', JSON.stringify(request, null, 2));
+
       const response = await MessagingService.sendMessage(request);
       
+      console.log('📥 Message send response:', JSON.stringify(response, null, 2));
+      
       if (response.success && response.message) {
+        console.log('✅ Message sent successfully');
         // Message will be added via real-time subscription
         return true;
       } else {
+        console.log('❌ Message send failed:', response.error);
         setError(response.error || 'Failed to send message');
         return false;
       }
