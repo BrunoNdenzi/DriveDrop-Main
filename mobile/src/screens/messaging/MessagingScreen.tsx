@@ -1,5 +1,7 @@
 /**
- * MessagingScreen - Clean implementation for real-time messaging
+ * MessagingScreen - Cimport useAuth from '../../hooks/useAuth';
+import useMessaging from '../../hooks/useMessaging';
+import { Message, Conversation } from '../../types/MessageTypes';n implementation for real-time messaging
  * 
  * Features:
  * - Real-time message delivery
@@ -25,9 +27,9 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { useAuth } from '../hooks/useAuth';
-import useMessaging from '../hooks/useMessaging';
-import { Message, Conversation } from '../types/MessageTypes';
+import useAuth from '../../hooks/useAuth';
+import useMessaging from '../../hooks/useMessaging';
+import { Message, Conversation } from '../../types/MessageTypes';
 import { format, isToday, isYesterday } from 'date-fns';
 
 interface MessagingScreenProps {
@@ -43,7 +45,7 @@ interface MessagingScreenProps {
 }
 
 export default function MessagingScreen({ route, navigation }: MessagingScreenProps) {
-  const { user, userProfile } = useAuth();
+  const { user } = useAuth();
   const { shipmentId, conversationMode = 'list', recipientId, recipientName } = route.params || {};
   
   const [messageText, setMessageText] = useState('');

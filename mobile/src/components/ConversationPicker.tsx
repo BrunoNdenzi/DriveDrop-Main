@@ -13,7 +13,7 @@ import {
   StyleSheet,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useAuth } from '../hooks/useAuth';
+import useAuth from '../hooks/useAuth';
 import MessagingService from '../services/MessagingService';
 import { UserProfile } from '../types/MessageTypes';
 
@@ -23,7 +23,7 @@ interface ConversationPickerProps {
 }
 
 export default function ConversationPicker({ onSelectRecipient, selectedShipmentId }: ConversationPickerProps) {
-  const { userProfile } = useAuth();
+  const { user } = useAuth();
   const [loading, setLoading] = useState(true);
   const [contacts, setContacts] = useState<{
     clients: UserProfile[];
@@ -104,7 +104,7 @@ export default function ConversationPicker({ onSelectRecipient, selectedShipment
         <Ionicons name="people-outline" size={64} color="#9ca3af" />
         <Text style={styles.emptyTitle}>No Contacts Available</Text>
         <Text style={styles.emptyText}>
-          {userProfile?.role === 'driver' 
+          {user?.role === 'driver' 
             ? 'You need active shipments to message clients'
             : 'No contacts available for messaging'
           }
