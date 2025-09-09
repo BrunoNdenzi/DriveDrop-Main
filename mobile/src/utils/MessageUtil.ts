@@ -1,16 +1,22 @@
+/**
+ * Message Utility Functions - Redesigned for clean messaging implementation
+ * 
+ * This utility provides backward compatibility while using the new messaging system
+ */
+
 import { Alert } from 'react-native';
-import { supabase } from '../lib/supabase';
-import NetworkUtil from './NetworkUtil';
+import MessagingService from '../services/MessagingService';
+import { SendMessageRequest } from '../types/MessageTypes';
 
 /**
- * Utility functions for handling messaging in the app
+ * Legacy MessageUtil for backward compatibility
  */
 export const MessageUtil = {
   /**
-   * Send a message securely, handling potential RLS and network errors
+   * Send a message securely using the new messaging service
    * 
    * @param shipmentId - The ID of the shipment this message is related to
-   * @param senderId - The user ID of the sender
+   * @param senderId - The user ID of the sender (for compatibility, not used)
    * @param content - The message content
    * @param receiverId - Optional receiver ID
    * @returns Object containing success status and error (if any)
@@ -22,72 +28,31 @@ export const MessageUtil = {
     receiverId?: string
   ) {
     try {
-      // Ensure we have network connectivity
-      const isConnected = await NetworkUtil.isConnected();
-      if (!isConnected) {
-        Alert.alert(
-          'No Internet Connection',
-          'Please check your internet connection and try again.'
-        );
-        return { success: false, error: 'No internet connection' };
+      // Validate inputs
+      if (!shipmentId || !content?.trim()) {
+        Alert.alert('Error', 'Shipment ID and message content are required');
+        return { success: false, error: 'Missing required fields' };
       }
 
-      // Trim message content
-      const trimmedContent = content.trim();
-      if (!trimmedContent) {
-        return { success: false, error: 'Message cannot be empty' };
+      const request: SendMessageRequest = {
+        shipment_id: shipmentId,
+        content: content.trim(),
+        receiver_id: receiverId,
+        message_type: 'text'
+      };
+
+      const response = await MessagingService.sendMessage(request);
+      
+      if (!response.success) {
+        Alert.alert('Error', response.error || 'Failed to send message');
       }
 
-      // Try to use the RPC function for better security and validation
-      const { data, error: rpcError } = await supabase.rpc('send_message', {
-        p_shipment_id: shipmentId,
-        p_content: trimmedContent,
-        p_receiver_id: receiverId || null
-      });
-      
-      // If RPC function doesn't exist, fall back to direct insert
-  if (rpcError && rpcError.code === '42883') { // Function doesn't exist
-        const { error } = await supabase
-          .from('messages')
-          .insert({
-            shipment_id: shipmentId,
-            sender_id: senderId,
-            receiver_id: receiverId || null,
-            content: trimmedContent,
-            created_at: new Date().toISOString()
-          });
-          
-        if (error) {
-          // Handle row-level security policy violation
-          if (error.code === '42501') { // Permission denied
-            Alert.alert(
-              'Permission Error',
-              'You do not have permission to send this message. This might be because you are not associated with this shipment.'
-            );
-          } else if (error.code === '23503') { // Foreign key violation
-            Alert.alert(
-              'Error',
-              'This message cannot be sent because the shipment or user no longer exists.'
-            );
-          } else {
-            Alert.alert('Error', `Failed to send message: ${error.message}`);
-          }
-          return { success: false, error: error.message };
-        }
-      } else if (rpcError) {
-        if (rpcError.code === '42501') {
-          Alert.alert('Permission Error', 'You are not allowed to send messages for this shipment.');
-        } else {
-          Alert.alert('Error', `Failed to send message: ${rpcError.message}`);
-        }
-        return { success: false, error: rpcError.message };
-      }
-      
-      return { success: true, error: null };
+      return response;
     } catch (error) {
-      console.error('Error sending message:', error);
-      Alert.alert('Error', 'An unexpected error occurred while sending your message.');
-      return { success: false, error: 'Unexpected error' };
+      console.error('Error in MessageUtil.sendMessage:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      Alert.alert('Error', `Failed to send message: ${errorMessage}`);
+      return { success: false, error: errorMessage };
     }
   },
 
@@ -95,20 +60,36 @@ export const MessageUtil = {
    * Mark a message as read
    * 
    * @param messageId - The ID of the message to mark as read
-   * @param userId - The user ID of the reader
+   * @param userId - The user ID of the reader (for compatibility, not used)
    */
   async markAsRead(messageId: string, userId: string) {
     try {
-      const { error } = await supabase.rpc('mark_message_as_read', {
-        p_message_id: messageId,
-        p_user_id: userId
-      });
-      
-      if (error) {
-        console.error('Error marking message as read:', error);
+      const success = await MessagingService.markMessageAsRead(messageId);
+      if (!success) {
+        console.warn('Failed to mark message as read:', messageId);
       }
+      return success;
     } catch (error) {
       console.error('Error marking message as read:', error);
+      return false;
+    }
+  },
+
+  /**
+   * Check if messaging is allowed for a shipment
+   * 
+   * @param shipmentId - The shipment ID to check
+   * @param userId - The user ID (optional)
+   */
+  async isMessagingAllowed(shipmentId: string, userId?: string) {
+    try {
+      const status = await MessagingService.checkMessagingStatus(shipmentId, userId);
+      return status.allowed;
+    } catch (error) {
+      console.error('Error checking messaging status:', error);
+      return false;
     }
   }
 };
+
+export default MessageUtil;
