@@ -2,7 +2,7 @@
  * Messages routes for the backend API
  */
 import { Router } from 'express';
-import { authenticate, authorize } from '@middlewares/auth.middleware';
+import { authenticate } from '../middlewares/auth.middleware';
 import { 
   sendMessage,
   getConversationMessages,
@@ -10,7 +10,7 @@ import {
   markMessageAsRead,
   checkMessagingStatus,
   getAvailableContacts
-} from '@controllers/messages.controller';
+} from '../controllers/messages.controller';
 
 const router = Router();
 

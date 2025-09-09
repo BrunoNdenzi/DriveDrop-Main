@@ -45,7 +45,7 @@ export interface UseMessagingReturn {
 }
 
 export function useMessaging(options: UseMessagingOptions = {}): UseMessagingReturn {
-  const { shipmentId, autoConnect = true, loadInitialMessages = true } = options;
+  const { shipmentId, autoConnect = true, loadInitialMessages: shouldLoadInitialMessages = true } = options;
   
   // State
   const [messages, setMessages] = useState<Message[]>([]);
@@ -80,8 +80,8 @@ export function useMessaging(options: UseMessagingOptions = {}): UseMessagingRet
   }, [shipmentId]);
 
   // Load initial messages
-  const loadInitialMessages = useCallback(async () => {
-    if (!shipmentId || !loadInitialMessages) return;
+  const loadMessagesData = useCallback(async () => {
+    if (!shipmentId || !shouldLoadInitialMessages) return;
 
     setLoading(true);
     setError(null);
@@ -98,7 +98,7 @@ export function useMessaging(options: UseMessagingOptions = {}): UseMessagingRet
     } finally {
       setLoading(false);
     }
-  }, [shipmentId, loadInitialMessages]);
+  }, [shipmentId, shouldLoadInitialMessages]);
 
   // Load more messages (pagination)
   const loadMoreMessages = useCallback(async () => {
@@ -295,7 +295,7 @@ export function useMessaging(options: UseMessagingOptions = {}): UseMessagingRet
   useEffect(() => {
     const initialize = async () => {
       await checkMessagingStatus();
-      await loadInitialMessages();
+      await loadMessagesData();
       await refreshConversations();
       
       if (autoConnect) {

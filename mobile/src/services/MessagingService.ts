@@ -15,7 +15,8 @@ import {
   Conversation, 
   SendMessageRequest, 
   SendMessageResponse, 
-  MessagingStatus 
+  MessagingStatus,
+  UserProfile
 } from '../types/MessageTypes';
 import { RealtimeChannel } from '@supabase/supabase-js';
 
@@ -291,8 +292,8 @@ export class MessagingService {
             const conversations = await this.getUserConversations();
             // Find the affected conversation
             const affectedConversation = conversations.find(
-              conv => conv.shipment_id === payload.new?.shipment_id || 
-                      conv.shipment_id === payload.old?.shipment_id
+              conv => conv.shipment_id === (payload.new as any)?.shipment_id || 
+                      conv.shipment_id === (payload.old as any)?.shipment_id
             );
             
             if (affectedConversation) {
@@ -358,7 +359,11 @@ export class MessagingService {
         .eq('id', user.user.id)
         .single();
 
-      let contacts = { clients: [], drivers: [], admins: [] };
+      let contacts: {
+        clients: UserProfile[];
+        drivers: UserProfile[];
+        admins: UserProfile[];
+      } = { clients: [], drivers: [], admins: [] };
 
       if (profile?.role === 'admin') {
         // Admins can message anyone
@@ -368,10 +373,17 @@ export class MessagingService {
           .neq('id', user.user.id);
 
         if (allUsers) {
-          allUsers.forEach(u => {
-            if (u.role === 'client') contacts.clients.push(u);
-            else if (u.role === 'driver') contacts.drivers.push(u);
-            else if (u.role === 'admin') contacts.admins.push(u);
+          allUsers.forEach((u: any) => {
+            const user: UserProfile = {
+              id: u.id,
+              first_name: u.first_name,
+              last_name: u.last_name,
+              avatar_url: u.avatar_url,
+              role: u.role as 'client' | 'driver' | 'admin'
+            };
+            if (user.role === 'client') contacts.clients.push(user);
+            else if (user.role === 'driver') contacts.drivers.push(user);
+            else if (user.role === 'admin') contacts.admins.push(user);
           });
         }
       } else {
@@ -392,24 +404,44 @@ export class MessagingService {
           .in('status', ['accepted', 'picked_up', 'in_transit', 'delivered']);
 
         if (shipments) {
-          const contactMap = new Map();
+          const contactMap = new Map<string, UserProfile>();
           
-          shipments.forEach(shipment => {
+          shipments.forEach((shipment: any) => {
             // Only include contacts if messaging is allowed
             const isRecentlyDelivered = shipment.status === 'delivered' && 
               new Date().getTime() - new Date(shipment.updated_at).getTime() < 24 * 60 * 60 * 1000;
             
             if (shipment.status !== 'delivered' || isRecentlyDelivered) {
               if (profile?.role === 'client' && shipment.driver) {
-                contactMap.set(shipment.driver.id, shipment.driver);
+                const driver = Array.isArray(shipment.driver) ? shipment.driver[0] : shipment.driver;
+                if (driver) {
+                  const driverProfile: UserProfile = {
+                    id: driver.id,
+                    first_name: driver.first_name,
+                    last_name: driver.last_name,
+                    avatar_url: driver.avatar_url,
+                    role: driver.role as 'client' | 'driver' | 'admin'
+                  };
+                  contactMap.set(driver.id, driverProfile);
+                }
               } else if (profile?.role === 'driver' && shipment.client) {
-                contactMap.set(shipment.client.id, shipment.client);
+                const client = Array.isArray(shipment.client) ? shipment.client[0] : shipment.client;
+                if (client) {
+                  const clientProfile: UserProfile = {
+                    id: client.id,
+                    first_name: client.first_name,
+                    last_name: client.last_name,
+                    avatar_url: client.avatar_url,
+                    role: client.role as 'client' | 'driver' | 'admin'
+                  };
+                  contactMap.set(client.id, clientProfile);
+                }
               }
             }
           });
 
-          contacts.drivers = Array.from(contactMap.values()).filter(c => c.role === 'driver');
-          contacts.clients = Array.from(contactMap.values()).filter(c => c.role === 'client');
+          contacts.drivers = Array.from(contactMap.values()).filter((c: UserProfile) => c.role === 'driver');
+          contacts.clients = Array.from(contactMap.values()).filter((c: UserProfile) => c.role === 'client');
         }
 
         // Always add admins for support
@@ -419,7 +451,13 @@ export class MessagingService {
           .eq('role', 'admin');
 
         if (admins) {
-          contacts.admins = admins;
+          contacts.admins = admins.map((admin: any): UserProfile => ({
+            id: admin.id,
+            first_name: admin.first_name,
+            last_name: admin.last_name,
+            avatar_url: admin.avatar_url,
+            role: admin.role as 'client' | 'driver' | 'admin'
+          }));
         }
       }
 
