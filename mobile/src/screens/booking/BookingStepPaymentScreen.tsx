@@ -26,9 +26,19 @@ type BookingStepPaymentProps = NativeStackScreenProps<RootStackParamList, 'Booki
 export default function BookingStepPaymentScreen({ navigation }: BookingStepPaymentProps) {
   const { state, setStepValidity } = useBooking();
 
-  // Use quote price stored earlier (fallback 0)
-  const quotePrice = (state.formData as any).customerDetails?.quotePrice || (state.formData as any).quotePrice || 0;
+  // Use quote price stored in customerDetails.estimatedCost (fallback 0)
+  const quotePrice = state.formData.customerDetails?.estimatedCost || 0;
   const quoteMeta = { service: 'Standard Transport', days: '7-10' };
+
+  // Debug log to help troubleshoot quote data flow
+  useEffect(() => {
+    console.log('BookingStepPaymentScreen - Quote data check:', {
+      quotePrice,
+      hasCustomerDetails: !!state.formData.customerDetails,
+      estimatedCost: state.formData.customerDetails?.estimatedCost,
+      customerDetails: state.formData.customerDetails
+    });
+  }, [quotePrice, state.formData.customerDetails]);
 
   // Validate form data - only check if quote is selected
   useEffect(() => {
@@ -118,37 +128,58 @@ export default function BookingStepPaymentScreen({ navigation }: BookingStepPaym
           <Card variant="default" padding="lg" style={styles.quoteCard}>
             <Text style={styles.sectionTitle}>Shipment Quote</Text>
             <Text style={styles.sectionSubtitle}>Derived from your initial estimate</Text>
-            <View style={styles.quoteHeader}>
-              <View style={styles.quoteInfo}>
-                <Text style={styles.quoteTitle}>{quoteMeta.service}</Text>
-                <Text style={styles.quoteDays}>{quoteMeta.days} business days</Text>
+            
+            {quotePrice > 0 ? (
+              <View style={styles.quoteHeader}>
+                <View style={styles.quoteInfo}>
+                  <Text style={styles.quoteTitle}>{quoteMeta.service}</Text>
+                  <Text style={styles.quoteDays}>{quoteMeta.days} business days</Text>
+                </View>
+                <Text style={styles.quotePrice}>${quotePrice.toFixed(2)}</Text>
               </View>
-              <Text style={styles.quotePrice}>${quotePrice.toFixed(2)}</Text>
-            </View>
+            ) : (
+              <View style={styles.noQuoteContainer}>
+                <MaterialIcons name="warning" size={24} color={Colors.warning} />
+                <Text style={styles.noQuoteText}>No quote was generated yet</Text>
+                <Text style={styles.noQuoteSubtext}>
+                  Please go back to the quote screen to generate an estimate
+                </Text>
+                <TouchableOpacity 
+                  style={styles.generateQuoteButton}
+                  onPress={() => navigation.navigate('CreateShipment')}
+                >
+                  <Text style={styles.generateQuoteButtonText}>Generate Quote</Text>
+                </TouchableOpacity>
+              </View>
+            )}
           </Card>
 
-          {/* Payment Policy Card */}
-          <PaymentPolicyCard
-            totalAmount={quotePrice * 100}
-            paymentType="initial"
-            isRefundable={true}
-            refundDeadline={new Date(Date.now() + 60 * 60 * 1000).toISOString()}
-          />
+          {/* Payment Policy Card - Only show if quote exists */}
+          {quotePrice > 0 && (
+            <PaymentPolicyCard
+              totalAmount={quotePrice * 100}
+              paymentType="initial"
+              isRefundable={true}
+              refundDeadline={new Date(Date.now() + 60 * 60 * 1000).toISOString()}
+            />
+          )}
 
-          {/* Order Total */}
-          <Card variant="outlined" padding="lg" style={styles.totalCard}>
-            <View style={styles.totalRow}>
-              <Text style={styles.totalLabel}>Initial Payment (20%):</Text>
-              <Text style={styles.totalAmount}>${(quotePrice * 0.2).toFixed(2)}</Text>
-            </View>
-            <View style={styles.totalRow}>
-              <Text style={styles.totalLabel}>Total Shipment Value:</Text>
-              <Text style={styles.totalValue}>${quotePrice.toFixed(2)}</Text>
-            </View>
-            <Text style={styles.totalNote}>
-              After confirming, you will be redirected to our secure payment processor to complete your booking.
-            </Text>
-          </Card>
+          {/* Order Total - Only show if quote exists */}
+          {quotePrice > 0 && (
+            <Card variant="outlined" padding="lg" style={styles.totalCard}>
+              <View style={styles.totalRow}>
+                <Text style={styles.totalLabel}>Initial Payment (20%):</Text>
+                <Text style={styles.totalAmount}>${(quotePrice * 0.2).toFixed(2)}</Text>
+              </View>
+              <View style={styles.totalRow}>
+                <Text style={styles.totalLabel}>Total Shipment Value:</Text>
+                <Text style={styles.totalValue}>${quotePrice.toFixed(2)}</Text>
+              </View>
+              <Text style={styles.totalNote}>
+                After confirming, you will be redirected to our secure payment processor to complete your booking.
+              </Text>
+            </Card>
+          )}
         </View>
       </ScrollView>
 
@@ -160,12 +191,21 @@ export default function BookingStepPaymentScreen({ navigation }: BookingStepPaym
           style={styles.backButton}
           title="Back"
         />
-        <Button
-          variant="primary"
-          onPress={handleSubmit}
-          style={styles.submitButton}
-          title={`Continue to Payment ($${quotePrice.toFixed(2)})`}
-        />
+        {quotePrice > 0 ? (
+          <Button
+            variant="primary"
+            onPress={handleSubmit}
+            style={styles.submitButton}
+            title={`Continue to Payment ($${quotePrice.toFixed(2)})`}
+          />
+        ) : (
+          <Button
+            variant="outline"
+            onPress={() => navigation.navigate('CreateShipment')}
+            style={styles.submitButton}
+            title="Generate Quote First"
+          />
+        )}
       </View>
     </View>
   );
@@ -389,5 +429,37 @@ const styles = StyleSheet.create({
   },
   submitButton: {
     flex: 2,
+  },
+  noQuoteContainer: {
+    alignItems: 'center',
+    paddingVertical: Spacing[6],
+    paddingHorizontal: Spacing[4],
+  },
+  noQuoteText: {
+    fontSize: Typography.fontSize.lg,
+    fontWeight: Typography.fontWeight.semibold,
+    color: Colors.text.primary,
+    marginTop: Spacing[2],
+    textAlign: 'center',
+  },
+  noQuoteSubtext: {
+    fontSize: Typography.fontSize.sm,
+    color: Colors.text.secondary,
+    marginTop: Spacing[1],
+    textAlign: 'center',
+    lineHeight: Typography.lineHeight.relaxed * Typography.fontSize.sm,
+  },
+  generateQuoteButton: {
+    backgroundColor: Colors.primary,
+    paddingHorizontal: Spacing[6],
+    paddingVertical: Spacing[3],
+    borderRadius: 8,
+    marginTop: Spacing[4],
+  },
+  generateQuoteButtonText: {
+    color: Colors.surface,
+    fontSize: Typography.fontSize.sm,
+    fontWeight: Typography.fontWeight.semibold,
+    textAlign: 'center',
   },
 });

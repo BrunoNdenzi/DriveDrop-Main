@@ -14,6 +14,7 @@ import { Colors, Typography, Spacing } from '../../constants/DesignSystem';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
 import { Input } from '../../components/ui/Input';
+import RobustGooglePlacesInput from '../../components/RobustGooglePlacesInput';
 import { RootStackParamList } from '../../navigation/types';
 import { useBooking } from '../../context/BookingContext';
 import { useAuth } from '../../context/AuthContext';
@@ -184,14 +185,15 @@ export default function BookingStepCustomerScreen({ navigation }: BookingStepCus
               maxLength={14} // (555) 123-4567 format
             />
 
-            <Input
+            <RobustGooglePlacesInput
               label="Address"
               placeholder="Enter your full address"
               value={customerDetails.address}
-              onChangeText={(value) => handleInputChange('address', value)}
-              leftIcon="location-on"
-              multiline
-              numberOfLines={3}
+              onAddressSelect={(address: string, details?: any) => {
+                handleInputChange('address', address);
+                // Optional: Store additional place details if needed
+                // console.log('Place details:', details);
+              }}
               required
               helper="This will be used for billing and communication purposes"
             />

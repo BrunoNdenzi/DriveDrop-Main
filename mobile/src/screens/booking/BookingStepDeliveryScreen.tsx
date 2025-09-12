@@ -18,6 +18,8 @@ import { Colors, Typography, Spacing } from '../../constants/DesignSystem';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
 import { Input } from '../../components/ui/Input';
+import GooglePlacesInput from '../../components/RobustGooglePlacesInput';
+import PreciseLocationInput from '../../components/PreciseLocationInput';
 import { RootStackParamList } from '../../navigation/types';
 import { useBooking } from '../../context/BookingContext';
 
@@ -220,19 +222,27 @@ export default function BookingStepDeliveryScreen({ navigation }: BookingStepDel
               Where should we deliver your vehicle?
             </Text>
 
-            <View style={styles.inputContainer}>
-              <Text style={styles.inputLabel}>
-                Delivery Address <Text style={styles.required}>*</Text>
-              </Text>
-              <Input
-                placeholder="Enter delivery full address"
-                value={deliveryDetails.address || ''}
-                onChangeText={(value) => handleInputChange('address', value)}
-                leftIcon="location-on"
-                multiline
-                numberOfLines={2}
-              />
-            </View>
+            <PreciseLocationInput
+              label="Delivery Address"
+              placeholder="Enter precise delivery location for driver"
+              value={deliveryDetails.address || ''}
+              onLocationSelect={(address: string, coordinates?: { lat: number; lng: number }, details?: any) => {
+                handleInputChange('address', address);
+                // Store coordinates for driver navigation
+                if (coordinates) {
+                  updateFormData('delivery', {
+                    ...deliveryDetails,
+                    address: address,
+                    coordinates: coordinates,
+                    placeId: details?.place_id,
+                  });
+                }
+                // Optional: Store additional place details if needed
+                console.log('Delivery location:', { address, coordinates, details });
+              }}
+              required
+              helper="Enter exact delivery location for accurate driver navigation"
+            />
 
             <View style={styles.inputContainer}>
               <Text style={styles.inputLabel}>

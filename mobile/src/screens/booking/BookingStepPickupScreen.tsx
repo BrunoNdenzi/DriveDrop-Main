@@ -18,6 +18,8 @@ import { Colors, Typography, Spacing } from '../../constants/DesignSystem';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
 import { Input } from '../../components/ui/Input';
+import GooglePlacesInput from '../../components/RobustGooglePlacesInput';
+import PreciseLocationInput from '../../components/PreciseLocationInput';
 import { RootStackParamList } from '../../navigation/types';
 import { useBooking } from '../../context/BookingContext';
 
@@ -193,16 +195,26 @@ export default function BookingStepPickupScreen({ navigation }: BookingStepPicku
               Where and when should we pick up your vehicle?
             </Text>
 
-            <Input
+            <PreciseLocationInput
               label="Pickup Address"
-              placeholder="Enter pickup full address"
+              placeholder="Enter precise pickup location for driver"
               value={pickupDetails.address || ''}
-              onChangeText={(value) => handleInputChange('address', value)}
-              leftIcon="location-on"
-              multiline
-              numberOfLines={3}
+              onLocationSelect={(address: string, coordinates?: { lat: number; lng: number }, details?: any) => {
+                handleInputChange('address', address);
+                // Store coordinates for driver navigation
+                if (coordinates) {
+                  updateFormData('pickup', {
+                    ...pickupDetails,
+                    address: address,
+                    coordinates: coordinates,
+                    placeId: details?.place_id,
+                  });
+                }
+                // Optional: Store additional place details if needed
+                console.log('Pickup location:', { address, coordinates, details });
+              }}
               required
-              helper={customerDetails && (customerDetails as any).pickupZip ? "✓ ZIP auto-filled from quote - please complete full address" : "Include street address, city, state, and ZIP code"}
+              helper={customerDetails && (customerDetails as any).pickupZip ? "✓ Auto-filled from quote - please verify precise location for driver" : "Enter exact pickup location for accurate driver navigation"}
             />
 
             {/* Date Picker */}
