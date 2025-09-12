@@ -8,6 +8,17 @@ export interface CustomerDetails {
   address: string;
   phone: string;
   email: string;
+  // Quote data for auto-fill
+  pickupZip?: string;
+  deliveryZip?: string;
+  pickupDate?: string;
+  deliveryDate?: string;
+  vehicleType?: 'sedan' | 'suv' | 'truck';
+  vehicleMake?: string;
+  vehicleModel?: string;
+  pickupAddress?: string;
+  deliveryAddress?: string;
+  estimatedCost?: number;
 }
 
 export interface VehicleInformation {

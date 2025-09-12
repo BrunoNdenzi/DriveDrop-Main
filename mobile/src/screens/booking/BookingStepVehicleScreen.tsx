@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import {
   StyleSheet,
   View,
@@ -25,6 +25,7 @@ export default function BookingStepVehicleScreen({ navigation }: BookingStepVehi
   const { state, updateFormData, setStepValidity, goToNextStep } = useBooking();
   const { vehicleInformation, customerDetails } = state.formData;
   const [showYearPicker, setShowYearPicker] = useState(false);
+  const yearScrollViewRef = useRef<ScrollView>(null);
   
   // Generate years array (current year + 1 down to 1980)
   const currentYear = new Date().getFullYear();
@@ -101,6 +102,27 @@ export default function BookingStepVehicleScreen({ navigation }: BookingStepVehi
     setShowYearPicker(false);
   };
 
+  const openYearPicker = () => {
+    setShowYearPicker(true);
+    
+    // Auto-scroll to current year or selected year
+    setTimeout(() => {
+      const targetYear = vehicleInformation.year ? parseInt(vehicleInformation.year) : currentYear;
+      const yearIndex = years.findIndex(year => year === targetYear);
+      
+      if (yearIndex !== -1 && yearScrollViewRef.current) {
+        const itemHeight = 52; // Height of each year option
+        const offset = yearIndex * itemHeight;
+        const maxOffset = Math.max(0, offset - 100); // Center the selected year
+        
+        yearScrollViewRef.current.scrollTo({
+          y: maxOffset,
+          animated: true,
+        });
+      }
+    }, 100);
+  };
+
   const handleNext = () => {
     if (state.isValid.vehicle) {
       goToNextStep();
@@ -170,7 +192,7 @@ export default function BookingStepVehicleScreen({ navigation }: BookingStepVehi
               </Text>
               <TouchableOpacity 
                 style={styles.yearPickerButton}
-                onPress={() => setShowYearPicker(true)}
+                onPress={openYearPicker}
               >
                 <MaterialIcons name="calendar-today" size={20} color={Colors.text.secondary} style={styles.yearIcon} />
                 <Text style={[styles.yearPickerText, !vehicleInformation.year && styles.placeholderText]}>
@@ -181,8 +203,16 @@ export default function BookingStepVehicleScreen({ navigation }: BookingStepVehi
               
               {showYearPicker && (
                 <View style={styles.yearPickerContainer}>
-                  <ScrollView style={styles.yearsList} showsVerticalScrollIndicator={true}>
-                    {years.map((year) => (
+                  <ScrollView 
+                    ref={yearScrollViewRef}
+                    style={styles.yearsList} 
+                    showsVerticalScrollIndicator={true}
+                    bounces={true}
+                    scrollEventThrottle={16}
+                    removeClippedSubviews={true}
+                    contentContainerStyle={styles.yearsListContent}
+                  >
+                    {years.map((year, index) => (
                       <TouchableOpacity
                         key={year}
                         style={[
@@ -190,6 +220,7 @@ export default function BookingStepVehicleScreen({ navigation }: BookingStepVehi
                           year.toString() === vehicleInformation.year && styles.selectedYearOption
                         ]}
                         onPress={() => handleYearSelect(year)}
+                        activeOpacity={0.7}
                       >
                         <Text style={[
                           styles.yearOptionText,
@@ -203,6 +234,7 @@ export default function BookingStepVehicleScreen({ navigation }: BookingStepVehi
                   <TouchableOpacity 
                     style={styles.closeYearPicker}
                     onPress={() => setShowYearPicker(false)}
+                    activeOpacity={0.8}
                   >
                     <Text style={styles.closeYearPickerText}>Close</Text>
                   </TouchableOpacity>
@@ -380,7 +412,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: Colors.border,
     borderRadius: 8,
-    maxHeight: 250,
+    maxHeight: 300,
     zIndex: 1000,
     shadowColor: '#000',
     shadowOffset: {
@@ -392,13 +424,18 @@ const styles = StyleSheet.create({
     elevation: 8,
   },
   yearsList: {
-    maxHeight: 200,
+    maxHeight: 250,
+  },
+  yearsListContent: {
+    paddingBottom: 8,
   },
   yearOption: {
-    paddingVertical: Spacing[3],
+    paddingVertical: Spacing[4],
     paddingHorizontal: Spacing[4],
     borderBottomWidth: 1,
     borderBottomColor: Colors.border,
+    minHeight: 52,
+    justifyContent: 'center',
   },
   selectedYearOption: {
     backgroundColor: Colors.primary,
