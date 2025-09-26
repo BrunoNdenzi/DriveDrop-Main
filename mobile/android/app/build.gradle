@@ -2,6 +2,7 @@
 apply plugin: "com.android.application"
 apply plugin: "org.jetbrains.kotlin.android"
 apply plugin: "com.facebook.react"
+apply plugin: "org.jetbrains.kotlin.plugin.compose"
 
 // Apply Sentry plugin after other plugins to avoid configuration cache issues
 apply plugin: "io.sentry.android.gradle"
@@ -96,8 +97,8 @@ android {
         applicationId 'com.drivedrop.mobile'
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 4
-        versionName "1.2.0"
+        versionCode 12
+        versionName "1.7.0"
     }
     signingConfigs {
         debug {
@@ -128,6 +129,19 @@ android {
         resources {
             excludes += ['!.svn:!.git:!.ds_store:!*.scc:!CVS:!thumbs.db:!picasa.ini:!*~']
         }
+    }
+
+    buildFeatures {
+        compose true
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+
+    kotlinOptions {
+        jvmTarget = "17"
     }
 }
 
