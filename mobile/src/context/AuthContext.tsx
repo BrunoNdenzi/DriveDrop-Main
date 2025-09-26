@@ -90,14 +90,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
               const { data: insertedData, error: insertError } = await supabase
                 .from('profiles')
-                .insert([newProfile])
+                .insert([newProfile] as any)
                 .select()
                 .single();
 
               if (insertError) {
                 // If it's a duplicate key error, try to fetch the existing profile
                 if (insertError.code === '23505') {
-                  console.log('Profile already exists (race condition), fetching existing profile');
+                  console.log('Profile already exists (likely created by trigger), fetching existing profile');
                   const { data: existingData, error: fetchError } = await supabase
                     .from('profiles')
                     .select('*')
@@ -109,6 +109,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                     return null;
                   }
                   
+                  console.log('Fetched existing profile:', existingData);
                   return existingData as UserProfile;
                 }
                 

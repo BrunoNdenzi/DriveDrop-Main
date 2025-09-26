@@ -4,8 +4,20 @@
 import { supabase, supabaseAdmin } from '@lib/supabase';
 import { createError } from '@utils/error';
 import { logger } from '@utils/logger';
-import { ShipmentStatus, UserRole } from '../types/api.types';
+import { 
+  ShipmentStatus, 
+  UserRole, 
+  DraftShipmentData, 
+  ValidationResult, 
+  ShipmentProgress 
+} from '../types/api.types';
 import { Database } from '@lib/database.types';
+import { 
+  validateDraftShipment, 
+  validateCompleteShipment, 
+  calculateShipmentProgress,
+  canCompleteShipment 
+} from '../utils/shipmentValidation';
 
 /**
  * User service for managing user profiles
@@ -154,6 +166,223 @@ export const userService = {
  */
 export const shipmentService = {
   /**
+   * Create or update a draft shipment
+   */
+  async createOrUpdateDraft(draftData: DraftShipmentData, draftId?: string) {
+    try {
+      const timestamp = new Date().toISOString();
+      
+      if (draftId) {
+        // Update existing draft
+        const { data, error } = await supabase
+          .from('shipments')
+          .update({
+            ...draftData,
+            status: 'draft',
+            updated_at: timestamp,
+          })
+          .eq('id', draftId)
+          .eq('client_id', draftData.client_id)
+          .eq('status', 'draft')
+          .select(`
+            *,
+            client:client_id(id, first_name, last_name, email, phone)
+          `)
+          .single();
+
+        if (error) {
+          throw createError(error.message, 400, 'DRAFT_UPDATE_FAILED');
+        }
+
+        return data;
+      } else {
+        // Create new draft
+        const { data, error } = await supabase
+          .from('shipments')
+          .insert({
+            ...draftData,
+            status: 'draft',
+            created_at: timestamp,
+            updated_at: timestamp,
+            // Set default title if not provided
+            title: draftData.title || 'Draft Shipment',
+            // Set minimal description if not provided
+            description: draftData.description || 'Draft shipment in progress',
+            // Set minimal addresses if not provided
+            pickup_address: draftData.pickup_address || 'TBD',
+            delivery_address: draftData.delivery_address || 'TBD',
+          })
+          .select(`
+            *,
+            client:client_id(id, first_name, last_name, email, phone)
+          `)
+          .single();
+
+        if (error) {
+          throw createError(error.message, 400, 'DRAFT_CREATION_FAILED');
+        }
+
+        return data;
+      }
+    } catch (error) {
+      logger.error('Error creating/updating draft shipment', { error, draftData, draftId });
+      throw error;
+    }
+  },
+
+  /**
+   * Get draft shipments for a user
+   */
+  async getUserDrafts(clientId: string, page = 1, limit = 10) {
+    try {
+      const { data, error, count } = await supabase
+        .from('shipments')
+        .select(`
+          *,
+          client:client_id(id, first_name, last_name, email, phone)
+        `, { count: 'exact' })
+        .eq('client_id', clientId)
+        .eq('status', 'draft')
+        .range((page - 1) * limit, page * limit - 1)
+        .order('updated_at', { ascending: false });
+
+      if (error) {
+        throw createError(error.message, 500, 'DATABASE_ERROR');
+      }
+
+      return {
+        data,
+        meta: {
+          page,
+          limit,
+          total: count || 0,
+          totalPages: count ? Math.ceil(count / limit) : 0,
+        },
+      };
+    } catch (error) {
+      logger.error('Error getting user drafts', { error, clientId, page, limit });
+      throw error;
+    }
+  },
+
+  /**
+   * Delete a draft shipment
+   */
+  async deleteDraft(draftId: string, clientId: string) {
+    try {
+      const { error } = await supabase
+        .from('shipments')
+        .delete()
+        .eq('id', draftId)
+        .eq('client_id', clientId)
+        .eq('status', 'draft');
+
+      if (error) {
+        throw createError(error.message, 400, 'DRAFT_DELETION_FAILED');
+      }
+
+      return { success: true };
+    } catch (error) {
+      logger.error('Error deleting draft shipment', { error, draftId, clientId });
+      throw error;
+    }
+  },
+
+  /**
+   * Convert draft to pending shipment (final submission)
+   */
+  async submitDraft(draftId: string, clientId: string, finalData?: Partial<DraftShipmentData>) {
+    try {
+      // Get existing draft
+      const { data: draft, error: fetchError } = await supabase
+        .from('shipments')
+        .select('*')
+        .eq('id', draftId)
+        .eq('client_id', clientId)
+        .eq('status', 'draft')
+        .single();
+
+      if (fetchError) {
+        throw createError('Draft not found', 404, 'DRAFT_NOT_FOUND');
+      }
+
+      // Merge with final data if provided
+      const completeData = { ...draft, ...finalData };
+
+      // Update status to pending
+      const { data, error } = await supabase
+        .from('shipments')
+        .update({
+          ...completeData,
+          status: 'pending',
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', draftId)
+        .select(`
+          *,
+          client:client_id(id, first_name, last_name, email, phone)
+        `)
+        .single();
+
+      if (error) {
+        throw createError(error.message, 400, 'SUBMISSION_FAILED');
+      }
+
+      return data;
+    } catch (error) {
+      logger.error('Error submitting draft shipment', { error, draftId, clientId });
+      throw error;
+    }
+  },
+
+  /**
+   * Validate draft shipment data
+   */
+  async validateDraftData(draftData: DraftShipmentData): Promise<ValidationResult> {
+    try {
+      return validateDraftShipment(draftData);
+    } catch (error) {
+      logger.error('Error validating draft data', { error, draftData });
+      throw error;
+    }
+  },
+
+  /**
+   * Validate complete shipment data for submission
+   */
+  async validateCompleteData(draftData: DraftShipmentData): Promise<ValidationResult> {
+    try {
+      return validateCompleteShipment(draftData);
+    } catch (error) {
+      logger.error('Error validating complete data', { error, draftData });
+      throw error;
+    }
+  },
+
+  /**
+   * Get shipment progress information
+   */
+  async getShipmentProgress(draftData: DraftShipmentData): Promise<ShipmentProgress> {
+    try {
+      return calculateShipmentProgress(draftData);
+    } catch (error) {
+      logger.error('Error calculating shipment progress', { error, draftData });
+      throw error;
+    }
+  },
+
+  /**
+   * Check if draft can be submitted as complete shipment
+   */
+  async canSubmitDraft(draftData: DraftShipmentData): Promise<boolean> {
+    try {
+      return canCompleteShipment(draftData);
+    } catch (error) {
+      logger.error('Error checking draft submission readiness', { error, draftData });
+      throw error;
+    }
+  },
+  /**
    * Get a shipment by ID
    */
   async getShipmentById(id: string) {
@@ -285,7 +514,7 @@ export const shipmentService = {
     scheduled_pickup?: string;
   }) {
     try {
-      const { data, error } = await supabase
+      const { data, error } = await supabaseAdmin
         .from('shipments')
         .insert({
           ...shipmentData,
@@ -348,6 +577,41 @@ export const shipmentService = {
       return data;
     } catch (error) {
       logger.error('Error updating shipment status', { error, id, status, driverId });
+      throw error;
+    }
+  },
+
+  /**
+   * Update shipment (general update)
+   */
+  async updateShipment(id: string, updateData: Record<string, any>) {
+    try {
+      // Ensure we always update the timestamp
+      updateData['updated_at'] = new Date().toISOString();
+
+      const { data, error } = await supabase
+        .from('shipments')
+        .update(updateData)
+        .eq('id', id)
+        .select(`
+          *,
+          profiles:client_id!inner(
+            id,
+            first_name,
+            last_name,
+            email,
+            phone
+          )
+        `)
+        .single();
+
+      if (error) {
+        throw createError(error.message, 400, 'SHIPMENT_UPDATE_FAILED');
+      }
+
+      return data;
+    } catch (error) {
+      logger.error('Error updating shipment', { error, id, updateData });
       throw error;
     }
   },

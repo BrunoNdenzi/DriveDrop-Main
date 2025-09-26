@@ -237,7 +237,7 @@ The API returns standardized error responses:
   "error": {
     "code": "ERROR_CODE",
     "message": "Human-readable error message",
-    "errors": [] // Optional validation errors array
+    "errors": [] 
   }
 }
 ```

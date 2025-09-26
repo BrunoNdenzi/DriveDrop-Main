@@ -16,12 +16,18 @@ export type RootStackParamList = {
   // Screens accessible from tabs
   ShipmentDetails: { shipmentId: string };
   ShipmentDetails_Driver: { shipmentId: string }; // Driver view of shipment details
+  ShipmentEditor: { shipmentId: string }; // Single-page shipment editor
   RouteMap: { shipmentId: string };
   CreateShipment: undefined;
+  ShipmentCompletion: { shipmentData: any };
   EditProfile: undefined;
   Notifications: undefined;
   Settings: undefined;
   NotificationTest: undefined;
+  
+  // Vehicle Management Screens
+  VehicleProfiles: undefined;
+  AddEditVehicle: { vehicle?: any } | undefined;
   
   // Admin Screens
   AdminAssignment: undefined;

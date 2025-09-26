@@ -63,7 +63,8 @@ module.exports = ({ config }) => {
             "./assets/notification_sound.wav"
           ]
         }
-      ]
+      ],
+      "expo-secure-store"
     ]
   };
 };

@@ -137,15 +137,32 @@ export const createShipment = asyncHandler(async (req: Request, res: Response) =
   let finalEstimatedPrice = estimated_price;
   if (!finalEstimatedPrice && vehicle_type && distance_miles) {
     try {
-      const allowedVehicleTypes = ['sedan','suv','pickup','luxury','motorcycle','heavy'] as const;
+      // Map vehicle types to simplified EnhancedVehicleType
+      const mapToEnhancedVehicleType = (vehicleType: string): import('../types/api.types').EnhancedVehicleType => {
+        const mapping: Record<string, import('../types/api.types').EnhancedVehicleType> = {
+          'sedan': 'sedan' as any,
+          'suv': 'suv' as any,
+          'pickup': 'truck' as any,
+          'truck': 'truck' as any,
+          'luxury': 'sedan' as any, // Map luxury to sedan for simplicity
+          'motorcycle': 'sedan' as any, // Map motorcycle to sedan for simplicity
+          'heavy': 'truck' as any, // Map heavy to truck for simplicity
+        };
+        return mapping[vehicleType.toLowerCase()] || ('sedan' as any);
+      };
+
+      const allowedVehicleTypes = ['sedan','suv','pickup','truck','luxury','motorcycle','heavy'] as const;
       const vt = typeof vehicle_type === 'string' && (allowedVehicleTypes as readonly string[]).includes(vehicle_type)
         ? vehicle_type as typeof allowedVehicleTypes[number]
         : undefined;
       if (!vt) {
         throw new Error('Unsupported vehicle type');
       }
+      
+      const enhancedVehicleType = mapToEnhancedVehicleType(vt);
+      
       const { total } = pricingService.calculateQuote({
-        vehicleType: vt,
+        vehicleType: enhancedVehicleType,
         distanceMiles: Number(distance_miles),
         isAccidentRecovery: Boolean(is_accident_recovery),
         vehicleCount: vehicle_count ? Number(vehicle_count) : 1,
@@ -168,6 +185,56 @@ export const createShipment = asyncHandler(async (req: Request, res: Response) =
   });
 
   res.status(201).json(successResponse(shipment));
+});
+
+/**
+ * Update shipment (general update for any field)
+ * @route PATCH /api/v1/shipments/:id
+ * @access Private (Client/Admin)
+ */
+export const updateShipment = asyncHandler(async (req: Request, res: Response) => {
+  const { id } = req.params;
+  const updateData = req.body;
+
+  if (!id || !isValidUuid(id)) {
+    throw createError('Invalid shipment ID', 400, 'INVALID_ID');
+  }
+
+  if (!req.user?.id) {
+    throw createError('Authentication required', 401, 'UNAUTHORIZED');
+  }
+
+  // Get the shipment to check permissions
+  const existingShipment = await shipmentService.getShipmentById(id);
+  
+  // Only the client who created the shipment or admin can update it
+  if (req.user.role !== 'admin' && existingShipment.client_id !== req.user.id) {
+    throw createError('Not authorized to update this shipment', 403, 'FORBIDDEN');
+  }
+
+  // Validate update data (remove read-only fields)
+  const allowedFields = [
+    'title', 'description', 'pickup_address', 'pickup_city', 'pickup_state', 'pickup_zip',
+    'pickup_notes', 'pickup_date', 'delivery_address', 'delivery_city', 'delivery_state', 
+    'delivery_zip', 'delivery_notes', 'delivery_date', 'vehicle_type', 'cargo_type',
+    'weight', 'dimensions', 'special_instructions', 'estimated_price', 'final_price',
+    'is_accident_recovery', 'distance'
+  ];
+
+  const filteredUpdateData = Object.keys(updateData)
+    .filter(key => allowedFields.includes(key))
+    .reduce((obj: any, key) => {
+      obj[key] = updateData[key];
+      return obj;
+    }, {});
+
+  // Add timestamp
+  filteredUpdateData.updated_at = new Date().toISOString();
+  filteredUpdateData.updated_by = req.user.id;
+
+  const updatedShipment = await shipmentService.updateShipment(id, filteredUpdateData);
+  
+  res.status(200).json(successResponse(updatedShipment));
 });
 
 /**
@@ -323,4 +390,181 @@ export const getShipmentApplicants = asyncHandler(async (req: Request, res: Resp
   const applicants = await shipmentService.getShipmentApplicants(id);
 
   res.status(200).json(successResponse(applicants));
+});
+
+/**
+ * Create or update draft shipment
+ * @route POST /api/v1/shipments/draft
+ * @route PUT /api/v1/shipments/draft/:id
+ * @access Private (Client)
+ */
+export const createOrUpdateDraft = asyncHandler(async (req: Request, res: Response) => {
+  const { id } = req.params;
+  const draftData = req.body;
+
+  if (!req.user?.id) {
+    throw createError('Authentication required', 401, 'UNAUTHORIZED');
+  }
+
+  // Only clients can create/update drafts
+  if (req.user.role !== 'client') {
+    throw createError('Only clients can create draft shipments', 403, 'FORBIDDEN');
+  }
+
+  // Validate draft data
+  const validation = await shipmentService.validateDraftData({
+    ...draftData,
+    client_id: req.user.id
+  });
+
+  if (!validation.isValid) {
+    throw createError(`Validation failed: ${validation.errors.join(', ')}`, 400, 'VALIDATION_ERROR');
+  }
+
+  const draft = await shipmentService.createOrUpdateDraft({
+    ...draftData,
+    client_id: req.user.id
+  }, id);
+
+  // Include progress information
+  const progress = await shipmentService.getShipmentProgress(draft);
+
+  res.status(id ? 200 : 201).json(successResponse({ 
+    draft, 
+    progress,
+    validation: {
+      warnings: validation.warnings,
+      canSubmit: await shipmentService.canSubmitDraft(draft)
+    }
+  }));
+});
+
+/**
+ * Get user's draft shipments
+ * @route GET /api/v1/shipments/drafts
+ * @access Private (Client)
+ */
+export const getUserDrafts = asyncHandler(async (req: Request, res: Response) => {
+  const page = parseInt(req.query['page'] as string || '1', 10);
+  const limit = parseInt(req.query['limit'] as string || '10', 10);
+
+  if (!req.user?.id) {
+    throw createError('Authentication required', 401, 'UNAUTHORIZED');
+  }
+
+  // Only clients can get their drafts
+  if (req.user.role !== 'client') {
+    throw createError('Only clients can access draft shipments', 403, 'FORBIDDEN');
+  }
+
+  const { data, meta } = await shipmentService.getUserDrafts(req.user.id, page, limit);
+
+  // Add progress information for each draft
+  const draftsWithProgress = await Promise.all(
+    data.map(async (draft: any) => {
+      const progress = await shipmentService.getShipmentProgress(draft);
+      const canSubmit = await shipmentService.canSubmitDraft(draft);
+      return {
+        ...draft,
+        progress,
+        canSubmit
+      };
+    })
+  );
+
+  res.status(200).json(successResponse(draftsWithProgress, meta));
+});
+
+/**
+ * Delete draft shipment
+ * @route DELETE /api/v1/shipments/draft/:id
+ * @access Private (Client)
+ */
+export const deleteDraft = asyncHandler(async (req: Request, res: Response) => {
+  const { id } = req.params;
+
+  if (!id || !isValidUuid(id)) {
+    throw createError('Invalid draft ID', 400, 'INVALID_ID');
+  }
+
+  if (!req.user?.id) {
+    throw createError('Authentication required', 401, 'UNAUTHORIZED');
+  }
+
+  // Only clients can delete their drafts
+  if (req.user.role !== 'client') {
+    throw createError('Only clients can delete draft shipments', 403, 'FORBIDDEN');
+  }
+
+  await shipmentService.deleteDraft(id, req.user.id);
+
+  res.status(200).json(successResponse({ message: 'Draft deleted successfully' }));
+});
+
+/**
+ * Submit draft as final shipment
+ * @route POST /api/v1/shipments/draft/:id/submit
+ * @access Private (Client)
+ */
+export const submitDraft = asyncHandler(async (req: Request, res: Response) => {
+  const { id } = req.params;
+  const finalData = req.body;
+
+  if (!id || !isValidUuid(id)) {
+    throw createError('Invalid draft ID', 400, 'INVALID_ID');
+  }
+
+  if (!req.user?.id) {
+    throw createError('Authentication required', 401, 'UNAUTHORIZED');
+  }
+
+  // Only clients can submit their drafts
+  if (req.user.role !== 'client') {
+    throw createError('Only clients can submit draft shipments', 403, 'FORBIDDEN');
+  }
+
+  // Submit the draft
+  const shipment = await shipmentService.submitDraft(id, req.user.id, finalData);
+
+  res.status(200).json(successResponse(shipment));
+});
+
+/**
+ * Validate draft shipment data
+ * @route POST /api/v1/shipments/validate
+ * @access Private (Client)
+ */
+export const validateShipmentData = asyncHandler(async (req: Request, res: Response) => {
+  const draftData = req.body;
+  const { validateForSubmission = false } = req.query;
+
+  if (!req.user?.id) {
+    throw createError('Authentication required', 401, 'UNAUTHORIZED');
+  }
+
+  // Only clients can validate shipment data
+  if (req.user.role !== 'client') {
+    throw createError('Only clients can validate shipment data', 403, 'FORBIDDEN');
+  }
+
+  const dataToValidate = {
+    ...draftData,
+    client_id: req.user.id
+  };
+
+  let validation;
+  if (validateForSubmission === 'true') {
+    validation = await shipmentService.validateCompleteData(dataToValidate);
+  } else {
+    validation = await shipmentService.validateDraftData(dataToValidate);
+  }
+
+  const progress = await shipmentService.getShipmentProgress(dataToValidate);
+  const canSubmit = await shipmentService.canSubmitDraft(dataToValidate);
+
+  res.status(200).json(successResponse({
+    validation,
+    progress,
+    canSubmit
+  }));
 });

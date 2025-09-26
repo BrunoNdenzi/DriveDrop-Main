@@ -5,6 +5,7 @@ import { Platform } from 'react-native';
 import { supabase } from '../lib/supabase';
 import Constants from 'expo-constants';
 import { ExpoConfig } from '../constants/Expo';
+import type { Database } from '../lib/database.types';
 
 // Configure how notifications appear when the app is in the foreground
 Notifications.setNotificationHandler({
@@ -40,8 +41,8 @@ export const defaultPreferences: NotificationPreferences = {
 export class NotificationService {
   private static instance: NotificationService;
   private _expoPushToken: string | null = null;
-  private _notificationListener: any = null;
-  private _responseListener: any = null;
+  private _notificationListener: Notifications.EventSubscription | null = null;
+  private _responseListener: Notifications.EventSubscription | null = null;
 
   private constructor() {}
 
@@ -69,6 +70,7 @@ export class NotificationService {
       return false;
     }
   }
+
   /**
    * Initialize notification listeners and register for push notifications
    */
@@ -76,6 +78,12 @@ export class NotificationService {
     try {
       if (!Device.isDevice) {
         console.log('Push notifications are not supported in the simulator');
+        return;
+      }
+
+      // Check if expo-notifications is available (might be limited in Expo Go with SDK 54)
+      if (!Notifications || typeof Notifications.getPermissionsAsync !== 'function') {
+        console.warn('expo-notifications not fully available in current environment');
         return;
       }
 
@@ -158,21 +166,31 @@ export class NotificationService {
    * Set up notification listeners
    */
   private setupNotificationListeners(): void {
-    // This listener is fired whenever a notification is received while the app is foregrounded
-    this._notificationListener = Notifications.addNotificationReceivedListener(
-      (notification) => {
-        console.log('Notification received:', notification);
+    try {
+      // Check if notification methods are available (they might not be in Expo Go with SDK 54)
+      if (typeof Notifications.addNotificationReceivedListener !== 'function') {
+        console.warn('Notification listeners not available in current environment (likely Expo Go)');
+        return;
       }
-    );
 
-    // This listener is fired whenever a user taps on or interacts with a notification
-    this._responseListener = Notifications.addNotificationResponseReceivedListener(
-      (response) => {
-        console.log('Notification response:', response);
-        // Handle notification tap
-        this.handleNotificationInteraction(response.notification.request.content.data);
-      }
-    );
+      // This listener is fired whenever a notification is received while the app is foregrounded
+      this._notificationListener = Notifications.addNotificationReceivedListener(
+        (notification: Notifications.Notification) => {
+          console.log('Notification received:', notification);
+        }
+      );
+
+      // This listener is fired whenever a user taps on or interacts with a notification
+      this._responseListener = Notifications.addNotificationResponseReceivedListener(
+        (response: Notifications.NotificationResponse) => {
+          console.log('Notification response:', response);
+          // Handle notification tap
+          this.handleNotificationInteraction(response.notification.request.content.data);
+        }
+      );
+    } catch (error) {
+      console.warn('Failed to setup notification listeners:', error);
+    }
   }
 
   /**
@@ -192,11 +210,23 @@ export class NotificationService {
    * Cleanup notification listeners
    */
   cleanup(): void {
-    if (this._notificationListener) {
-      Notifications.removeNotificationSubscription(this._notificationListener);
-    }
-    if (this._responseListener) {
-      Notifications.removeNotificationSubscription(this._responseListener);
+    try {
+      if (this._notificationListener) {
+        // Check if remove method exists before calling it
+        if (typeof this._notificationListener.remove === 'function') {
+          this._notificationListener.remove();
+        }
+        this._notificationListener = null;
+      }
+      if (this._responseListener) {
+        // Check if remove method exists before calling it
+        if (typeof this._responseListener.remove === 'function') {
+          this._responseListener.remove();
+        }
+        this._responseListener = null;
+      }
+    } catch (error) {
+      console.warn('Error during notification cleanup:', error);
     }
   }
 
@@ -221,13 +251,13 @@ export class NotificationService {
       const { error: rpcError } = await supabase.rpc('register_push_token', {
         p_token: token,
         p_device_type: Platform.OS,
-      });
+      } as any);
 
       if (rpcError) {
         // 42883 = undefined function (not yet deployed), 42501 = RLS / permission, 23505 = duplicate unique constraint
         if (['42883'].includes(rpcError.code || '')) {
           console.warn('register_push_token RPC not found – falling back to legacy insert (consider deploying SQL).');
-          const { error: legacyError } = await supabase.from('push_tokens').insert({
+          const { error: legacyError } = await (supabase as any).from('push_tokens').insert({
             user_id: user.user.id,
             token,
             device_type: Platform.OS,
@@ -266,7 +296,7 @@ export class NotificationService {
       }
 
       // Get preferences from Supabase
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('notification_preferences')
         .select('*')
         .eq('user_id', user.user.id)
@@ -278,13 +308,13 @@ export class NotificationService {
       }
 
       return {
-        pushEnabled: data.push_enabled,
-        emailEnabled: data.email_enabled,
-        smsEnabled: data.sms_enabled,
-        shipmentUpdates: data.shipment_updates,
-        driverAssigned: data.driver_assigned,
-        paymentUpdates: data.payment_updates,
-        promotions: data.promotions,
+        pushEnabled: (data as any).push_enabled,
+        emailEnabled: (data as any).email_enabled,
+        smsEnabled: (data as any).sms_enabled,
+        shipmentUpdates: (data as any).shipment_updates,
+        driverAssigned: (data as any).driver_assigned,
+        paymentUpdates: (data as any).payment_updates,
+        promotions: (data as any).promotions,
       };
     } catch (error) {
       console.error('Error getting notification preferences:', error);
@@ -311,7 +341,7 @@ export class NotificationService {
       }
 
       // Check if preferences already exist
-      const { data, error: queryError } = await supabase
+      const { data, error: queryError } = await (supabase as any)
         .from('notification_preferences')
         .select('id')
         .eq('user_id', user.user.id)
@@ -333,7 +363,7 @@ export class NotificationService {
       
       if (queryError || !data) {
         // Insert new preferences
-        const result = await supabase
+        const result = await (supabase as any)
           .from('notification_preferences')
           .insert({
             ...prefsData,
@@ -342,10 +372,10 @@ export class NotificationService {
         error = result.error;
       } else {
         // Update existing preferences
-        const result = await supabase
+        const result = await (supabase as any)
           .from('notification_preferences')
           .update(prefsData)
-          .eq('id', data.id);
+          .eq('id', (data as any).id);
         error = result.error;
       }
 

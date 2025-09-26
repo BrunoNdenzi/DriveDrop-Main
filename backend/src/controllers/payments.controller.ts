@@ -9,7 +9,7 @@ import { logger } from '@utils/logger';
 import config from '@config';
 import Stripe from 'stripe';
 import { getConfig } from './payments.controller.getConfig';
-import { supabase } from '@lib/supabase';
+import { supabase, supabaseAdmin } from '@lib/supabase';
 
 // All payment controller functions will be exported at the end of this file
 // This prevents the "Block-scoped variable used before declaration" TypeScript error
@@ -59,7 +59,7 @@ export const createPaymentIntent = asyncHandler(async (req: Request, res: Respon
     });
 
     // Create payment record in database
-    const { error: paymentError } = await supabase
+    const { error: paymentError } = await supabaseAdmin
       .from('payments')
       .insert({
         shipment_id: shipmentId,

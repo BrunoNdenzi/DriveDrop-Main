@@ -16,12 +16,193 @@ import { format, addDays } from 'date-fns';
 import DateTimePicker from '@react-native-community/datetimepicker';
 
 import { Colors } from '../../constants/Colors';
-import RobustGooglePlacesInput from '../../components/RobustGooglePlacesInput';
+import EnhancedGooglePlacesInput from '../../components/EnhancedGooglePlacesInput';
 import VehicleDropdown from '../../components/VehicleDropdown';
+import SavedVehicleSelector from '../../components/SavedVehicleSelector';
+import RealTimePricing from '../../components/RealTimePricing';
 import { getGoogleMapsApiKey } from '../../utils/googleMaps';
 import { RootStackParamList } from '../../navigation/types';
 import { useAuth } from '../../context/AuthContext';
 import { useBooking } from '../../context/BookingContext';
+import { AddressComponents } from '../../utils/addressUtils';
+
+// Enhanced pricing types and configuration
+interface PricingRequest {
+  pickup_zip: string;
+  delivery_zip: string;
+  vehicle_type: string;
+  distance_miles: number;
+  delivery_type?: string;
+  fuel_price?: number;
+  vehicle_count?: number;
+}
+
+// Vehicle Selection interface
+interface VehicleSelection {
+  id?: string; // ID if using saved vehicle
+  vehicle_type: 'car' | 'van' | 'truck' | 'motorcycle';
+  make: string;
+  model: string;
+  year: number;
+  color?: string;
+  license_plate?: string;
+  nickname?: string;
+  is_saved: boolean;
+}
+
+// Pricing rates based on DriveDropQuote Python model
+const PRICING_RATES: Record<string, Record<string, number>> = {
+  sedan: { short: 1.80, mid: 0.95, long: 0.60, accident: 2.50 },
+  suv: { short: 2.00, mid: 1.05, long: 0.70, accident: 2.75 },
+  pickup: { short: 2.20, mid: 1.15, long: 0.75, accident: 3.00 },
+  luxury: { short: 3.00, mid: 1.80, long: 1.25, accident: 4.00 },
+  motorcycle: { short: 1.50, mid: 0.85, long: 0.55, accident: 2.00 },
+  heavy: { short: 3.50, mid: 2.25, long: 1.80, accident: 4.50 },
+};
+
+const PRICING_CONFIG = {
+  MIN_MILES: 100,
+  MIN_QUOTE: 150,
+  ACCIDENT_MIN_QUOTE: 80,
+  DEFAULT_FUEL_PRICE: 3.70,
+  DISTANCE_TIERS: { SHORT_MAX: 500, MID_MAX: 1500 },
+  DELIVERY_TYPE_MULTIPLIERS: {
+    flexible: 0.95,
+    standard: 1.00,
+    expedited: 1.25,
+    accident: 1.00
+  }
+};
+
+// Sample ZIP coordinates for distance calculation
+const ZIP_COORDINATES: Record<string, { lat: number; lng: number }> = {
+  '10001': { lat: 40.7589, lng: -73.9851 }, // NYC
+  '90210': { lat: 34.0901, lng: -118.4065 }, // Beverly Hills
+  '60601': { lat: 41.8825, lng: -87.6441 }, // Chicago
+  '33101': { lat: 25.7823, lng: -80.1918 }, // Miami
+  '75201': { lat: 32.7767, lng: -96.7970 }, // Dallas
+};
+
+// Helper function to extract ZIP code from address
+const extractZipFromAddress = (address: string): string | null => {
+  const zipMatch = address.match(/\b\d{5}(-\d{4})?\b/);
+  return zipMatch ? zipMatch[0].substr(0, 5) : null;
+};
+
+// Haversine distance calculation
+const haversineDistance = (lat1: number, lon1: number, lat2: number, lon2: number): number => {
+  const R = 3958.8; // Earth radius in miles
+  const phi1 = (lat1 * Math.PI) / 180;
+  const phi2 = (lat2 * Math.PI) / 180;
+  const deltaPhi = ((lat2 - lat1) * Math.PI) / 180;
+  const deltaLambda = ((lon2 - lon1) * Math.PI) / 180;
+
+  const a = Math.sin(deltaPhi / 2) ** 2 + 
+    Math.cos(phi1) * Math.cos(phi2) * Math.sin(deltaLambda / 2) ** 2;
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+
+  return R * c;
+};
+
+// Calculate distance between ZIP codes
+const calculateDistance = (zip1: string, zip2: string): number => {
+  const coord1 = ZIP_COORDINATES[zip1.padStart(5, '0')];
+  const coord2 = ZIP_COORDINATES[zip2.padStart(5, '0')];
+
+  if (!coord1 || !coord2) {
+    // Fallback: estimate based on ZIP code proximity
+    const zip1Num = parseInt(zip1);
+    const zip2Num = parseInt(zip2);
+    const zipDiff = Math.abs(zip1Num - zip2Num);
+    return zipDiff * 50; // Rough estimate
+  }
+
+  return haversineDistance(coord1.lat, coord1.lng, coord2.lat, coord2.lng);
+};
+
+// Map vehicle types to pricing categories for RealTimePricing component (simplified)
+const mapVehicleTypeForPricing = (vehicleType: string): 'sedan' | 'suv' | 'truck' => {
+  const mapping: Record<string, 'sedan' | 'suv' | 'truck'> = {
+    'car': 'sedan',
+    'van': 'suv', 
+    'truck': 'truck',
+    'motorcycle': 'sedan', // Map to sedan for pricing simplicity
+    'luxury': 'sedan', // Map to sedan for pricing simplicity
+    'heavy': 'truck', // Map to truck for pricing simplicity
+  };
+  return mapping[vehicleType.toLowerCase()] || 'sedan';
+};
+
+// Map vehicle types to pricing categories for quote calculation
+const getVehicleTypeForPricing = (vehicleType: string): string => {
+  const mapping: Record<string, string> = {
+    car: 'sedan',
+    van: 'suv',
+    truck: 'pickup',
+    motorcycle: 'motorcycle',
+  };
+  return mapping[vehicleType.toLowerCase()] || 'sedan';
+};
+
+// Enhanced quote calculation using DriveDropQuote model
+const calculateEnhancedQuote = (request: PricingRequest): number => {
+  const {
+    pickup_zip,
+    delivery_zip,
+    vehicle_type,
+    delivery_type = 'standard',
+    fuel_price = PRICING_CONFIG.DEFAULT_FUEL_PRICE,
+    vehicle_count = 1
+  } = request;
+
+  const distance = calculateDistance(pickup_zip, delivery_zip);
+  
+  // Determine distance tier
+  let tier: string;
+  if (distance < PRICING_CONFIG.DISTANCE_TIERS.SHORT_MAX) {
+    tier = 'short';
+  } else if (distance <= PRICING_CONFIG.DISTANCE_TIERS.MID_MAX) {
+    tier = 'mid';
+  } else {
+    tier = 'long';
+  }
+
+  // Get base rate
+  const vehicleRates = PRICING_RATES[vehicle_type] || PRICING_RATES.sedan;
+  let ratePerMile: number;
+  
+  if (delivery_type === 'accident') {
+    ratePerMile = vehicleRates.accident;
+  } else {
+    ratePerMile = vehicleRates[tier];
+  }
+
+  // Calculate base cost
+  let baseCost = distance * ratePerMile * vehicle_count;
+
+  // Apply delivery type multiplier
+  const deliveryMultiplier = PRICING_CONFIG.DELIVERY_TYPE_MULTIPLIERS[delivery_type as keyof typeof PRICING_CONFIG.DELIVERY_TYPE_MULTIPLIERS] || 1.0;
+  if (delivery_type !== 'accident') {
+    baseCost *= deliveryMultiplier;
+  }
+
+  // Apply fuel adjustment
+  const fuelAdjustment = 1 + (fuel_price - PRICING_CONFIG.DEFAULT_FUEL_PRICE) * 0.05;
+  let total = baseCost * fuelAdjustment;
+
+  // Apply minimums
+  if (delivery_type === 'accident') {
+    if (total < PRICING_CONFIG.ACCIDENT_MIN_QUOTE) {
+      total = PRICING_CONFIG.ACCIDENT_MIN_QUOTE;
+    }
+  } else if (distance < PRICING_CONFIG.MIN_MILES) {
+    if (total < PRICING_CONFIG.MIN_QUOTE) {
+      total = PRICING_CONFIG.MIN_QUOTE;
+    }
+  }
+
+  return Math.round(total * 100) / 100;
+};
 
 type NewShipmentNavigationProp = NativeStackScreenProps<
   RootStackParamList,
@@ -43,12 +224,12 @@ export default function NewShipmentScreen({
   const [deliveryZip, setDeliveryZip] = useState('');
   const [pickupDate, setPickupDate] = useState('');
   const [deliveryDate, setDeliveryDate] = useState('');
-  const [vehicleType, setVehicleType] = useState<'sedan' | 'suv' | 'truck'>(
-    'sedan'
-  );
-  const [vehicleMake, setVehicleMake] = useState('');
-  const [vehicleModel, setVehicleModel] = useState('');
+  const [selectedVehicle, setSelectedVehicle] = useState<VehicleSelection | undefined>(undefined);
   const [loading, setLoading] = useState(false);
+  
+  // Enhanced address details storage
+  const [pickupAddressDetails, setPickupAddressDetails] = useState<AddressComponents | null>(null);
+  const [deliveryAddressDetails, setDeliveryAddressDetails] = useState<AddressComponents | null>(null);
   
   // Date picker states
   const [showPickupDatePicker, setShowPickupDatePicker] = useState(false);
@@ -80,23 +261,43 @@ export default function NewShipmentScreen({
       return;
     }
 
-    if (!vehicleMake || !vehicleModel) {
-      Alert.alert('Error', 'Please enter vehicle make and model');
+    if (!selectedVehicle) {
+      Alert.alert('Error', 'Please select a vehicle');
       return;
     }
 
     try {
       setLoading(true);
 
-      // TODO: Implement quote calculation with backend
+      // Enhanced pricing calculation using DriveDropQuote model
+      const pickupZipCode = pickupZip || extractZipFromAddress(pickupAddress);
+      const deliveryZipCode = deliveryZip || extractZipFromAddress(deliveryAddress);
+      
+      if (!pickupZipCode || !deliveryZipCode) {
+        Alert.alert('Error', 'Could not determine ZIP codes for pricing calculation');
+        return;
+      }
+
+      // Calculate quote using enhanced pricing model
+      const distance = calculateDistance(pickupZipCode, deliveryZipCode);
+      const vehicleTypeForPricing = getVehicleTypeForPricing(selectedVehicle.vehicle_type);
+      const estimatedCost = calculateEnhancedQuote({
+        pickup_zip: pickupZipCode,
+        delivery_zip: deliveryZipCode,
+        vehicle_type: vehicleTypeForPricing,
+        distance_miles: distance,
+        delivery_type: 'standard'
+      });
+
       const fromLocation = pickupAddress || `ZIP: ${pickupZip}`;
       const toLocation = deliveryAddress || `ZIP: ${deliveryZip}`;
+      
       Alert.alert(
         'Quote Generated',
-        `Estimated cost: $250 for ${vehicleType} transport from ${fromLocation} to ${toLocation}`,
+        `Estimated cost: $${estimatedCost.toFixed(2)} for ${selectedVehicle.vehicle_type} transport from ${fromLocation} to ${toLocation}\n\nDistance: ${distance.toFixed(0)} miles\nRate: ${vehicleTypeForPricing} tier pricing`,
         [
           { text: 'Cancel', style: 'cancel' },
-          { text: 'Book Shipment', onPress: () => handleBookShipment() },
+          { text: 'Book Shipment', onPress: () => handleBookShipment(estimatedCost) },
         ]
       );
     } catch (error) {
@@ -107,19 +308,17 @@ export default function NewShipmentScreen({
     }
   };
 
-  const handleBookShipment = async () => {
+  const handleBookShipment = async (estimatedCost?: number) => {
     // Prepare quote data and store it in BookingContext
     const quoteData = {
       pickupZip,
       deliveryZip,
       pickupDate: selectedPickupDate.toISOString(),
       deliveryDate: selectedDeliveryDate.toISOString(),
-      vehicleType,
-      vehicleMake,
-      vehicleModel,
+      vehicle: selectedVehicle,
       pickupAddress,
       deliveryAddress,
-      estimatedCost: 250, // This would come from the actual quote API
+      estimatedCost: estimatedCost || 250, // Fallback to default
     };
 
     // Store quote data in customer details for auto-fill across booking steps
@@ -153,24 +352,24 @@ export default function NewShipmentScreen({
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Pickup Information</Text>
 
-          <RobustGooglePlacesInput
+          <EnhancedGooglePlacesInput
             label="Pickup Location"
             placeholder="Enter pickup address or ZIP code"
             value={pickupAddress}
-            onAddressSelect={(address: string, details?: any) => {
+            onAddressSelect={(address: string, details) => {
               setPickupAddress(address);
-              // Extract ZIP code for backward compatibility
-              if (details?.address_components && Array.isArray(details.address_components)) {
-                const zipComponent = details.address_components.find(
-                  (component: any) => component.types && component.types.includes('postal_code')
-                );
-                if (zipComponent) {
-                  setPickupZip(zipComponent.short_name);
-                }
+              setPickupAddressDetails(details.components);
+              // Extract ZIP code from enhanced address details
+              if (details.components.zipCode) {
+                setPickupZip(details.components.zipCode);
+              } else if (details.zipInfo?.zipCode) {
+                setPickupZip(details.zipInfo.zipCode);
               }
             }}
             required
-            helper="Enter a full address or just a ZIP code"
+            helper="Enter a full address or just a ZIP code - we'll help you complete it"
+            enableZipLookup={true}
+            validateInput={true}
           />
 
           <View style={styles.inputContainer}>
@@ -204,24 +403,24 @@ export default function NewShipmentScreen({
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Delivery Information</Text>
 
-          <RobustGooglePlacesInput
+          <EnhancedGooglePlacesInput
             label="Delivery Location"
             placeholder="Enter delivery address or ZIP code"
             value={deliveryAddress}
-            onAddressSelect={(address: string, details?: any) => {
+            onAddressSelect={(address: string, details) => {
               setDeliveryAddress(address);
-              // Extract ZIP code for backward compatibility
-              if (details?.address_components && Array.isArray(details.address_components)) {
-                const zipComponent = details.address_components.find(
-                  (component: any) => component.types && component.types.includes('postal_code')
-                );
-                if (zipComponent) {
-                  setDeliveryZip(zipComponent.short_name);
-                }
+              setDeliveryAddressDetails(details.components);
+              // Extract ZIP code from enhanced address details
+              if (details.components.zipCode) {
+                setDeliveryZip(details.components.zipCode);
+              } else if (details.zipInfo?.zipCode) {
+                setDeliveryZip(details.zipInfo.zipCode);
               }
             }}
             required
-            helper="Enter a full address or just a ZIP code"
+            helper="Enter a full address or just a ZIP code - we'll help you complete it"
+            enableZipLookup={true}
+            validateInput={true}
           />
 
           <View style={styles.inputContainer}>
@@ -255,46 +454,31 @@ export default function NewShipmentScreen({
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Vehicle Information</Text>
 
-          {/* Vehicle Type Selection */}
-          <View style={styles.vehicleTypeContainer}>
-            {(['sedan', 'suv', 'truck'] as const).map(type => (
-              <TouchableOpacity
-                key={type}
-                style={[
-                  styles.vehicleTypeButton,
-                  vehicleType === type && styles.vehicleTypeButtonSelected,
-                ]}
-                onPress={() => setVehicleType(type)}
-              >
-                <Text
-                  style={[
-                    styles.vehicleTypeText,
-                    vehicleType === type && styles.vehicleTypeTextSelected,
-                  ]}
-                >
-                  {type.toUpperCase()}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-
-          <VehicleDropdown
-            label="Vehicle Make"
-            placeholder="Select vehicle make"
-            value={vehicleMake}
-            onSelect={setVehicleMake}
-            type="make"
+          <SavedVehicleSelector
+            label="Select Vehicle"
+            value={selectedVehicle}
+            onSelect={setSelectedVehicle}
+            onNavigateToVehicleManager={() => navigation.navigate('VehicleProfiles')}
             required
           />
+        </View>
 
-          <VehicleDropdown
-            label="Vehicle Model"
-            placeholder="Select vehicle model"
-            value={vehicleModel}
-            onSelect={setVehicleModel}
-            type="model"
-            selectedMake={vehicleMake}
-            required
+        {/* Real-Time Pricing */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Price Estimate</Text>
+          <RealTimePricing
+            pickupAddress={pickupAddress}
+            deliveryAddress={deliveryAddress}
+            pickupLocation={pickupAddressDetails?.coordinates}
+            deliveryLocation={deliveryAddressDetails?.coordinates}
+            pickupZip={pickupZip}
+            deliveryZip={deliveryZip}
+            pickupState={pickupAddressDetails?.state}
+            deliveryState={deliveryAddressDetails?.state}
+            vehicleType={selectedVehicle ? mapVehicleTypeForPricing(selectedVehicle.vehicle_type) : 'sedan'}
+            vehicleCount={1}
+            isAccidentRecovery={false}
+            showDetailed={true}
           />
         </View>
 

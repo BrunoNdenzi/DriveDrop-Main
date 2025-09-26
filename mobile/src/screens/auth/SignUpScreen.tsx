@@ -23,11 +23,41 @@ export default function SignUpScreen({ navigation }: SignUpScreenProps) {
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [role, setRole] = useState<'client' | 'driver'>('client');
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+  // Phone number formatting and validation
+  const formatPhoneNumber = (value: string) => {
+    // Remove all non-digits
+    const digits = value.replace(/\D/g, '');
+    
+    // Limit to 10 digits (US phone number)
+    const limitedDigits = digits.substring(0, 10);
+    
+    // Format as (XXX) XXX-XXXX
+    if (limitedDigits.length >= 6) {
+      return `(${limitedDigits.slice(0, 3)}) ${limitedDigits.slice(3, 6)}-${limitedDigits.slice(6)}`;
+    } else if (limitedDigits.length >= 3) {
+      return `(${limitedDigits.slice(0, 3)}) ${limitedDigits.slice(3)}`;
+    } else if (limitedDigits.length > 0) {
+      return `(${limitedDigits}`;
+    }
+    return '';
+  };
+
+  const validatePhoneNumber = (phoneNumber: string) => {
+    const digits = phoneNumber.replace(/\D/g, '');
+    return digits.length === 10;
+  };
+
+  const handlePhoneChange = (value: string) => {
+    const formatted = formatPhoneNumber(value);
+    setPhone(formatted);
+  };
 
   async function handleSignUp() {
     // Reset error state
@@ -44,6 +74,16 @@ export default function SignUpScreen({ navigation }: SignUpScreenProps) {
       return;
     }
 
+    if (!phone) {
+      Alert.alert('Error', 'Please enter your phone number');
+      return;
+    }
+
+    if (!validatePhoneNumber(phone)) {
+      Alert.alert('Error', 'Please enter a valid 10-digit US phone number');
+      return;
+    }
+
     if (password !== confirmPassword) {
       Alert.alert('Error', 'Passwords do not match');
       return;
@@ -57,7 +97,7 @@ export default function SignUpScreen({ navigation }: SignUpScreenProps) {
     try {
       setLoading(true);
       
-      // Sign up with user metadata including role
+      // Sign up with user metadata including role and phone
       const { data, error } = await auth.signUp({
         email,
         password,
@@ -65,7 +105,8 @@ export default function SignUpScreen({ navigation }: SignUpScreenProps) {
           data: {
             first_name: firstName,
             last_name: lastName,
-            role: role
+            role: role,
+            phone: phone.replace(/\D/g, '') // Store only digits
           }
         }
       });
@@ -207,6 +248,23 @@ export default function SignUpScreen({ navigation }: SignUpScreenProps) {
               textContentType="emailAddress"
               testID="email-input"
             />
+          </View>
+
+          <View style={styles.inputContainer}>
+            <Text style={styles.label}>Phone Number</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="(555) 123-4567"
+              value={phone}
+              onChangeText={handlePhoneChange}
+              keyboardType="phone-pad"
+              autoCorrect={false}
+              autoComplete="tel"
+              textContentType="telephoneNumber"
+              testID="phone-input"
+              maxLength={14} // Max length for formatted phone number
+            />
+            <Text style={styles.helperText}>US phone number required</Text>
           </View>
 
           <View style={styles.inputContainer}>
@@ -392,5 +450,10 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     marginLeft: 4,
+  },
+  helperText: {
+    fontSize: 12,
+    color: Colors.text.secondary,
+    marginTop: 4,
   },
 });

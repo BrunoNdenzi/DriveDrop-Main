@@ -13,6 +13,7 @@ import driverRoutes from './driver.routes';
 import messagesRoutes from './messages.routes';
 import { diagnosticsRoutes } from './diagnostics.routes';
 import pricingRoutes from './pricing.routes';
+import vehicleRoutes from './vehicles';
 
 const router = Router();
 
@@ -32,6 +33,7 @@ router.get('/', (_req, res) => {
       applications: '/api/v1/applications',
       drivers: '/api/v1/drivers',
       messages: '/api/v1/messages',
+      vehicles: '/api/v1/vehicles',
     },
   });
 });
@@ -48,5 +50,6 @@ router.use('/drivers', driverRoutes);
 router.use('/messages', messagesRoutes);
 router.use('/diagnostics', diagnosticsRoutes);
 router.use('/pricing', pricingRoutes);
+router.use('/vehicles', vehicleRoutes);
 
 export default router;

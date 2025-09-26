@@ -7,12 +7,18 @@ import {
   getShipmentById,
   getShipments,
   createShipment,
+  updateShipment,
   updateShipmentStatus,
   getShipmentsNearby,
   getShipmentTracking,
   createTrackingEvent,
   assignDriverToShipment,
-  getShipmentApplicants
+  getShipmentApplicants,
+  createOrUpdateDraft,
+  getUserDrafts,
+  deleteDraft,
+  submitDraft,
+  validateShipmentData
 } from '@controllers/shipment.controller';
 import { applyForShipment } from '@controllers/application.controller';
 
@@ -45,6 +51,13 @@ router.get('/nearby', authenticate, authorize(['driver']), getShipmentsNearby);
  * @access Private
  */
 router.get('/:id', authenticate, getShipmentById);
+
+/**
+ * @route PATCH /api/v1/shipments/:id
+ * @desc Update shipment
+ * @access Private (Client/Admin)
+ */
+router.patch('/:id', authenticate, authorize(['client', 'admin']), updateShipment);
 
 /**
  * @route PATCH /api/v1/shipments/:id/status
@@ -87,5 +100,47 @@ router.get('/:id/applicants', authenticate, authorize(['admin']), getShipmentApp
  * @access Private (Driver only)
  */
 router.post('/:id/apply', authenticate, authorize(['driver']), applyForShipment);
+
+/**
+ * @route POST /api/v1/shipments/draft
+ * @desc Create a new draft shipment
+ * @access Private (Client)
+ */
+router.post('/draft', authenticate, authorize(['client']), createOrUpdateDraft);
+
+/**
+ * @route PUT /api/v1/shipments/draft/:id
+ * @desc Update an existing draft shipment
+ * @access Private (Client)
+ */
+router.put('/draft/:id', authenticate, authorize(['client']), createOrUpdateDraft);
+
+/**
+ * @route GET /api/v1/shipments/drafts
+ * @desc Get user's draft shipments
+ * @access Private (Client)
+ */
+router.get('/drafts', authenticate, authorize(['client']), getUserDrafts);
+
+/**
+ * @route DELETE /api/v1/shipments/draft/:id
+ * @desc Delete a draft shipment
+ * @access Private (Client)
+ */
+router.delete('/draft/:id', authenticate, authorize(['client']), deleteDraft);
+
+/**
+ * @route POST /api/v1/shipments/draft/:id/submit
+ * @desc Submit draft as final shipment
+ * @access Private (Client)
+ */
+router.post('/draft/:id/submit', authenticate, authorize(['client']), submitDraft);
+
+/**
+ * @route POST /api/v1/shipments/validate
+ * @desc Validate shipment data (draft or complete)
+ * @access Private (Client)
+ */
+router.post('/validate', authenticate, authorize(['client']), validateShipmentData);
 
 export default router;
