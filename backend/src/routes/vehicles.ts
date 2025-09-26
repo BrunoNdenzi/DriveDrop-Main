@@ -19,10 +19,10 @@ router.use(authenticate);
 router.get('/', async (req: Request, res: Response) => {
   try {
     const userId = req.user!.id;
-    const activeOnly = req.query.active_only === 'true';
-    const pagination = req.query.page && req.query.limit ? {
-      page: parseInt(req.query.page as string),
-      limit: parseInt(req.query.limit as string),
+    const activeOnly = req.query['active_only'] === 'true';
+    const pagination = req.query['page'] && req.query['limit'] ? {
+      page: parseInt(req.query['page'] as string),
+      limit: parseInt(req.query['limit'] as string),
     } : undefined;
 
     const result = await vehicleService.getUserVehicles(userId, activeOnly, pagination);
@@ -59,14 +59,19 @@ router.get('/primary', async (req: Request, res: Response) => {
 router.get('/:id', async (req: Request, res: Response) => {
   try {
     const userId = req.user!.id;
-    const vehicleId = req.params.id;
+    const vehicleId = req.params['id'];
+
+    if (!vehicleId) {
+      res.status(400).json(errorResponse('Vehicle ID is required', 'MISSING_VEHICLE_ID'));
+      return;
+    }
 
     const vehicle = await vehicleService.getVehicleById(vehicleId, userId);
 
     const response: ApiResponse<any> = successResponse(vehicle);
     res.json(response);
   } catch (error: any) {
-    logger.error('Error fetching vehicle', { error, vehicleId: req.params.id, userId: req.user?.id });
+    logger.error('Error fetching vehicle', { error, vehicleId: req.params['id'], userId: req.user?.id });
     
     if (error.code === 'VEHICLE_NOT_FOUND') {
       res.status(404).json(errorResponse('Vehicle not found', 'VEHICLE_NOT_FOUND'));
@@ -94,6 +99,7 @@ router.post('/', async (req: Request, res: Response) => {
 
     const response: ApiResponse<any> = successResponse(vehicle);
     res.status(201).json(response);
+    return;
   } catch (error: any) {
     logger.error('Error creating vehicle', { error, userId: req.user?.id, vehicleData: req.body });
     
@@ -104,6 +110,7 @@ router.post('/', async (req: Request, res: Response) => {
     } else {
       res.status(500).json(errorResponse('Failed to create vehicle'));
     }
+    return;
   }
 });
 
@@ -114,15 +121,20 @@ router.post('/', async (req: Request, res: Response) => {
 router.put('/:id', async (req: Request, res: Response) => {
   try {
     const userId = req.user!.id;
-    const vehicleId = req.params.id;
+    const vehicleId = req.params['id'];
     const updates = req.body;
+
+    if (!vehicleId) {
+      res.status(400).json(errorResponse('Vehicle ID is required', 'MISSING_VEHICLE_ID'));
+      return;
+    }
 
     const vehicle = await vehicleService.updateVehicle(vehicleId, userId, updates);
 
     const response: ApiResponse<any> = successResponse(vehicle);
     res.json(response);
   } catch (error: any) {
-    logger.error('Error updating vehicle', { error, vehicleId: req.params.id, userId: req.user?.id });
+    logger.error('Error updating vehicle', { error, vehicleId: req.params['id'], userId: req.user?.id });
     
     if (error.code === 'VEHICLE_NOT_FOUND') {
       res.status(404).json(errorResponse('Vehicle not found', 'VEHICLE_NOT_FOUND'));
@@ -143,14 +155,19 @@ router.put('/:id', async (req: Request, res: Response) => {
 router.put('/:id/primary', async (req: Request, res: Response) => {
   try {
     const userId = req.user!.id;
-    const vehicleId = req.params.id;
+    const vehicleId = req.params['id'];
+
+    if (!vehicleId) {
+      res.status(400).json(errorResponse('Vehicle ID is required', 'MISSING_VEHICLE_ID'));
+      return;
+    }
 
     const vehicle = await vehicleService.setPrimaryVehicle(vehicleId, userId);
 
     const response: ApiResponse<any> = successResponse(vehicle);
     res.json(response);
   } catch (error: any) {
-    logger.error('Error setting primary vehicle', { error, vehicleId: req.params.id, userId: req.user?.id });
+    logger.error('Error setting primary vehicle', { error, vehicleId: req.params['id'], userId: req.user?.id });
     
     if (error.code === 'VEHICLE_NOT_FOUND') {
       res.status(404).json(errorResponse('Vehicle not found', 'VEHICLE_NOT_FOUND'));
@@ -167,14 +184,19 @@ router.put('/:id/primary', async (req: Request, res: Response) => {
 router.delete('/:id', async (req: Request, res: Response) => {
   try {
     const userId = req.user!.id;
-    const vehicleId = req.params.id;
+    const vehicleId = req.params['id'];
+
+    if (!vehicleId) {
+      res.status(400).json(errorResponse('Vehicle ID is required', 'MISSING_VEHICLE_ID'));
+      return;
+    }
 
     await vehicleService.deleteVehicle(vehicleId, userId);
 
     const response: ApiResponse<any> = successResponse(null);
     res.json(response);
   } catch (error: any) {
-    logger.error('Error deleting vehicle', { error, vehicleId: req.params.id, userId: req.user?.id });
+    logger.error('Error deleting vehicle', { error, vehicleId: req.params['id'], userId: req.user?.id });
     
     if (error.code === 'VEHICLE_NOT_FOUND') {
       res.status(404).json(errorResponse('Vehicle not found', 'VEHICLE_NOT_FOUND'));
