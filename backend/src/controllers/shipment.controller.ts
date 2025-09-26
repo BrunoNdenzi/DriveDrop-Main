@@ -112,12 +112,15 @@ export const createShipment = asyncHandler(async (req: Request, res: Response) =
     pickup_address,
     delivery_address,
     description,
+    title, // Add title field
+    status, // Add status field  
     vehicle_type, // expected from client (sedan, suv, pickup, luxury, motorcycle, heavy)
     distance_miles, // numeric distance precomputed client or server
     is_accident_recovery,
     vehicle_count,
     estimated_price, // optional override
     scheduled_pickup,
+    pickup_date, // Add pickup_date field
   } = req.body;
 
   // Validate required fields
@@ -180,8 +183,14 @@ export const createShipment = asyncHandler(async (req: Request, res: Response) =
     pickup_address,
     delivery_address,
     description,
+    title: title || description, // Use title if provided, fallback to description
+    status: status || 'pending', // Use status if provided, fallback to 'pending'
     estimated_price: finalEstimatedPrice,
-    scheduled_pickup,
+    scheduled_pickup: scheduled_pickup || pickup_date, // Handle both field names
+    vehicle_type,
+    distance_miles,
+    is_accident_recovery,
+    vehicle_count,
   });
 
   res.status(201).json(successResponse(shipment));

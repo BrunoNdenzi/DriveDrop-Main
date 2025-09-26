@@ -510,6 +510,12 @@ export const shipmentService = {
     pickup_address: string;
     delivery_address: string;
     description: string;
+    title?: string; // Add title field
+    status?: string; // Add status field
+    vehicle_type?: string; // Add vehicle_type field
+    distance_miles?: number; // Add distance_miles field
+    is_accident_recovery?: boolean; // Add is_accident_recovery field
+    vehicle_count?: number; // Add vehicle_count field
     estimated_price?: number;
     scheduled_pickup?: string;
   }) {
@@ -517,8 +523,19 @@ export const shipmentService = {
       const { data, error } = await supabaseAdmin
         .from('shipments')
         .insert({
-          ...shipmentData,
-          status: 'pending',
+          client_id: shipmentData.client_id,
+          pickup_location: shipmentData.pickup_location,
+          delivery_location: shipmentData.delivery_location,
+          pickup_address: shipmentData.pickup_address,
+          delivery_address: shipmentData.delivery_address,
+          description: shipmentData.description,
+          title: shipmentData.title || shipmentData.description, // Use title or fallback to description
+          status: shipmentData.status || 'pending',
+          vehicle_type: shipmentData.vehicle_type,
+          estimated_distance_km: shipmentData.distance_miles ? shipmentData.distance_miles * 1.60934 : null, // Convert miles to km
+          estimated_price: shipmentData.estimated_price,
+          pickup_date: shipmentData.scheduled_pickup, // Map scheduled_pickup to pickup_date
+          is_fragile: false, // Default value
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
         })
