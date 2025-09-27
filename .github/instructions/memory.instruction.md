@@ -93,3 +93,7 @@ applyTo: '**'
 - React Native with Expo
 - Supabase backend integration
 - Progressive form implementation priority
+- 2025-09-27 Research: Supabase docs on auth & RLS highlight need for service role key for server-side operations that bypass policies—use `supabaseAdmin` when updating protected tables.
+
+## Context7 Research History
+- 2025-09-27: Attempted Context7 lookup for Stripe payment intent shipment update; received minimal static content (likely JS-required), no actionable guidance captured yet.

@@ -1,0 +1,668 @@
+[
+  {
+    "schemaname": "cron",
+    "tablename": "job",
+    "policyname": "cron_job_policy",
+    "permissive": "PERMISSIVE",
+    "roles": "{public}",
+    "qual": "(username = CURRENT_USER)",
+    "with_check": null
+  },
+  {
+    "schemaname": "cron",
+    "tablename": "job_run_details",
+    "policyname": "cron_job_run_details_policy",
+    "permissive": "PERMISSIVE",
+    "roles": "{public}",
+    "qual": "(username = CURRENT_USER)",
+    "with_check": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "driver_applications",
+    "policyname": "Admins can update all applications",
+    "permissive": "PERMISSIVE",
+    "roles": "{public}",
+    "qual": "(auth.uid() IN ( SELECT profiles.id\n   FROM profiles\n  WHERE (profiles.role = 'admin'::user_role)))",
+    "with_check": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "driver_applications",
+    "policyname": "Admins can view all applications",
+    "permissive": "PERMISSIVE",
+    "roles": "{public}",
+    "qual": "(auth.uid() IN ( SELECT profiles.id\n   FROM profiles\n  WHERE (profiles.role = 'admin'::user_role)))",
+    "with_check": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "driver_applications",
+    "policyname": "Drivers can create their own applications",
+    "permissive": "PERMISSIVE",
+    "roles": "{public}",
+    "qual": null,
+    "with_check": "(auth.uid() = user_id)"
+  },
+  {
+    "schemaname": "public",
+    "tablename": "driver_applications",
+    "policyname": "Drivers can update their own applications",
+    "permissive": "PERMISSIVE",
+    "roles": "{public}",
+    "qual": "(auth.uid() = user_id)",
+    "with_check": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "driver_applications",
+    "policyname": "Drivers can view their own applications",
+    "permissive": "PERMISSIVE",
+    "roles": "{public}",
+    "qual": "(auth.uid() = user_id)",
+    "with_check": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "driver_locations",
+    "policyname": "Clients can view driver locations for their shipments",
+    "permissive": "PERMISSIVE",
+    "roles": "{authenticated}",
+    "qual": "(EXISTS ( SELECT 1\n   FROM shipments s\n  WHERE ((s.id = driver_locations.shipment_id) AND (s.client_id = auth.uid()))))",
+    "with_check": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "driver_locations",
+    "policyname": "Drivers can insert their own location",
+    "permissive": "PERMISSIVE",
+    "roles": "{authenticated}",
+    "qual": null,
+    "with_check": "(driver_id = auth.uid())"
+  },
+  {
+    "schemaname": "public",
+    "tablename": "driver_locations",
+    "policyname": "Drivers can select their own locations",
+    "permissive": "PERMISSIVE",
+    "roles": "{authenticated}",
+    "qual": "(driver_id = auth.uid())",
+    "with_check": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "driver_locations",
+    "policyname": "admin_full_access_locations",
+    "permissive": "PERMISSIVE",
+    "roles": "{authenticated}",
+    "qual": "(EXISTS ( SELECT 1\n   FROM profiles\n  WHERE ((profiles.id = auth.uid()) AND (profiles.role = 'admin'::user_role))))",
+    "with_check": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "driver_locations",
+    "policyname": "client_view_own_shipment_locations",
+    "permissive": "PERMISSIVE",
+    "roles": "{authenticated}",
+    "qual": "(EXISTS ( SELECT 1\n   FROM shipments\n  WHERE ((shipments.id = driver_locations.shipment_id) AND (shipments.client_id = auth.uid()))))",
+    "with_check": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "driver_locations",
+    "policyname": "driver_insert_own_location",
+    "permissive": "PERMISSIVE",
+    "roles": "{authenticated}",
+    "qual": null,
+    "with_check": "((driver_id = auth.uid()) AND (EXISTS ( SELECT 1\n   FROM shipments\n  WHERE ((shipments.id = driver_locations.shipment_id) AND (shipments.driver_id = auth.uid())))))"
+  },
+  {
+    "schemaname": "public",
+    "tablename": "driver_locations",
+    "policyname": "driver_view_own_locations",
+    "permissive": "PERMISSIVE",
+    "roles": "{authenticated}",
+    "qual": "(driver_id = auth.uid())",
+    "with_check": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "driver_ratings",
+    "policyname": "Clients can insert ratings for their shipments",
+    "permissive": "PERMISSIVE",
+    "roles": "{public}",
+    "qual": null,
+    "with_check": "(client_id = auth.uid())"
+  },
+  {
+    "schemaname": "public",
+    "tablename": "driver_ratings",
+    "policyname": "Users can view ratings for their shipments",
+    "permissive": "PERMISSIVE",
+    "roles": "{public}",
+    "qual": "((client_id = auth.uid()) OR (driver_id = auth.uid()))",
+    "with_check": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "driver_settings",
+    "policyname": "Users can insert their own driver settings",
+    "permissive": "PERMISSIVE",
+    "roles": "{public}",
+    "qual": null,
+    "with_check": "(auth.uid() = driver_id)"
+  },
+  {
+    "schemaname": "public",
+    "tablename": "driver_settings",
+    "policyname": "Users can update their own driver settings",
+    "permissive": "PERMISSIVE",
+    "roles": "{public}",
+    "qual": "(auth.uid() = driver_id)",
+    "with_check": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "driver_settings",
+    "policyname": "Users can view their own driver settings",
+    "permissive": "PERMISSIVE",
+    "roles": "{public}",
+    "qual": "(auth.uid() = driver_id)",
+    "with_check": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "job_applications",
+    "policyname": "Clients can update applications for their shipments",
+    "permissive": "PERMISSIVE",
+    "roles": "{public}",
+    "qual": "(shipment_id IN ( SELECT shipments.id\n   FROM shipments\n  WHERE (shipments.client_id = auth.uid())))",
+    "with_check": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "job_applications",
+    "policyname": "Drivers can insert their own applications",
+    "permissive": "PERMISSIVE",
+    "roles": "{public}",
+    "qual": null,
+    "with_check": "(driver_id = auth.uid())"
+  },
+  {
+    "schemaname": "public",
+    "tablename": "job_applications",
+    "policyname": "Users can view applications for their shipments or their own ap",
+    "permissive": "PERMISSIVE",
+    "roles": "{public}",
+    "qual": "((driver_id = auth.uid()) OR (shipment_id IN ( SELECT shipments.id\n   FROM shipments\n  WHERE (shipments.client_id = auth.uid()))))",
+    "with_check": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "messages",
+    "policyname": "Users can mark their messages as read",
+    "permissive": "PERMISSIVE",
+    "roles": "{public}",
+    "qual": "(auth.uid() = receiver_id)",
+    "with_check": "(auth.uid() = receiver_id)"
+  },
+  {
+    "schemaname": "public",
+    "tablename": "messages",
+    "policyname": "Users can send messages through function",
+    "permissive": "PERMISSIVE",
+    "roles": "{public}",
+    "qual": null,
+    "with_check": "((auth.uid() = sender_id) AND is_messaging_allowed(shipment_id, auth.uid(), receiver_id))"
+  },
+  {
+    "schemaname": "public",
+    "tablename": "messages",
+    "policyname": "Users can view their messages",
+    "permissive": "PERMISSIVE",
+    "roles": "{public}",
+    "qual": "((auth.uid() = sender_id) OR (auth.uid() = receiver_id) OR (EXISTS ( SELECT 1\n   FROM profiles\n  WHERE ((profiles.id = auth.uid()) AND (profiles.role = 'admin'::user_role)))))",
+    "with_check": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "notification_preferences",
+    "policyname": "Users can insert their own preferences",
+    "permissive": "PERMISSIVE",
+    "roles": "{public}",
+    "qual": null,
+    "with_check": "(auth.uid() = user_id)"
+  },
+  {
+    "schemaname": "public",
+    "tablename": "notification_preferences",
+    "policyname": "Users can update their own preferences",
+    "permissive": "PERMISSIVE",
+    "roles": "{public}",
+    "qual": "(auth.uid() = user_id)",
+    "with_check": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "notification_preferences",
+    "policyname": "Users can view their own preferences",
+    "permissive": "PERMISSIVE",
+    "roles": "{public}",
+    "qual": "(auth.uid() = user_id)",
+    "with_check": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "payments",
+    "policyname": "Admin can update all payments",
+    "permissive": "PERMISSIVE",
+    "roles": "{authenticated}",
+    "qual": "(EXISTS ( SELECT 1\n   FROM profiles\n  WHERE ((profiles.id = auth.uid()) AND (profiles.role = 'admin'::user_role))))",
+    "with_check": "(EXISTS ( SELECT 1\n   FROM profiles\n  WHERE ((profiles.id = auth.uid()) AND (profiles.role = 'admin'::user_role))))"
+  },
+  {
+    "schemaname": "public",
+    "tablename": "payments",
+    "policyname": "Admin can view all payments",
+    "permissive": "PERMISSIVE",
+    "roles": "{authenticated}",
+    "qual": "(EXISTS ( SELECT 1\n   FROM profiles\n  WHERE ((profiles.id = auth.uid()) AND (profiles.role = 'admin'::user_role))))",
+    "with_check": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "payments",
+    "policyname": "Allow service to create payments",
+    "permissive": "PERMISSIVE",
+    "roles": "{public}",
+    "qual": null,
+    "with_check": "true"
+  },
+  {
+    "schemaname": "public",
+    "tablename": "payments",
+    "policyname": "Clients can insert payments",
+    "permissive": "PERMISSIVE",
+    "roles": "{authenticated}",
+    "qual": null,
+    "with_check": "(client_id = auth.uid())"
+  },
+  {
+    "schemaname": "public",
+    "tablename": "payments",
+    "policyname": "Clients can view their own payments",
+    "permissive": "PERMISSIVE",
+    "roles": "{public}",
+    "qual": "(auth.uid() = client_id)",
+    "with_check": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "payments",
+    "policyname": "Drivers can view payments for assigned shipments",
+    "permissive": "PERMISSIVE",
+    "roles": "{public}",
+    "qual": "(EXISTS ( SELECT 1\n   FROM shipments\n  WHERE ((shipments.id = payments.shipment_id) AND (shipments.driver_id = auth.uid()))))",
+    "with_check": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "payments",
+    "policyname": "Only admins can delete payments",
+    "permissive": "PERMISSIVE",
+    "roles": "{public}",
+    "qual": "(auth.uid() IN ( SELECT profiles.id\n   FROM profiles\n  WHERE (profiles.role = 'admin'::user_role)))",
+    "with_check": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "payments",
+    "policyname": "Only admins can update payments",
+    "permissive": "PERMISSIVE",
+    "roles": "{public}",
+    "qual": "(auth.uid() IN ( SELECT profiles.id\n   FROM profiles\n  WHERE (profiles.role = 'admin'::user_role)))",
+    "with_check": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "profiles",
+    "policyname": "Allow insert during signup",
+    "permissive": "PERMISSIVE",
+    "roles": "{public}",
+    "qual": null,
+    "with_check": "true"
+  },
+  {
+    "schemaname": "public",
+    "tablename": "profiles",
+    "policyname": "Allow users to insert their own profile",
+    "permissive": "PERMISSIVE",
+    "roles": "{authenticated}",
+    "qual": null,
+    "with_check": "(auth.uid() = id)"
+  },
+  {
+    "schemaname": "public",
+    "tablename": "profiles",
+    "policyname": "Enable insert for authenticated users only",
+    "permissive": "PERMISSIVE",
+    "roles": "{authenticated}",
+    "qual": null,
+    "with_check": "(id = auth.uid())"
+  },
+  {
+    "schemaname": "public",
+    "tablename": "profiles",
+    "policyname": "Enable insert for users based on id",
+    "permissive": "PERMISSIVE",
+    "roles": "{authenticated}",
+    "qual": null,
+    "with_check": "(id = auth.uid())"
+  },
+  {
+    "schemaname": "public",
+    "tablename": "profiles",
+    "policyname": "Enable read access for authenticated users",
+    "permissive": "PERMISSIVE",
+    "roles": "{authenticated}",
+    "qual": "(id = auth.uid())",
+    "with_check": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "profiles",
+    "policyname": "Enable update for users based on id",
+    "permissive": "PERMISSIVE",
+    "roles": "{authenticated}",
+    "qual": "(id = auth.uid())",
+    "with_check": "(id = auth.uid())"
+  },
+  {
+    "schemaname": "public",
+    "tablename": "profiles",
+    "policyname": "Only admins can delete profiles",
+    "permissive": "PERMISSIVE",
+    "roles": "{public}",
+    "qual": "(auth.uid() IN ( SELECT profiles_1.id\n   FROM profiles profiles_1\n  WHERE (profiles_1.role = 'admin'::user_role)))",
+    "with_check": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "profiles",
+    "policyname": "Public profiles are viewable by everyone",
+    "permissive": "PERMISSIVE",
+    "roles": "{public}",
+    "qual": "true",
+    "with_check": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "profiles",
+    "policyname": "Service role can do anything",
+    "permissive": "PERMISSIVE",
+    "roles": "{public}",
+    "qual": "(current_setting('role'::text, true) = 'service_role'::text)",
+    "with_check": "(current_setting('role'::text, true) = 'service_role'::text)"
+  },
+  {
+    "schemaname": "public",
+    "tablename": "profiles",
+    "policyname": "Users can insert own profile",
+    "permissive": "PERMISSIVE",
+    "roles": "{public}",
+    "qual": null,
+    "with_check": "(auth.uid() = id)"
+  },
+  {
+    "schemaname": "public",
+    "tablename": "profiles",
+    "policyname": "Users can update own profile",
+    "permissive": "PERMISSIVE",
+    "roles": "{public}",
+    "qual": "(auth.uid() = id)",
+    "with_check": "(auth.uid() = id)"
+  },
+  {
+    "schemaname": "public",
+    "tablename": "profiles",
+    "policyname": "Users can update their own profiles",
+    "permissive": "PERMISSIVE",
+    "roles": "{public}",
+    "qual": "(auth.uid() = id)",
+    "with_check": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "profiles",
+    "policyname": "Users can view own profile",
+    "permissive": "PERMISSIVE",
+    "roles": "{public}",
+    "qual": "(auth.uid() = id)",
+    "with_check": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "push_tokens",
+    "policyname": "Users can delete their own tokens",
+    "permissive": "PERMISSIVE",
+    "roles": "{public}",
+    "qual": "(auth.uid() = user_id)",
+    "with_check": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "push_tokens",
+    "policyname": "Users can insert their own tokens",
+    "permissive": "PERMISSIVE",
+    "roles": "{public}",
+    "qual": null,
+    "with_check": "(auth.uid() = user_id)"
+  },
+  {
+    "schemaname": "public",
+    "tablename": "push_tokens",
+    "policyname": "Users can update their own tokens",
+    "permissive": "PERMISSIVE",
+    "roles": "{public}",
+    "qual": "(auth.uid() = user_id)",
+    "with_check": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "push_tokens",
+    "policyname": "Users can view their own tokens",
+    "permissive": "PERMISSIVE",
+    "roles": "{public}",
+    "qual": "(auth.uid() = user_id)",
+    "with_check": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "shipment_status_history",
+    "policyname": "Users can insert status history for their shipments",
+    "permissive": "PERMISSIVE",
+    "roles": "{public}",
+    "qual": null,
+    "with_check": "((changed_by = auth.uid()) AND (shipment_id IN ( SELECT shipments.id\n   FROM shipments\n  WHERE ((shipments.client_id = auth.uid()) OR (shipments.driver_id = auth.uid())))))"
+  },
+  {
+    "schemaname": "public",
+    "tablename": "shipment_status_history",
+    "policyname": "Users can view status history for their shipments",
+    "permissive": "PERMISSIVE",
+    "roles": "{public}",
+    "qual": "(shipment_id IN ( SELECT shipments.id\n   FROM shipments\n  WHERE ((shipments.client_id = auth.uid()) OR (shipments.driver_id = auth.uid()))))",
+    "with_check": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "shipments",
+    "policyname": "Admins can update all shipments",
+    "permissive": "PERMISSIVE",
+    "roles": "{public}",
+    "qual": "(auth.uid() IN ( SELECT profiles.id\n   FROM profiles\n  WHERE (profiles.role = 'admin'::user_role)))",
+    "with_check": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "shipments",
+    "policyname": "Admins can view all shipments",
+    "permissive": "PERMISSIVE",
+    "roles": "{public}",
+    "qual": "(auth.uid() IN ( SELECT profiles.id\n   FROM profiles\n  WHERE (profiles.role = 'admin'::user_role)))",
+    "with_check": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "shipments",
+    "policyname": "Clients can create shipments",
+    "permissive": "PERMISSIVE",
+    "roles": "{public}",
+    "qual": null,
+    "with_check": "(client_id = auth.uid())"
+  },
+  {
+    "schemaname": "public",
+    "tablename": "shipments",
+    "policyname": "Clients can update their own shipments",
+    "permissive": "PERMISSIVE",
+    "roles": "{public}",
+    "qual": "(auth.uid() = client_id)",
+    "with_check": "((auth.uid() = client_id) AND (status = ANY (ARRAY['pending'::shipment_status, 'open'::shipment_status, 'cancelled'::shipment_status])))"
+  },
+  {
+    "schemaname": "public",
+    "tablename": "shipments",
+    "policyname": "Clients can view their own shipments",
+    "permissive": "PERMISSIVE",
+    "roles": "{public}",
+    "qual": "(auth.uid() = client_id)",
+    "with_check": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "shipments",
+    "policyname": "Drivers can update assigned shipments",
+    "permissive": "PERMISSIVE",
+    "roles": "{public}",
+    "qual": "(auth.uid() = driver_id)",
+    "with_check": "(auth.uid() = driver_id)"
+  },
+  {
+    "schemaname": "public",
+    "tablename": "shipments",
+    "policyname": "Drivers can view assigned and available shipments",
+    "permissive": "PERMISSIVE",
+    "roles": "{public}",
+    "qual": "((auth.uid() = driver_id) OR ((driver_id IS NULL) AND (status = ANY (ARRAY['pending'::shipment_status, 'open'::shipment_status]))))",
+    "with_check": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "shipments",
+    "policyname": "Users can update their shipments",
+    "permissive": "PERMISSIVE",
+    "roles": "{public}",
+    "qual": "((client_id = auth.uid()) OR (driver_id = auth.uid()))",
+    "with_check": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "shipments",
+    "policyname": "Users can view their own shipments",
+    "permissive": "PERMISSIVE",
+    "roles": "{public}",
+    "qual": "((client_id = auth.uid()) OR (driver_id = auth.uid()))",
+    "with_check": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "tracking_events",
+    "policyname": "Only drivers and admins can create tracking events",
+    "permissive": "PERMISSIVE",
+    "roles": "{public}",
+    "qual": null,
+    "with_check": "((EXISTS ( SELECT 1\n   FROM shipments\n  WHERE ((shipments.id = tracking_events.shipment_id) AND (shipments.driver_id = auth.uid())))) OR (auth.uid() IN ( SELECT profiles.id\n   FROM profiles\n  WHERE (profiles.role = 'admin'::user_role))))"
+  },
+  {
+    "schemaname": "public",
+    "tablename": "tracking_events",
+    "policyname": "Shipment participants can view tracking events",
+    "permissive": "PERMISSIVE",
+    "roles": "{public}",
+    "qual": "(EXISTS ( SELECT 1\n   FROM shipments\n  WHERE ((shipments.id = tracking_events.shipment_id) AND ((shipments.client_id = auth.uid()) OR (shipments.driver_id = auth.uid())))))",
+    "with_check": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "user_vehicles",
+    "policyname": "Admins can view all vehicles",
+    "permissive": "PERMISSIVE",
+    "roles": "{public}",
+    "qual": "(EXISTS ( SELECT 1\n   FROM profiles\n  WHERE ((profiles.id = auth.uid()) AND (profiles.role = 'admin'::user_role))))",
+    "with_check": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "user_vehicles",
+    "policyname": "Users can delete own vehicles",
+    "permissive": "PERMISSIVE",
+    "roles": "{public}",
+    "qual": "(auth.uid() = user_id)",
+    "with_check": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "user_vehicles",
+    "policyname": "Users can insert own vehicles",
+    "permissive": "PERMISSIVE",
+    "roles": "{public}",
+    "qual": null,
+    "with_check": "(auth.uid() = user_id)"
+  },
+  {
+    "schemaname": "public",
+    "tablename": "user_vehicles",
+    "policyname": "Users can update own vehicles",
+    "permissive": "PERMISSIVE",
+    "roles": "{public}",
+    "qual": "(auth.uid() = user_id)",
+    "with_check": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "user_vehicles",
+    "policyname": "Users can view own vehicles",
+    "permissive": "PERMISSIVE",
+    "roles": "{public}",
+    "qual": "(auth.uid() = user_id)",
+    "with_check": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "vehicle_photos",
+    "policyname": "Admins can view all vehicle photos",
+    "permissive": "PERMISSIVE",
+    "roles": "{public}",
+    "qual": "(auth.uid() IN ( SELECT profiles.id\n   FROM profiles\n  WHERE (profiles.role = 'admin'::user_role)))",
+    "with_check": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "vehicle_photos",
+    "policyname": "Drivers can upload their own vehicle photos",
+    "permissive": "PERMISSIVE",
+    "roles": "{public}",
+    "qual": null,
+    "with_check": "(EXISTS ( SELECT 1\n   FROM driver_applications\n  WHERE ((driver_applications.id = vehicle_photos.driver_application_id) AND (driver_applications.user_id = auth.uid()))))"
+  },
+  {
+    "schemaname": "public",
+    "tablename": "vehicle_photos",
+    "policyname": "Drivers can view their own vehicle photos",
+    "permissive": "PERMISSIVE",
+    "roles": "{public}",
+    "qual": "(EXISTS ( SELECT 1\n   FROM driver_applications\n  WHERE ((driver_applications.id = vehicle_photos.driver_application_id) AND (driver_applications.user_id = auth.uid()))))",
+    "with_check": null
+  }
+]

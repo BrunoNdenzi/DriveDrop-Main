@@ -5,7 +5,7 @@ import Stripe from 'stripe';
 import config from '@config';
 import { createError } from '@utils/error';
 import { logger } from '@utils/logger';
-import { supabase } from '@lib/supabase';
+import { supabaseAdmin } from '@lib/supabase';
 // import { Database } from '../lib/database.types';
 
 // Initialize Stripe with API key and validate it's configured
@@ -317,7 +317,7 @@ export const stripeService = {
 
       if (shipmentId) {
         // Update the payment record in the database
-        const { error: paymentError } = await supabase
+        const { error: paymentError } = await supabaseAdmin
           .from('payments')
           .update({
             status: 'completed',
@@ -338,10 +338,10 @@ export const stripeService = {
         }
 
         // Update the shipment status
-        const { error: shipmentError } = await supabase
+        const { error: shipmentError } = await supabaseAdmin
           .from('shipments')
           .update({
-            payment_status: 'paid',
+            payment_status: 'completed',
             updated_at: new Date().toISOString(),
           })
           .eq('id', shipmentId);
@@ -381,7 +381,7 @@ export const stripeService = {
 
       if (shipmentId) {
         // Update the payment record in the database
-        const { error: paymentError } = await supabase
+        const { error: paymentError } = await supabaseAdmin
           .from('payments')
           .update({
             status: 'failed',
@@ -400,7 +400,7 @@ export const stripeService = {
         }
 
         // Update the shipment status
-        const { error: shipmentError } = await supabase
+        const { error: shipmentError } = await supabaseAdmin
           .from('shipments')
           .update({
             payment_status: 'failed',
@@ -437,7 +437,7 @@ export const stripeService = {
     amount: number
   ): Promise<void> {
     try {
-      const { error } = await supabase.from('notifications').insert({
+  const { error } = await supabaseAdmin.from('notifications').insert({
         user_id: userId,
         type: 'payment',
         title: type === 'success' ? 'Payment Successful' : type === 'failure' ? 'Payment Failed' : 'Refund Processed',
@@ -478,10 +478,10 @@ export const stripeService = {
 
       if (shipmentId) {
         // Update the payment record in the database
-        const { error: paymentError } = await supabase
+        const { error: paymentError } = await supabaseAdmin
           .from('payments')
           .update({
-            status: 'canceled',
+            status: 'failed',
             payment_intent_id: paymentIntent.id,
             updated_at: new Date().toISOString(),
           })
@@ -497,10 +497,10 @@ export const stripeService = {
         }
 
         // Update the shipment status
-        const { error: shipmentError } = await supabase
+        const { error: shipmentError } = await supabaseAdmin
           .from('shipments')
           .update({
-            payment_status: 'canceled',
+            payment_status: 'failed',
             updated_at: new Date().toISOString(),
           })
           .eq('id', shipmentId);

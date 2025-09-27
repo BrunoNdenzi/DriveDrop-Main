@@ -188,6 +188,7 @@ export interface Database {
           estimated_distance_km: number | null
           estimated_price: number
           final_price: number | null
+          payment_status: 'pending' | 'processing' | 'completed' | 'failed' | 'refunded'
           created_at: string
           updated_at: string
         }
@@ -213,6 +214,7 @@ export interface Database {
           estimated_distance_km?: number | null
           estimated_price: number
           final_price?: number | null
+          payment_status?: 'pending' | 'processing' | 'completed' | 'failed' | 'refunded'
           created_at?: string
           updated_at?: string
         }
@@ -238,6 +240,7 @@ export interface Database {
           estimated_distance_km?: number | null
           estimated_price?: number
           final_price?: number | null
+          payment_status?: 'pending' | 'processing' | 'completed' | 'failed' | 'refunded'
           created_at?: string
           updated_at?: string
         }

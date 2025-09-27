@@ -192,6 +192,7 @@ CREATE TABLE public.shipments (
   estimated_distance_km numeric,
   estimated_price numeric NOT NULL,
   final_price numeric,
+  payment_status USER-DEFINED NOT NULL DEFAULT 'pending'::payment_status,
   created_at timestamp with time zone NOT NULL DEFAULT now(),
   updated_at timestamp with time zone NOT NULL DEFAULT now(),
   pickup_date timestamp with time zone,

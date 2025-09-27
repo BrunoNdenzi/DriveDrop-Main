@@ -44,9 +44,9 @@ CREATE TABLE public.driver_ratings (
   comment text,
   created_at timestamp with time zone DEFAULT now(),
   CONSTRAINT driver_ratings_pkey PRIMARY KEY (id),
+  CONSTRAINT driver_ratings_shipment_id_fkey FOREIGN KEY (shipment_id) REFERENCES public.shipments(id),
   CONSTRAINT driver_ratings_driver_id_fkey FOREIGN KEY (driver_id) REFERENCES public.profiles(id),
-  CONSTRAINT driver_ratings_client_id_fkey FOREIGN KEY (client_id) REFERENCES public.profiles(id),
-  CONSTRAINT driver_ratings_shipment_id_fkey FOREIGN KEY (shipment_id) REFERENCES public.shipments(id)
+  CONSTRAINT driver_ratings_client_id_fkey FOREIGN KEY (client_id) REFERENCES public.profiles(id)
 );
 CREATE TABLE public.driver_settings (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
@@ -72,31 +72,25 @@ CREATE TABLE public.job_applications (
   created_at timestamp with time zone DEFAULT now(),
   updated_at timestamp with time zone DEFAULT now(),
   CONSTRAINT job_applications_pkey PRIMARY KEY (id),
-  CONSTRAINT job_applications_driver_id_fkey FOREIGN KEY (driver_id) REFERENCES public.profiles(id),
-  CONSTRAINT job_applications_shipment_id_fkey FOREIGN KEY (shipment_id) REFERENCES public.shipments(id)
-);
-CREATE TABLE public.message_read_status (
-  id bigint NOT NULL DEFAULT nextval('messages_read_status_id_seq'::regclass),
-  message_id uuid NOT NULL,
-  user_id uuid NOT NULL,
-  is_read boolean NOT NULL DEFAULT false,
-  read_at timestamp with time zone,
-  created_at timestamp with time zone NOT NULL DEFAULT now(),
-  CONSTRAINT message_read_status_pkey PRIMARY KEY (id),
-  CONSTRAINT message_read_status_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.profiles(id),
-  CONSTRAINT message_read_status_message_id_fkey FOREIGN KEY (message_id) REFERENCES public.messages(id)
+  CONSTRAINT job_applications_shipment_id_fkey FOREIGN KEY (shipment_id) REFERENCES public.shipments(id),
+  CONSTRAINT job_applications_driver_id_fkey FOREIGN KEY (driver_id) REFERENCES public.profiles(id)
 );
 CREATE TABLE public.messages (
-  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
   shipment_id uuid NOT NULL,
   sender_id uuid NOT NULL,
-  content text NOT NULL,
-  is_read boolean NOT NULL DEFAULT false,
-  created_at timestamp with time zone NOT NULL DEFAULT now(),
   receiver_id uuid,
+  content text NOT NULL CHECK (length(content) > 0 AND length(content) <= 2000),
+  message_type character varying DEFAULT 'text'::character varying CHECK (message_type::text = ANY (ARRAY['text'::character varying, 'system'::character varying, 'notification'::character varying]::text[])),
+  is_read boolean DEFAULT false,
+  read_at timestamp with time zone,
+  created_at timestamp with time zone DEFAULT now(),
+  expires_at timestamp with time zone DEFAULT (now() + '24:00:00'::interval),
+  metadata jsonb DEFAULT '{}'::jsonb,
   CONSTRAINT messages_pkey PRIMARY KEY (id),
+  CONSTRAINT messages_shipment_id_fkey FOREIGN KEY (shipment_id) REFERENCES public.shipments(id),
   CONSTRAINT messages_sender_id_fkey FOREIGN KEY (sender_id) REFERENCES public.profiles(id),
-  CONSTRAINT messages_shipment_id_fkey FOREIGN KEY (shipment_id) REFERENCES public.shipments(id)
+  CONSTRAINT messages_receiver_id_fkey FOREIGN KEY (receiver_id) REFERENCES public.profiles(id)
 );
 CREATE TABLE public.notification_preferences (
   id uuid NOT NULL DEFAULT uuid_generate_v4(),
@@ -134,13 +128,13 @@ CREATE TABLE public.payments (
   payment_type character varying DEFAULT 'initial'::character varying,
   parent_payment_id uuid,
   CONSTRAINT payments_pkey PRIMARY KEY (id),
-  CONSTRAINT payments_parent_payment_id_fkey FOREIGN KEY (parent_payment_id) REFERENCES public.payments(id),
+  CONSTRAINT payments_shipment_id_fkey FOREIGN KEY (shipment_id) REFERENCES public.shipments(id),
   CONSTRAINT payments_client_id_fkey FOREIGN KEY (client_id) REFERENCES public.profiles(id),
-  CONSTRAINT payments_shipment_id_fkey FOREIGN KEY (shipment_id) REFERENCES public.shipments(id)
+  CONSTRAINT payments_parent_payment_id_fkey FOREIGN KEY (parent_payment_id) REFERENCES public.payments(id)
 );
 CREATE TABLE public.profiles (
   id uuid NOT NULL,
-  email text NOT NULL UNIQUE,
+  email text UNIQUE,
   first_name text NOT NULL,
   last_name text NOT NULL,
   phone text,
@@ -200,6 +194,7 @@ CREATE TABLE public.shipments (
   estimated_distance_km numeric,
   estimated_price numeric NOT NULL,
   final_price numeric,
+  payment_status USER-DEFINED NOT NULL DEFAULT 'pending'::payment_status,
   created_at timestamp with time zone NOT NULL DEFAULT now(),
   updated_at timestamp with time zone NOT NULL DEFAULT now(),
   pickup_date timestamp with time zone,
@@ -218,9 +213,9 @@ CREATE TABLE public.shipments (
   dimensions text,
   updated_by uuid,
   CONSTRAINT shipments_pkey PRIMARY KEY (id),
-  CONSTRAINT shipments_updated_by_fkey FOREIGN KEY (updated_by) REFERENCES public.profiles(id),
   CONSTRAINT shipments_client_id_fkey FOREIGN KEY (client_id) REFERENCES public.profiles(id),
-  CONSTRAINT shipments_driver_id_fkey FOREIGN KEY (driver_id) REFERENCES public.profiles(id)
+  CONSTRAINT shipments_driver_id_fkey FOREIGN KEY (driver_id) REFERENCES public.profiles(id),
+  CONSTRAINT shipments_updated_by_fkey FOREIGN KEY (updated_by) REFERENCES public.profiles(id)
 );
 CREATE TABLE public.spatial_ref_sys (
   srid integer NOT NULL CHECK (srid > 0 AND srid <= 998999),
@@ -241,6 +236,23 @@ CREATE TABLE public.tracking_events (
   CONSTRAINT tracking_events_pkey PRIMARY KEY (id),
   CONSTRAINT tracking_events_shipment_id_fkey FOREIGN KEY (shipment_id) REFERENCES public.shipments(id),
   CONSTRAINT tracking_events_created_by_fkey FOREIGN KEY (created_by) REFERENCES public.profiles(id)
+);
+CREATE TABLE public.user_vehicles (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  user_id uuid NOT NULL,
+  vehicle_type USER-DEFINED NOT NULL,
+  make text NOT NULL,
+  model text NOT NULL,
+  year integer NOT NULL CHECK (year >= 1900 AND year::numeric <= (EXTRACT(year FROM now()) + 2::numeric)),
+  color text,
+  license_plate text CHECK (license_plate IS NULL OR length(license_plate) >= 2 AND length(license_plate) <= 15),
+  nickname text,
+  is_primary boolean NOT NULL DEFAULT false,
+  is_active boolean NOT NULL DEFAULT true,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  updated_at timestamp with time zone NOT NULL DEFAULT now(),
+  CONSTRAINT user_vehicles_pkey PRIMARY KEY (id),
+  CONSTRAINT user_vehicles_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.profiles(id)
 );
 CREATE TABLE public.vehicle_photos (
   id uuid NOT NULL DEFAULT uuid_generate_v4(),
