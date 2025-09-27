@@ -316,6 +316,21 @@ export const stripeService = {
       });
 
       if (shipmentId) {
+        // First verify that the shipment exists
+        const { data: shipmentExists, error: checkError } = await supabaseAdmin
+          .from('shipments')
+          .select('id')
+          .eq('id', shipmentId)
+          .single();
+
+        if (checkError) {
+          logger.error('Error checking if shipment exists', {
+            error: checkError,
+            shipmentId
+          });
+          throw createError(`Shipment ${shipmentId} not found: ${checkError.message}`, 404, 'SHIPMENT_NOT_FOUND');
+        }
+
         // Update the payment record in the database
         const { error: paymentError } = await supabaseAdmin
           .from('payments')
@@ -324,9 +339,7 @@ export const stripeService = {
             payment_intent_id: paymentIntent.id,
             updated_at: new Date().toISOString(),
           })
-          .eq('shipment_id', shipmentId)
-          .select()
-          .single();
+          .eq('shipment_id', shipmentId);
 
         if (paymentError) {
           logger.error('Error updating payment record', { 
@@ -334,7 +347,33 @@ export const stripeService = {
             shipmentId, 
             paymentIntentId: paymentIntent.id 
           });
-          throw createError('Failed to update payment record', 500, 'PAYMENT_UPDATE_FAILED');
+          
+          // Check if this is a foreign key constraint violation
+          if (paymentError.code === '23503') {
+            // Create a new payment record since one might not exist
+            const { error: insertError } = await supabaseAdmin
+              .from('payments')
+              .insert({
+                shipment_id: shipmentId,
+                status: 'completed',
+                payment_intent_id: paymentIntent.id,
+                amount: paymentIntent.amount,
+                created_at: new Date().toISOString(),
+                updated_at: new Date().toISOString(),
+              });
+              
+            if (insertError) {
+              logger.error('Error creating payment record', {
+                error: insertError,
+                shipmentId
+              });
+              throw createError('Failed to create payment record', 500, 'PAYMENT_CREATE_FAILED');
+            }
+            
+            logger.info('Created new payment record for shipment', { shipmentId });
+          } else {
+            throw createError('Failed to update payment record', 500, 'PAYMENT_UPDATE_FAILED');
+          }
         }
 
         // Update the shipment status
@@ -354,10 +393,14 @@ export const stripeService = {
           throw createError('Failed to update shipment status', 500, 'SHIPMENT_UPDATE_FAILED');
         }
 
+        logger.info('Successfully updated shipment payment status to completed', { shipmentId });
+
         // Create a payment notification
         if (clientId) {
           await this.createPaymentNotification(clientId, shipmentId, 'success', paymentIntent.amount);
         }
+      } else {
+        logger.warn('Payment succeeded but no shipmentId in metadata', { paymentIntentId: paymentIntent.id });
       }
     } catch (error) {
       logger.error('Error handling payment success', { error, paymentIntentId: paymentIntent.id });

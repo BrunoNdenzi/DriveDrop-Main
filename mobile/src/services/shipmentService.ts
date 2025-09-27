@@ -507,4 +507,45 @@ export class ShipmentService {
       return [];
     }
   }
+
+  /**
+   * Update shipment payment status
+   * @param shipmentId The ID of the shipment to update
+   * @param status The payment status to set ('pending', 'completed', 'failed', etc.)
+   */
+  static async updatePaymentStatus(shipmentId: string, status: string): Promise<any> {
+    try {
+      console.log(`Updating payment status for shipment ${shipmentId} to ${status}`);
+      
+      // Validate input
+      if (!shipmentId) {
+        throw new Error('Invalid shipment ID');
+      }
+      
+      if (!['pending', 'completed', 'failed', 'refunded'].includes(status)) {
+        throw new Error(`Invalid payment status: ${status}`);
+      }
+
+      const { data, error } = await supabase
+        .from('shipments')
+        .update({
+          payment_status: status,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', shipmentId)
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Error updating payment status:', error);
+        throw error;
+      }
+
+      console.log('Payment status updated successfully:', data);
+      return data;
+    } catch (error) {
+      console.error('ShipmentService.updatePaymentStatus error:', error);
+      throw error;
+    }
+  }
 }

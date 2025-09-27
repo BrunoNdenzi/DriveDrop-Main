@@ -5,6 +5,7 @@ import { Input } from '../ui/Input';
 import { Button } from '../ui/Button';
 import { Colors, Spacing, Typography } from '../../constants/DesignSystem';
 import { paymentService, PaymentMethodRequest } from '../../services/paymentService';
+import { ShipmentService } from '../../services/shipmentService';
 
 interface StripePaymentFormProps {
   amount: number;
@@ -132,6 +133,18 @@ export function StripePaymentForm({
 
       if (result.success) {
         console.log('Payment confirmed successfully');
+        
+        try {
+          // Also update the shipment payment status directly
+          // This provides immediate UI feedback while waiting for the webhook
+          await ShipmentService.updatePaymentStatus(shipmentId, 'completed');
+          console.log('Shipment payment status updated directly');
+        } catch (updateError) {
+          // Don't fail if this update fails - the webhook will eventually handle it
+          console.warn('Could not update payment status directly:', updateError);
+          console.log('Webhook will handle payment status update instead');
+        }
+        
         onPaymentSuccess();
       } else {
         console.error('Payment confirmation failed:', result.error);

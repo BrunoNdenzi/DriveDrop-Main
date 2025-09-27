@@ -227,7 +227,7 @@ export const updateShipment = asyncHandler(async (req: Request, res: Response) =
     'pickup_notes', 'pickup_date', 'delivery_address', 'delivery_city', 'delivery_state', 
     'delivery_zip', 'delivery_notes', 'delivery_date', 'vehicle_type', 'cargo_type',
     'weight', 'dimensions', 'special_instructions', 'estimated_price', 'final_price',
-    'is_accident_recovery', 'distance'
+    'is_accident_recovery', 'distance', 'payment_status'
   ];
 
   const filteredUpdateData = Object.keys(updateData)
