@@ -1,0 +1,30 @@
+-- Function to get column information for a table
+-- This allows the application to query table schema at runtime
+
+CREATE OR REPLACE FUNCTION public.get_table_columns(table_name text)
+RETURNS TABLE (
+  column_name text,
+  data_type text,
+  is_nullable boolean
+) 
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+BEGIN
+  RETURN QUERY
+  SELECT 
+    c.column_name::text,
+    c.data_type::text,
+    (c.is_nullable = 'YES') AS is_nullable
+  FROM 
+    information_schema.columns c
+  WHERE 
+    c.table_schema = 'public' 
+    AND c.table_name = table_name;
+END;
+$$;
+
+-- Grant execute permission to authenticated users
+ALTER FUNCTION public.get_table_columns(text) SECURITY DEFINER;
+GRANT EXECUTE ON FUNCTION public.get_table_columns(text) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.get_table_columns(text) TO service_role;

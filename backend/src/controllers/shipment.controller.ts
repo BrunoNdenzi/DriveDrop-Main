@@ -227,8 +227,10 @@ export const updateShipment = asyncHandler(async (req: Request, res: Response) =
     'title', 'description', 'pickup_address', 'pickup_city', 'pickup_state', 'pickup_zip',
     'pickup_notes', 'pickup_date', 'delivery_address', 'delivery_city', 'delivery_state', 
     'delivery_zip', 'delivery_notes', 'delivery_date', 'vehicle_type', 'cargo_type',
-    'weight', 'dimensions', 'special_instructions', 'estimated_price', 'final_price',
-    'is_accident_recovery', 'distance', 'payment_status'
+    'weight', 'dimensions', 'estimated_price', 'final_price',
+    'is_accident_recovery', 'distance', 'payment_status', 
+    'vehicle_make', 'vehicle_model', 'vehicle_year', 'is_operable',
+    'payment_intent_id', 'terms_accepted', 'status'
   ];
 
   // Log the update request for debugging
@@ -252,6 +254,13 @@ export const updateShipment = asyncHandler(async (req: Request, res: Response) =
     logger.info(`Updating payment status to ${updateData.payment_status} for shipment ${id}`);
   }
 
+  // Log the original update data for debugging
+  logger.info('Original update data received:', { 
+    updateData: JSON.stringify(updateData), 
+    allowedFields: allowedFields.join(', ')
+  });
+  
+  // Filter to only allowed fields
   const filteredUpdateData = Object.keys(updateData)
     .filter(key => allowedFields.includes(key))
     .reduce((obj: any, key) => {
@@ -262,6 +271,27 @@ export const updateShipment = asyncHandler(async (req: Request, res: Response) =
   // Add timestamp
   filteredUpdateData.updated_at = new Date().toISOString();
   filteredUpdateData.updated_by = req.user.id;
+
+  // Check for special handling fields
+  if ('special_instructions' in updateData) {
+    logger.info('Special instructions field detected but not in database schema, removing', {
+      value: updateData.special_instructions
+    });
+    // Could store in description or notes field if needed
+    delete filteredUpdateData.special_instructions;
+  }
+
+  // Handle vehicle photos and documents - these may need special processing
+  if ('vehicle_photos' in updateData || 'ownership_documents' in updateData) {
+    logger.info('Vehicle photos or documents detected', {
+      hasPhotos: 'vehicle_photos' in updateData,
+      hasDocuments: 'ownership_documents' in updateData
+    });
+    // These may need special handling or storage in a related table
+  }
+
+  // Log the filtered data that we'll actually send to the database
+  logger.info('Filtered update data to send to database:', { filteredUpdateData });
 
   try {
     const updatedShipment = await shipmentService.updateShipment(id, filteredUpdateData);

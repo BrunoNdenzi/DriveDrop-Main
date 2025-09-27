@@ -625,7 +625,46 @@ export const shipmentService = {
         throw createError(`Shipment not found: ${id}`, 404, 'SHIPMENT_NOT_FOUND');
       }
 
-      // Perform the update
+      // Verify column existence for each field before update
+      try {
+        // Get column info for the shipments table
+        const { data: tableInfo, error: tableInfoError } = await supabase
+          .rpc('get_table_columns', { table_name: 'shipments' });
+        
+        if (tableInfoError) {
+          logger.warn('Could not fetch table schema, proceeding with update as is', { 
+            error: tableInfoError.message
+          });
+        } else if (tableInfo) {
+          // Filter out fields that don't exist in the table
+          const columns = Array.isArray(tableInfo) ? tableInfo.map(col => col.column_name) : [];
+          const invalidColumns = Object.keys(updateData).filter(key => !columns.includes(key));
+          
+          if (invalidColumns.length > 0) {
+            logger.warn('Some columns in update data do not exist in shipments table', { 
+              invalidColumns 
+            });
+            
+            // Remove non-existent columns from update data
+            invalidColumns.forEach(col => {
+              logger.info(`Removing non-existent column from update: ${col}`);
+              delete updateData[col];
+            });
+            
+            // If no valid columns remain after filtering, throw error
+            if (Object.keys(updateData).length === 0) {
+              throw createError('No valid columns to update', 400, 'INVALID_UPDATE_DATA');
+            }
+          }
+        }
+      } catch (schemaError) {
+        // If this fails, log but continue with update
+        logger.warn('Error checking schema, proceeding with update', { 
+          error: schemaError instanceof Error ? schemaError.message : 'Unknown schema error'
+        });
+      }
+
+      // Perform the update with potentially filtered data
       const { data: updatedData, error } = await supabase
         .from('shipments')
         .update(updateData)
