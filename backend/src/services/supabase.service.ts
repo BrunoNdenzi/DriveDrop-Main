@@ -605,14 +605,34 @@ export const shipmentService = {
     try {
       // Ensure we always update the timestamp
       updateData['updated_at'] = new Date().toISOString();
+      
+      // Log detailed update information
+      logger.info('Updating shipment', { 
+        shipmentId: id, 
+        updateFields: Object.keys(updateData),
+        paymentStatus: updateData['payment_status']
+      });
 
-      const { data, error } = await supabase
+      // First, check if the shipment exists
+      const { data: shipmentCheck, error: checkError } = await supabase
+        .from('shipments')
+        .select('id')
+        .eq('id', id)
+        .single();
+        
+      if (checkError || !shipmentCheck) {
+        logger.error('Shipment not found for update', { id, error: checkError });
+        throw createError(`Shipment not found: ${id}`, 404, 'SHIPMENT_NOT_FOUND');
+      }
+
+      // Perform the update
+      const { data: updatedData, error } = await supabase
         .from('shipments')
         .update(updateData)
         .eq('id', id)
         .select(`
           *,
-          profiles:client_id!inner(
+          client:client_id(
             id,
             first_name,
             last_name,
@@ -623,12 +643,28 @@ export const shipmentService = {
         .single();
 
       if (error) {
-        throw createError(error.message, 400, 'SHIPMENT_UPDATE_FAILED');
+        logger.error('Error in supabase update operation', { 
+          error: error.message, 
+          code: error.code, 
+          details: error.details,
+          shipmentId: id
+        });
+        throw createError(`Update operation failed: ${error.message}`, 400, 'SHIPMENT_UPDATE_FAILED');
       }
 
-      return data;
+      // Log successful update
+      logger.info('Shipment updated successfully', { 
+        shipmentId: id, 
+        updatedFields: Object.keys(updateData) 
+      });
+
+      return updatedData;
     } catch (error) {
-      logger.error('Error updating shipment', { error, id, updateData });
+      logger.error('Error updating shipment', { 
+        error: error instanceof Error ? error.message : 'Unknown error', 
+        shipmentId: id, 
+        updateData
+      });
       throw error;
     }
   },

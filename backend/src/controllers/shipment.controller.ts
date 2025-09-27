@@ -8,6 +8,7 @@ import { shipmentService } from '@services/supabase.service';
 import { pricingService } from '@services/pricing.service';
 import { isValidUuid } from '@utils/validation';
 import { ShipmentStatus } from '../types/api.types';
+import { logger } from '@utils/logger';
 
 /**
  * Get shipment by ID
@@ -230,6 +231,27 @@ export const updateShipment = asyncHandler(async (req: Request, res: Response) =
     'is_accident_recovery', 'distance', 'payment_status'
   ];
 
+  // Log the update request for debugging
+  logger.info('Shipment update request', {
+    shipmentId: id,
+    updateData: JSON.stringify(updateData),
+    userId: req.user.id,
+    userRole: req.user.role
+  });
+
+  // Special validation for payment_status updates
+  if (updateData.payment_status) {
+    const validPaymentStatuses = ['pending', 'processing', 'completed', 'failed', 'refunded'];
+    if (!validPaymentStatuses.includes(updateData.payment_status)) {
+      throw createError(
+        `Invalid payment status: ${updateData.payment_status}. Must be one of: ${validPaymentStatuses.join(', ')}`,
+        400,
+        'INVALID_PAYMENT_STATUS'
+      );
+    }
+    logger.info(`Updating payment status to ${updateData.payment_status} for shipment ${id}`);
+  }
+
   const filteredUpdateData = Object.keys(updateData)
     .filter(key => allowedFields.includes(key))
     .reduce((obj: any, key) => {
@@ -241,9 +263,22 @@ export const updateShipment = asyncHandler(async (req: Request, res: Response) =
   filteredUpdateData.updated_at = new Date().toISOString();
   filteredUpdateData.updated_by = req.user.id;
 
-  const updatedShipment = await shipmentService.updateShipment(id, filteredUpdateData);
-  
-  res.status(200).json(successResponse(updatedShipment));
+  try {
+    const updatedShipment = await shipmentService.updateShipment(id, filteredUpdateData);
+    logger.info('Shipment updated successfully', { shipmentId: id });
+    res.status(200).json(successResponse(updatedShipment));
+  } catch (error) {
+    logger.error('Error updating shipment', { 
+      shipmentId: id, 
+      error: error instanceof Error ? error.message : 'Unknown error',
+      updateData: filteredUpdateData
+    });
+    throw createError(
+      error instanceof Error ? error.message : 'Failed to update shipment', 
+      400, 
+      'SHIPMENT_UPDATE_FAILED'
+    );
+  }
 });
 
 /**

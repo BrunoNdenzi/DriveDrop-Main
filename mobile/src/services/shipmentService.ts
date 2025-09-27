@@ -4,12 +4,61 @@
  */
 import { supabase } from '../lib/supabase';
 import { BookingFormData } from '../context/BookingContext';
-import { Database } from '../lib/database.types';
+import { PostgrestSingleResponse } from '@supabase/supabase-js';
 
-// Define type aliases for better code readability
-type ShipmentRow = Database['public']['Tables']['shipments']['Row'];
-type ShipmentInsert = Database['public']['Tables']['shipments']['Insert'];
-type JobApplicationRow = Database['public']['Tables']['job_applications']['Row'];
+// Define interfaces for database types
+interface ShipmentRow {
+  id: string;
+  client_id: string;
+  driver_id: string | null;
+  status: string;
+  title: string;
+  description: string | null;
+  pickup_address: string;
+  pickup_notes: string | null;
+  delivery_address: string;
+  delivery_notes: string | null;
+  weight_kg: number | null;
+  dimensions_cm: any | null;
+  item_value: number | null;
+  is_fragile: boolean | null;
+  estimated_distance_km: number | null;
+  estimated_price: number;
+  payment_status?: string;
+  created_at: string;
+  updated_at: string;
+  pickup_location?: any;
+  delivery_location?: any;
+}
+
+interface ShipmentInsert {
+  client_id: string;
+  status: string;
+  title: string;
+  description?: string | null;
+  pickup_address: string;
+  pickup_notes?: string | null;
+  delivery_address: string;
+  delivery_notes?: string | null;
+  weight_kg?: number | null;
+  dimensions_cm?: any | null;
+  item_value?: number | null;
+  is_fragile?: boolean;
+  estimated_distance_km?: number | null;
+  estimated_price: number;
+  pickup_location?: any;
+  delivery_location?: any;
+}
+
+interface JobApplicationRow {
+  id: string;
+  driver_id: string;
+  shipment_id: string;
+  status: string;
+  applied_at: string;
+  message?: string;
+}
+
 type RPCResponse = { message?: string; success?: boolean; [key: string]: any };
 
 /**
@@ -90,7 +139,7 @@ export class ShipmentService {
         .from('shipments')
         .insert(insertPayload)
         .select()
-        .single();
+        .single() as PostgrestSingleResponse<ShipmentRow>;
 
       if (error) {
         console.error('Error creating shipment in Supabase:', error);

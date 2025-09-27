@@ -27,7 +27,7 @@ export class PaymentStatusService {
         throw new Error(`Invalid payment status: ${status}. Must be one of: ${validStatuses.join(', ')}`);
       }
 
-      // Define update data with proper type
+      // Define update data
       const updateData: ShipmentUpdate = {
         payment_status: status,
         updated_at: new Date().toISOString()
