@@ -5,7 +5,7 @@ import { Input } from '../ui/Input';
 import { Button } from '../ui/Button';
 import { Colors, Spacing, Typography } from '../../constants/DesignSystem';
 import { paymentService, PaymentMethodRequest } from '../../services/paymentService';
-import { ShipmentService } from '../../services/shipmentService';
+import { PaymentStatusService } from '../../services/paymentStatusService';
 
 interface StripePaymentFormProps {
   amount: number;
@@ -137,7 +137,7 @@ export function StripePaymentForm({
         try {
           // Also update the shipment payment status directly
           // This provides immediate UI feedback while waiting for the webhook
-          await ShipmentService.updatePaymentStatus(shipmentId, 'completed');
+          await PaymentStatusService.updatePaymentStatus(shipmentId, 'completed');
           console.log('Shipment payment status updated directly');
         } catch (updateError) {
           // Don't fail if this update fails - the webhook will eventually handle it

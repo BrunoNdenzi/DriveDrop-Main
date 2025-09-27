@@ -10,6 +10,9 @@
     "test-health": "node test-health-only.js",
     "auth-helper": "node auth-helper.js",
     "check-driver-api": "node ../backend/scripts/check-driver-api.js",
+    "test-payment-status": "node test-payment-status.js",
+    "test-payment-webhook": "node test-payment-webhook-handler.js",
+    "test-payment-status-update": "node test-payment-status-update.js",
     "install-deps": "npm install"
   },
   "dependencies": {

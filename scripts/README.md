@@ -10,6 +10,24 @@ This directory contains scripts for testing and debugging the DriveDrop applicat
 
 ## Available Scripts
 
+## Payment Testing
+
+1. **test-payment-status.js**
+   - Comprehensive test for payment status update functionality
+   - Tests both RLS policy and backend controller
+   - Verifies client API and service role updates
+   - Run with: `npm run test-payment-status` or `./test-payment-status.sh` or `test-payment-status.bat`
+
+2. **test-payment-status-update.js**
+   - Tests the service role's ability to update payment_status
+   - Useful for verifying RLS policy fixes
+   - Run with: `npm run test-payment-status-update` or `node test-payment-status-update.js [shipment_id]`
+
+3. **test-payment-webhook-handler.js**
+   - Tests the Stripe webhook handler functionality
+   - Simulates payment success and failure events
+   - Run with: `npm run test-payment-webhook`
+
 ## Authentication Testing
 
 1. **auth-helper.js**
@@ -176,3 +194,77 @@ If the tests are failing:
 3. Verify that the database function `get_driver_applications` exists
 4. Ensure the API route is properly defined in `driver.routes.ts`
 5. Check that the controller function in `application.controller.ts` is working
+
+## Running Payment Status Tests
+
+The payment status tests verify that both the RLS policies and the backend controller allow proper updating of shipment payment statuses.
+
+### Setup for Payment Status Tests
+
+1. Copy the `.env.example` file to `.env`:
+   ```bash
+   cp .env.example .env
+   ```
+
+2. Edit the `.env` file with your Supabase credentials:
+   ```
+   SUPABASE_URL=https://your-project.supabase.co
+   SUPABASE_ANON_KEY=your-anon-key
+   SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
+   TEST_USER_EMAIL=client@example.com
+   TEST_USER_PASSWORD=password123
+   ```
+
+3. Install the required dependencies:
+   ```bash
+   npm install
+   ```
+
+### Running the Comprehensive Test
+
+This test verifies both client API updates and service role updates:
+
+**On Windows:**
+```bash
+test-payment-status.bat
+```
+
+**On Linux/macOS:**
+```bash
+./test-payment-status.sh
+```
+
+**Using npm:**
+```bash
+npm run test-payment-status
+```
+
+### Running the Service Role Test
+
+This test verifies that the service role can update payment_status (for webhooks):
+
+```bash
+node test-payment-status-update.js [optional-shipment-id]
+```
+
+### Troubleshooting Payment Tests
+
+If you encounter issues:
+
+1. **API Connection Errors**:
+   - Ensure your backend API is running on the correct port
+   - Check the API_URL value in your .env file
+
+2. **Authentication Errors**:
+   - Verify that TEST_USER_EMAIL and TEST_USER_PASSWORD are correct
+   - Check that the user exists in your database
+
+3. **Service Role Permission Errors**:
+   - Verify that the RLS policy for service role has been applied
+   - Make sure SUPABASE_SERVICE_ROLE_KEY is correct
+
+4. **Client Update Errors**:
+   - Check that payment_status is included in allowedFields in shipment.controller.ts
+   - Verify client authentication is working properly
+
+```

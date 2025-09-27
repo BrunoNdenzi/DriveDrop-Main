@@ -317,7 +317,7 @@ export const stripeService = {
 
       if (shipmentId) {
         // First verify that the shipment exists
-        const { data: shipmentExists, error: checkError } = await supabaseAdmin
+        const { data: shipmentData, error: checkError } = await supabaseAdmin
           .from('shipments')
           .select('id')
           .eq('id', shipmentId)
@@ -329,6 +329,12 @@ export const stripeService = {
             shipmentId
           });
           throw createError(`Shipment ${shipmentId} not found: ${checkError.message}`, 404, 'SHIPMENT_NOT_FOUND');
+        }
+        
+        // Verify we got a valid shipment back
+        if (!shipmentData) {
+          logger.error('Shipment not found', { shipmentId });
+          throw createError(`Shipment ${shipmentId} not found`, 404, 'SHIPMENT_NOT_FOUND');
         }
 
         // Update the payment record in the database

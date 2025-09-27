@@ -10,6 +10,41 @@ export type Json =
 export interface Database {
   public: {
     Tables: {
+      job_applications: {
+        Row: {
+          id: string
+          shipment_id: string
+          driver_id: string
+          status: 'pending' | 'accepted' | 'rejected'
+          applied_at: string
+          responded_at: string | null
+          notes: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          shipment_id: string
+          driver_id: string
+          status?: 'pending' | 'accepted' | 'rejected'
+          applied_at?: string
+          responded_at?: string | null
+          notes?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          shipment_id?: string
+          driver_id?: string
+          status?: 'pending' | 'accepted' | 'rejected'
+          applied_at?: string
+          responded_at?: string | null
+          notes?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+      }
       profiles: {
         Row: {
           id: string

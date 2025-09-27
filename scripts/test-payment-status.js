@@ -3,6 +3,7 @@
  */
 const fetch = require('node-fetch');
 const { createClient } = require('@supabase/supabase-js');
+require('dotenv').config();
 
 // Configuration 
 const API_URL = process.env.API_URL || 'http://localhost:3000';
@@ -10,9 +11,20 @@ const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY;
 
+// Check for required environment variables
+if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY || !SUPABASE_ANON_KEY) {
+  console.error('Error: Missing required environment variables. Please check your .env file.');
+  console.error('Required variables: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, SUPABASE_ANON_KEY');
+  process.exit(1);
+}
+
 // Create Supabase clients
-const supabaseAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
-const supabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+const supabaseAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
+  auth: { persistSession: false }
+});
+const supabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+  auth: { persistSession: false }
+});
 
 let testUserId;
 let testShipmentId;
@@ -64,28 +76,41 @@ async function main() {
     
     // 3. Test updating payment status via the client API (should work now)
     console.log('\n3. Testing client API update...');
-    const clientUpdateResponse = await fetch(`${API_URL}/api/v1/shipments/${testShipmentId}`, {
-      method: 'PATCH',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${authToken}`
-      },
-      body: JSON.stringify({
-        payment_status: 'completed'
-      })
-    });
-    
-    const clientUpdateResult = await clientUpdateResponse.json();
-    console.log('Client API update response:', {
-      status: clientUpdateResponse.status,
-      ok: clientUpdateResponse.ok,
-      data: clientUpdateResult
-    });
-    
-    if (!clientUpdateResponse.ok) {
-      console.error('Client API update failed. This is unexpected with our fix.');
-    } else {
-      console.log('Client API update succeeded! The controller fix is working.');
+    try {
+      const clientUpdateResponse = await fetch(`${API_URL}/api/v1/shipments/${testShipmentId}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${authToken}`
+        },
+        body: JSON.stringify({
+          payment_status: 'completed'
+        })
+      });
+      
+      let clientUpdateResult;
+      try {
+        clientUpdateResult = await clientUpdateResponse.json();
+      } catch (e) {
+        console.error('Failed to parse response as JSON:', e.message);
+        clientUpdateResult = { error: 'Failed to parse response' };
+      }
+      
+      console.log('Client API update response:', {
+        status: clientUpdateResponse.status,
+        ok: clientUpdateResponse.ok,
+        data: clientUpdateResult
+      });
+      
+      if (!clientUpdateResponse.ok) {
+        console.error('Client API update failed. This is unexpected with our fix.');
+        console.error('Error details:', clientUpdateResult);
+      } else {
+        console.log('Client API update succeeded! The controller fix is working.');
+      }
+    } catch (networkError) {
+      console.error('Network error when calling the API:', networkError.message);
+      console.error('Is your API server running at', API_URL, '?');
     }
     
     // 4. Reset payment status back to pending
