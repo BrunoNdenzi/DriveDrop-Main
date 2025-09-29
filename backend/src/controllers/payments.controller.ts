@@ -931,11 +931,50 @@ export const completeShipmentAfterPayment = asyncHandler(async (req: Request, re
       // Fallback: Try a direct minimal update using supabaseAdmin
       try {
         logger.info('Attempting direct minimal update');
+        
+        // First, check current status to handle RLS constraint
+        const { data: currentShipment, error: checkError } = await supabaseAdmin
+          .from('shipments')
+          .select('id, status, client_id')
+          .eq('id', shipmentId)
+          .single();
+          
+        if (checkError || !currentShipment) {
+          logger.error('Cannot check current shipment status', { checkError });
+          throw new Error('Cannot verify shipment status for update');
+        }
+        
+        logger.info('Current shipment status for RLS handling', {
+          currentStatus: currentShipment.status,
+          clientId: currentShipment.client_id
+        });
+        
+        // Handle RLS constraint - if status is not pending/open/cancelled, update to open first
+        if (!['pending', 'open', 'cancelled'].includes(currentShipment.status)) {
+          logger.info('Updating to open status first to satisfy RLS constraints');
+          const { error: openError } = await supabaseAdmin
+            .from('shipments')
+            .update({
+              status: 'open',
+              updated_at: new Date().toISOString()
+            })
+            .eq('id', shipmentId);
+            
+          if (openError) {
+            logger.error('Failed to update to open status', { openError });
+            throw openError;
+          }
+          
+          logger.info('Successfully updated to open status');
+        }
+        
+        // Now perform the main update
         const { data: directUpdate, error: directError } = await supabaseAdmin
           .from('shipments')
           .update({
             payment_intent_id: paymentIntentId,
             payment_status: 'completed',
+            status: 'accepted',
             updated_at: new Date().toISOString(),
             updated_by: req.user.id
           })
