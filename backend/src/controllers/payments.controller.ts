@@ -1008,20 +1008,14 @@ export const completeShipmentAfterPayment = asyncHandler(async (req: Request, re
       }
     }
 
-    // Step 6: Create tracking event for the completion
-    logger.info('Creating tracking event for shipment completion');
-    try {
-      await shipmentService.createTrackingEvent(
-        shipmentId,
-        'accepted',
-        req.user.id,
-        null,
-        `Payment completed and shipment accepted. Payment ID: ${paymentIntentId}`
-      );
-      logger.info('Tracking event created successfully');
-    } catch (trackingError) {
-      logger.warn('Failed to create tracking event, but continuing', { trackingError });
-    }
+    // Shipment completion successful - tracking events will be created by other triggers
+    logger.info('Shipment completion successful', {
+      shipmentId,
+      paymentIntentId,
+      userId: req.user.id,
+      newStatus: updatedShipment?.status || 'accepted',
+      paymentStatus: updatedShipment?.payment_status || 'completed'
+    });
 
     // Step 7: Return success response
     res.status(200).json(successResponse({
