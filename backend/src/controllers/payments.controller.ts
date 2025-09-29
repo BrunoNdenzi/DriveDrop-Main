@@ -909,15 +909,65 @@ export const completeShipmentAfterPayment = asyncHandler(async (req: Request, re
 
     // Step 5: Update the shipment
     logger.info('Updating shipment in database');
-    const updatedShipment = await shipmentService.updateShipment(shipmentId, updateData);
-
-    logger.info('Shipment completion successful', {
-      shipmentId,
-      paymentIntentId,
-      userId: req.user.id,
-      newStatus: updatedShipment.status,
-      paymentStatus: updatedShipment.payment_status
-    });
+    
+    let updatedShipment: any;
+    
+    try {
+      updatedShipment = await shipmentService.updateShipment(shipmentId, updateData);
+      
+      logger.info('Shipment completion successful', {
+        shipmentId,
+        paymentIntentId,
+        userId: req.user.id,
+        newStatus: updatedShipment.status,
+        paymentStatus: updatedShipment.payment_status
+      });
+    } catch (updateError) {
+      logger.error('Primary shipment update failed, trying direct approach', {
+        error: updateError instanceof Error ? updateError.message : 'Unknown error',
+        shipmentId
+      });
+      
+      // Fallback: Try a direct minimal update using supabaseAdmin
+      try {
+        logger.info('Attempting direct minimal update');
+        const { data: directUpdate, error: directError } = await supabaseAdmin
+          .from('shipments')
+          .update({
+            payment_intent_id: paymentIntentId,
+            payment_status: 'completed',
+            updated_at: new Date().toISOString(),
+            updated_by: req.user.id
+          })
+          .eq('id', shipmentId)
+          .select('*')
+          .single();
+          
+        if (directError) {
+          logger.error('Direct update also failed', {
+            error: directError.message,
+            code: directError.code,
+            details: directError.details
+          });
+          throw directError;
+        }
+        
+        logger.info('Direct update succeeded', {
+          shipmentId,
+          updatedFields: ['payment_intent_id', 'payment_status', 'updated_at', 'updated_by']
+        });
+        
+        // Use the direct update result
+        updatedShipment = directUpdate;
+      } catch (directUpdateError) {
+        logger.error('Both update methods failed', {
+          primaryError: updateError instanceof Error ? updateError.message : 'Unknown error',
+          directError: directUpdateError instanceof Error ? directUpdateError.message : 'Unknown error',
+          shipmentId
+        });
+        throw updateError; // Throw the original error
+      }
+    }
 
     // Step 6: Create tracking event for the completion
     logger.info('Creating tracking event for shipment completion');
