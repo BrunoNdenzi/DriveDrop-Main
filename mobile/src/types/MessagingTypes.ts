@@ -145,6 +145,7 @@ export interface UseMessagingReturn {
   disconnect: () => void;
   clearError: () => void;
   getConversationByShipment: (shipmentId: string) => Promise<ConversationInfo | null>;
+  debugAuth?: () => Promise<void>;
 }
 
 // Real-time event types
@@ -212,28 +213,3 @@ export interface Contact {
   isAdmin?: boolean;
   role?: string;
 }
-
-// Export all types as default for easy importing
-export default {
-  UserProfile,
-  Conversation,
-  Message,
-  MessageGroup,
-  SendMessageRequest,
-  SendMessageResponse,
-  MessagingStatus,
-  ConversationInfo,
-  ApiResponse,
-  ApiError,
-  UseMessagingOptions,
-  UseMessagingReturn,
-  MessageEvent,
-  ConversationEvent,
-  MessageStatus,
-  MessageWithStatus,
-  ConversationFilter,
-  MessageFilter,
-  AdminConversationView,
-  ConversationAnalytics,
-  Contact
-};

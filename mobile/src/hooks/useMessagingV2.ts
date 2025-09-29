@@ -4,6 +4,7 @@
  */
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { RealtimeChannel } from '@supabase/supabase-js';
+import { supabase } from '../lib/supabase';
 import { MessagingService } from '../services/MessagingServiceV2';
 import { 
   Message, 
@@ -329,6 +330,49 @@ export function useMessagingV2(options: UseMessagingOptions = {}): UseMessagingR
   }, []);
 
   /**
+   * Debug authentication
+   */
+  const debugAuth = useCallback(async () => {
+    try {
+      console.log('🧪 Testing authentication...');
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      console.log('🔑 Session details:', {
+        hasSession: !!session,
+        userId: session?.user?.id,
+        userEmail: session?.user?.email,
+        tokenLength: session?.access_token?.length,
+        expires: session?.expires_at
+      });
+
+      if (session) {
+        // Test a simple API call
+        const testResponse = await fetch(`${process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3000'}/api/v1/messages-v2/conversations`, {
+          headers: {
+            'Authorization': `Bearer ${session.access_token}`
+          }
+        });
+        
+        console.log('🌐 Test API call result:', {
+          status: testResponse.status,
+          ok: testResponse.ok,
+          statusText: testResponse.statusText
+        });
+        
+        if (testResponse.ok) {
+          const result = await testResponse.json();
+          console.log('✅ API Response:', result);
+        } else {
+          const errorText = await testResponse.text();
+          console.log('❌ API Error:', errorText);
+        }
+      }
+    } catch (error) {
+      console.error('🚨 Debug auth error:', error);
+    }
+  }, []);
+
+  /**
    * Load messaging status for current conversation
    */
   const loadMessagingStatus = useCallback(async () => {
@@ -346,10 +390,13 @@ export function useMessagingV2(options: UseMessagingOptions = {}): UseMessagingR
 
   // Effects
   useEffect(() => {
+    // Debug authentication on mount
+    debugAuth();
+    
     if (loadInitialMessages) {
       loadMessagesData();
     }
-  }, [loadMessagesData]);
+  }, [loadMessagesData, debugAuth]);
 
   useEffect(() => {
     loadMessagingStatus();
@@ -390,6 +437,7 @@ export function useMessagingV2(options: UseMessagingOptions = {}): UseMessagingR
     connect,
     disconnect,
     clearError,
-    getConversationByShipment
+    getConversationByShipment,
+    debugAuth
   };
 }

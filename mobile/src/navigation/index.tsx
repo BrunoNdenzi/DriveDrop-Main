@@ -35,6 +35,9 @@ import DriverProfileScreen from '../screens/driver/DriverProfileScreen';
 // Messaging Screens
 import MessagingScreenV2 from '../screens/messaging/MessagingScreenV2';
 
+// Debug Screens
+import MessagingDebugScreen from '../screens/debug/MessagingDebugScreen';
+
 // Diagnostic Screens
 import NetworkDiagnosticScreen from '../screens/NetworkDiagnosticScreen';
 
@@ -88,22 +91,12 @@ function ClientTabNavigator() {
         }}
       />
       <ClientTab.Screen
-        name="Messages"
-        component={MessagesScreen}
+        name="MessagesV2"
+        component={MessagingScreenV2}
         options={{
           tabBarLabel: 'Messages',
           tabBarIcon: ({ color, size }: { color: string; size: number }) => (
             <MaterialIcons name="chat" color={color} size={size} />
-          ),
-        }}
-      />
-      <ClientTab.Screen
-        name="MessagesV2"
-        component={MessagingScreenV2}
-        options={{
-          tabBarLabel: 'Chat',
-          tabBarIcon: ({ color, size }: { color: string; size: number }) => (
-            <MaterialIcons name="chat-bubble" color={color} size={size} />
           ),
         }}
       />
@@ -188,8 +181,8 @@ function DriverTabNavigator() {
         }}
       />
       <DriverTab.Screen
-        name="Messages"
-        component={MessagesScreen}
+        name="MessagesV2"
+        component={MessagingScreenV2}
         options={{
           tabBarLabel: 'Messages',
           tabBarIcon: ({ color, size }: { color: string; size: number }) => (
@@ -198,12 +191,12 @@ function DriverTabNavigator() {
         }}
       />
       <DriverTab.Screen
-        name="MessagesV2"
-        component={MessagingScreenV2}
+        name="Debug"
+        component={MessagingDebugScreen}
         options={{
-          tabBarLabel: 'Chat',
+          tabBarLabel: 'Debug',
           tabBarIcon: ({ color, size }: { color: string; size: number }) => (
-            <MaterialIcons name="chat-bubble" color={color} size={size} />
+            <MaterialIcons name="bug-report" color={color} size={size} />
           ),
         }}
       />

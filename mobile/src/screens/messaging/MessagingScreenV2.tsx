@@ -91,9 +91,13 @@ export default function MessagingScreenV2({ route, navigation }: MessagingScreen
   useEffect(() => {
     // If shipmentId is provided, get the conversation for that shipment
     if (shipmentId && !conversationId) {
+      console.log('🚢 Getting conversation for shipment:', shipmentId);
       getConversationByShipment(shipmentId).then(conversationInfo => {
+        console.log('📋 Conversation info received:', conversationInfo);
         if (conversationInfo && conversationInfo.can_access) {
           setSelectedConversationId(conversationInfo.id);
+        } else {
+          console.log('❌ No accessible conversation found for shipment');
         }
       });
     }

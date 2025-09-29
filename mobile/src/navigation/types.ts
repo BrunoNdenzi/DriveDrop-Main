@@ -66,7 +66,6 @@ export type RootStackParamList = {
 
 export type ClientTabParamList = {
   Home: undefined;
-  Messages: { contactId?: string };
   MessagesV2: undefined;
   Shipments: undefined;
   Profile: undefined;
@@ -76,8 +75,8 @@ export type DriverTabParamList = {
   Dashboard: undefined;
   AvailableShipments: undefined;
   MyShipments: undefined;
-  Messages: { contactId?: string };
   MessagesV2: undefined;
+  Debug: undefined;
   Profile: undefined;
 };
 

@@ -68,12 +68,77 @@ export const sendMessage = asyncHandler(async (req: AuthenticatedRequest, res: R
   }
 
   try {
-    // Use the new database function
-    const { data, error } = await supabase.rpc('send_message_v2', {
-      p_conversation_id: conversation_id,
-      p_content: content.trim(),
-      p_message_type: message_type
-    });
+    // First check if user can access this conversation
+    const { data: conversationCheck, error: conversationError } = await supabase
+      .from('conversations')
+      .select(`
+        id,
+        is_active,
+        expires_at,
+        driver_id,
+        client_id,
+        shipment_id
+      `)
+      .eq('id', conversation_id)
+      .single();
+
+    if (conversationError || !conversationCheck) {
+      console.error('Conversation not found:', conversationError);
+      return res.status(404).json(errorResponse('Conversation not found', 'CONVERSATION_NOT_FOUND'));
+    }
+
+    // Check access permissions
+    const { data: userProfile } = await supabase
+      .from('profiles')
+      .select('role')
+      .eq('id', userId)
+      .single();
+
+    const canAccess = userProfile?.role === 'admin' || 
+                     conversationCheck.driver_id === userId || 
+                     conversationCheck.client_id === userId;
+
+    if (!canAccess) {
+      return res.status(403).json(errorResponse('Access denied to this conversation', 'ACCESS_DENIED'));
+    }
+
+    // Check if conversation is still active (for non-admin users)
+    if (userProfile?.role !== 'admin' && 
+        !conversationCheck.is_active && 
+        conversationCheck.expires_at && 
+        new Date(conversationCheck.expires_at) <= new Date()) {
+      return res.status(400).json(errorResponse('This conversation has expired', 'CONVERSATION_EXPIRED'));
+    }
+
+    // Insert the message directly
+    const { data, error } = await supabase
+      .from('messages')
+      .insert({
+        conversation_id: conversation_id,
+        sender_id: userId,
+        content: content.trim(),
+        message_type: message_type,
+        delivered_at: new Date().toISOString()
+      })
+      .select(`
+        id,
+        conversation_id,
+        sender_id,
+        content,
+        message_type,
+        sent_at,
+        delivered_at,
+        read_at,
+        created_at,
+        sender:profiles!sender_id(
+          id,
+          first_name,
+          last_name,
+          avatar_url,
+          role
+        )
+      `)
+      .single();
 
     if (error) {
       console.error('Database error sending message:', error);
@@ -111,11 +176,64 @@ export const getConversationMessages = asyncHandler(async (req: AuthenticatedReq
   }
 
   try {
-    const { data, error } = await supabase.rpc('get_conversation_messages_v2', {
-      p_conversation_id: conversationId,
-      p_limit: parseInt(limit as string, 10),
-      p_offset: parseInt(offset as string, 10)
-    });
+    // First check if user can access this conversation
+    const { data: conversationCheck, error: conversationError } = await supabase
+      .from('conversations')
+      .select(`
+        id,
+        is_active,
+        expires_at,
+        driver_id,
+        client_id,
+        shipment_id
+      `)
+      .eq('id', conversationId)
+      .single();
+
+    if (conversationError || !conversationCheck) {
+      console.error('Conversation not found:', conversationError);
+      return res.status(404).json(errorResponse('Conversation not found', 'CONVERSATION_NOT_FOUND'));
+    }
+
+    // Check access permissions
+    const { data: userProfile } = await supabase
+      .from('profiles')
+      .select('role')
+      .eq('id', userId)
+      .single();
+
+    const canAccess = userProfile?.role === 'admin' || 
+                     conversationCheck.driver_id === userId || 
+                     conversationCheck.client_id === userId;
+
+    if (!canAccess) {
+      return res.status(403).json(errorResponse('Access denied to this conversation', 'ACCESS_DENIED'));
+    }
+
+    // Get messages directly
+    const { data, error } = await supabase
+      .from('messages')
+      .select(`
+        id,
+        conversation_id,
+        sender_id,
+        content,
+        message_type,
+        sent_at,
+        delivered_at,
+        read_at,
+        created_at,
+        sender:profiles!sender_id(
+          id,
+          first_name,
+          last_name,
+          avatar_url,
+          role
+        )
+      `)
+      .eq('conversation_id', conversationId)
+      .order('created_at', { ascending: true })
+      .range(parseInt(offset as string, 10), parseInt(offset as string, 10) + parseInt(limit as string, 10) - 1);
 
     if (error) {
       console.error('Database error fetching messages:', error);
@@ -183,9 +301,48 @@ export const markMessageAsRead = asyncHandler(async (req: AuthenticatedRequest, 
   }
 
   try {
-    const { data, error } = await supabase.rpc('mark_message_as_read_v2', {
-      p_message_id: messageId
-    });
+    // First verify the message exists and user can access it
+    const { data: messageCheck, error: messageError } = await supabase
+      .from('messages')
+      .select(`
+        id,
+        conversation_id,
+        sender_id,
+        conversations!inner(
+          driver_id,
+          client_id
+        )
+      `)
+      .eq('id', messageId)
+      .single();
+
+    if (messageError || !messageCheck) {
+      console.error('Message not found:', messageError);
+      return res.status(404).json(errorResponse('Message not found', 'MESSAGE_NOT_FOUND'));
+    }
+
+    // Check if user can access this message (either part of conversation or admin)
+    const { data: userProfile } = await supabase
+      .from('profiles')
+      .select('role')
+      .eq('id', userId)
+      .single();
+
+    const canAccess = userProfile?.role === 'admin' || 
+                     messageCheck.conversations.driver_id === userId || 
+                     messageCheck.conversations.client_id === userId;
+
+    if (!canAccess) {
+      return res.status(403).json(errorResponse('Access denied to this message', 'ACCESS_DENIED'));
+    }
+
+    // Update the message as read
+    const { data, error } = await supabase
+      .from('messages')
+      .update({ read_at: new Date().toISOString() })
+      .eq('id', messageId)
+      .select('read_at')
+      .single();
 
     if (error) {
       console.error('Database error marking message as read:', error);
@@ -193,7 +350,7 @@ export const markMessageAsRead = asyncHandler(async (req: AuthenticatedRequest, 
     }
 
     console.log('✅ Message marked as read:', data);
-    return res.status(200).json(successResponse({ read: data }, 'Message marked as read'));
+    return res.status(200).json(successResponse({ read: !!data.read_at }, 'Message marked as read'));
   } catch (error: any) {
     console.error('Error marking message as read:', error);
     return res.status(500).json(errorResponse('Failed to mark message as read', 'MARK_READ_FAILED'));

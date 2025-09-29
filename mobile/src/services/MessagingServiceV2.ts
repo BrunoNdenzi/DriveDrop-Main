@@ -4,6 +4,7 @@
  */
 import { supabase } from '../lib/supabase';
 import { RealtimeChannel } from '@supabase/supabase-js';
+import { getApiUrl } from '../utils/environment';
 import { 
   Message, 
   Conversation, 
@@ -22,8 +23,11 @@ export class MessagingServiceV2 {
   private channels: Map<string, RealtimeChannel> = new Map();
   private messageCallbacks: Map<string, (event: MessageEvent) => void> = new Map();
   private conversationCallbacks: Map<string, (event: ConversationEvent) => void> = new Map();
+  private apiUrl: string;
 
-  private constructor() {}
+  private constructor() {
+    this.apiUrl = getApiUrl();
+  }
 
   public static getInstance(): MessagingServiceV2 {
     if (!MessagingServiceV2.instance) {
@@ -38,17 +42,69 @@ export class MessagingServiceV2 {
   async sendMessage(request: SendMessageRequest): Promise<SendMessageResponse> {
     try {
       console.log('📤 MessagingServiceV2.sendMessage:', request);
+      console.log('🌐 API URL:', this.apiUrl);
 
-      const response = await fetch(`${process.env.EXPO_PUBLIC_API_BASE_URL}/api/v1/messages/send`, {
+      // Get the user session with detailed debugging
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      
+      console.log('🔑 Session debug for sendMessage:', {
+        hasSession: !!session,
+        sessionError: sessionError?.message,
+        userId: session?.user?.id,
+        tokenExists: !!session?.access_token,
+        tokenLength: session?.access_token?.length,
+        tokenPreview: session?.access_token?.substring(0, 20) + '...'
+      });
+
+      if (!session || !session.access_token) {
+        throw new Error('User not authenticated - no session or token');
+      }
+
+      const headers = {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${session.access_token}`
+      };
+
+      console.log('🎯 Request headers:', {
+        'Content-Type': headers['Content-Type'],
+        'Authorization': `Bearer ${session.access_token.substring(0, 20)}...`
+      });
+
+      console.log('📦 Request body:', JSON.stringify(request, null, 2));
+
+      const response = await fetch(`${this.apiUrl}/api/v1/messages-v2/send`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`
-        },
+        headers,
         body: JSON.stringify(request)
       });
 
-      const result: ApiResponse<Message> = await response.json();
+      console.log('🌐 Send message response:', {
+        status: response.status,
+        statusText: response.statusText,
+        ok: response.ok,
+        headers: Object.fromEntries(response.headers.entries())
+      });
+
+      let result: any;
+      const responseText = await response.text();
+      console.log('📄 Raw response text:', responseText);
+
+      try {
+        result = JSON.parse(responseText);
+        console.log('📋 Parsed response:', result);
+      } catch (parseError) {
+        console.error('🚨 Failed to parse response as JSON:', parseError);
+        throw new Error(`Invalid response format: ${responseText}`);
+      }
+
+      if (!response.ok) {
+        console.error('🚨 HTTP Error Response:', {
+          status: response.status,
+          statusText: response.statusText,
+          body: result
+        });
+        throw new Error(result?.error?.message || result?.message || `HTTP ${response.status}: ${response.statusText}`);
+      }
 
       if (!result.success) {
         throw new Error(result.error?.message || 'Failed to send message');
@@ -58,6 +114,10 @@ export class MessagingServiceV2 {
       return result;
     } catch (error) {
       console.error('🚨 Error sending message:', error);
+      console.error('🚨 Network error details:', {
+        url: `${this.apiUrl}/api/v1/messages-v2/send`,
+        error: error
+      });
       throw error;
     }
   }
@@ -77,17 +137,37 @@ export class MessagingServiceV2 {
         offset
       });
 
+      // Get the user session
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      console.log('🔑 Session check for getConversationMessages:', {
+        hasSession: !!session,
+        userId: session?.user?.id,
+        tokenLength: session?.access_token?.length
+      });
+      
+      if (!session) {
+        throw new Error('User not authenticated');
+      }
+
       const response = await fetch(
-        `${process.env.EXPO_PUBLIC_API_BASE_URL}/api/v1/messages/conversation/${conversationId}?limit=${limit}&offset=${offset}`,
+        `${this.apiUrl}/api/v1/messages-v2/conversation/${conversationId}?limit=${limit}&offset=${offset}`,
         {
           method: 'GET',
           headers: {
-            'Authorization': `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`
+            'Authorization': `Bearer ${session.access_token}`
           }
         }
       );
 
-      const result: ApiResponse<Message[]> = await response.json();
+      const result: ApiResponse<Message[]> | any = await response.json();
+
+      console.log('📥 API Response:', {
+        status: response.status,
+        success: result.success,
+        error: result.error,
+        dataLength: result.data?.length
+      });
 
       if (!result.success) {
         throw new Error(result.error?.message || 'Failed to fetch messages');
@@ -108,14 +188,42 @@ export class MessagingServiceV2 {
     try {
       console.log('📋 MessagingServiceV2.getUserConversations');
 
-      const response = await fetch(`${process.env.EXPO_PUBLIC_API_BASE_URL}/api/v1/messages/conversations`, {
+      // Debug authentication
+      const { data: { session } } = await supabase.auth.getSession();
+      console.log('🔑 Auth Debug:', {
+        hasSession: !!session,
+        userId: session?.user?.id,
+        userEmail: session?.user?.email,
+        tokenExists: !!session?.access_token,
+        tokenLength: session?.access_token?.length
+      });
+      
+      if (!session) {
+        throw new Error('User not authenticated');
+      }
+
+      const response = await fetch(`${this.apiUrl}/api/v1/messages-v2/conversations`, {
         method: 'GET',
         headers: {
-          'Authorization': `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`
+          'Authorization': `Bearer ${session.access_token}`
         }
       });
 
-      const result: ApiResponse<Conversation[]> = await response.json();
+      console.log('🌐 API Response Details:', {
+        url: `${this.apiUrl}/api/v1/messages-v2/conversations`,
+        status: response.status,
+        statusText: response.statusText,
+        ok: response.ok
+      });
+
+      const result: ApiResponse<Conversation[]> | any = await response.json();
+
+      console.log('📋 API Response Body:', {
+        success: result.success,
+        error: result.error,
+        dataLength: result.data?.length,
+        rawResult: result
+      });
 
       if (!result.success) {
         throw new Error(result.error?.message || 'Failed to fetch conversations');
@@ -125,6 +233,10 @@ export class MessagingServiceV2 {
       return result.data || [];
     } catch (error) {
       console.error('🚨 Error fetching conversations:', error);
+      console.error('🚨 Network error details:', {
+        url: `${this.apiUrl}/api/v1/messages-v2/conversations`,
+        error: error
+      });
       return [];
     }
   }
@@ -136,17 +248,25 @@ export class MessagingServiceV2 {
     try {
       console.log('👁️ MessagingServiceV2.markMessageAsRead:', messageId);
 
+      // Get the user session
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (!session) {
+        console.error('User not authenticated');
+        return false;
+      }
+
       const response = await fetch(
-        `${process.env.EXPO_PUBLIC_API_BASE_URL}/api/v1/messages/${messageId}/read`,
+        `${this.apiUrl}/api/v1/messages-v2/${messageId}/read`,
         {
           method: 'PUT',
           headers: {
-            'Authorization': `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`
+            'Authorization': `Bearer ${session.access_token}`
           }
         }
       );
 
-      const result: ApiResponse<{ read: boolean }> = await response.json();
+      const result: ApiResponse<{ read: boolean }> | any = await response.json();
 
       if (!result.success) {
         console.error('Failed to mark message as read:', result.error?.message);
@@ -168,17 +288,25 @@ export class MessagingServiceV2 {
     try {
       console.log('🚢 MessagingServiceV2.getConversationByShipment:', shipmentId);
 
+      // Get the user session
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (!session) {
+        console.error('User not authenticated');
+        return null;
+      }
+
       const response = await fetch(
-        `${process.env.EXPO_PUBLIC_API_BASE_URL}/api/v1/messages/shipment/${shipmentId}/conversation`,
+        `${this.apiUrl}/api/v1/messages-v2/shipment/${shipmentId}/conversation`,
         {
           method: 'GET',
           headers: {
-            'Authorization': `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`
+            'Authorization': `Bearer ${session.access_token}`
           }
         }
       );
 
-      const result: ApiResponse<ConversationInfo> = await response.json();
+      const result: ApiResponse<ConversationInfo> | any = await response.json();
 
       if (!result.success) {
         console.error('Failed to get conversation:', result.error?.message);
@@ -200,17 +328,25 @@ export class MessagingServiceV2 {
     try {
       console.log('📊 MessagingServiceV2.getMessagingStatus:', conversationId);
 
+      // Get the user session
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (!session) {
+        console.error('User not authenticated');
+        return null;
+      }
+
       const response = await fetch(
-        `${process.env.EXPO_PUBLIC_API_BASE_URL}/api/v1/messages/conversation/${conversationId}/status`,
+        `${this.apiUrl}/api/v1/messages-v2/conversation/${conversationId}/status`,
         {
           method: 'GET',
           headers: {
-            'Authorization': `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`
+            'Authorization': `Bearer ${session.access_token}`
           }
         }
       );
 
-      const result: ApiResponse<MessagingStatus> = await response.json();
+      const result: ApiResponse<MessagingStatus> | any = await response.json();
 
       if (!result.success) {
         console.error('Failed to get messaging status:', result.error?.message);
@@ -270,8 +406,8 @@ export class MessagingServiceV2 {
             }
 
             const message: Message = {
-              ...fullMessage,
-              sender: fullMessage.sender as UserProfile
+              ...(fullMessage as any),
+              sender: (fullMessage as any).sender as UserProfile
             };
 
             onNewMessage(message);
@@ -309,8 +445,8 @@ export class MessagingServiceV2 {
             }
 
             const message: Message = {
-              ...fullMessage,
-              sender: fullMessage.sender as UserProfile
+              ...(fullMessage as any),
+              sender: (fullMessage as any).sender as UserProfile
             };
 
             onMessageUpdate(message);
@@ -383,7 +519,7 @@ export class MessagingServiceV2 {
                 client:profiles!client_id(*),
                 driver:profiles!driver_id(*)
               `)
-              .eq('id', payload.new?.id || payload.old?.id)
+              .eq('id', (payload.new as any)?.id || (payload.old as any)?.id)
               .single();
 
             if (error || !fullConversation) {
@@ -393,7 +529,7 @@ export class MessagingServiceV2 {
 
             const eventType = payload.eventType === 'INSERT' ? 'CONVERSATION_CREATED' :
                              payload.eventType === 'UPDATE' ? 
-                               (payload.new.is_active && !payload.old.is_active ? 'CONVERSATION_REACTIVATED' : 'CONVERSATION_EXPIRED') :
+                               ((payload.new as any).is_active && !(payload.old as any).is_active ? 'CONVERSATION_REACTIVATED' : 'CONVERSATION_EXPIRED') :
                              'CONVERSATION_EXPIRED';
 
             const event: ConversationEvent = {
