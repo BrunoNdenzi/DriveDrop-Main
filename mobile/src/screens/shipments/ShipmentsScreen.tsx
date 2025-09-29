@@ -56,15 +56,16 @@ export default function ShipmentsScreen({ navigation }: ShipmentsScreenProps) {
       let statusFilter: string[] = [];
       switch (filter) {
         case 'pending':
-          statusFilter = ['pending'];
+          // Shipments paid but waiting for driver assignment
+          statusFilter = ['pending', 'accepted'];
           break;
         case 'active':
-          // Include all in-progress lifecycle statuses visible to client
-          statusFilter = ['assigned', 'picked_up', 'in_transit'];
+          // Shipments in progress (driver started delivery)
+          statusFilter = ['in_transit'];
           break;
         case 'past':
-          // Completed lifecycle statuses
-          statusFilter = ['delivered', 'completed', 'cancelled'];
+          // Completed shipments
+          statusFilter = ['delivered', 'cancelled'];
           break;
       }
 

@@ -10,8 +10,8 @@ export type RootStackParamList = {
   ForgotPassword: undefined;
   
   // Role-based Tab Navigators
-  ClientTabs: undefined;
-  DriverTabs: undefined;
+  ClientTabs: { screen?: keyof ClientTabParamList } | undefined;
+  DriverTabs: { screen?: keyof DriverTabParamList } | undefined;
   
   // Screens accessible from tabs
   ShipmentDetails: { shipmentId: string };

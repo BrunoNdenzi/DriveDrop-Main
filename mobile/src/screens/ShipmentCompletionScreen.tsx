@@ -9,8 +9,10 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
+import { useFocusEffect } from '@react-navigation/native';
 
 import { Colors } from '../constants/Colors';
+import { useAuth } from '../context/AuthContext';
 import VehiclePhotosStep from '../components/completion/VehiclePhotosStep';
 import ProofOfOwnershipStep from '../components/completion/ProofOfOwnershipStep';
 import TermsAndConditionsStep from '../components/completion/TermsAndConditionsStep';
@@ -42,8 +44,10 @@ const STEPS = [
 
 const ShipmentCompletionScreen: React.FC<Props> = ({ navigation, route }) => {
   const { shipmentData } = route.params;
+  const { userProfile } = useAuth();
   const [currentStep, setCurrentStep] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [completedSteps, setCompletedSteps] = useState<number[]>([]);
   const [completionData, setCompletionData] = useState<CompletionData>({
     vehiclePhotos: [],
     ownershipDocuments: [],
@@ -51,8 +55,30 @@ const ShipmentCompletionScreen: React.FC<Props> = ({ navigation, route }) => {
     paymentCompleted: false,
   });
 
+  // Reset state when screen is focused from fresh navigation
+  useFocusEffect(
+    React.useCallback(() => {
+      // Only reset if we're starting fresh (step 1)
+      if (currentStep === 1 && !completionData.paymentCompleted) {
+        setCompletionData({
+          vehiclePhotos: [],
+          ownershipDocuments: [],
+          termsAccepted: false,
+          paymentCompleted: false,
+        });
+        setCompletedSteps([]);
+      }
+    }, [])
+  );
+
   const updateCompletionData = (stepData: Partial<CompletionData>) => {
-    setCompletionData(prev => ({ ...prev, ...stepData }));
+    console.log('🔄 updateCompletionData called with:', stepData);
+    setCompletionData(prev => {
+      const newData = { ...prev, ...stepData };
+      console.log('✅ updateCompletionData - old state:', prev);
+      console.log('✅ updateCompletionData - new state:', newData);
+      return newData;
+    });
   };
 
   const handleNext = () => {
@@ -84,91 +110,97 @@ const ShipmentCompletionScreen: React.FC<Props> = ({ navigation, route }) => {
     }
   };
 
-  const handleComplete = async () => {
-    if (!completionData.paymentCompleted) {
+  const handleComplete = async (paymentAlreadyCompleted = false) => {
+    console.log('🔄 handleComplete called');
+    console.log('💳 paymentAlreadyCompleted parameter:', paymentAlreadyCompleted);
+    console.log('💳 Current completionData.paymentCompleted:', completionData.paymentCompleted);
+    console.log('💳 Full completionData:', completionData);
+    
+    const isPaymentComplete = paymentAlreadyCompleted || completionData.paymentCompleted;
+    console.log('💳 Final payment completion status:', isPaymentComplete);
+    
+    if (!isPaymentComplete) {
+      console.log('❌ Payment not completed - showing alert');
       Alert.alert('Payment Required', 'Please complete payment to finalize your shipment.');
       return;
     }
 
-    setIsSubmitting(true);
-    try {
-      // Submit final shipment to backend
-      const response = await fetch(`${process.env.EXPO_PUBLIC_API_URL}/api/v1/shipments`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          // Add auth headers
+    console.log('✅ Payment completed - proceeding with navigation');
+    // Payment has been completed and shipment finalized by the backend
+    // No additional API calls needed - just show success and navigate
+    console.log('📦 Shipment completion flow finished - payment and shipment already processed by backend');
+    
+    Alert.alert(
+      'Shipment Created Successfully!',
+      `Your shipment has been confirmed and payment processed. You can track your shipment in the dashboard.`,
+      [
+        {
+          text: 'View Dashboard',
+          onPress: () => {
+            // Navigate to appropriate dashboard based on user role
+            // For clients, go to Home tab; for drivers, go to Dashboard tab
+            navigation.reset({
+              index: 0,
+              routes: [
+                userProfile?.role === 'driver' 
+                  ? { name: 'DriverTabs', params: { screen: 'Dashboard' } }
+                  : { name: 'ClientTabs', params: { screen: 'Home' } }
+              ]
+            });
+          },
         },
-        body: JSON.stringify({
-          ...shipmentData,
-          vehiclePhotos: completionData.vehiclePhotos,
-          ownershipDocuments: completionData.ownershipDocuments,
-          termsAccepted: completionData.termsAccepted,
-          stripePaymentIntentId: completionData.stripePaymentIntentId,
-          status: 'confirmed',
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to create shipment');
-      }
-
-      const result = await response.json();
-
-      Alert.alert(
-        'Shipment Created Successfully!',
-        `Your shipment has been confirmed and payment processed. Tracking ID: ${result.trackingId}`,
-        [
-          {
-            text: 'View Shipment',
-            onPress: () => navigation.navigate('ShipmentDetails', { shipmentId: result.id }),
+        {
+          text: 'Create Another',
+          onPress: () => {
+            // Reset navigation stack and go to CreateShipment
+            navigation.reset({
+              index: 0,
+              routes: [
+                userProfile?.role === 'driver' 
+                  ? { name: 'DriverTabs', params: { screen: 'Dashboard' } }
+                  : { name: 'ClientTabs', params: { screen: 'Home' } },
+                { name: 'CreateShipment' }
+              ]
+            });
           },
-          {
-            text: 'Create Another',
-            onPress: () => navigation.navigate('CreateShipment'),
-          },
-        ]
-      );
-    } catch (error) {
-      console.error('Error completing shipment:', error);
-      Alert.alert(
-        'Error',
-        'Failed to complete shipment. Please try again or contact support.',
-        [{ text: 'OK' }]
-      );
-    } finally {
-      setIsSubmitting(false);
-    }
+        },
+      ]
+    );
   };
 
   const renderStepIndicator = () => (
     <View style={styles.stepIndicator}>
-      {STEPS.map((step, index) => (
-        <View key={step.id} style={styles.stepContainer}>
-          <View style={[
-            styles.stepCircle,
-            currentStep >= step.id && styles.stepCircleActive,
-            currentStep > step.id && styles.stepCircleCompleted
-          ]}>
-            {currentStep > step.id ? (
-              <MaterialIcons name="check" size={16} color="white" />
-            ) : (
-              <Text style={[
-                styles.stepNumber,
-                currentStep >= step.id && styles.stepNumberActive
-              ]}>
-                {step.id}
-              </Text>
+      {STEPS.map((step, index) => {
+        const isCompleted = currentStep > step.id || completedSteps.includes(step.id);
+        const isActive = currentStep >= step.id;
+        
+        return (
+          <View key={step.id} style={styles.stepContainer}>
+            <View style={[
+              styles.stepCircle,
+              isActive && styles.stepCircleActive,
+              isCompleted && styles.stepCircleCompleted
+            ]}>
+              {isCompleted ? (
+                <MaterialIcons name="check" size={16} color="white" />
+              ) : (
+                <Text style={[
+                  styles.stepNumber,
+                  isActive && styles.stepNumberActive
+                ]}>
+                  {step.id}
+                </Text>
+              )}
+            </View>
+            {index < STEPS.length - 1 && (
+              <View style={[
+                styles.stepLine,
+                isCompleted && styles.stepLineCompleted
+              ]} />
             )}
           </View>
-          {index < STEPS.length - 1 && (
-            <View style={[
-              styles.stepLine,
-              currentStep > step.id && styles.stepLineCompleted
-            ]} />
-          )}
-        </View>
-      ))}
+        );
+      })}
     </View>
   );
 
@@ -203,10 +235,16 @@ const ShipmentCompletionScreen: React.FC<Props> = ({ navigation, route }) => {
           <InvoicePaymentStep
             shipmentData={shipmentData}
             completionData={completionData}
-            onPaymentComplete={(paymentIntentId) => updateCompletionData({ 
-              paymentCompleted: true,
-              stripePaymentIntentId: paymentIntentId
-            })}
+            onPaymentComplete={(paymentIntentId) => {
+              console.log('🔄 onPaymentComplete callback triggered with payment intent ID:', paymentIntentId);
+              updateCompletionData({ 
+                paymentCompleted: true,
+                stripePaymentIntentId: paymentIntentId
+              });
+              // Mark step 4 (Payment) as completed
+              setCompletedSteps(prev => [...prev.filter(step => step !== 4), 4]);
+              console.log('✅ onPaymentComplete - updateCompletionData called and step 4 marked as completed');
+            }}
             onFinalSubmit={handleComplete}
           />
         );
@@ -273,7 +311,7 @@ const ShipmentCompletionScreen: React.FC<Props> = ({ navigation, route }) => {
         ) : (
           <TouchableOpacity
             style={[styles.completeButton, !completionData.paymentCompleted && styles.completeButtonDisabled]}
-            onPress={handleComplete}
+            onPress={() => handleComplete()}
             disabled={!completionData.paymentCompleted}
           >
             <Text style={[styles.completeButtonText, !completionData.paymentCompleted && styles.completeButtonTextDisabled]}>

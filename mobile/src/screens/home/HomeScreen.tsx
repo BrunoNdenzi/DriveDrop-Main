@@ -113,16 +113,16 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
         setLoading(true);
       }
       
-      // Fetch active shipments (accepted, in_transit)
+      // Fetch active shipments (driver started delivery, in progress)
       const activeData = await ShipmentService.getClientShipments(
         userProfile.id, 
-        ['accepted', 'in_transit']
+        ['in_transit']
       );
       
-      // Fetch pending shipments
+      // Fetch pending shipments (paid, available for drivers or assigned but not started)
       const pendingData = await ShipmentService.getClientShipments(
         userProfile.id,
-        ['pending']
+        ['pending', 'accepted']
       );
       
       // Fetch completed shipments
@@ -132,12 +132,12 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
       );
       
       // Calculate total spent from completed shipments
-      const total = completedData.reduce((sum, shipment) => {
+      const total = completedData.reduce((sum: number, shipment: any) => {
         // Use final_price if available, otherwise use estimated_price
-        const shipmentCost = shipment.final_price || shipment.estimated_price || 0;
+        const shipmentCost = shipment?.final_price || shipment?.estimated_price || 0;
         // Ensure we're dealing with numbers
         const cost = typeof shipmentCost === 'string' ? parseFloat(shipmentCost) : shipmentCost;
-        return sum + cost;
+        return sum + (isNaN(cost) ? 0 : cost);
       }, 0);
       
       // Log the calculated total for debugging

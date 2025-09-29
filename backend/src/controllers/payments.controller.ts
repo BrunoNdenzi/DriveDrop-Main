@@ -866,7 +866,7 @@ export const completeShipmentAfterPayment = asyncHandler(async (req: Request, re
     const updateData: any = {
       payment_intent_id: paymentIntentId,
       payment_status: 'completed',
-      status: 'accepted', // Use valid enum value
+      status: 'pending', // Payment completed, now available for drivers to apply
       updated_at: new Date().toISOString(),
       updated_by: req.user.id
     };
@@ -974,7 +974,7 @@ export const completeShipmentAfterPayment = asyncHandler(async (req: Request, re
           .update({
             payment_intent_id: paymentIntentId,
             payment_status: 'completed',
-            status: 'accepted',
+            status: 'pending', // Payment completed, available for drivers to apply
             updated_at: new Date().toISOString(),
             updated_by: req.user.id
           })
@@ -1013,7 +1013,7 @@ export const completeShipmentAfterPayment = asyncHandler(async (req: Request, re
       shipmentId,
       paymentIntentId,
       userId: req.user.id,
-      newStatus: updatedShipment?.status || 'accepted',
+      newStatus: updatedShipment?.status || 'pending',
       paymentStatus: updatedShipment?.payment_status || 'completed'
     });
 

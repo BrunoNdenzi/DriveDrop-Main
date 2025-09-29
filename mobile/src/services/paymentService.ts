@@ -309,17 +309,36 @@ class PaymentService {
     }
   ): Promise<{ success: boolean; shipment?: any; error?: string }> {
     try {
+      console.log('=== STARTING SHIPMENT COMPLETION ===');
+      
       // Get the user session
       const { data: { session } } = await supabase.auth.getSession();
       
       if (!session) {
+        console.error('Session not found during shipment completion');
         throw new Error('User not authenticated');
       }
 
-      console.log('Calling backend to complete shipment after payment', {
+      console.log('Session found, calling backend to complete shipment after payment', {
+        paymentIntentId: paymentIntentId?.slice(-8) + '...', // Log last 8 chars for privacy
+        shipmentId: shipmentId?.slice(-8) + '...',
+        hasCompletionData: !!completionData,
+        apiUrl: this.apiUrl
+      });
+
+      const requestBody = {
         paymentIntentId,
         shipmentId,
-        hasCompletionData: !!completionData
+        completionData
+      };
+
+      console.log('Request payload (sanitized):', {
+        paymentIntentId: paymentIntentId?.slice(-8) + '...',
+        shipmentId: shipmentId?.slice(-8) + '...',
+        hasVehicleDetails: !!completionData?.vehicleDetails,
+        hasVehiclePhotos: !!completionData?.vehiclePhotos?.length,
+        hasOwnershipDocuments: !!completionData?.ownershipDocuments?.length,
+        termsAccepted: completionData?.termsAccepted
       });
 
       const response = await fetch(`${this.apiUrl}/complete-shipment`, {
@@ -328,32 +347,72 @@ class PaymentService {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${session.access_token}`
         },
-        body: JSON.stringify({
-          paymentIntentId,
-          shipmentId,
-          completionData
-        }),
+        body: JSON.stringify(requestBody),
+      });
+
+      console.log('Response received:', {
+        status: response.status,
+        statusText: response.statusText,
+        ok: response.ok,
+        headers: Object.fromEntries(response.headers.entries())
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
-        console.error('Shipment completion API error response:', errorData);
+        let errorData;
+        try {
+          errorData = await response.json();
+          console.error('Shipment completion API error response:', errorData);
+        } catch (parseError) {
+          console.error('Could not parse error response:', parseError);
+          errorData = { message: `HTTP ${response.status}: ${response.statusText}` };
+        }
         throw new Error(errorData.message || errorData.error || 'Failed to complete shipment');
       }
 
       // Parse response
-      const responseData = await response.json();
-      console.log('Shipment completion API response:', responseData);
+      let responseData;
+      try {
+        responseData = await response.json();
+        console.log('Shipment completion API response received successfully');
+        console.log('Response data structure:', {
+          hasData: !!responseData.data,
+          hasShipment: !!(responseData.data?.shipment || responseData.shipment),
+          hasMessage: !!(responseData.data?.message || responseData.message),
+          topLevelKeys: Object.keys(responseData)
+        });
+      } catch (parseError) {
+        console.error('Could not parse success response:', parseError);
+        throw new Error('Invalid response format from server');
+      }
       
       // Extract data from the response
       const result = responseData.data || responseData;
       
+      console.log('=== SHIPMENT COMPLETION SUCCESSFUL ===');
       return { 
         success: true, 
         shipment: result.shipment
       };
     } catch (error) {
+      console.error('=== SHIPMENT COMPLETION FAILED ===');
       console.error('Error completing shipment after payment:', error);
+      
+      // Enhanced error logging
+      if (error instanceof TypeError && error.message.includes('Network request failed')) {
+        console.error('NETWORK ERROR DETECTED:', {
+          errorType: 'NetworkRequestFailed',
+          message: error.message,
+          apiUrl: this.apiUrl,
+          suggestion: 'Check internet connection and API server status'
+        });
+      } else if (error instanceof Error) {
+        console.error('DETAILED ERROR INFO:', {
+          name: error.name,
+          message: error.message,
+          stack: error.stack?.split('\n').slice(0, 5), // First 5 lines of stack
+        });
+      }
+      
       return { 
         success: false, 
         error: error instanceof Error ? error.message : 'Unknown error completing shipment'

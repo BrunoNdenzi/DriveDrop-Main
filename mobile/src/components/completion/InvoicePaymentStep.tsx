@@ -25,7 +25,7 @@ interface Props {
     paymentCompleted: boolean;
   };
   onPaymentComplete: (paymentIntentId: string) => void;
-  onFinalSubmit?: () => void;
+  onFinalSubmit?: (paymentCompleted?: boolean) => void;
 }
 
 interface InvoiceLineItem {
@@ -48,6 +48,7 @@ const InvoicePaymentStep: React.FC<Props> = ({
   const [cardError, setCardError] = useState<string | null>(null);
   const [shipmentCreated, setShipmentCreated] = useState(false);
   const [shipmentId, setShipmentId] = useState<string | null>(null);
+  const [paymentSuccessful, setPaymentSuccessful] = useState(false);
 
   // Calculate invoice line items
   const calculateInvoice = (): InvoiceLineItem[] => {
@@ -409,15 +410,34 @@ const InvoicePaymentStep: React.FC<Props> = ({
             }
           );
 
-          if (completionResult.success) {
-            console.log('Shipment completed successfully via backend:', completionResult);
+          console.log('=== COMPLETION RESULT RECEIVED ===');
+          console.log('completionResult type:', typeof completionResult);
+          console.log('completionResult keys:', Object.keys(completionResult));
+          console.log('completionResult.success type:', typeof completionResult.success);
+          console.log('completionResult.success value:', completionResult.success);
+          console.log('completionResult.error:', completionResult.error);
+          console.log('Has shipment data:', !!completionResult.shipment);
+
+          if (completionResult.success === true) {
+            console.log('SUCCESS BRANCH: Shipment completed successfully via backend');
+            console.log('🔄 About to call onPaymentComplete with payment intent ID:', confirmedPaymentIntent.id);
             onPaymentComplete(confirmedPaymentIntent.id);
-            setShipmentCreated(true);
+            console.log('✅ onPaymentComplete called successfully');
             
+            console.log('🔄 Setting shipment created to true');
+            setShipmentCreated(true);
+            setPaymentSuccessful(true); // Set payment successful for UI
+            console.log('✅ setShipmentCreated(true) called');
+            
+            console.log('🔄 About to call onFinalSubmit');
             if (onFinalSubmit) {
-              onFinalSubmit();
+              onFinalSubmit(true); // Pass true to indicate payment is completed
+              console.log('✅ onFinalSubmit called successfully');
+            } else {
+              console.log('⚠️ onFinalSubmit is not defined');
             }
           } else {
+            console.log('FAILURE BRANCH: Backend shipment completion reported as failed');
             console.error('Backend shipment completion failed:', completionResult.error);
             // Even if shipment completion fails, payment was processed
             Alert.alert(
@@ -425,7 +445,8 @@ const InvoicePaymentStep: React.FC<Props> = ({
               `Your payment was processed successfully, but we encountered an issue updating your shipment status: ${completionResult.error}. Our team will contact you shortly.`,
               [{ text: 'OK', onPress: () => {
                 onPaymentComplete(confirmedPaymentIntent.id);
-                if (onFinalSubmit) onFinalSubmit();
+                setPaymentSuccessful(true); // Payment succeeded even if shipment update failed
+                if (onFinalSubmit) onFinalSubmit(true); // Pass true since payment succeeded
               }}]
             );
           }
@@ -439,7 +460,8 @@ const InvoicePaymentStep: React.FC<Props> = ({
             'Your payment was processed successfully, but we encountered an issue updating your shipment status. Your payment is confirmed and our team will contact you shortly.',
             [{ text: 'OK', onPress: () => {
               onPaymentComplete(confirmedPaymentIntent.id);
-              if (onFinalSubmit) onFinalSubmit();
+              setPaymentSuccessful(true); // Payment succeeded even if shipment update failed
+              if (onFinalSubmit) onFinalSubmit(true); // Pass true since payment succeeded
             }}]
           );
         }
@@ -448,7 +470,9 @@ const InvoicePaymentStep: React.FC<Props> = ({
       console.error('Payment error:', error);
       Alert.alert('Payment Error', 'An unexpected error occurred. Please try again.');
     } finally {
+      console.log('🔄 Finally block: Setting isProcessing to false');
       setIsProcessing(false);
+      console.log('✅ Finally block: isProcessing set to false');
     }
   };
 
@@ -466,23 +490,8 @@ const InvoicePaymentStep: React.FC<Props> = ({
     }
   };
 
-  if (completionData.paymentCompleted) {
-    return (
-      <View style={styles.completedContainer}>
-        <MaterialIcons name="check-circle" size={64} color="#4CAF50" />
-        <Text style={styles.completedTitle}>Payment Successful!</Text>
-        <Text style={styles.completedSubtitle}>
-          Your payment of ${upfrontAmount.toFixed(2)} has been processed.
-          Remaining ${deliveryAmount.toFixed(2)} due on delivery.
-        </Text>
-        <View style={styles.completedDetails}>
-          <Text style={styles.completedText}>✓ Payment confirmed</Text>
-          <Text style={styles.completedText}>✓ Invoice generated</Text>
-          <Text style={styles.completedText}>✓ Ready for shipment creation</Text>
-        </View>
-      </View>
-    );
-  }
+  // Don't show completion view here - let the parent handle navigation
+  // The payment button will show success state instead
 
   return (
     <StripeProvider publishableKey={process.env.EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY || ''}>
@@ -593,12 +602,18 @@ const InvoicePaymentStep: React.FC<Props> = ({
         <TouchableOpacity
           style={[
             styles.payButton,
-            (!cardComplete || isProcessing || !paymentIntent) && styles.payButtonDisabled
+            paymentSuccessful && styles.payButtonSuccess,
+            (!cardComplete || isProcessing || !paymentIntent) && !paymentSuccessful && styles.payButtonDisabled
           ]}
           onPress={handlePayment}
-          disabled={!cardComplete || isProcessing || !paymentIntent}
+          disabled={(!cardComplete || isProcessing || !paymentIntent) && !paymentSuccessful}
         >
-          {isProcessing ? (
+          {paymentSuccessful ? (
+            <View style={styles.successContainer}>
+              <MaterialIcons name="check-circle" size={20} color="white" />
+              <Text style={styles.payButtonText}>Payment Processed ✓</Text>
+            </View>
+          ) : isProcessing ? (
             <View style={styles.processingContainer}>
               <ActivityIndicator size="small" color="white" />
               <Text style={styles.payButtonText}>Processing...</Text>
@@ -842,6 +857,13 @@ const styles = StyleSheet.create({
   processingContainer: {
     flexDirection: 'row',
     alignItems: 'center',
+  },
+  successContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  payButtonSuccess: {
+    backgroundColor: '#4CAF50', // Green for success
   },
   payButtonText: {
     fontSize: 16,
