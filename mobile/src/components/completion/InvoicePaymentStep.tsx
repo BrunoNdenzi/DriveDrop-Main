@@ -389,14 +389,59 @@ const InvoicePaymentStep: React.FC<Props> = ({
       }
 
       if (confirmedPaymentIntent && confirmedPaymentIntent.status.toString() === 'Succeeded') {
-        // Payment successful, now create the shipment with all completion data
-        await createShipmentWithPayment(confirmedPaymentIntent.id);
-        
-        onPaymentComplete(confirmedPaymentIntent.id);
-        setShipmentCreated(true);
-        
-        if (onFinalSubmit) {
-          onFinalSubmit();
+        try {
+          console.log('Payment successful, completing shipment via backend');
+          
+          // Call the new backend endpoint to complete the shipment
+          const completionResult = await paymentService.completeShipmentAfterPayment(
+            confirmedPaymentIntent.id,
+            shipmentId!,
+            {
+              vehicleDetails: {
+                make: shipmentData.vehicleMake,
+                model: shipmentData.vehicleModel, 
+                year: shipmentData.vehicleYear,
+                isOperable: shipmentData.isOperable
+              },
+              vehiclePhotos: completionData.vehiclePhotos,
+              ownershipDocuments: completionData.ownershipDocuments,
+              termsAccepted: completionData.termsAccepted
+            }
+          );
+
+          if (completionResult.success) {
+            console.log('Shipment completed successfully via backend:', completionResult);
+            onPaymentComplete(confirmedPaymentIntent.id);
+            setShipmentCreated(true);
+            
+            if (onFinalSubmit) {
+              onFinalSubmit();
+            }
+          } else {
+            console.error('Backend shipment completion failed:', completionResult.error);
+            // Even if shipment completion fails, payment was processed
+            Alert.alert(
+              'Payment Processed', 
+              `Your payment was processed successfully, but we encountered an issue updating your shipment status: ${completionResult.error}. Our team will contact you shortly.`,
+              [{ text: 'OK', onPress: () => {
+                onPaymentComplete(confirmedPaymentIntent.id);
+                if (onFinalSubmit) onFinalSubmit();
+              }}]
+            );
+          }
+        } catch (shipmentError) {
+          console.error('Error completing shipment:', shipmentError);
+          
+          // Even if shipment update fails, we should still consider payment complete
+          // Since the payment was successfully processed
+          Alert.alert(
+            'Payment Processed', 
+            'Your payment was processed successfully, but we encountered an issue updating your shipment status. Your payment is confirmed and our team will contact you shortly.',
+            [{ text: 'OK', onPress: () => {
+              onPaymentComplete(confirmedPaymentIntent.id);
+              if (onFinalSubmit) onFinalSubmit();
+            }}]
+          );
         }
       }
     } catch (error) {
@@ -404,53 +449,6 @@ const InvoicePaymentStep: React.FC<Props> = ({
       Alert.alert('Payment Error', 'An unexpected error occurred. Please try again.');
     } finally {
       setIsProcessing(false);
-    }
-  };
-
-  const createShipmentWithPayment = async (paymentIntentId: string) => {
-    try {
-      if (!shipmentId) {
-        throw new Error('Shipment ID not found');
-      }
-
-      const apiUrl = getApiUrl();
-      const response = await fetch(`${apiUrl}/api/v1/shipments/${shipmentId}`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session?.access_token}`,
-        },
-        body: JSON.stringify({
-          // Update the shipment with completion data
-          vehicle_photos: completionData.vehiclePhotos,
-          ownership_documents: completionData.ownershipDocuments,
-          terms_accepted: completionData.termsAccepted,
-          special_instructions: shipmentData.specialInstructions,
-          
-          // Payment information
-          payment_intent_id: paymentIntentId,
-          status: 'confirmed', // Change from pending to confirmed
-          
-          // Vehicle details
-          vehicle_make: shipmentData.vehicleMake,
-          vehicle_model: shipmentData.vehicleModel,
-          vehicle_year: shipmentData.vehicleYear,
-          is_operable: shipmentData.isOperable,
-        }),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to update shipment');
-      }
-
-      const result = await response.json();
-      console.log('Shipment updated successfully:', result);
-      
-      return result.data;
-    } catch (error) {
-      console.error('Error updating shipment after payment:', error);
-      throw error;
     }
   };
 

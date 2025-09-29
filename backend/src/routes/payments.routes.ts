@@ -26,6 +26,13 @@ router.post(
   paymentsController.confirmPaymentIntent
 );
 
+// Complete shipment after payment
+router.post(
+  '/complete-shipment',
+  authenticate,
+  paymentsController.completeShipmentAfterPayment
+);
+
 // Customer routes
 router.post(
   '/customer',

@@ -16,19 +16,17 @@ applyTo: '**'
 - Architecture patterns: Screen-based navigation with consolidated form components
 - Key requirements: Replace 8-step progressive form with consolidated single-page experience
 
-## Current Session Focus - Post-Shipment Creation Flow - 🔄 DEBUGGING PAYMENT ISSUE
-- **Requirement**: After "Create Shipment" is clicked, implement 4-step completion process:
-  1. ✅ Vehicle Photos (Exterior damage documentation) - expo-image-picker integration, adjusted crop size
-  2. ✅ Proof of Ownership verification - expo-document-picker integration  
-  3. ✅ Terms and Conditions acceptance - Comprehensive legal terms component
-  4. ✅ Invoice Confirmation and Stripe Payment - Full geocoding implementation for valid coordinates
+## Current Session Focus - Payment System Redesign - ✅ BACKEND-DRIVEN ARCHITECTURE COMPLETE
+- **Requirement**: Redesign payment completion and shipment status update flow to be entirely backend-driven
+- **Problem**: Payment succeeds but shipment completion fails due to direct database operations from mobile
+- **Solution**: All operations must go through backend APIs, mobile should only make REST calls
 - **Technical Requirements**: 
-  - ✅ Integration with existing backend API - API URL confirmed working (Railway deployment)
-  - ✅ Stripe payment processing - @stripe/stripe-react-native v0.53.1 installed and integrated
-  - ✅ Valid coordinates implementation - Google Places API geocoding for route optimization
-  - ✅ Error-free production deployment - Geocoding and coordinate validation implemented
-  - ✅ Navigate user through completion steps after form submission
-- **Current Status**: ENHANCED - Full geocoding implementation with coordinate storage and validation
+  - ✅ Backend API endpoints for payment processing and completion
+  - ✅ Backend handles all database operations (no direct Supabase calls from mobile)
+  - ✅ Comprehensive logging in backend for Railway diagnostics
+  - ✅ Mobile only calls backend REST endpoints
+  - ✅ Backend validates and processes all payment/shipment state changes
+- **Current Status**: COMPLETED - Backend-driven architecture implemented and tested
 
 ## Geocoding Enhancement - ✅ NEWLY IMPLEMENTED
 - **Google Places API Integration**: Real coordinate extraction from address selection

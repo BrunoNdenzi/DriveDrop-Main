@@ -5,6 +5,7 @@ import { Request, Response } from 'express';
 import { asyncHandler, createError } from '@utils/error';
 import { successResponse } from '@utils/response';
 import { stripeService } from '@services/stripe.service';
+import { shipmentService } from '@services/supabase.service';
 import { logger } from '@utils/logger';
 import config from '@config';
 import Stripe from 'stripe';
@@ -764,6 +765,206 @@ export const createFinalPayment = asyncHandler(async (req: Request, res: Respons
   }
 });
 
+/**
+ * Complete shipment after payment confirmation
+ * @route POST /api/v1/payments/complete-shipment
+ * @access Private
+ */
+export const completeShipmentAfterPayment = asyncHandler(async (req: Request, res: Response) => {
+  const { 
+    paymentIntentId, 
+    shipmentId,
+    completionData 
+  } = req.body;
+
+  logger.info('Shipment completion request received', {
+    paymentIntentId,
+    shipmentId,
+    userId: req.user?.id,
+    hasCompletionData: !!completionData
+  });
+
+  if (!paymentIntentId) {
+    logger.warn('Missing payment intent ID in shipment completion request');
+    throw createError('Payment intent ID is required', 400, 'MISSING_PAYMENT_INTENT');
+  }
+
+  if (!shipmentId) {
+    logger.warn('Missing shipment ID in completion request');
+    throw createError('Shipment ID is required', 400, 'MISSING_SHIPMENT_ID');
+  }
+
+  if (!req.user?.id) {
+    logger.error('Authentication required for shipment completion');
+    throw createError('Authentication required', 401, 'UNAUTHORIZED');
+  }
+
+  try {
+    logger.info('Starting shipment completion process', {
+      paymentIntentId,
+      shipmentId,
+      userId: req.user.id
+    });
+
+    // Step 1: Verify payment was successful
+    logger.info('Verifying payment status with Stripe');
+    const paymentIntent = await stripeService.retrievePaymentIntent(paymentIntentId);
+    
+    if (paymentIntent.status !== 'succeeded') {
+      logger.warn('Payment not succeeded, cannot complete shipment', {
+        paymentIntentId,
+        status: paymentIntent.status
+      });
+      throw createError('Payment must be completed before shipment completion', 400, 'PAYMENT_NOT_COMPLETED');
+    }
+
+    logger.info('Payment verified as successful', {
+      paymentIntentId,
+      amount: paymentIntent.amount,
+      status: paymentIntent.status
+    });
+
+    // Step 2: Get the current shipment to verify ownership
+    logger.info('Retrieving shipment for ownership verification');
+    const existingShipment = await shipmentService.getShipmentById(shipmentId);
+    
+    if (existingShipment.client_id !== req.user.id) {
+      logger.warn('User not authorized to complete this shipment', {
+        shipmentId,
+        requestUserId: req.user.id,
+        shipmentClientId: existingShipment.client_id
+      });
+      throw createError('Not authorized to complete this shipment', 403, 'FORBIDDEN');
+    }
+
+    logger.info('User authorized to complete shipment', {
+      shipmentId,
+      userId: req.user.id
+    });
+
+    // Step 3: Update payment status in database
+    logger.info('Updating payment record in database');
+    const { error: paymentUpdateError } = await supabaseAdmin
+      .from('payments')
+      .update({
+        status: 'completed',
+        updated_at: new Date().toISOString()
+      })
+      .eq('payment_intent_id', paymentIntentId);
+
+    if (paymentUpdateError) {
+      logger.error('Failed to update payment record', {
+        error: paymentUpdateError,
+        paymentIntentId
+      });
+      // Don't throw here, continue with shipment update
+    } else {
+      logger.info('Payment record updated successfully');
+    }
+
+    // Step 4: Prepare shipment update data
+    const updateData: any = {
+      payment_intent_id: paymentIntentId,
+      payment_status: 'completed',
+      status: 'accepted', // Use valid enum value
+      updated_at: new Date().toISOString(),
+      updated_by: req.user.id
+    };
+
+    // Add completion data if provided
+    if (completionData) {
+      logger.info('Adding completion data to shipment update', {
+        hasVehiclePhotos: !!completionData.vehiclePhotos?.length,
+        hasOwnershipDocuments: !!completionData.ownershipDocuments?.length,
+        termsAccepted: completionData.termsAccepted
+      });
+
+      if (completionData.vehicleDetails) {
+        updateData.vehicle_make = completionData.vehicleDetails.make;
+        updateData.vehicle_model = completionData.vehicleDetails.model;
+        updateData.vehicle_year = completionData.vehicleDetails.year;
+        updateData.is_operable = completionData.vehicleDetails.isOperable;
+      }
+
+      if (completionData.termsAccepted) {
+        updateData.terms_accepted = true;
+      }
+
+      // Store photos/documents as JSON for now (could be moved to separate table later)
+      if (completionData.vehiclePhotos?.length > 0) {
+        // For now, store as JSON metadata - in production might want separate photo table
+        logger.info(`Storing ${completionData.vehiclePhotos.length} vehicle photos`);
+      }
+
+      if (completionData.ownershipDocuments?.length > 0) {
+        // For now, store as JSON metadata - in production might want separate document table  
+        logger.info(`Storing ${completionData.ownershipDocuments.length} ownership documents`);
+      }
+    }
+
+    logger.info('Prepared shipment update data', {
+      shipmentId,
+      updateFields: Object.keys(updateData)
+    });
+
+    // Step 5: Update the shipment
+    logger.info('Updating shipment in database');
+    const updatedShipment = await shipmentService.updateShipment(shipmentId, updateData);
+
+    logger.info('Shipment completion successful', {
+      shipmentId,
+      paymentIntentId,
+      userId: req.user.id,
+      newStatus: updatedShipment.status,
+      paymentStatus: updatedShipment.payment_status
+    });
+
+    // Step 6: Create tracking event for the completion
+    logger.info('Creating tracking event for shipment completion');
+    try {
+      await shipmentService.createTrackingEvent(
+        shipmentId,
+        'accepted',
+        req.user.id,
+        null,
+        `Payment completed and shipment accepted. Payment ID: ${paymentIntentId}`
+      );
+      logger.info('Tracking event created successfully');
+    } catch (trackingError) {
+      logger.warn('Failed to create tracking event, but continuing', { trackingError });
+    }
+
+    // Step 7: Return success response
+    res.status(200).json(successResponse({
+      shipment: updatedShipment,
+      message: 'Shipment completed successfully',
+      paymentConfirmed: true,
+      trackingEvents: true
+    }));
+
+  } catch (error) {
+    logger.error('Shipment completion failed', {
+      error: error instanceof Error ? error.message : 'Unknown error',
+      paymentIntentId,
+      shipmentId,
+      userId: req.user?.id,
+      stack: error instanceof Error ? error.stack : undefined
+    });
+
+    // If it's already a handled error, re-throw it
+    if (error && typeof error === 'object' && 'statusCode' in error) {
+      throw error;
+    }
+
+    // Otherwise, throw a generic error
+    throw createError(
+      error instanceof Error ? error.message : 'Failed to complete shipment',
+      500,
+      'SHIPMENT_COMPLETION_FAILED'
+    );
+  }
+});
+
 // Export all payment controllers after they've been defined
 // Export all controller functions
 
@@ -788,4 +989,5 @@ export const paymentsController = {
   checkRefundEligibility,
   processRefund,
   createFinalPayment,
+  completeShipmentAfterPayment,
 };

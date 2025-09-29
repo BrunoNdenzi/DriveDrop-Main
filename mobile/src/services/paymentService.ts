@@ -282,10 +282,82 @@ class PaymentService {
         .single();
 
       if (error) throw error;
-      return data?.status || 'unknown';
+      return (data as any)?.status || 'unknown';
     } catch (error) {
       console.error('Error getting payment status:', error);
       return 'unknown';
+    }
+  }
+
+  /**
+   * Complete shipment after successful payment
+   * This calls the backend endpoint that handles everything
+   */
+  async completeShipmentAfterPayment(
+    paymentIntentId: string,
+    shipmentId: string,
+    completionData?: {
+      vehicleDetails?: {
+        make: string;
+        model: string;
+        year: string;
+        isOperable: boolean;
+      };
+      vehiclePhotos?: string[];
+      ownershipDocuments?: string[];
+      termsAccepted?: boolean;
+    }
+  ): Promise<{ success: boolean; shipment?: any; error?: string }> {
+    try {
+      // Get the user session
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (!session) {
+        throw new Error('User not authenticated');
+      }
+
+      console.log('Calling backend to complete shipment after payment', {
+        paymentIntentId,
+        shipmentId,
+        hasCompletionData: !!completionData
+      });
+
+      const response = await fetch(`${this.apiUrl}/complete-shipment`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`
+        },
+        body: JSON.stringify({
+          paymentIntentId,
+          shipmentId,
+          completionData
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.error('Shipment completion API error response:', errorData);
+        throw new Error(errorData.message || errorData.error || 'Failed to complete shipment');
+      }
+
+      // Parse response
+      const responseData = await response.json();
+      console.log('Shipment completion API response:', responseData);
+      
+      // Extract data from the response
+      const result = responseData.data || responseData;
+      
+      return { 
+        success: true, 
+        shipment: result.shipment
+      };
+    } catch (error) {
+      console.error('Error completing shipment after payment:', error);
+      return { 
+        success: false, 
+        error: error instanceof Error ? error.message : 'Unknown error completing shipment'
+      };
     }
   }
 }

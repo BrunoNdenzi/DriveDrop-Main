@@ -172,6 +172,29 @@ export const stripeService = {
   },
 
   /**
+   * Retrieve a payment intent by ID
+   */
+  async retrievePaymentIntent(paymentIntentId: string): Promise<Stripe.PaymentIntent> {
+    try {
+      const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
+
+      logger.info('Payment intent retrieved', {
+        paymentIntentId,
+        status: paymentIntent.status,
+      });
+
+      return paymentIntent;
+    } catch (error) {
+      logger.error('Error retrieving payment intent', { error, paymentIntentId });
+      throw createError(
+        error instanceof Error ? error.message : 'Payment retrieval failed',
+        404,
+        'PAYMENT_INTENT_NOT_FOUND'
+      );
+    }
+  },
+
+  /**
    * Create a customer
    */
   async createCustomer(email: string, name?: string, phone?: string): Promise<Stripe.Customer> {

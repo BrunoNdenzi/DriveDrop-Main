@@ -28,7 +28,15 @@ type PaymentRecord = {
   [key: string]: any;
 };
 
-// Make sure the class is properly exported
+// Type for shipment database updates
+type ShipmentUpdate = Database['public']['Tables']['shipments']['Update'];
+
+// Type for payment database updates
+type PaymentUpdate = Database['public']['Tables']['payments']['Update'];
+
+// Type for payment database inserts
+type PaymentInsert = Database['public']['Tables']['payments']['Insert'];
+
 export class PaymentStatusService {
   /**
    * Updates the payment status for a shipment
@@ -49,14 +57,14 @@ export class PaymentStatusService {
       }
 
       // Define update data with minimal fields to prevent schema conflicts
-      const updateData = {
+      const updateData: ShipmentUpdate = {
         payment_status: status,
         updated_at: new Date().toISOString()
       };
 
       try {
         // Try the update first with select to get the updated record
-        const { data, error } = await (supabase as any)
+        const { data, error } = await supabase
           .from('shipments')
           .update(updateData)
           .eq('id', shipmentId)
@@ -95,7 +103,7 @@ export class PaymentStatusService {
             // 2. Try updating with an explicit client_id condition
             if (shipment.client_id) {
               try {
-                const { data: conditionedUpdate } = await (supabase as any)
+                const { data: conditionedUpdate } = await supabase
                   .from('shipments')
                   .update(updateData)
                   .eq('id', shipmentId)
@@ -123,12 +131,12 @@ export class PaymentStatusService {
               if (paymentCheck && paymentCheck.length > 0) {
                 // Update the existing payment
                 const paymentId = (paymentCheck[0] as { id: string }).id;
-                const paymentUpdateData = {
+                const paymentUpdateData: PaymentUpdate = {
                   status: status, 
                   updated_at: new Date().toISOString()
                 };
                 
-                const { data: paymentUpdate } = await (supabase as any)
+                const { data: paymentUpdate } = await supabase
                   .from('payments')
                   .update(paymentUpdateData)
                   .eq('id', paymentId)
@@ -233,13 +241,13 @@ export class PaymentStatusService {
       if (!checkError && existingPayment && existingPayment.length > 0) {
         // Update existing payment
         const paymentId = (existingPayment[0] as { id: string }).id;
-        const paymentUpdateData = {
+        const paymentUpdateData: PaymentUpdate = {
           status: status,
           payment_intent_id: paymentIntentId,
           updated_at: new Date().toISOString()
         };
         
-        const { data: updateResult, error: updateError } = await (supabase as any)
+        const { data: updateResult, error: updateError } = await supabase
           .from('payments')
           .update(paymentUpdateData)
           .eq('id', paymentId)
@@ -254,7 +262,7 @@ export class PaymentStatusService {
         return updateResult && updateResult.length > 0 ? updateResult[0] : null;
       } else {
         // Create new payment record
-        const paymentData = {
+        const paymentData: PaymentInsert = {
           shipment_id: shipmentId,
           client_id: shipment.client_id || '',
           amount: amount || shipment.estimated_price || 0,
@@ -264,7 +272,7 @@ export class PaymentStatusService {
           updated_at: new Date().toISOString()
         };
         
-        const { data: insertResult, error: insertError } = await (supabase as any)
+        const { data: insertResult, error: insertError } = await supabase
           .from('payments')
           .insert([paymentData])
           .select();

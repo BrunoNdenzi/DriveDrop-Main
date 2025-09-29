@@ -49,11 +49,13 @@ type ApiShipmentUpdate = {
   updated_by?: string;
 };
 
+// Type for shipment database updates
+type ShipmentUpdate = Database['public']['Tables']['shipments']['Update'];
+
 /**
  * ShipmentApiService
  * This service handles shipment-related API calls (vs direct Supabase operations)
  */
-// Make sure the class is properly exported
 export class ShipmentApiService {
   /**
    * Gets the appropriate API URL based on the environment
@@ -92,11 +94,9 @@ export class ShipmentApiService {
       // Only update fields that exist in the shipments table schema
       // We've confirmed these fields definitely exist in the database schema
       // All other fields are stripped to avoid schema conflicts
-      const minimalUpdate = {
-        // Use 'accepted' status instead of 'confirmed' which is not in the enum
-        // Valid statuses are: 'pending', 'accepted', 'assigned', 'in_transit', 'in_progress', 'delivered', 'completed', 'cancelled', 'picked_up', 'open'
-        status: updateData.status === 'confirmed' ? 'accepted' : updateData.status,
-        payment_status: 'completed' as const,
+      const minimalUpdate: ShipmentUpdate = {
+        status: updateData.status, // Example: 'confirmed'
+        payment_status: 'completed',
         updated_at: new Date().toISOString()
       };
       
@@ -112,28 +112,16 @@ export class ShipmentApiService {
       try {
         // Use the imported supabase instance instead of dynamic import
         console.log('Attempting direct database update via Supabase client');
-        
-        // Fix: Only update payment_status directly through Supabase since status may have enum constraints
-        const paymentUpdateOnly = {
-          payment_status: minimalUpdate.payment_status,
-          updated_at: minimalUpdate.updated_at
-        };
-        
-        const { data, error } = await (supabase as any)
+        const { data, error } = await supabase
           .from('shipments')
-          .update(paymentUpdateOnly)
+          .update(minimalUpdate)
           .eq('id', shipmentId)
           .select();
           
         if (!error && data && data.length > 0) {
-          console.log('Direct Supabase payment_status update successful:', data);
+          console.log('Direct Supabase update successful:', data);
           updated = true;
-          
-          // Return the data with the expected status for UI consistency
-          return {
-            ...data[0],
-            status: minimalUpdate.status // Add the expected status even if we didn't update it
-          };
+          return data[0];
         } else {
           console.warn('Direct Supabase update failed, falling back to API:', error);
         }
@@ -170,12 +158,12 @@ export class ShipmentApiService {
               try {
                 console.log('Attempting direct payment status update via database');
                 // Use supabase directly to update payment status
-                const paymentStatusUpdate = { 
-                  payment_status: 'completed' as const,
+                const paymentStatusUpdate: ShipmentUpdate = { 
+                  payment_status: 'completed',
                   updated_at: new Date().toISOString()
                 };
                 
-                const { data: paymentResult, error: paymentError } = await (supabase as any)
+                const { data: paymentResult, error: paymentError } = await supabase
                   .from('shipments')
                   .update(paymentStatusUpdate)
                   .eq('id', shipmentId)
