@@ -47,6 +47,7 @@ export default function MessagingDebugScreen() {
     try {
       console.log('🔍 Testing conversations endpoint...');
       const userConversations = await MessagingService.getUserConversations();
+      console.log('📋 Full conversations data:', JSON.stringify(userConversations, null, 2));
       setConversations(userConversations);
       Alert.alert('Success', `Found ${userConversations.length} conversations`);
     } catch (err: any) {
@@ -64,6 +65,8 @@ export default function MessagingDebugScreen() {
 
       const firstConversation = conversations[0];
       console.log('🔍 Testing message sending...');
+      console.log('📋 First conversation object:', JSON.stringify(firstConversation, null, 2));
+      console.log('🆔 Using conversation ID:', firstConversation.id);
       
       const response = await MessagingService.sendMessage({
         conversation_id: firstConversation.id,

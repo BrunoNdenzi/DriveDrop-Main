@@ -230,6 +230,7 @@ export class MessagingServiceV2 {
       }
 
       console.log(`✅ Retrieved ${result.data?.length || 0} conversations`);
+      console.log('📋 Detailed conversations data:', JSON.stringify(result.data, null, 2));
       return result.data || [];
     } catch (error) {
       console.error('🚨 Error fetching conversations:', error);

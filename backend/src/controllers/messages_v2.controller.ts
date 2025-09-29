@@ -85,16 +85,26 @@ export const sendMessage = asyncHandler(async (req: AuthenticatedRequest, res: R
         shipment_id
       `)
       .eq('id', conversation_id)
-      .single();
+      .maybeSingle(); // Use maybeSingle to handle no results gracefully
 
     console.log('📋 Conversation check result:', {
       found: !!conversationCheck,
       error: conversationError?.message,
-      data: conversationCheck
+      data: conversationCheck,
+      conversationId: conversation_id,
+      userId: userId
     });
 
-    if (conversationError || !conversationCheck) {
-      console.error('Conversation not found:', conversationError);
+    if (conversationError) {
+      console.error('Database error checking conversation:', conversationError);
+      return res.status(400).json(errorResponse('Database error: ' + conversationError.message, 'DATABASE_ERROR'));
+    }
+
+    if (!conversationCheck) {
+      console.error('Conversation not found in database:', {
+        conversationId: conversation_id,
+        userId: userId
+      });
       return res.status(404).json(errorResponse('Conversation not found', 'CONVERSATION_NOT_FOUND'));
     }
 
