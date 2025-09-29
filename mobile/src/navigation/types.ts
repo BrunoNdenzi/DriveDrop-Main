@@ -25,6 +25,13 @@ export type RootStackParamList = {
   Settings: undefined;
   NotificationTest: undefined;
   
+  // Messaging Screens
+  MessagingV2: { 
+    conversationId?: string; 
+    shipmentId?: string; 
+    mode?: 'conversation' | 'list';
+  };
+  
   // Vehicle Management Screens
   VehicleProfiles: undefined;
   AddEditVehicle: { vehicle?: any } | undefined;
@@ -60,6 +67,7 @@ export type RootStackParamList = {
 export type ClientTabParamList = {
   Home: undefined;
   Messages: { contactId?: string };
+  MessagesV2: undefined;
   Shipments: undefined;
   Profile: undefined;
 };
@@ -69,6 +77,7 @@ export type DriverTabParamList = {
   AvailableShipments: undefined;
   MyShipments: undefined;
   Messages: { contactId?: string };
+  MessagesV2: undefined;
   Profile: undefined;
 };
 

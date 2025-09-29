@@ -65,36 +65,36 @@ export default function DriverProfileScreen({ navigation }: any) {
       setLoading(true);
       
       // Fetch completed jobs count
-      const { count: completedJobs } = await supabase
+      const { count: completedJobs } = await (supabase as any)
         .from('shipments')
         .select('*', { count: 'exact', head: true })
         .eq('driver_id', userProfile?.id)
         .eq('status', 'delivered');
       
       // Fetch active jobs count
-      const { count: activeJobs } = await supabase
+      const { count: activeJobs } = await (supabase as any)
         .from('shipments')
         .select('*', { count: 'exact', head: true })
         .eq('driver_id', userProfile?.id)
         .in('status', ['accepted', 'picked_up', 'in_transit']);
       
       // Fetch total earnings
-      const { data: earnings } = await supabase
+      const { data: earnings } = await (supabase as any)
         .from('shipments')
         .select('price')
         .eq('driver_id', userProfile?.id)
         .eq('status', 'delivered');
       
-      const totalEarnings = earnings?.reduce((sum, job) => sum + (job.price || 0), 0) || 0;
+      const totalEarnings = earnings?.reduce((sum: number, job: any) => sum + (job.price || 0), 0) || 0;
       
       // Fetch ratings
-      const { data: ratings } = await supabase
+      const { data: ratings } = await (supabase as any)
         .from('driver_ratings')
         .select('rating')
         .eq('driver_id', userProfile?.id);
       
       const averageRating = ratings && ratings.length > 0
-        ? ratings.reduce((sum, item) => sum + item.rating, 0) / ratings.length
+        ? ratings.reduce((sum: number, item: any) => sum + item.rating, 0) / ratings.length
         : 0;
       
       // Calculate on-time rate (simplified for now)
@@ -130,7 +130,7 @@ export default function DriverProfileScreen({ navigation }: any) {
       }
       
       // Fetch driver settings from driver_settings table
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('driver_settings')
         .select('*')
         .eq('driver_id', userProfile?.id)
@@ -141,12 +141,13 @@ export default function DriverProfileScreen({ navigation }: any) {
       }
       
       if (data) {
+        const settingsData: any = data;
         setSettings({
-          availableForJobs: data.available_for_jobs,
-          notificationsEnabled: data.notifications_enabled,
-          preferredRadius: data.preferred_radius || 50,
-          allowLocationTracking: data.allow_location_tracking,
-          preferredJobTypes: data.preferred_job_types || ['standard', 'express'],
+          availableForJobs: settingsData.available_for_jobs,
+          notificationsEnabled: settingsData.notifications_enabled,
+          preferredRadius: settingsData.preferred_radius || 50,
+          allowLocationTracking: settingsData.allow_location_tracking,
+          preferredJobTypes: settingsData.preferred_job_types || ['standard', 'express'],
         });
       }
     } catch (error) {
@@ -176,7 +177,7 @@ export default function DriverProfileScreen({ navigation }: any) {
       
       if (existingSettings) {
         // Update existing settings
-        result = await supabase
+        result = await (supabase as any)
           .from('driver_settings')
           .update({
             available_for_jobs: settings.availableForJobs,
@@ -189,7 +190,7 @@ export default function DriverProfileScreen({ navigation }: any) {
           .eq('driver_id', userProfile.id);
       } else {
         // Insert new settings
-        result = await supabase
+        result = await (supabase as any)
           .from('driver_settings')
           .insert({
             driver_id: userProfile.id,
@@ -335,15 +336,16 @@ export default function DriverProfileScreen({ navigation }: any) {
           <Text style={styles.availabilityDescription}>
             {settings.availableForJobs 
               ? "You're currently visible to clients and can receive new job requests." 
-              : "You're currently not receiving any new job requests."}
+              : "You're currently not receiving any new job requests."} (Feature coming soon)
           </Text>
           <Switch
             value={settings.availableForJobs}
-            onValueChange={handleToggleAvailability}
-            trackColor={{ false: Colors.text.disabled, true: Colors.success + '80' }}
-            thumbColor={settings.availableForJobs ? Colors.success : Colors.text.secondary}
+            onValueChange={() => {}} // Disabled
+            disabled={true}
+            trackColor={{ false: Colors.text.disabled, true: Colors.text.disabled }}
+            thumbColor={Colors.text.disabled}
             ios_backgroundColor={Colors.text.disabled}
-            style={styles.availabilitySwitch}
+            style={[styles.availabilitySwitch, { opacity: 0.5 }]}
           />
         </View>
 

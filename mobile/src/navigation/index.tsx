@@ -32,6 +32,9 @@ import RouteMapScreen from '../screens/driver/RouteMapScreen';
 import MessagesScreen from '../screens/driver/MessagesScreen';
 import DriverProfileScreen from '../screens/driver/DriverProfileScreen';
 
+// Messaging Screens
+import MessagingScreenV2 from '../screens/messaging/MessagingScreenV2';
+
 // Diagnostic Screens
 import NetworkDiagnosticScreen from '../screens/NetworkDiagnosticScreen';
 
@@ -91,6 +94,16 @@ function ClientTabNavigator() {
           tabBarLabel: 'Messages',
           tabBarIcon: ({ color, size }: { color: string; size: number }) => (
             <MaterialIcons name="chat" color={color} size={size} />
+          ),
+        }}
+      />
+      <ClientTab.Screen
+        name="MessagesV2"
+        component={MessagingScreenV2}
+        options={{
+          tabBarLabel: 'Chat',
+          tabBarIcon: ({ color, size }: { color: string; size: number }) => (
+            <MaterialIcons name="chat-bubble" color={color} size={size} />
           ),
         }}
       />
@@ -181,6 +194,16 @@ function DriverTabNavigator() {
           tabBarLabel: 'Messages',
           tabBarIcon: ({ color, size }: { color: string; size: number }) => (
             <MaterialIcons name="chat" color={color} size={size} />
+          ),
+        }}
+      />
+      <DriverTab.Screen
+        name="MessagesV2"
+        component={MessagingScreenV2}
+        options={{
+          tabBarLabel: 'Chat',
+          tabBarIcon: ({ color, size }: { color: string; size: number }) => (
+            <MaterialIcons name="chat-bubble" color={color} size={size} />
           ),
         }}
       />
@@ -313,6 +336,13 @@ export default function Navigation() {
               name="NotificationTest"
               component={NotificationTestScreen}
               options={{ title: 'Notification Test' }}
+            />
+            
+            {/* Messaging Screens */}
+            <Stack.Screen
+              name="MessagingV2"
+              component={MessagingScreenV2}
+              options={{ title: 'Messages' }}
             />
             
             {/* Booking Flow Screens */}

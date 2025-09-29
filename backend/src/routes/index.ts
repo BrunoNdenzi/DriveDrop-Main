@@ -11,6 +11,7 @@ import mapsRoutes from './maps.routes';
 import applicationRoutes from './application.routes';
 import driverRoutes from './driver.routes';
 import messagesRoutes from './messages.routes';
+import messagesV2Routes from './messages_v2.routes';
 import { diagnosticsRoutes } from './diagnostics.routes';
 import pricingRoutes from './pricing.routes';
 import vehicleRoutes from './vehicles';
@@ -33,6 +34,7 @@ router.get('/', (_req, res) => {
       applications: '/api/v1/applications',
       drivers: '/api/v1/drivers',
       messages: '/api/v1/messages',
+      messagesV2: '/api/v1/messages-v2',
       vehicles: '/api/v1/vehicles',
     },
   });
@@ -48,6 +50,7 @@ router.use('/maps', mapsRoutes);
 router.use('/applications', applicationRoutes);
 router.use('/drivers', driverRoutes);
 router.use('/messages', messagesRoutes);
+router.use('/messages-v2', messagesV2Routes);
 router.use('/diagnostics', diagnosticsRoutes);
 router.use('/pricing', pricingRoutes);
 router.use('/vehicles', vehicleRoutes);

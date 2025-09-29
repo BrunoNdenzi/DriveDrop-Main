@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { StyleSheet, View, Text, TouchableOpacity, ScrollView, Alert } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { MaterialIcons } from '@expo/vector-icons';
+import { useFocusEffect } from '@react-navigation/native';
 import { Colors } from '../../constants/Colors';
 import { useAuth } from '../../context/AuthContext';
 import { supabase } from '../../lib/supabase';
@@ -22,6 +23,13 @@ export default function DriverDashboardScreen({ navigation }: any) {
   useEffect(() => {
     fetchDashboardData();
   }, []);
+
+  // Refresh dashboard data when screen comes into focus
+  useFocusEffect(
+    React.useCallback(() => {
+      fetchDashboardData();
+    }, [userProfile])
+  );
 
   const fetchDashboardData = async () => {
     if (!userProfile) return;
@@ -63,9 +71,9 @@ export default function DriverDashboardScreen({ navigation }: any) {
         // Update the pendingJobs count in stats
         setStats({
           activeJobs: activeJobsResult.count || 0,
-          pendingJobs: applications?.filter(app => app.status === 'pending').length || 0,
+          pendingJobs: applications?.filter((app: any) => app.status === 'pending').length || 0,
           completedJobs: completedJobsResult.data?.length || 0,
-          totalEarnings: completedJobsResult.data?.reduce((sum, job) => sum + (job.estimated_price || 0), 0) || 0,
+          totalEarnings: completedJobsResult.data?.reduce((sum: number, job: any) => sum + (job.estimated_price || 0), 0) || 0,
         });
       }
       
@@ -89,7 +97,7 @@ export default function DriverDashboardScreen({ navigation }: any) {
           driver_id: userProfile?.id,
           available_for_jobs: !isAvailable,
           updated_at: new Date().toISOString(),
-        });
+        } as any);
       
       Alert.alert(
         'Shift Status Updated', 
@@ -163,16 +171,16 @@ export default function DriverDashboardScreen({ navigation }: any) {
             {isAvailable ? 'Ready to accept new shipments' : 'Not receiving new job requests'}
           </Text>
           <TouchableOpacity 
-            style={[styles.shiftButton, !isAvailable && styles.shiftButtonOffline]}
-            onPress={handleStartShift}
+            style={[styles.shiftButton, styles.shiftButtonDisabled]}
+            disabled={true}
           >
             <MaterialIcons 
               name={isAvailable ? "pause" : "play-arrow"} 
               size={20} 
-              color={Colors.text.inverse} 
+              color={Colors.text.secondary} 
             />
-            <Text style={styles.shiftButtonText}>
-              {isAvailable ? 'End Shift' : 'Start Shift'}
+            <Text style={[styles.shiftButtonText, styles.shiftButtonTextDisabled]}>
+              {isAvailable ? 'End Shift' : 'Start Shift'} (Coming Soon)
             </Text>
           </TouchableOpacity>
         </View>
@@ -573,9 +581,16 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: Colors.border,
   },
+  shiftButtonDisabled: {
+    backgroundColor: Colors.text.secondary,
+    opacity: 0.6,
+  },
   shiftButtonText: {
     color: '#FFFFFF',
     fontWeight: '600',
     marginLeft: 4,
+  },
+  shiftButtonTextDisabled: {
+    color: Colors.text.secondary,
   },
 });

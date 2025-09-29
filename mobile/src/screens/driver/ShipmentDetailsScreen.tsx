@@ -107,34 +107,35 @@ export default function ShipmentDetailsScreen({ route, navigation }: any) {
       if (error) throw error;
 
       // Transform data
+      const shipmentData: any = data; // Type assertion to fix TypeScript issues
       const transformedShipment: ShipmentDetails = {
-        id: data.id,
-        title: data.title || 'Delivery Service',
-        status: data.status,
-        client_id: data.client_id,
-        client_name: data.profiles 
-          ? `${data.profiles.first_name} ${data.profiles.last_name}`
+        id: shipmentData.id,
+        title: shipmentData.title || 'Delivery Service',
+        status: shipmentData.status,
+        client_id: shipmentData.client_id,
+        client_name: shipmentData.profiles 
+          ? `${shipmentData.profiles.first_name} ${shipmentData.profiles.last_name}`
           : 'Unknown Customer',
-        client_phone: data.profiles?.phone || '',
-        pickup_address: data.pickup_address || '',
-        pickup_city: data.pickup_city || '',
-        pickup_state: data.pickup_state || '',
-        pickup_zip: data.pickup_zip || '',
-        pickup_date: data.pickup_date || data.created_at,
-        pickup_notes: data.pickup_notes || '',
-        delivery_address: data.delivery_address || '',
-        delivery_city: data.delivery_city || '',
-        delivery_state: data.delivery_state || '',
-        delivery_zip: data.delivery_zip || '',
-        delivery_date: data.delivery_date || '',
-        delivery_notes: data.delivery_notes || '',
-        distance: data.distance || 0,
-        price: data.estimated_price || 0,
-        vehicle_type: data.vehicle_type || 'Any',
-        cargo_type: data.cargo_type || 'General',
-        weight: data.weight || 0,
-        dimensions: data.dimensions || '',
-        created_at: data.created_at,
+        client_phone: shipmentData.profiles?.phone || '',
+        pickup_address: shipmentData.pickup_address || '',
+        pickup_city: shipmentData.pickup_city || '',
+        pickup_state: shipmentData.pickup_state || '',
+        pickup_zip: shipmentData.pickup_zip || '',
+        pickup_date: shipmentData.pickup_date || shipmentData.created_at,
+        pickup_notes: shipmentData.pickup_notes || '',
+        delivery_address: shipmentData.delivery_address || '',
+        delivery_city: shipmentData.delivery_city || '',
+        delivery_state: shipmentData.delivery_state || '',
+        delivery_zip: shipmentData.delivery_zip || '',
+        delivery_date: shipmentData.delivery_date || '',
+        delivery_notes: shipmentData.delivery_notes || '',
+        distance: shipmentData.distance || 0,
+        price: shipmentData.estimated_price || 0,
+        vehicle_type: shipmentData.vehicle_type || 'Any',
+        cargo_type: shipmentData.cargo_type || 'General',
+        weight: shipmentData.weight || 0,
+        dimensions: shipmentData.dimensions || '',
+        created_at: shipmentData.created_at,
       };
 
       setShipment(transformedShipment);
@@ -173,7 +174,7 @@ export default function ShipmentDetailsScreen({ route, navigation }: any) {
         return;
       }
       
-      const { error } = await supabase
+      const { error } = await (supabase as any)
         .from('shipments')
         .update({ 
           status: newStatus,
@@ -394,15 +395,16 @@ export default function ShipmentDetailsScreen({ route, navigation }: any) {
             )}
           </TouchableOpacity>
           
-          {shipment.delivery_date && (
-            <View style={styles.infoRow}>
-              <MaterialIcons name="schedule" size={20} color={Colors.warning} />
-              <Text style={styles.infoText}>
-                Expected: {new Date(shipment.delivery_date).toLocaleDateString()} at{' '}
-                {new Date(shipment.delivery_date).toLocaleTimeString()}
-              </Text>
-            </View>
-          )}
+          <View style={styles.infoRow}>
+            <MaterialIcons name="schedule" size={20} color={Colors.warning} />
+            <Text style={styles.infoText}>
+              {shipment.delivery_date ? (
+                `Expected: ${new Date(shipment.delivery_date).toLocaleDateString()} at ${new Date(shipment.delivery_date).toLocaleTimeString()}`
+              ) : (
+                'Delivery time: TBD'
+              )}
+            </Text>
+          </View>
           
           {shipment.delivery_notes && (
             <View style={styles.notesContainer}>
