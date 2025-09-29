@@ -69,6 +69,11 @@ export const sendMessage = asyncHandler(async (req: AuthenticatedRequest, res: R
 
   try {
     // First check if user can access this conversation
+    console.log('🔍 Checking conversation access:', {
+      conversationId: conversation_id,
+      userId: userId
+    });
+
     const { data: conversationCheck, error: conversationError } = await supabase
       .from('conversations')
       .select(`
@@ -81,6 +86,12 @@ export const sendMessage = asyncHandler(async (req: AuthenticatedRequest, res: R
       `)
       .eq('id', conversation_id)
       .single();
+
+    console.log('📋 Conversation check result:', {
+      found: !!conversationCheck,
+      error: conversationError?.message,
+      data: conversationCheck
+    });
 
     if (conversationError || !conversationCheck) {
       console.error('Conversation not found:', conversationError);
@@ -272,6 +283,7 @@ export const getUserConversations = asyncHandler(async (req: AuthenticatedReques
       return res.status(400).json(errorResponse(error.message, 'DATABASE_ERROR'));
     }
 
+    console.log('📋 Detailed conversation data:', JSON.stringify(data, null, 2));
     console.log(`✅ Retrieved ${data?.length || 0} conversations`);
     return res.status(200).json(successResponse(data, 'Conversations retrieved successfully'));
   } catch (error: any) {
