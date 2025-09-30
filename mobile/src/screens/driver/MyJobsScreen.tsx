@@ -54,7 +54,7 @@ function ActiveJobsTab({ navigation }: any) {
       if (error) throw error;
       
       // Transform the data for our UI
-      const formattedJobs = data.map((job) => ({
+      const formattedJobs = data.map((job: any) => ({
         id: job.id,
         title: `Shipment #${job.id.substring(0, 8)}`,
         pickup_location: job.pickup_address || 'Address not specified',
@@ -217,7 +217,7 @@ function CompletedJobsTab({ navigation }: any) {
       if (error) throw error;
       
       // Transform the data for our UI
-      const formattedJobs = data.map((job) => ({
+      const formattedJobs = data.map((job: any) => ({
         id: job.id,
         title: `Shipment #${job.id.substring(0, 8)}`,
         pickup_location: job.pickup_address || 'Address not specified',

@@ -19,9 +19,8 @@ import ConsolidatedNewShipmentScreen from '../screens/ConsolidatedNewShipmentScr
 import ShipmentCompletionScreen from '../screens/ShipmentCompletionScreen';
 import ShipmentsScreen from '../screens/shipments/ShipmentsScreen';
 import ShipmentDetailsScreen from '../screens/shipments/ShipmentDetailsScreen';
-import ProfileScreen from '../screens/profile/ProfileScreen';
+import ClientProfileScreen from '../screens/profile/ProfileScreenNew';
 import SettingsScreen from '../screens/SettingsScreen';
-import NotificationTestScreen from '../screens/NotificationTestScreen';
 
 // Driver Screens
 import DriverDashboardScreen from '../screens/driver/DriverDashboardScreen';
@@ -31,15 +30,21 @@ import DriverShipmentDetailsScreen from '../screens/driver/ShipmentDetailsScreen
 import RouteMapScreen from '../screens/driver/RouteMapScreen';
 import MessagesScreen from '../screens/driver/MessagesScreen';
 import DriverProfileScreen from '../screens/driver/DriverProfileScreen';
+import EditProfileScreen from '../screens/driver/EditProfileScreen';
+import VehicleInfoScreen from '../screens/driver/VehicleInfoScreen';
+import EarningsHistoryScreen from '../screens/driver/EarningsHistoryScreen';
+import HelpSupportScreen from '../screens/driver/HelpSupportScreen';
+import SecurityPrivacyScreen from '../screens/driver/SecurityPrivacyScreen';
+
+// Client Profile Screens  
+import EditClientProfileScreen from '../screens/profile/EditClientProfileScreen';
+import PaymentMethodsScreen from '../screens/client/profile/PaymentMethodsScreen';
+import AddressBookScreen from '../screens/client/profile/AddressBookScreen';
+import NotificationSettingsScreen from '../screens/client/profile/NotificationSettingsScreen';
+import HelpSupportClientScreen from '../screens/client/profile/HelpSupportScreen';
 
 // Messaging Screens
 import MessagingScreenV2 from '../screens/messaging/MessagingScreenV2';
-
-// Debug Screens
-import MessagingDebugScreen from '../screens/debug/MessagingDebugScreen';
-
-// Diagnostic Screens
-import NetworkDiagnosticScreen from '../screens/NetworkDiagnosticScreen';
 
 // Booking Screens
 import BookingStepCustomerScreen from '../screens/booking/BookingStepCustomerScreen';
@@ -112,7 +117,7 @@ function ClientTabNavigator() {
       />
       <ClientTab.Screen
         name="Profile"
-        component={ProfileScreen}
+        component={ClientProfileScreen}
         options={{
           tabBarLabel: 'My Profile',
           tabBarIcon: ({ color, size }: { color: string; size: number }) => (
@@ -187,16 +192,6 @@ function DriverTabNavigator() {
           tabBarLabel: 'Messages',
           tabBarIcon: ({ color, size }: { color: string; size: number }) => (
             <MaterialIcons name="chat" color={color} size={size} />
-          ),
-        }}
-      />
-      <DriverTab.Screen
-        name="Debug"
-        component={MessagingDebugScreen}
-        options={{
-          tabBarLabel: 'Debug',
-          tabBarIcon: ({ color, size }: { color: string; size: number }) => (
-            <MaterialIcons name="bug-report" color={color} size={size} />
           ),
         }}
       />
@@ -325,12 +320,6 @@ export default function Navigation() {
               options={{ title: 'Settings' }}
             />
             
-            <Stack.Screen
-              name="NotificationTest"
-              component={NotificationTestScreen}
-              options={{ title: 'Notification Test' }}
-            />
-            
             {/* Messaging Screens */}
             <Stack.Screen
               name="MessagingV2"
@@ -399,11 +388,66 @@ export default function Navigation() {
               }}
             />
             
-            {/* Diagnostic screens */}
+            {/* Driver Profile Screens */}
             <Stack.Screen
-              name="NetworkDiagnostic"
-              component={NetworkDiagnosticScreen}
-              options={{ title: 'Network Diagnostics' }}
+              name="EditProfile"
+              component={EditProfileScreen}
+              options={{ title: 'Edit Profile', headerShown: false }}
+            />
+            
+            <Stack.Screen
+              name="VehicleInfo"
+              component={VehicleInfoScreen}
+              options={{ title: 'Vehicle Information', headerShown: false }}
+            />
+            
+            <Stack.Screen
+              name="EarningsHistory"
+              component={EarningsHistoryScreen}
+              options={{ title: 'Earnings History', headerShown: false }}
+            />
+            
+            <Stack.Screen
+              name="HelpSupport"
+              component={HelpSupportScreen}
+              options={{ title: 'Help & Support', headerShown: false }}
+            />
+            
+            <Stack.Screen
+              name="SecurityPrivacy"
+              component={SecurityPrivacyScreen}
+              options={{ title: 'Security & Privacy', headerShown: false }}
+            />
+            
+            {/* Client Profile Screens */}
+            <Stack.Screen
+              name="EditClientProfile"
+              component={EditClientProfileScreen}
+              options={{ title: 'Edit Profile', headerShown: false }}
+            />
+            
+            <Stack.Screen
+              name="PaymentMethods"
+              component={PaymentMethodsScreen}
+              options={{ title: 'Payment Methods', headerShown: false }}
+            />
+            
+            <Stack.Screen
+              name="AddressBook"
+              component={AddressBookScreen}
+              options={{ title: 'Address Book', headerShown: false }}
+            />
+            
+            <Stack.Screen
+              name="NotificationSettings"
+              component={NotificationSettingsScreen}
+              options={{ title: 'Notification Settings', headerShown: false }}
+            />
+            
+            <Stack.Screen
+              name="HelpSupportClient"
+              component={HelpSupportClientScreen}
+              options={{ title: 'Help & Support', headerShown: false }}
             />
             
             {/* Add other authenticated screens here */}

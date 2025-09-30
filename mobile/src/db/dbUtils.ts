@@ -9,7 +9,7 @@ import logger from '../utils/logger';
 export async function checkTableExists(tableName: string): Promise<boolean> {
   try {
     // Use a direct SQL query since information_schema.tables might be restricted
-    const { data, error } = await supabase.rpc('table_exists', { table_name: tableName });
+    const { data, error } = (supabase as any).rpc('table_exists', { table_name: tableName });
 
     if (error) {
       logger.error(`Error checking if table ${tableName} exists:`, error);
@@ -42,7 +42,7 @@ export async function checkTableExists(tableName: string): Promise<boolean> {
  */
 export async function ensureTablesExist(sqlStatements: string): Promise<void> {
   try {
-    const { error } = await supabase.rpc('exec_sql', { sql: sqlStatements });
+    const { error } = (supabase as any).rpc('exec_sql', { sql: sqlStatements });
     
     if (error) {
       logger.error('Error executing SQL to create tables:', error);
@@ -70,16 +70,17 @@ export async function getActualTableName(logicalTableName: string): Promise<stri
       return logicalTableName;
     }
     
-    if (!data || !Array.isArray(data) || data.length === 0) {
+    const tablesData = data as any[];
+    if (!tablesData || !Array.isArray(tablesData) || tablesData.length === 0) {
       return logicalTableName;
     }
     
     // Check for exact match first
-    const exactMatch = data.find((name: string) => name === logicalTableName);
+    const exactMatch = tablesData.find((name: string) => name === logicalTableName);
     if (exactMatch) return exactMatch;
     
     // Then look for similar names
-    const similarNames = data.filter((name: string) => 
+    const similarNames = tablesData.filter((name: string) => 
       name.includes(logicalTableName.replace('_', '')) || 
       logicalTableName.includes(name)
     );

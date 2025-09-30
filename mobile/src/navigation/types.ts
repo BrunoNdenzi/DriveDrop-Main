@@ -20,10 +20,8 @@ export type RootStackParamList = {
   RouteMap: { shipmentId: string };
   CreateShipment: undefined;
   ShipmentCompletion: { shipmentData: any };
-  EditProfile: undefined;
   Notifications: undefined;
   Settings: undefined;
-  NotificationTest: undefined;
   
   // Messaging Screens
   MessagingV2: { 
@@ -40,8 +38,19 @@ export type RootStackParamList = {
   AdminAssignment: undefined;
   AdminDashboard: undefined;
   
-  // Diagnostic Screens
-  NetworkDiagnostic: undefined;
+  // Driver Profile Screens
+  EditProfile: undefined;
+  VehicleInfo: undefined;
+  EarningsHistory: undefined;
+  HelpSupport: undefined;
+  SecurityPrivacy: undefined;
+  
+  // Client Profile Screens
+  EditClientProfile: undefined;
+  PaymentMethods: undefined;
+  AddressBook: undefined;
+  NotificationSettings: undefined;
+  HelpSupportClient: undefined;
   
   // Booking Flow Screens
   BookingStepCustomer: { quoteId?: string };
@@ -67,7 +76,7 @@ export type RootStackParamList = {
 export type ClientTabParamList = {
   Home: undefined;
   MessagesV2: undefined;
-  Shipments: undefined;
+  Shipments: { initialFilter?: 'pending' | 'active' | 'past' } | undefined;
   Profile: undefined;
 };
 
@@ -76,7 +85,6 @@ export type DriverTabParamList = {
   AvailableShipments: undefined;
   MyShipments: undefined;
   MessagesV2: undefined;
-  Debug: undefined;
   Profile: undefined;
 };
 

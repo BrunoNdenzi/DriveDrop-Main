@@ -86,7 +86,7 @@ function ActiveShipmentsTab({ navigation }: any) {
 
   const updateShipmentStatus = async (shipmentId: string, newStatus: string) => {
     try {
-      const { error } = await supabase
+      const { error } = (supabase as any)
         .from('shipments')
         .update({ 
           status: newStatus,

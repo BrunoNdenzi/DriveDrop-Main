@@ -2,7 +2,7 @@
  * NEW MESSAGING SCREEN V2 - Complete Re-implementation
  * Maintains design and functionality with improved architecture
  */
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -17,6 +17,7 @@ import {
   StyleSheet
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useFocusEffect } from '@react-navigation/native';
 import { useMessagingV2 } from '../../hooks/useMessagingV2';
 import { useAuth } from '../../context/AuthContext';
 import { Colors } from '../../constants/Colors';
@@ -34,14 +35,13 @@ interface MessagingScreenV2Props {
 }
 
 export default function MessagingScreenV2({ route, navigation }: MessagingScreenV2Props) {
-  console.log('🎬 MessagingScreenV2 rendered with params:', route.params);
-
   const { user } = useAuth();
   const { conversationId, shipmentId, mode = 'list' } = route.params || {};
   
   // State
   const [messageText, setMessageText] = useState('');
   const [selectedConversationId, setSelectedConversationId] = useState<string | null>(conversationId || null);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const flatListRef = useRef<FlatList>(null);
 
   // Messaging hook
@@ -91,13 +91,9 @@ export default function MessagingScreenV2({ route, navigation }: MessagingScreen
   useEffect(() => {
     // If shipmentId is provided, get the conversation for that shipment
     if (shipmentId && !conversationId) {
-      console.log('🚢 Getting conversation for shipment:', shipmentId);
       getConversationByShipment(shipmentId).then(conversationInfo => {
-        console.log('📋 Conversation info received:', conversationInfo);
         if (conversationInfo && conversationInfo.can_access) {
           setSelectedConversationId(conversationInfo.id);
-        } else {
-          console.log('❌ No accessible conversation found for shipment');
         }
       });
     }
@@ -116,13 +112,26 @@ export default function MessagingScreenV2({ route, navigation }: MessagingScreen
   const handleSendMessage = async () => {
     if (!messageText.trim() || !selectedConversationId) return;
 
-    const success = await sendMessage(messageText.trim());
+    const messageToSend = messageText.trim();
+    
+    // Clear text field immediately (optimistic UI)
+    setMessageText('');
+
+    const success = await sendMessage(messageToSend);
     if (success) {
-      setMessageText('');
       // Scroll to bottom after sending
       setTimeout(() => {
         flatListRef.current?.scrollToEnd({ animated: true });
       }, 100);
+      
+      // Refresh conversations list to ensure it's up-to-date for when user goes back
+      setTimeout(() => {
+        console.log('🔄 Refreshing conversations after message sent');
+        refreshConversations();
+      }, 500);
+    } else {
+      // Restore text if sending failed
+      setMessageText(messageToSend);
     }
   };
 
@@ -171,6 +180,55 @@ export default function MessagingScreenV2({ route, navigation }: MessagingScreen
     return 'sent';
   };
 
+  const renderMessageStatus = (message: Message, isOwnMessage: boolean) => {
+    if (!isOwnMessage) return null;
+    
+    const status = getMessageStatus(message);
+    
+    // Always show at least one checkmark for own messages
+    return (
+      <View style={styles.messageStatusWrapper}>
+        {status === 'sent' && (
+          <Ionicons 
+            name="checkmark" 
+            size={14} 
+            color={Colors.white} // White for better visibility on blue background
+          />
+        )}
+        {status === 'delivered' && (
+          <View style={styles.doubleCheckmark}>
+            <Ionicons 
+              name="checkmark" 
+              size={14} 
+              color={Colors.white} // White for better visibility
+            />
+            <Ionicons 
+              name="checkmark" 
+              size={14} 
+              color={Colors.white} // White for better visibility
+              style={{ marginLeft: -6 }}
+            />
+          </View>
+        )}
+        {status === 'read' && (
+          <View style={styles.doubleCheckmark}>
+            <Ionicons 
+              name="checkmark" 
+              size={14} 
+              color={'#4CAF50'} // Green color for read status instead of blue
+            />
+            <Ionicons 
+              name="checkmark" 
+              size={14} 
+              color={'#4CAF50'} // Green color for read status instead of blue
+              style={{ marginLeft: -6 }}
+            />
+          </View>
+        )}
+      </View>
+    );
+  };
+
   // Render functions
   const renderMessage = ({ item }: { item: Message }) => {
     const isOwnMessage = item.sender_id === user?.id;
@@ -209,14 +267,7 @@ export default function MessagingScreenV2({ route, navigation }: MessagingScreen
             ]}>
               {formatMessageTime(item.created_at)}
             </Text>
-            {isOwnMessage && (
-              <Ionicons 
-                name={status === 'read' ? "checkmark-done" : "checkmark"} 
-                size={12} 
-                color={status === 'read' ? Colors.primary : Colors.text.secondary}
-                style={styles.messageStatus}
-              />
-            )}
+            {renderMessageStatus(item, isOwnMessage)}
           </View>
         </View>
       </TouchableOpacity>
@@ -305,7 +356,13 @@ export default function MessagingScreenV2({ route, navigation }: MessagingScreen
           renderItem={renderConversation}
           keyExtractor={(item) => item.id}
           refreshControl={
-            <RefreshControl refreshing={loading} onRefresh={refreshConversations} />
+            <RefreshControl 
+              refreshing={loading || isRefreshing} 
+              onRefresh={() => {
+                setIsRefreshing(true);
+                refreshConversations().finally(() => setIsRefreshing(false));
+              }} 
+            />
           }
           style={styles.conversationsList}
           showsVerticalScrollIndicator={false}
@@ -611,6 +668,16 @@ const styles = StyleSheet.create({
   },
   messageStatus: {
     marginLeft: 4,
+  },
+  messageStatusWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginLeft: 4,
+  },
+  doubleCheckmark: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginLeft: -8, // Overlap the icons slightly
   },
   // Input Styles
   inputContainer: {

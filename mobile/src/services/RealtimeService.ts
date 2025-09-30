@@ -264,7 +264,7 @@ export class RealtimeService {
           });
           
           // Send to Supabase
-          await supabase.from('driver_locations').insert({
+          await (supabase as any).from('driver_locations').insert({
             shipment_id: this.currentShipmentId,
             driver_id: driverId,
             latitude: location.coords.latitude,

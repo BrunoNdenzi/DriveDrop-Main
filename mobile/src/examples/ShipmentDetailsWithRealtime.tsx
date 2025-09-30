@@ -60,7 +60,7 @@ export default function ShipmentDetailsScreen({ route, navigation }: ShipmentDet
         .single();
         
       if (data) {
-        setUserRole(data.role);
+        setUserRole((data as any).role);
       }
     };
     

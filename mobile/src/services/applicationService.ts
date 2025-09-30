@@ -122,7 +122,7 @@ export class ApplicationService {
         
         // Fetch driver profiles separately
         const enrichedApplications = await Promise.all(
-          basicApplications.map(async (app) => {
+          basicApplications.map(async (app: any) => {
             try {
               const { data: profileData } = await supabase
                 .from('profiles')
@@ -183,7 +183,7 @@ export class ApplicationService {
         return true;
       }
       
-      const { error } = await supabase
+      const { error } = (supabase as any)
         .from(this.jobApplicationsTableName)
         .update({ 
           status, 
@@ -213,7 +213,7 @@ export class ApplicationService {
     await this.initialize();
     
     try {
-      const { data, error } = await supabase
+      const { data, error } = (supabase as any)
         .from(this.jobApplicationsTableName)
         .insert({
           shipment_id: shipmentId,

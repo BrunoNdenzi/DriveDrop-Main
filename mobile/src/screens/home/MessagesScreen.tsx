@@ -175,7 +175,7 @@ export default function MessagesScreen() {
       const uniqueDrivers: Record<string, Contact> = {};
       
       // Filter drivers based on shipment status - only active or recently delivered shipments
-      shipments.forEach((shipment) => {
+      shipments.forEach((shipment: any) => {
         const profile = shipment.profiles as any;
         if (profile && profile.id && !uniqueDrivers[profile.id]) {
           // Only allow messaging for shipments that are accepted, in_transit, or delivered within last 24h
@@ -207,7 +207,7 @@ export default function MessagesScreen() {
       if (adminError) throw adminError;
       
       // Add admin users to contacts
-      adminUsers?.forEach(admin => {
+      adminUsers?.forEach((admin: any) => {
         uniqueDrivers[admin.id] = {
           id: admin.id,
           name: `${admin.first_name} ${admin.last_name} (Support)`,
@@ -231,7 +231,7 @@ export default function MessagesScreen() {
               .limit(1);
             
             // Get unread count for this contact
-            const { data: unreadCountData } = await supabase
+            const { data: unreadCountData } = (supabase as any)
               .rpc('count_unread_messages', {
                 p_user_id: userProfile.id, 
                 p_contact_id: contact.id
@@ -240,13 +240,14 @@ export default function MessagesScreen() {
             const unreadCount = unreadCountData || 0;
             
             if (lastMessage && lastMessage.length > 0) {
-              contact.lastMessage = lastMessage[0].content;
-              contact.lastMessageTime = lastMessage[0].created_at;
+              const message = lastMessage[0] as any;
+              contact.lastMessage = message.content;
+              contact.lastMessageTime = message.created_at;
               contact.unreadCount = unreadCount;
               
               // If there's a shipment_id in the message but not in the contact, add it
-              if (lastMessage[0].shipment_id && !contact.shipmentId) {
-                contact.shipmentId = lastMessage[0].shipment_id;
+              if (message.shipment_id && !contact.shipmentId) {
+                contact.shipmentId = message.shipment_id;
               }
             }
           } catch (error) {
@@ -306,11 +307,11 @@ export default function MessagesScreen() {
       // Mark unread messages as read
       if (data) {
         const unreadMessages = data.filter(
-          msg => msg.sender_id === contactId && !msg.is_read
+          (msg: any) => msg.sender_id === contactId && !msg.is_read
         );
         
         for (const msg of unreadMessages) {
-          await MessageUtil.markAsRead(msg.id, userProfile.id);
+          await MessageUtil.markAsRead((msg as any).id, userProfile.id);
         }
       }
       

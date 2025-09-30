@@ -1,6 +1,19 @@
 -- WARNING: This schema is for context only and is not meant to be run.
 -- Table order and constraints may not be valid for execution.
 
+CREATE TABLE public.conversations (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  shipment_id uuid NOT NULL UNIQUE,
+  client_id uuid NOT NULL,
+  driver_id uuid NOT NULL,
+  is_active boolean DEFAULT true,
+  created_at timestamp with time zone DEFAULT now(),
+  expires_at timestamp with time zone,
+  CONSTRAINT conversations_pkey PRIMARY KEY (id),
+  CONSTRAINT conversations_shipment_id_fkey FOREIGN KEY (shipment_id) REFERENCES public.shipments(id),
+  CONSTRAINT conversations_client_id_fkey FOREIGN KEY (client_id) REFERENCES public.profiles(id),
+  CONSTRAINT conversations_driver_id_fkey FOREIGN KEY (driver_id) REFERENCES public.profiles(id)
+);
 CREATE TABLE public.driver_applications (
   id uuid NOT NULL DEFAULT uuid_generate_v4(),
   user_id uuid NOT NULL,
@@ -77,20 +90,18 @@ CREATE TABLE public.job_applications (
 );
 CREATE TABLE public.messages (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
-  shipment_id uuid NOT NULL,
+  conversation_id uuid NOT NULL,
   sender_id uuid NOT NULL,
-  receiver_id uuid,
   content text NOT NULL CHECK (length(content) > 0 AND length(content) <= 2000),
   message_type character varying DEFAULT 'text'::character varying CHECK (message_type::text = ANY (ARRAY['text'::character varying, 'system'::character varying, 'notification'::character varying]::text[])),
-  is_read boolean DEFAULT false,
+  sent_at timestamp with time zone DEFAULT now(),
+  delivered_at timestamp with time zone,
   read_at timestamp with time zone,
-  created_at timestamp with time zone DEFAULT now(),
-  expires_at timestamp with time zone DEFAULT (now() + '24:00:00'::interval),
   metadata jsonb DEFAULT '{}'::jsonb,
+  created_at timestamp with time zone DEFAULT now(),
   CONSTRAINT messages_pkey PRIMARY KEY (id),
-  CONSTRAINT messages_shipment_id_fkey FOREIGN KEY (shipment_id) REFERENCES public.shipments(id),
-  CONSTRAINT messages_sender_id_fkey FOREIGN KEY (sender_id) REFERENCES public.profiles(id),
-  CONSTRAINT messages_receiver_id_fkey FOREIGN KEY (receiver_id) REFERENCES public.profiles(id)
+  CONSTRAINT messages_conversation_id_fkey FOREIGN KEY (conversation_id) REFERENCES public.conversations(id),
+  CONSTRAINT messages_sender_id_fkey FOREIGN KEY (sender_id) REFERENCES public.profiles(id)
 );
 CREATE TABLE public.notification_preferences (
   id uuid NOT NULL DEFAULT uuid_generate_v4(),
@@ -194,7 +205,6 @@ CREATE TABLE public.shipments (
   estimated_distance_km numeric,
   estimated_price numeric NOT NULL,
   final_price numeric,
-  payment_status USER-DEFINED NOT NULL DEFAULT 'pending'::payment_status,
   created_at timestamp with time zone NOT NULL DEFAULT now(),
   updated_at timestamp with time zone NOT NULL DEFAULT now(),
   pickup_date timestamp with time zone,
@@ -212,6 +222,15 @@ CREATE TABLE public.shipments (
   weight numeric,
   dimensions text,
   updated_by uuid,
+  payment_status USER-DEFINED NOT NULL DEFAULT 'pending'::payment_status,
+  vehicle_make text,
+  vehicle_model text,
+  vehicle_year integer,
+  is_operable boolean DEFAULT true,
+  payment_intent_id text,
+  terms_accepted boolean DEFAULT false,
+  vehicle_count integer DEFAULT 1,
+  is_accident_recovery boolean DEFAULT false,
   CONSTRAINT shipments_pkey PRIMARY KEY (id),
   CONSTRAINT shipments_client_id_fkey FOREIGN KEY (client_id) REFERENCES public.profiles(id),
   CONSTRAINT shipments_driver_id_fkey FOREIGN KEY (driver_id) REFERENCES public.profiles(id),

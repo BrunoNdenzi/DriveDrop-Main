@@ -86,7 +86,7 @@ export class ShipmentService {
       console.log('Insert payload:', JSON.stringify(insertPayload));
       
       // Perform the insert with the verified payload
-      const { data: shipment, error } = await supabase
+      const { data: shipment, error } = (supabase as any)
         .from('shipments')
         .insert(insertPayload)
         .select()
@@ -235,11 +235,11 @@ export class ShipmentService {
       }
       
       // Create a set of shipment IDs the driver has already applied for
-      const appliedShipmentIds = new Set(driverApplications?.map(app => app.shipment_id as string) || []);
+      const appliedShipmentIds = new Set(driverApplications?.map((app: any) => app.shipment_id as string) || []);
       
       // Filter out shipments the driver has already applied for
       const availableShipments = pendingShipments?.filter(
-        shipment => !appliedShipmentIds.has(shipment.id as string)
+        (shipment: any) => !appliedShipmentIds.has(shipment.id as string)
       ) || [];
       
       console.log(`Found ${availableShipments.length} available shipments after filtering out ${appliedShipmentIds.size} applied jobs`);
@@ -251,7 +251,7 @@ export class ShipmentService {
         .order('created_at', { ascending: false });
         
       if (!allError && allShipments) {
-        console.log('DEBUG - All shipments state:', allShipments.map(s => ({
+        console.log('DEBUG - All shipments state:', allShipments.map((s: any) => ({
           id: s.id,
           status: s.status,
           driver_id: s.driver_id ? 'assigned' : 'unassigned',
@@ -345,13 +345,14 @@ export class ShipmentService {
 
       console.log('Current shipment state:', shipment);
 
-      if (shipment.driver_id && shipment.driver_id !== null) {
+      const shipmentData = shipment as any;
+      if (shipmentData.driver_id && shipmentData.driver_id !== null) {
         throw new Error('This shipment has already been assigned to a driver');
       }
 
-      if (shipment.status !== 'pending') {
-        console.warn('Shipment status is not pending:', shipment.status);
-        throw new Error(`This shipment cannot be assigned. Current status: ${shipment.status}`);
+      if (shipmentData.status !== 'pending') {
+        console.warn('Shipment status is not pending:', shipmentData.status);
+        throw new Error(`This shipment cannot be assigned. Current status: ${shipmentData.status}`);
       }
 
       // Use the new stored procedure to handle all the assignment logic
@@ -438,13 +439,13 @@ export class ShipmentService {
       }
 
       console.log('DEBUG - Current shipment state:', {
-        id: shipment.id,
-        status: shipment.status,
-        driver_id: shipment.driver_id,
-        client_id: shipment.client_id,
-        title: shipment.title,
-        created_at: shipment.created_at,
-        updated_at: shipment.updated_at
+        id: (shipment as any).id,
+        status: (shipment as any).status,
+        driver_id: (shipment as any).driver_id,
+        client_id: (shipment as any).client_id,
+        title: (shipment as any).title,
+        created_at: (shipment as any).created_at,
+        updated_at: (shipment as any).updated_at
       });
 
       return shipment;
@@ -461,13 +462,13 @@ export class ShipmentService {
     try {
       console.log('Resetting shipment to pending status:', shipmentId);
 
-      const { data: updatedShipment, error } = await supabase
+      const { data: updatedShipment, error } = (supabase as any)
         .from('shipments')
         .update({
           driver_id: null,
           status: 'pending',
           updated_at: new Date().toISOString(),
-        } as any)
+        })
         .eq('id', shipmentId)
         .select()
         .single();
@@ -478,12 +479,12 @@ export class ShipmentService {
       }
 
       // Also reset any job applications
-      const { error: resetApplicationsError } = await supabase
+      const { error: resetApplicationsError } = (supabase as any)
         .from('job_applications')
         .update({
           status: 'pending',
           updated_at: new Date().toISOString(),
-        } as any)
+        })
         .eq('shipment_id', shipmentId);
 
       if (resetApplicationsError) {

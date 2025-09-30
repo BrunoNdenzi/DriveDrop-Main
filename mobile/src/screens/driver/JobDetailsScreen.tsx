@@ -61,32 +61,33 @@ export default function JobDetailsScreen({ route, navigation }: any) {
       if (error) throw error;
 
       if (data) {
+        const shipment = data as any;
         setJob({
-          id: data.id,
-          title: `Shipment #${data.id.substring(0, 8)}`,
-          status: data.status,
-          client_id: data.client_id,
-          client_name: data.profiles ? `${data.profiles.first_name} ${data.profiles.last_name}` : 'Client',
-          client_phone: data.profiles?.phone || 'Not provided',
-          pickup_address: data.pickup_address || 'Address not specified',
-          pickup_city: data.pickup_city || '',
-          pickup_state: data.pickup_state || '',
-          pickup_zip: data.pickup_zip || '',
-          pickup_date: data.pickup_date || new Date().toISOString(),
-          pickup_notes: data.pickup_notes || 'No additional notes',
-          delivery_address: data.delivery_address || 'Address not specified',
-          delivery_city: data.delivery_city || '',
-          delivery_state: data.delivery_state || '',
-          delivery_zip: data.delivery_zip || '',
-          delivery_date: data.delivery_date || '',
-          delivery_notes: data.delivery_notes || 'No additional notes',
-          distance: data.distance || 0,
-          price: data.price || 0,
-          vehicle_type: data.vehicle_type || 'Standard',
-          cargo_type: data.cargo_type || 'General',
-          weight: data.weight || 0,
-          dimensions: data.dimensions || 'Not specified',
-          created_at: data.created_at,
+          id: shipment.id,
+          title: `Shipment #${shipment.id.substring(0, 8)}`,
+          status: shipment.status,
+          client_id: shipment.client_id,
+          client_name: shipment.profiles ? `${shipment.profiles.first_name} ${shipment.profiles.last_name}` : 'Client',
+          client_phone: shipment.profiles?.phone || 'Not provided',
+          pickup_address: shipment.pickup_address || 'Address not specified',
+          pickup_city: shipment.pickup_city || '',
+          pickup_state: shipment.pickup_state || '',
+          pickup_zip: shipment.pickup_zip || '',
+          pickup_date: shipment.pickup_date || new Date().toISOString(),
+          pickup_notes: shipment.pickup_notes || 'No additional notes',
+          delivery_address: shipment.delivery_address || 'Address not specified',
+          delivery_city: shipment.delivery_city || '',
+          delivery_state: shipment.delivery_state || '',
+          delivery_zip: shipment.delivery_zip || '',
+          delivery_date: shipment.delivery_date || '',
+          delivery_notes: shipment.delivery_notes || 'No additional notes',
+          distance: shipment.distance || 0,
+          price: shipment.price || 0,
+          vehicle_type: shipment.vehicle_type || 'Standard',
+          cargo_type: shipment.cargo_type || 'General',
+          weight: shipment.weight || 0,
+          dimensions: shipment.dimensions || 'Not specified',
+          created_at: shipment.created_at,
         });
       }
     } catch (error) {
@@ -129,7 +130,7 @@ export default function JobDetailsScreen({ route, navigation }: any) {
       }
 
       // Update the shipment status
-      const { error } = await supabase
+      const { error } = (supabase as any)
         .from('shipments')
         .update({
           status: newStatus,
@@ -141,7 +142,7 @@ export default function JobDetailsScreen({ route, navigation }: any) {
       if (error) throw error;
 
       // Log the status change
-      await supabase.from('shipment_status_history').insert([
+      await (supabase as any).from('shipment_status_history').insert([
         {
           shipment_id: job.id,
           status: newStatus,
@@ -440,7 +441,7 @@ export default function JobDetailsScreen({ route, navigation }: any) {
         {/* Message Client Button */}
         <TouchableOpacity 
           style={styles.messageButton}
-          onPress={() => navigation.navigate('Messages', { contactId: job.client_id })}
+          onPress={() => navigation.navigate('MessagesV2', { shipmentId: job.id })}
         >
           <MaterialIcons name="chat" size={20} color={Colors.text.inverse} />
           <Text style={styles.messageButtonText}>Message Client</Text>

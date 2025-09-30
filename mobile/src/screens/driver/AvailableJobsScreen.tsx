@@ -54,15 +54,15 @@ export default function AvailableJobsScreen({ navigation }: any) {
 
         if (!appError && applications) {
           console.log(`DriverScreen: Found ${applications.length} applications for driver ${userProfile.id}:`, 
-            applications.map(a => ({shipment_id: a.shipment_id, status: a.status})));
-          appliedJobIds = applications.map(app => app.shipment_id);
+            applications.map((a: any) => ({shipment_id: a.shipment_id, status: a.status})));
+          appliedJobIds = applications.map((app: any) => app.shipment_id);
         } else if (appError) {
           console.error('Error fetching driver applications:', appError);
         }
       }
       
       // Transform the data for our UI
-      const formattedJobs = data.map((job) => ({
+      const formattedJobs = data.map((job: any) => ({
         id: job.id,
         title: `Shipment #${job.id.substring(0, 8)}`,
         pickup_location: job.pickup_address || 'Address not specified',
@@ -147,7 +147,7 @@ export default function AvailableJobsScreen({ navigation }: any) {
 
       Alert.alert(
         'Success',
-        'Application submitted successfully! You will be notified when the client makes a decision.',
+        'Application submitted successfully! You will be notified when assigned.',
         [{ text: 'OK', onPress: () => fetchAvailableJobs() }] // Refresh the list
       );
     } catch (error: any) {

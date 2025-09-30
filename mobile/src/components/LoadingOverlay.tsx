@@ -6,7 +6,7 @@ import {
   ActivityIndicator,
   Modal,
 } from 'react-native';
-import { ThemeColors } from '../../constants/Colors';
+import { Colors } from '../../constants/Colors';
 
 interface LoadingOverlayProps {
   visible: boolean;
@@ -23,7 +23,7 @@ export default function LoadingOverlay({ visible, message = 'Loading...' }: Load
     >
       <View style={styles.overlay}>
         <View style={styles.container}>
-          <ActivityIndicator size="large" color={ThemeColors.primary} />
+          <ActivityIndicator size="large" color={Colors.light.primary} />
           <Text style={styles.message}>{message}</Text>
         </View>
       </View>

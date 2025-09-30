@@ -208,7 +208,7 @@ export default function SettingsScreen() {
           <Button
             title="Advanced Notification Testing"
             type="outline"
-            onPress={() => navigation.navigate('NotificationTest')}
+            onPress={() => Alert.alert('Feature Coming Soon', 'Advanced notification testing will be available in a future update.')}
             buttonStyle={styles.testButton}
             containerStyle={{ marginTop: 8 }}
           />

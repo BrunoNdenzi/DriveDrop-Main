@@ -49,30 +49,91 @@ export const getRoute = async (
   endLng: number
 ): Promise<any> => {
   try {
-    // This would typically call a routing service like Google Directions API or Mapbox Directions API
-    // For now, we'll just return a dummy response
-    return {
-      distance: { text: '10 km', value: 10000 },
-      duration: { text: '15 mins', value: 900 },
-      steps: [
-        {
-          distance: { text: '5 km', value: 5000 },
-          duration: { text: '8 mins', value: 480 },
-          start_location: { lat: startLat, lng: startLng },
-          end_location: { lat: (startLat + endLat) / 2, lng: (startLng + endLng) / 2 },
-        },
-        {
-          distance: { text: '5 km', value: 5000 },
-          duration: { text: '7 mins', value: 420 },
-          start_location: { lat: (startLat + endLat) / 2, lng: (startLng + endLng) / 2 },
-          end_location: { lat: endLat, lng: endLng },
-        },
-      ],
-    };
+    const apiKey = process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY || process.env.EXPO_PUBLIC_GOOGLE_PLACES_API_KEY;
+    
+    if (!apiKey) {
+      console.warn('Google Maps API key not found, using fallback calculation');
+      return getFallbackRoute(startLat, startLng, endLat, endLng);
+    }
+
+    const origin = `${startLat},${startLng}`;
+    const destination = `${endLat},${endLng}`;
+    const url = `https://maps.googleapis.com/maps/api/directions/json?origin=${origin}&destination=${destination}&key=${apiKey}&mode=driving`;
+
+    console.log('Fetching route from Google Directions API...');
+    const response = await fetch(url);
+    const data = await response.json();
+
+    if (data.status === 'OK' && data.routes.length > 0) {
+      const route = data.routes[0];
+      const leg = route.legs[0];
+      
+      console.log('Route calculated successfully:', {
+        distance: leg.distance.text,
+        duration: leg.duration.text
+      });
+
+      return {
+        distance: leg.distance,
+        duration: leg.duration,
+        steps: leg.steps || [],
+        overview_polyline: route.overview_polyline,
+        bounds: route.bounds,
+      };
+    } else {
+      console.warn('Google Directions API failed:', data.status, data.error_message);
+      return getFallbackRoute(startLat, startLng, endLat, endLng);
+    }
   } catch (error) {
-    console.error('Error getting route:', error);
-    throw error;
+    console.error('Error getting route from Google Directions API:', error);
+    return getFallbackRoute(startLat, startLng, endLat, endLng);
   }
+};
+
+/**
+ * Fallback route calculation using straight-line distance and estimated time
+ */
+const getFallbackRoute = (
+  startLat: number,
+  startLng: number,
+  endLat: number,
+  endLng: number
+): any => {
+  const distance = calculateDistance(startLat, startLng, endLat, endLng);
+  const distanceInMeters = Math.round(distance * 1000);
+  
+  // Estimate driving time at average 40 km/h in city traffic
+  const estimatedTimeMinutes = Math.round((distance / 40) * 60);
+  const estimatedTimeSeconds = estimatedTimeMinutes * 60;
+  
+  return {
+    distance: { 
+      text: distance < 1 ? `${distanceInMeters} m` : `${distance.toFixed(1)} km`, 
+      value: distanceInMeters 
+    },
+    duration: { 
+      text: estimatedTimeMinutes < 60 
+        ? `${estimatedTimeMinutes} min` 
+        : `${Math.floor(estimatedTimeMinutes / 60)}h ${estimatedTimeMinutes % 60}m`,
+      value: estimatedTimeSeconds 
+    },
+    steps: [
+      {
+        distance: { 
+          text: distance < 1 ? `${distanceInMeters} m` : `${distance.toFixed(1)} km`, 
+          value: distanceInMeters 
+        },
+        duration: { 
+          text: estimatedTimeMinutes < 60 
+            ? `${estimatedTimeMinutes} min` 
+            : `${Math.floor(estimatedTimeMinutes / 60)}h ${estimatedTimeMinutes % 60}m`,
+          value: estimatedTimeSeconds 
+        },
+        start_location: { lat: startLat, lng: startLng },
+        end_location: { lat: endLat, lng: endLng },
+      }
+    ],
+  };
 };
 
 /**

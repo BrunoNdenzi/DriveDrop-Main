@@ -25,7 +25,7 @@ export function useMessagingV2(options: UseMessagingOptions = {}): UseMessagingR
     loadInitialMessages = true 
   } = options;
 
-  const { user } = useAuth();
+  const { user, userProfile } = useAuth();
 
   // State
   const [messages, setMessages] = useState<Message[]>([]);
@@ -58,6 +58,45 @@ export function useMessagingV2(options: UseMessagingOptions = {}): UseMessagingR
       messagesOffsetRef.current = initialMessages.length;
       hasMoreMessagesRef.current = initialMessages.length === 50;
       
+      // Mark unread messages from other users as read
+      const unreadMessages = initialMessages.filter(msg => 
+        msg.sender_id !== userProfile?.id && 
+        msg.sender_id !== user?.id && 
+        !msg.read_at
+      );
+      
+      if (unreadMessages.length > 0) {
+        console.log(`📖 Marking ${unreadMessages.length} messages as read`);
+        // Mark them as read asynchronously without waiting
+        unreadMessages.forEach(msg => {
+          MessagingService.markMessageAsRead(msg.id).then(success => {
+            if (success) {
+              // Update local state
+              setMessages(prev => 
+                prev.map(m => 
+                  m.id === msg.id 
+                    ? { ...m, read_at: new Date().toISOString() }
+                    : m
+                )
+              );
+            }
+          });
+        });
+        
+        // Update conversations list to reset unread count for this conversation
+        setConversations(prev =>
+          prev.map(conv => {
+            if (conv.id === conversationId) {
+              return {
+                ...conv,
+                unread_count: Math.max(0, conv.unread_count - unreadMessages.length)
+              };
+            }
+            return conv;
+          })
+        );
+      }
+      
       console.log(`✅ Loaded ${initialMessages.length} messages`);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to load messages';
@@ -66,7 +105,7 @@ export function useMessagingV2(options: UseMessagingOptions = {}): UseMessagingR
     } finally {
       setLoading(false);
     }
-  }, [conversationId, loadInitialMessages]);
+  }, [conversationId, loadInitialMessages, userProfile?.id, user?.id]);
 
   /**
    * Load more messages (pagination)
@@ -142,6 +181,30 @@ export function useMessagingV2(options: UseMessagingOptions = {}): UseMessagingR
     setSending(true);
     setError(null);
 
+    // Create optimistic message for immediate UI update
+    const optimisticMessage: Message = {
+      id: `temp-${Date.now()}`, // Temporary ID
+      conversation_id: conversationId,
+      sender_id: userProfile?.id || user?.id || '',
+      content: content.trim(),
+      message_type: messageType,
+      sent_at: new Date().toISOString(),
+      delivered_at: undefined, // Will be updated when response comes back
+      read_at: undefined,
+      created_at: new Date().toISOString(),
+      sender: {
+        id: userProfile?.id || user?.id || '',
+        first_name: userProfile?.first_name || 'You',
+        last_name: userProfile?.last_name || '',
+        avatar_url: userProfile?.avatar_url,
+        role: userProfile?.role || 'driver',
+        email: userProfile?.email || user?.email || ''
+      }
+    };
+
+    // Add optimistic message immediately
+    setMessages(prev => [...prev, optimisticMessage]);
+
     try {
       console.log('📤 Sending message:', { conversationId, content: content.substring(0, 50) + '...' });
       
@@ -151,15 +214,51 @@ export function useMessagingV2(options: UseMessagingOptions = {}): UseMessagingR
         message_type: messageType
       });
 
-      if (response.success) {
-        // Don't add message to state here - let real-time subscription handle it
+      if (response.success && response.data) {
+        // Replace optimistic message with real message
+        setMessages(prev => 
+          prev.map(msg => 
+            msg.id === optimisticMessage.id ? response.data : msg
+          )
+        );
+
+        // Update conversations list with the new last message and move to top
+        setConversations(prev => {
+          const updatedConversations = prev.map(conv => {
+            if (conv.id === conversationId) {
+              return {
+                ...conv,
+                last_message: {
+                  content: response.data.content,
+                  created_at: response.data.created_at,
+                  sender_id: response.data.sender_id
+                },
+                // Update conversation to show it was just updated
+                updated_at: response.data.created_at
+              };
+            }
+            return conv;
+          });
+          
+          // Sort conversations to put the updated one at the top
+          return updatedConversations.sort((a, b) => {
+            const aTime = a.last_message?.created_at || a.created_at;
+            const bTime = b.last_message?.created_at || b.created_at;
+            return new Date(bTime).getTime() - new Date(aTime).getTime();
+          });
+        });
+
         console.log('✅ Message sent successfully');
         return true;
       } else {
+        // Remove optimistic message on failure
+        setMessages(prev => prev.filter(msg => msg.id !== optimisticMessage.id));
         setError('Failed to send message');
         return false;
       }
     } catch (err) {
+      // Remove optimistic message on error
+      setMessages(prev => prev.filter(msg => msg.id !== optimisticMessage.id));
       const errorMessage = err instanceof Error ? err.message : 'Failed to send message';
       setError(errorMessage);
       console.error('🚨 Error sending message:', err);
@@ -178,7 +277,7 @@ export function useMessagingV2(options: UseMessagingOptions = {}): UseMessagingR
       const success = await MessagingService.markMessageAsRead(messageId);
       
       if (success) {
-        // Update local state
+        // Update local messages state
         setMessages(prev => 
           prev.map(msg => 
             msg.id === messageId 
@@ -186,6 +285,20 @@ export function useMessagingV2(options: UseMessagingOptions = {}): UseMessagingR
               : msg
           )
         );
+
+        // Update conversations list to reduce unread count
+        setConversations(prev =>
+          prev.map(conv => {
+            if (conv.id === conversationId) {
+              return {
+                ...conv,
+                unread_count: Math.max(0, conv.unread_count - 1)
+              };
+            }
+            return conv;
+          })
+        );
+        
         console.log('✅ Message marked as read');
       }
       
@@ -194,7 +307,7 @@ export function useMessagingV2(options: UseMessagingOptions = {}): UseMessagingR
       console.error('🚨 Error marking message as read:', err);
       return false;
     }
-  }, []);
+  }, [conversationId]);
 
   /**
    * Get conversation by shipment ID
@@ -330,49 +443,6 @@ export function useMessagingV2(options: UseMessagingOptions = {}): UseMessagingR
   }, []);
 
   /**
-   * Debug authentication
-   */
-  const debugAuth = useCallback(async () => {
-    try {
-      console.log('🧪 Testing authentication...');
-      const { data: { session } } = await supabase.auth.getSession();
-      
-      console.log('🔑 Session details:', {
-        hasSession: !!session,
-        userId: session?.user?.id,
-        userEmail: session?.user?.email,
-        tokenLength: session?.access_token?.length,
-        expires: session?.expires_at
-      });
-
-      if (session) {
-        // Test a simple API call
-        const testResponse = await fetch(`${process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3000'}/api/v1/messages-v2/conversations`, {
-          headers: {
-            'Authorization': `Bearer ${session.access_token}`
-          }
-        });
-        
-        console.log('🌐 Test API call result:', {
-          status: testResponse.status,
-          ok: testResponse.ok,
-          statusText: testResponse.statusText
-        });
-        
-        if (testResponse.ok) {
-          const result = await testResponse.json();
-          console.log('✅ API Response:', result);
-        } else {
-          const errorText = await testResponse.text();
-          console.log('❌ API Error:', errorText);
-        }
-      }
-    } catch (error) {
-      console.error('🚨 Debug auth error:', error);
-    }
-  }, []);
-
-  /**
    * Load messaging status for current conversation
    */
   const loadMessagingStatus = useCallback(async () => {
@@ -390,13 +460,10 @@ export function useMessagingV2(options: UseMessagingOptions = {}): UseMessagingR
 
   // Effects
   useEffect(() => {
-    // Debug authentication on mount
-    debugAuth();
-    
     if (loadInitialMessages) {
       loadMessagesData();
     }
-  }, [loadMessagesData, debugAuth]);
+  }, [loadMessagesData]);
 
   useEffect(() => {
     loadMessagingStatus();
@@ -437,7 +504,6 @@ export function useMessagingV2(options: UseMessagingOptions = {}): UseMessagingR
     connect,
     disconnect,
     clearError,
-    getConversationByShipment,
-    debugAuth
+    getConversationByShipment
   };
 }

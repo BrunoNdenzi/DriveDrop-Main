@@ -56,7 +56,7 @@ export default function AvailableShipmentsScreen({ navigation }: any) {
         if (appError) {
           console.error('Error fetching applications:', appError);
         } else {
-          appliedShipmentIds = applications.map(app => app.shipment_id);
+          appliedShipmentIds = applications.map((app: any) => app.shipment_id);
         }
       }
 

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   StyleSheet,
   View,
@@ -6,26 +6,208 @@ import {
   ScrollView,
   TouchableOpacity,
   Image,
+  ActivityIndicator,
+  RefreshControl,
 } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { StatusBar } from 'expo-status-bar';
 import { MaterialIcons } from '@expo/vector-icons';
 
-import {
-  Colors,
-  Typography,
-  Spacing,
-  BorderRadius,
-} from '../../constants/DesignSystem';
+import { Colors, Typography, Spacing, BorderRadius } from '../../constants/DesignSystem';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
 import { ClientTabParamList } from '../../navigation/types';
 import { useAuth } from '../../context/AuthContext';
+import { supabase } from '../../lib/supabase';
+
+type StatItem = {
+  label: string;
+  value: string;
+  icon: string;
+  color: string;
+  formattedValue?: [string, string]; // Optional formatted value for splitting currency values
+};
+
+type RecentActivity = {
+  id: string;
+  title: string;
+  time: string;
+  icon: string;
+  shipmentId?: string;
+};
 
 type HomeScreenProps = NativeStackScreenProps<ClientTabParamList, 'Home'>;
 
 export default function HomeScreen({ navigation }: HomeScreenProps) {
   const { userProfile } = useAuth();
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [stats, setStats] = useState<StatItem[]>([]);
+  const [recentActivity, setRecentActivity] = useState<RecentActivity[]>([]);
+
+  useEffect(() => {
+    loadDashboardData();
+  }, [userProfile]);
+
+  const loadDashboardData = async () => {
+    if (!userProfile?.id) return;
+
+    try {
+      setLoading(true);
+
+      // Fetch user's shipments for stats and recent activity
+      const { data: shipmentsData, error: shipmentsError } = await (supabase as any)
+        .from('shipments')
+        .select(`
+          id,
+          title,
+          status,
+          estimated_price,
+          final_price,
+          created_at,
+          updated_at,
+          pickup_address,
+          delivery_address
+        `)
+        .eq('client_id', userProfile.id)
+        .order('updated_at', { ascending: false })
+        .limit(20);
+
+      if (shipmentsError && shipmentsError.code !== '42P01') {
+        console.log('Error fetching shipments:', shipmentsError.message);
+      }
+
+      if (shipmentsData) {
+        // Calculate stats
+        const thisMonth = new Date();
+        thisMonth.setDate(1);
+        
+        const thisMonthShipments = shipmentsData.filter((s: any) => 
+          new Date(s.created_at) >= thisMonth
+        );
+        
+        const activeShipments = shipmentsData.filter((s: any) => 
+          ['pending', 'accepted', 'in_transit'].includes(s.status)
+        ).length;
+
+        const completedShipments = shipmentsData.filter((s: any) => s.status === 'delivered');
+        const thisMonthSpent = thisMonthShipments
+          .filter((s: any) => s.status === 'delivered')
+          .reduce((sum: number, s: any) => sum + (s.final_price || s.estimated_price || 0), 0);
+
+        const totalSpent = completedShipments
+          .reduce((sum: number, s: any) => sum + (s.final_price || s.estimated_price || 0), 0);
+
+        setStats([
+          { 
+            label: 'Active Shipments', 
+            value: activeShipments.toString(),
+            icon: 'local-shipping', 
+            color: Colors.primary 
+          },
+          { 
+            label: 'Completed', 
+            value: completedShipments.length.toString(),
+            icon: 'check-circle', 
+            color: Colors.success 
+          },
+          { 
+            label: 'This Month', 
+            value: `$${Math.round(thisMonthSpent).toLocaleString()}`,
+            icon: 'trending-up', 
+            color: Colors.warning 
+          },
+        ]);
+
+        // Generate recent activity from shipments
+        const activities: RecentActivity[] = [];
+        
+        shipmentsData.slice(0, 5).forEach((shipment: any) => {
+          const timeAgo = getTimeAgo(shipment.updated_at);
+          let activityTitle = '';
+          let icon = 'local-shipping';
+          
+          switch (shipment.status) {
+            case 'pending':
+              activityTitle = `Shipment #${shipment.id.substring(0, 8)} created`;
+              icon = 'add-circle';
+              break;
+            case 'accepted':
+              activityTitle = `Driver assigned to #${shipment.id.substring(0, 8)}`;
+              icon = 'person-add';
+              break;
+            case 'in_transit':
+              activityTitle = `Shipment #${shipment.id.substring(0, 8)} in transit`;
+              icon = 'local-shipping';
+              break;
+            case 'delivered':
+              activityTitle = `Shipment #${shipment.id.substring(0, 8)} delivered`;
+              icon = 'check-circle';
+              break;
+            case 'cancelled':
+              activityTitle = `Shipment #${shipment.id.substring(0, 8)} cancelled`;
+              icon = 'cancel';
+              break;
+            default:
+              activityTitle = `Shipment #${shipment.id.substring(0, 8)} updated`;
+          }
+
+          activities.push({
+            id: shipment.id,
+            title: activityTitle,
+            time: timeAgo,
+            icon,
+            shipmentId: shipment.id,
+          });
+        });
+
+        setRecentActivity(activities);
+      } else {
+        // Default stats if no data
+        setStats([
+          { label: 'Active Shipments', value: '0', icon: 'local-shipping', color: Colors.primary },
+          { label: 'Completed', value: '0', icon: 'check-circle', color: Colors.success },
+          { label: 'This Month', value: '$0', icon: 'trending-up', color: Colors.warning },
+        ]);
+        setRecentActivity([]);
+      }
+
+    } catch (error) {
+      console.error('Error loading dashboard data:', error);
+      // Set default values on error
+      setStats([
+        { label: 'Active Shipments', value: '0', icon: 'local-shipping', color: Colors.primary },
+        { label: 'Completed', value: '0', icon: 'check-circle', color: Colors.success },
+        { label: 'This Month', value: '$0', icon: 'trending-up', color: Colors.warning },
+      ]);
+      setRecentActivity([]);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  };
+
+  const getTimeAgo = (dateString: string): string => {
+    const now = new Date();
+    const date = new Date(dateString);
+    const diffInMs = now.getTime() - date.getTime();
+    const diffInMinutes = Math.floor(diffInMs / (1000 * 60));
+    const diffInHours = Math.floor(diffInMinutes / 60);
+    const diffInDays = Math.floor(diffInHours / 24);
+
+    if (diffInMinutes < 60) {
+      return `${diffInMinutes} min ago`;
+    } else if (diffInHours < 24) {
+      return `${diffInHours} hr ago`;
+    } else {
+      return `${diffInDays} day${diffInDays > 1 ? 's' : ''} ago`;
+    }
+  };
+
+  const onRefresh = () => {
+    setRefreshing(true);
+    loadDashboardData();
+  };
 
   const getUserInitial = () => {
     if (userProfile?.first_name) {
@@ -47,49 +229,35 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
   };
 
   const handleTrackShipment = () => {
-    navigation.navigate('Shipments');
+    navigation.navigate('Shipments', { initialFilter: 'active' });
   };
 
-  const quickStats = [
-    {
-      label: 'Active Shipments',
-      value: '2',
-      icon: 'local-shipping',
-      color: Colors.primary,
-    },
-    {
-      label: 'Completed',
-      value: '12',
-      icon: 'check-circle',
-      color: Colors.success,
-    },
-    {
-      label: 'This Month',
-      value: '$2,450',
-      icon: 'account-balance-wallet',
-      color: Colors.secondary,
-    },
-  ];
+  const handleActivityPress = (activity: RecentActivity) => {
+    if (activity.shipmentId) {
+      navigation.getParent()?.navigate('ShipmentDetails', { shipmentId: activity.shipmentId });
+    }
+  };
 
   const quickActions = [
-    {
-      title: 'Track Shipment',
-      icon: 'my-location',
-      onPress: handleTrackShipment,
-    },
+    { title: 'Track Shipment', icon: 'my-location', onPress: handleTrackShipment },
     { title: 'Get Quote', icon: 'calculate', onPress: handleCreateShipment },
     { title: 'Support', icon: 'headset-mic', onPress: () => {} },
-    {
-      title: 'History',
-      icon: 'history',
-      onPress: () => navigation.navigate('Shipments'),
-    },
+    { title: 'History', icon: 'history', onPress: () => navigation.navigate('Shipments', { initialFilter: 'past' }) },
   ];
+
+  if (loading) {
+    return (
+      <View style={[styles.container, styles.centered]}>
+        <ActivityIndicator size="large" color={Colors.primary} />
+        <Text style={styles.loadingText}>Loading dashboard...</Text>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
       <StatusBar style="dark" />
-
+      
       {/* Header */}
       <View style={styles.header}>
         <View style={styles.headerLeft}>
@@ -103,26 +271,26 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
             </Text>
           </View>
         </View>
-
+        
         <TouchableOpacity style={styles.notificationButton}>
-          <MaterialIcons
-            name="notifications-none"
-            size={24}
-            color={Colors.text.primary}
-          />
+          <MaterialIcons name="notifications-none" size={24} color={Colors.text.primary} />
           <View style={styles.notificationBadge} />
         </TouchableOpacity>
       </View>
 
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView 
+        style={styles.content} 
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        }
+      >
         {/* Banner Card */}
         <Card variant="elevated" padding="lg" style={styles.bannerCard}>
           <View style={styles.bannerContent}>
             <View style={styles.bannerLeft}>
               <Text style={styles.bannerTitle}>🚛 Need to ship a vehicle?</Text>
-              <Text style={styles.bannerSubtitle}>
-                Get instant quotes from trusted carriers
-              </Text>
+              <Text style={styles.bannerSubtitle}>Get instant quotes from trusted carriers</Text>
               <Button
                 title="Get Quote Now"
                 variant="primary"
@@ -131,80 +299,49 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
                 style={styles.bannerButton}
               />
             </View>
-            <MaterialIcons
-              name="directions-car"
-              size={60}
-              color={Colors.primary}
-              style={styles.bannerIcon}
-            />
+            <View style={styles.bannerRight}>
+              <Image
+                source={{ uri: 'https://via.placeholder.com/80x60/007AFF/FFFFFF?text=🚛' }}
+                style={styles.bannerImage}
+                resizeMode="contain"
+              />
+            </View>
           </View>
         </Card>
 
         {/* Quick Stats */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Overview</Text>
+          <Text style={styles.sectionTitle}>Quick Stats</Text>
           <View style={styles.statsGrid}>
-            {quickStats.map((stat, index) => (
-              <Card
-                key={index}
-                variant="default"
-                padding="base"
-                style={styles.statCard}
-              >
-                <MaterialIcons
-                  name={stat.icon as any}
-                  size={24}
-                  color={stat.color}
-                />
-                <Text style={styles.statValue}>{stat.value}</Text>
-                <Text style={styles.statLabel}>{stat.label}</Text>
+            {stats.map((stat, index) => (
+              <Card key={index} variant="default" padding="base" style={styles.statCard}>
+                <View style={styles.statContent}>
+                  <MaterialIcons name={stat.icon as any} size={24} color={stat.color} />
+                  <View style={styles.statTextContainer}>
+                    <Text style={styles.statValue}>{stat.value}</Text>
+                    <Text style={styles.statLabel}>{stat.label}</Text>
+                  </View>
+                </View>
               </Card>
             ))}
           </View>
         </View>
-
-        {/* Create Shipment CTA */}
-        <Card variant="outlined" padding="lg" style={styles.ctaCard}>
-          <View style={styles.ctaContent}>
-            <MaterialIcons
-              name="add-circle-outline"
-              size={32}
-              color={Colors.primary}
-            />
-            <Text style={styles.ctaTitle}>Create New Shipment</Text>
-            <Text style={styles.ctaSubtitle}>
-              Get quotes and book your vehicle transport
-            </Text>
-          </View>
-          <Button
-            title="Start Booking"
-            variant="primary"
-            size="lg"
-            fullWidth
-            onPress={handleCreateShipment}
-          />
-        </Card>
 
         {/* Quick Actions */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Quick Actions</Text>
           <View style={styles.actionsGrid}>
             {quickActions.map((action, index) => (
-              <Card
+              <TouchableOpacity
                 key={index}
-                variant="default"
-                padding="base"
-                touchable
-                onPress={action.onPress}
                 style={styles.actionCard}
+                onPress={action.onPress}
               >
-                <MaterialIcons
-                  name={action.icon as any}
-                  size={28}
-                  color={Colors.primary}
-                />
-                <Text style={styles.actionTitle}>{action.title}</Text>
-              </Card>
+                <Card variant="default" padding="base" style={styles.actionCardInner}>
+                  <MaterialIcons name={action.icon as any} size={28} color={Colors.primary} />
+                  <Text style={styles.actionTitle}>{action.title}</Text>
+                </Card>
+              </TouchableOpacity>
             ))}
           </View>
         </View>
@@ -217,36 +354,39 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
               <Text style={styles.viewAllText}>View All</Text>
             </TouchableOpacity>
           </View>
-
-          <Card variant="default" padding="base" style={styles.activityCard}>
-            <View style={styles.activityItem}>
-              <MaterialIcons
-                name="local-shipping"
-                size={20}
-                color={Colors.primary}
-              />
-              <View style={styles.activityContent}>
-                <Text style={styles.activityTitle}>
-                  Shipment #DR001 picked up
-                </Text>
-                <Text style={styles.activityTime}>2 hours ago</Text>
+          
+          {recentActivity.length > 0 ? (
+            recentActivity.map((activity, index) => (
+              <Card key={activity.id} variant="default" padding="base" style={styles.activityCard}>
+                <TouchableOpacity 
+                  style={styles.activityItem}
+                  onPress={() => handleActivityPress(activity)}
+                >
+                  <MaterialIcons name={activity.icon as any} size={20} color={Colors.primary} />
+                  <View style={styles.activityContent}>
+                    <Text style={styles.activityTitle}>{activity.title}</Text>
+                    <Text style={styles.activityTime}>{activity.time}</Text>
+                  </View>
+                  <MaterialIcons name="chevron-right" size={20} color={Colors.text.secondary} />
+                </TouchableOpacity>
+              </Card>
+            ))
+          ) : (
+            <Card variant="default" padding="lg" style={styles.emptyCard}>
+              <View style={styles.emptyState}>
+                <MaterialIcons name="inbox" size={48} color={Colors.text.disabled} />
+                <Text style={styles.emptyTitle}>No recent activity</Text>
+                <Text style={styles.emptySubtitle}>Your shipment activities will appear here</Text>
               </View>
-              <MaterialIcons
-                name="chevron-right"
-                size={20}
-                color={Colors.text.secondary}
-              />
-            </View>
-          </Card>
+            </Card>
+          )}
         </View>
 
         {/* Promotional Banner */}
         <Card variant="elevated" padding="lg" style={styles.promoCard}>
           <View style={styles.promoContent}>
             <Text style={styles.promoTitle}>🎉 Special Offer</Text>
-            <Text style={styles.promoSubtitle}>
-              Get 15% off your next shipment with code DRIVE15
-            </Text>
+            <Text style={styles.promoSubtitle}>Get 15% off your next shipment with code DRIVE15</Text>
             <Button
               title="Learn More"
               variant="outline"
@@ -257,7 +397,8 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
           </View>
         </Card>
 
-        <View style={styles.bottomSpacing} />
+        {/* Bottom Padding */}
+        <View style={styles.bottomPadding} />
       </ScrollView>
     </View>
   );
@@ -268,14 +409,23 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: Colors.background,
   },
+  centered: {
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingText: {
+    marginTop: 16,
+    fontSize: 16,
+    color: Colors.text.secondary,
+  },
   header: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    paddingTop: 60,
-    paddingBottom: Spacing[6],
-    paddingHorizontal: Spacing[6],
-    backgroundColor: Colors.surface,
+    justifyContent: 'space-between',
+    paddingHorizontal: 24, // Spacing.6
+    paddingTop: 48, // Spacing.12
+    paddingBottom: 16, // Spacing.4
+    backgroundColor: Colors.background,
   },
   headerLeft: {
     flexDirection: 'row',
@@ -284,15 +434,15 @@ const styles = StyleSheet.create({
   avatar: {
     width: 48,
     height: 48,
-    borderRadius: 24,
+    borderRadius: BorderRadius.full,
     backgroundColor: Colors.primary,
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: Spacing[3],
+    marginRight: 16, // Spacing.4
   },
   avatarText: {
-    fontSize: Typography.fontSize.xl,
-    fontWeight: Typography.fontWeight.bold,
+    fontSize: Typography.fontSize.lg,
+    fontWeight: Typography.fontWeight.semibold,
     color: Colors.text.inverse,
   },
   greeting: {
@@ -309,7 +459,7 @@ const styles = StyleSheet.create({
   },
   notificationButton: {
     position: 'relative',
-    padding: Spacing[2],
+    padding: Spacing.sm,
   },
   notificationBadge: {
     position: 'absolute',
@@ -322,11 +472,29 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
-    paddingHorizontal: Spacing[6],
+    paddingHorizontal: Spacing.md,
+  },
+  section: {
+    marginBottom: Spacing.lg,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: Spacing.md,
+  },
+  sectionTitle: {
+    fontSize: Typography.fontSize.lg,
+    fontWeight: Typography.fontWeight.semibold,
+    color: Colors.text.primary,
+  },
+  viewAllText: {
+    fontSize: Typography.fontSize.sm,
+    color: Colors.primary,
+    fontWeight: Typography.fontWeight.medium,
   },
   bannerCard: {
-    marginTop: Spacing[6],
-    backgroundColor: Colors.brand.primary[50],
+    marginBottom: Spacing.lg,
   },
   bannerContent: {
     flexDirection: 'row',
@@ -339,38 +507,22 @@ const styles = StyleSheet.create({
     fontSize: Typography.fontSize.lg,
     fontWeight: Typography.fontWeight.semibold,
     color: Colors.text.primary,
-    marginBottom: Spacing[2],
+    marginBottom: Spacing.xs,
   },
   bannerSubtitle: {
     fontSize: Typography.fontSize.sm,
     color: Colors.text.secondary,
-    marginBottom: Spacing[4],
+    marginBottom: Spacing.md,
   },
   bannerButton: {
     alignSelf: 'flex-start',
   },
-  bannerIcon: {
-    opacity: 0.7,
+  bannerRight: {
+    marginLeft: Spacing.md,
   },
-  section: {
-    marginTop: Spacing[8],
-  },
-  sectionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: Spacing[4],
-  },
-  sectionTitle: {
-    fontSize: Typography.fontSize.lg,
-    fontWeight: Typography.fontWeight.semibold,
-    color: Colors.text.primary,
-    marginBottom: Spacing[4],
-  },
-  viewAllText: {
-    fontSize: Typography.fontSize.sm,
-    color: Colors.primary,
-    fontWeight: Typography.fontWeight.medium,
+  bannerImage: {
+    width: 80,
+    height: 60,
   },
   statsGrid: {
     flexDirection: 'row',
@@ -378,60 +530,48 @@ const styles = StyleSheet.create({
   },
   statCard: {
     flex: 1,
+    marginHorizontal: 2,
+  },
+  statContent: {
+    flexDirection: 'row',
     alignItems: 'center',
-    marginHorizontal: Spacing[1],
+  },
+  statTextContainer: {
+    marginLeft: Spacing.sm,
+    flex: 1,
   },
   statValue: {
-    fontSize: Typography.fontSize['2xl'],
-    fontWeight: Typography.fontWeight.bold,
+    fontSize: Typography.fontSize.lg,
+    fontWeight: Typography.fontWeight.semibold,
     color: Colors.text.primary,
-    marginTop: Spacing[2],
   },
   statLabel: {
     fontSize: Typography.fontSize.xs,
     color: Colors.text.secondary,
-    textAlign: 'center',
-    marginTop: Spacing[1],
-  },
-  ctaCard: {
-    marginTop: Spacing[8],
-    alignItems: 'center',
-  },
-  ctaContent: {
-    alignItems: 'center',
-    marginBottom: Spacing[6],
-  },
-  ctaTitle: {
-    fontSize: Typography.fontSize.xl,
-    fontWeight: Typography.fontWeight.semibold,
-    color: Colors.text.primary,
-    marginTop: Spacing[3],
-    marginBottom: Spacing[2],
-  },
-  ctaSubtitle: {
-    fontSize: Typography.fontSize.sm,
-    color: Colors.text.secondary,
-    textAlign: 'center',
   },
   actionsGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    justifyContent: 'space-between',
+    marginHorizontal: -Spacing.xs,
   },
   actionCard: {
-    width: '48%',
+    width: '50%',
+    paddingHorizontal: Spacing.xs,
+    marginBottom: Spacing.sm,
+  },
+  actionCardInner: {
     alignItems: 'center',
-    marginBottom: Spacing[3],
+    paddingVertical: Spacing.md,
   },
   actionTitle: {
     fontSize: Typography.fontSize.sm,
     fontWeight: Typography.fontWeight.medium,
     color: Colors.text.primary,
-    marginTop: Spacing[2],
+    marginTop: Spacing.xs,
     textAlign: 'center',
   },
   activityCard: {
-    marginTop: Spacing[2],
+    marginBottom: Spacing.sm,
   },
   activityItem: {
     flexDirection: 'row',
@@ -439,7 +579,7 @@ const styles = StyleSheet.create({
   },
   activityContent: {
     flex: 1,
-    marginLeft: Spacing[3],
+    marginLeft: Spacing.sm,
   },
   activityTitle: {
     fontSize: Typography.fontSize.sm,
@@ -449,11 +589,29 @@ const styles = StyleSheet.create({
   activityTime: {
     fontSize: Typography.fontSize.xs,
     color: Colors.text.secondary,
-    marginTop: Spacing[1],
+    marginTop: 2,
+  },
+  emptyCard: {
+    alignItems: 'center',
+  },
+  emptyState: {
+    alignItems: 'center',
+    paddingVertical: Spacing.md,
+  },
+  emptyTitle: {
+    fontSize: Typography.fontSize.md,
+    fontWeight: Typography.fontWeight.medium,
+    color: Colors.text.secondary,
+    marginTop: Spacing.sm,
+  },
+  emptySubtitle: {
+    fontSize: Typography.fontSize.sm,
+    color: Colors.text.disabled,
+    marginTop: Spacing.xs,
+    textAlign: 'center',
   },
   promoCard: {
-    marginTop: Spacing[8],
-    backgroundColor: Colors.brand.secondary[50],
+    marginBottom: Spacing.lg,
   },
   promoContent: {
     alignItems: 'center',
@@ -462,18 +620,18 @@ const styles = StyleSheet.create({
     fontSize: Typography.fontSize.lg,
     fontWeight: Typography.fontWeight.semibold,
     color: Colors.text.primary,
-    marginBottom: Spacing[2],
+    marginBottom: Spacing.xs,
   },
   promoSubtitle: {
     fontSize: Typography.fontSize.sm,
     color: Colors.text.secondary,
     textAlign: 'center',
-    marginBottom: Spacing[4],
+    marginBottom: Spacing.md,
   },
   promoButton: {
     alignSelf: 'center',
   },
-  bottomSpacing: {
-    height: Spacing[8],
+  bottomPadding: {
+    height: Spacing.xl,
   },
 });

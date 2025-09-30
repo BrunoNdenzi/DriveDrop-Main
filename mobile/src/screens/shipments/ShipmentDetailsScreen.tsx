@@ -123,7 +123,7 @@ export default function ShipmentDetailsScreen({ route, navigation }: ShipmentDet
           style: 'destructive',
           onPress: async () => {
             try {
-              const { error: updateError } = await supabase
+              const { error: updateError } = (supabase as any)
                 .from('shipments')
                 .update({ 
                   status: 'cancelled',

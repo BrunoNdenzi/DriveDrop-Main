@@ -135,11 +135,11 @@ export class ShipmentService {
       console.log('Insert payload:', JSON.stringify(insertPayload));
       
       // Perform the insert with the verified payload
-      const { data: shipment, error } = await supabase
+      const { data: shipment, error } = await (supabase as any)
         .from('shipments')
         .insert(insertPayload)
         .select()
-        .single() as PostgrestSingleResponse<ShipmentRow>;
+        .single();
 
       if (error) {
         console.error('Error creating shipment in Supabase:', error);
@@ -284,29 +284,14 @@ export class ShipmentService {
       }
       
       // Create a set of shipment IDs the driver has already applied for
-      const appliedShipmentIds = new Set(driverApplications?.map(app => app.shipment_id as string) || []);
+      const appliedShipmentIds = new Set(driverApplications?.map((app: any) => app.shipment_id as string) || []);
       
       // Filter out shipments the driver has already applied for
       const availableShipments = pendingShipments?.filter(
-        shipment => !appliedShipmentIds.has(shipment.id as string)
+        (shipment: any) => !appliedShipmentIds.has(shipment.id as string)
       ) || [];
       
-      console.log(`Found ${availableShipments.length} available shipments after filtering out ${appliedShipmentIds.size} applied jobs`);
-      
-      // Debug: also check all shipments to see their current state
-      const { data: allShipments, error: allError } = await supabase
-        .from('shipments')
-        .select('id, status, driver_id, title')
-        .order('created_at', { ascending: false });
-        
-      if (!allError && allShipments) {
-        console.log('DEBUG - All shipments state:', allShipments.map(s => ({
-          id: s.id,
-          status: s.status,
-          driver_id: s.driver_id ? 'assigned' : 'unassigned',
-          title: s.title
-        })));
-      }
+      console.log(`Found ${availableShipments.length} available shipments for driver`);
 
       return availableShipments;
     } catch (error) {
@@ -394,13 +379,13 @@ export class ShipmentService {
 
       console.log('Current shipment state:', shipment);
 
-      if (shipment.driver_id && shipment.driver_id !== null) {
+      if ((shipment as any).driver_id && (shipment as any).driver_id !== null) {
         throw new Error('This shipment has already been assigned to a driver');
       }
 
-      if (shipment.status !== 'pending') {
-        console.warn('Shipment status is not pending:', shipment.status);
-        throw new Error(`This shipment cannot be assigned. Current status: ${shipment.status}`);
+      if ((shipment as any).status !== 'pending') {
+        console.warn('Shipment status is not pending:', (shipment as any).status);
+        throw new Error(`This shipment cannot be assigned. Current status: ${(shipment as any).status}`);
       }
 
       // Use the new stored procedure to handle all the assignment logic
@@ -466,83 +451,6 @@ export class ShipmentService {
       return data || [];
     } catch (error) {
       console.error('ShipmentService.getShipmentApplicants error:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * Debug function to check shipment state and potentially reset it
-   */
-  static async debugShipmentState(shipmentId: string) {
-    try {
-      const { data: shipment, error } = await supabase
-        .from('shipments')
-        .select('*')
-        .eq('id', shipmentId)
-        .single();
-
-      if (error) {
-        console.error('Error fetching shipment for debug:', error);
-        throw error;
-      }
-
-      console.log('DEBUG - Current shipment state:', {
-        id: shipment.id,
-        status: shipment.status,
-        driver_id: shipment.driver_id,
-        client_id: shipment.client_id,
-        title: shipment.title,
-        created_at: shipment.created_at,
-        updated_at: shipment.updated_at
-      });
-
-      return shipment;
-    } catch (error) {
-      console.error('ShipmentService.debugShipmentState error:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * Reset a shipment back to pending status (admin function for debugging)
-   */
-  static async resetShipmentToPending(shipmentId: string) {
-    try {
-      console.log('Resetting shipment to pending status:', shipmentId);
-
-      const { data: updatedShipment, error } = await supabase
-        .from('shipments')
-        .update({
-          driver_id: null,
-          status: 'pending',
-          updated_at: new Date().toISOString(),
-        } as any)
-        .eq('id', shipmentId)
-        .select()
-        .single();
-
-      if (error) {
-        console.error('Error resetting shipment:', error);
-        throw error;
-      }
-
-      // Also reset any job applications
-      const { error: resetApplicationsError } = await supabase
-        .from('job_applications')
-        .update({
-          status: 'pending',
-          updated_at: new Date().toISOString(),
-        } as any)
-        .eq('shipment_id', shipmentId);
-
-      if (resetApplicationsError) {
-        console.error('Error resetting job applications:', resetApplicationsError);
-      }
-
-      console.log('Shipment reset successfully:', updatedShipment);
-      return updatedShipment;
-    } catch (error) {
-      console.error('ShipmentService.resetShipmentToPending error:', error);
       throw error;
     }
   }

@@ -44,17 +44,13 @@ export class MessagingServiceV2 {
       console.log('📤 MessagingServiceV2.sendMessage:', request);
       console.log('🌐 API URL:', this.apiUrl);
 
-      // Get the user session with detailed debugging
+      // Get the user session
       const { data: { session }, error: sessionError } = await supabase.auth.getSession();
       
-      console.log('🔑 Session debug for sendMessage:', {
-        hasSession: !!session,
-        sessionError: sessionError?.message,
-        userId: session?.user?.id,
-        tokenExists: !!session?.access_token,
-        tokenLength: session?.access_token?.length,
-        tokenPreview: session?.access_token?.substring(0, 20) + '...'
-      });
+      if (sessionError) {
+        console.error('Session error:', sessionError.message);
+        throw new Error('Authentication error');
+      }
 
       if (!session || !session.access_token) {
         throw new Error('User not authenticated - no session or token');
@@ -188,15 +184,7 @@ export class MessagingServiceV2 {
     try {
       console.log('📋 MessagingServiceV2.getUserConversations');
 
-      // Debug authentication
       const { data: { session } } = await supabase.auth.getSession();
-      console.log('🔑 Auth Debug:', {
-        hasSession: !!session,
-        userId: session?.user?.id,
-        userEmail: session?.user?.email,
-        tokenExists: !!session?.access_token,
-        tokenLength: session?.access_token?.length
-      });
       
       if (!session) {
         throw new Error('User not authenticated');
@@ -253,7 +241,6 @@ export class MessagingServiceV2 {
       const { data: { session } } = await supabase.auth.getSession();
       
       if (!session) {
-        console.error('User not authenticated');
         return false;
       }
 
@@ -293,7 +280,6 @@ export class MessagingServiceV2 {
       const { data: { session } } = await supabase.auth.getSession();
       
       if (!session) {
-        console.error('User not authenticated');
         return null;
       }
 
@@ -333,7 +319,6 @@ export class MessagingServiceV2 {
       const { data: { session } } = await supabase.auth.getSession();
       
       if (!session) {
-        console.error('User not authenticated');
         return null;
       }
 

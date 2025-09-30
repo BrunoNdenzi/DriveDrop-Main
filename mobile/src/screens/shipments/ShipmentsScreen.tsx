@@ -16,6 +16,7 @@ import { Colors } from '../../constants/Colors';
 import { ClientTabParamList, RootStackParamList } from '../../navigation/types';
 import { useAuth } from '../../context/AuthContext';
 import { ShipmentService } from '../../services/shipmentService';
+import { useFocusEffect } from '@react-navigation/native';
 
 type ShipmentsScreenProps = NativeStackScreenProps<ClientTabParamList, 'Shipments'> & {
   navigation: NativeStackScreenProps<RootStackParamList>['navigation'];
@@ -35,16 +36,25 @@ interface Shipment {
   driver_id?: string;
 }
 
-export default function ShipmentsScreen({ navigation }: ShipmentsScreenProps) {
+export default function ShipmentsScreen({ navigation, route }: ShipmentsScreenProps) {
   const { userProfile } = useAuth();
   const [refreshing, setRefreshing] = useState(false);
   const [shipments, setShipments] = useState<Shipment[]>([]);
-  const [filter, setFilter] = useState<ShipmentFilter>('pending');
+  const [filter, setFilter] = useState<ShipmentFilter>(route.params?.initialFilter || 'pending');
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     loadShipments();
   }, [filter]);
+
+  // Set initial filter when screen receives params
+  useFocusEffect(
+    React.useCallback(() => {
+      if (route.params?.initialFilter) {
+        setFilter(route.params.initialFilter);
+      }
+    }, [route.params?.initialFilter])
+  );
 
   async function loadShipments() {
     if (!userProfile?.id) return;

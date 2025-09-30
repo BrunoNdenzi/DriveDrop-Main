@@ -145,7 +145,6 @@ export interface UseMessagingReturn {
   disconnect: () => void;
   clearError: () => void;
   getConversationByShipment: (shipmentId: string) => Promise<ConversationInfo | null>;
-  debugAuth?: () => Promise<void>;
 }
 
 // Real-time event types

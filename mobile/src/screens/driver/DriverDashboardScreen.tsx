@@ -117,7 +117,7 @@ export default function DriverDashboardScreen({ navigation }: any) {
 
     try {
       await ShipmentService.applyForShipment(jobId, userProfile.id);
-      Alert.alert('Success', 'Application submitted successfully! You will be notified when the client makes a decision.');
+      Alert.alert('Success', 'Application submitted successfully! You will be notified when assigned.');
       fetchDashboardData(); // Refresh data to show updated job lists
     } catch (error: any) {
       console.error('Error applying to job:', error);
@@ -259,7 +259,7 @@ export default function DriverDashboardScreen({ navigation }: any) {
                   disabled={job.hasApplied}
                 >
                   <Text style={[styles.quickApplyText, job.hasApplied && styles.quickApplyTextDisabled]}>
-                    {job.hasApplied ? 'Applied' : 'Accept Job'}
+                    {job.hasApplied ? 'Applied' : 'Apply for Job'}
                   </Text>
                 </TouchableOpacity>
               </View>
@@ -290,7 +290,7 @@ export default function DriverDashboardScreen({ navigation }: any) {
           
           <TouchableOpacity 
             style={styles.actionButton}
-            onPress={() => navigation.navigate('Messages')}
+            onPress={() => navigation.navigate('MessagesV2')}
           >
             <MaterialIcons name="chat" size={20} color={Colors.primary} />
             <Text style={styles.actionText}>Messages</Text>

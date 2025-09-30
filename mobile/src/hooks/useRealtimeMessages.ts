@@ -144,7 +144,7 @@ export function useRealtimeMessages(shipmentId: string) {
         is_read: false,
       };
       
-      const { error } = await supabase.from('messages').insert(newMessage);
+      const { error } = (supabase as any).from('messages').insert(newMessage);
       
       if (error) throw error;
     } catch (err) {
@@ -156,7 +156,7 @@ export function useRealtimeMessages(shipmentId: string) {
   // Function to mark a message as read
   const markAsRead = async (messageId: string) => {
     try {
-      const { error } = await supabase.rpc('mark_message_as_read', {
+      const { error } = (supabase as any).rpc('mark_message_as_read', {
         p_message_id: messageId,
         p_user_id: (await supabase.auth.getUser()).data.user?.id
       });

@@ -17,6 +17,7 @@ import { Colors } from '../../constants/Colors';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../context/AuthContext';
 import { RootStackParamList } from '../../navigation/types';
+import colors from './../../theme/colors';
 
 interface DriverStats {
   completedJobs: number;
@@ -61,45 +62,54 @@ export default function DriverProfileScreen({ navigation }: any) {
   }, [userProfile]);
 
   const fetchDriverData = async () => {
+    if (!userProfile?.id) return;
+
     try {
       setLoading(true);
-      
+
       // Fetch completed jobs count
-      const { count: completedJobs } = await (supabase as any)
+      const { count: completedJobs } = await supabase
         .from('shipments')
         .select('*', { count: 'exact', head: true })
-        .eq('driver_id', userProfile?.id)
+        .eq('driver_id', userProfile.id)
         .eq('status', 'delivered');
-      
+
       // Fetch active jobs count
-      const { count: activeJobs } = await (supabase as any)
+      const { count: activeJobs } = await supabase
         .from('shipments')
         .select('*', { count: 'exact', head: true })
-        .eq('driver_id', userProfile?.id)
+        .eq('driver_id', userProfile.id)
         .in('status', ['accepted', 'picked_up', 'in_transit']);
-      
-      // Fetch total earnings
+
+      // Fetch total earnings (90% of shipment prices using estimated_price)
       const { data: earnings } = await (supabase as any)
         .from('shipments')
-        .select('price')
+        .select('estimated_price, final_price, price')
         .eq('driver_id', userProfile?.id)
         .eq('status', 'delivered');
-      
-      const totalEarnings = earnings?.reduce((sum: number, job: any) => sum + (job.price || 0), 0) || 0;
-      
+
+      // Calculate total earnings: Driver gets 90% of each completed shipment
+      // Priority: final_price -> estimated_price -> price -> 0
+      const totalEarnings = earnings?.reduce((sum: number, job: any) => {
+        const shipmentPrice = job.final_price || job.estimated_price || job.price || 0;
+        const driverEarning = shipmentPrice * 0.9; // 90% of shipment amount
+        return sum + driverEarning;
+      }, 0) || 0;
+
       // Fetch ratings
-      const { data: ratings } = await (supabase as any)
+      const { data: ratings } = await supabase
         .from('driver_ratings')
         .select('rating')
-        .eq('driver_id', userProfile?.id);
-      
-      const averageRating = ratings && ratings.length > 0
-        ? ratings.reduce((sum: number, item: any) => sum + item.rating, 0) / ratings.length
-        : 0;
-      
+        .eq('driver_id', userProfile.id);
+
+      const averageRating =
+        ratings && ratings.length > 0
+          ? ratings.reduce((sum: number, item: any) => sum + (item.rating || 0), 0) / ratings.length
+          : 0;
+
       // Calculate on-time rate (simplified for now)
       const onTimeRate = 100; // This would be calculated based on delivery times vs. promised times
-      
+
       setStats({
         completedJobs: completedJobs || 0,
         activeJobs: activeJobs || 0,
@@ -109,45 +119,55 @@ export default function DriverProfileScreen({ navigation }: any) {
       });
     } catch (error) {
       console.error('Error fetching driver data:', error);
-      Alert.alert('Error', 'Failed to load your profile data. Please try again.');
+      Alert.alert(
+        'Error',
+        'Failed to load your profile data. Please try again.'
+      );
     } finally {
       setLoading(false);
     }
   };
 
   const fetchDriverSettings = async () => {
+    if (!userProfile?.id) return;
+    
     try {
       // Check if driver_settings table exists by attempting to count records
       const { count, error: countError } = await supabase
         .from('driver_settings')
         .select('*', { count: 'exact', head: true });
-      
+
       // If the table doesn't exist, we'll get a specific error
       if (countError && countError.code === '42P01') {
-        console.log('Driver settings table does not exist yet, using default settings');
+        console.log(
+          'Driver settings table does not exist yet, using default settings'
+        );
         // We'll continue with the default settings
         return;
       }
-      
+
       // Fetch driver settings from driver_settings table
-      const { data, error } = await (supabase as any)
+      const { data, error } = await supabase
         .from('driver_settings')
         .select('*')
-        .eq('driver_id', userProfile?.id)
+        .eq('driver_id', userProfile.id)
         .single();
-      
+
       if (error && error.code !== 'PGRST116') {
         throw error;
       }
-      
+
       if (data) {
-        const settingsData: any = data;
+        const settingsData = data as any; // Type assertion for unknown database structure
         setSettings({
           availableForJobs: settingsData.available_for_jobs,
           notificationsEnabled: settingsData.notifications_enabled,
           preferredRadius: settingsData.preferred_radius || 50,
           allowLocationTracking: settingsData.allow_location_tracking,
-          preferredJobTypes: settingsData.preferred_job_types || ['standard', 'express'],
+          preferredJobTypes: settingsData.preferred_job_types || [
+            'standard',
+            'express',
+          ],
         });
       }
     } catch (error) {
@@ -158,23 +178,23 @@ export default function DriverProfileScreen({ navigation }: any) {
 
   const saveDriverSettings = async () => {
     if (!userProfile) return;
-    
+
     try {
       setSavingSettings(true);
-      
+
       // Check if settings exist first
       const { data: existingSettings, error: checkError } = await supabase
         .from('driver_settings')
         .select('id')
         .eq('driver_id', userProfile.id)
         .maybeSingle();
-        
+
       if (checkError && checkError.code !== 'PGRST116') {
         throw checkError;
       }
-      
+
       let result;
-      
+
       if (existingSettings) {
         // Update existing settings
         result = await (supabase as any)
@@ -190,22 +210,20 @@ export default function DriverProfileScreen({ navigation }: any) {
           .eq('driver_id', userProfile.id);
       } else {
         // Insert new settings
-        result = await (supabase as any)
-          .from('driver_settings')
-          .insert({
-            driver_id: userProfile.id,
-            available_for_jobs: settings.availableForJobs,
-            notifications_enabled: settings.notificationsEnabled,
-            preferred_radius: settings.preferredRadius,
-            allow_location_tracking: settings.allowLocationTracking,
-            preferred_job_types: settings.preferredJobTypes,
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-          });
+        result = await (supabase as any).from('driver_settings').insert({
+          driver_id: userProfile.id,
+          available_for_jobs: settings.availableForJobs,
+          notifications_enabled: settings.notificationsEnabled,
+          preferred_radius: settings.preferredRadius,
+          allow_location_tracking: settings.allowLocationTracking,
+          preferred_job_types: settings.preferredJobTypes,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        });
       }
-      
+
       const { error } = result;
-      
+
       if (error) {
         // If the table doesn't exist, show a specific message
         if (error.code === '42P01') {
@@ -219,7 +237,7 @@ export default function DriverProfileScreen({ navigation }: any) {
         }
         return;
       }
-      
+
       Alert.alert('Success', 'Your settings have been saved.');
     } catch (error) {
       console.error('Error saving driver settings:', error);
@@ -267,7 +285,7 @@ export default function DriverProfileScreen({ navigation }: any) {
   return (
     <View style={styles.container}>
       <StatusBar style="light" />
-      
+
       {/* Header */}
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Driver Profile</Text>
@@ -278,9 +296,9 @@ export default function DriverProfileScreen({ navigation }: any) {
         <View style={styles.profileCard}>
           <View style={styles.avatarContainer}>
             {userProfile?.avatar_url ? (
-              <Image 
-                source={{ uri: userProfile.avatar_url }} 
-                style={styles.avatar} 
+              <Image
+                source={{ uri: userProfile.avatar_url }}
+                style={styles.avatar}
               />
             ) : (
               <View style={styles.avatarPlaceholder}>
@@ -289,15 +307,22 @@ export default function DriverProfileScreen({ navigation }: any) {
                 </Text>
               </View>
             )}
-            <TouchableOpacity style={styles.editAvatarButton}>
-              <MaterialIcons name="edit" size={16} color={Colors.text.inverse} />
+            <TouchableOpacity 
+              style={styles.editAvatarButton}
+              onPress={() => navigation.navigate('EditProfile')}
+            >
+              <MaterialIcons
+                name="edit"
+                size={16}
+                color={Colors.text.inverse}
+              />
             </TouchableOpacity>
           </View>
-          
+
           <Text style={styles.profileName}>
             {userProfile?.first_name} {userProfile?.last_name}
           </Text>
-          
+
           <View style={styles.profileBadge}>
             <MaterialIcons name="verified" size={16} color={Colors.secondary} />
             <Text style={styles.profileBadgeText}>Verified Driver</Text>
@@ -310,7 +335,9 @@ export default function DriverProfileScreen({ navigation }: any) {
             </View>
             <View style={styles.statDivider} />
             <View style={styles.statItem}>
-              <Text style={styles.statValue}>{stats.averageRating.toFixed(1)}</Text>
+              <Text style={styles.statValue}>
+                {stats.averageRating.toFixed(1)}
+              </Text>
               <Text style={styles.statLabel}>Rating</Text>
             </View>
             <View style={styles.statDivider} />
@@ -324,28 +351,40 @@ export default function DriverProfileScreen({ navigation }: any) {
         {/* Availability Toggle */}
         <View style={styles.availabilityCard}>
           <View style={styles.availabilityHeader}>
-            <MaterialIcons 
-              name={settings.availableForJobs ? "check-circle" : "do-not-disturb"}
-              size={24} 
-              color={settings.availableForJobs ? Colors.success : Colors.text.disabled} 
+            <MaterialIcons
+              name={
+                settings.availableForJobs ? 'check-circle' : 'do-not-disturb'
+              }
+              size={24}
+              color={
+                settings.availableForJobs
+                  ? Colors.success
+                  : Colors.text.disabled
+              }
             />
             <Text style={styles.availabilityTitle}>
-              {settings.availableForJobs ? "Available for Jobs" : "Not Available"}
+              {settings.availableForJobs
+                ? 'Available for Jobs'
+                : 'Not Available'}
             </Text>
           </View>
           <Text style={styles.availabilityDescription}>
-            {settings.availableForJobs 
-              ? "You're currently visible to clients and can receive new job requests." 
-              : "You're currently not receiving any new job requests."} (Feature coming soon)
+            {settings.availableForJobs
+              ? "You're currently visible to clients and can receive new job requests."
+              : "You're currently not receiving any new job requests."}
           </Text>
           <Switch
             value={settings.availableForJobs}
-            onValueChange={() => {}} // Disabled
-            disabled={true}
-            trackColor={{ false: Colors.text.disabled, true: Colors.text.disabled }}
-            thumbColor={Colors.text.disabled}
+            onValueChange={handleToggleAvailability}
+            trackColor={{
+              false: Colors.text.disabled,
+              true: Colors.success + '80',
+            }}
+            thumbColor={
+              settings.availableForJobs ? Colors.success : Colors.text.secondary
+            }
             ios_backgroundColor={Colors.text.disabled}
-            style={[styles.availabilitySwitch, { opacity: 0.5 }]}
+            style={styles.availabilitySwitch}
           />
         </View>
 
@@ -353,11 +392,22 @@ export default function DriverProfileScreen({ navigation }: any) {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Earnings Summary</Text>
           <View style={styles.earningsCard}>
-            <Text style={styles.earningsTotal}>{formatCurrency(stats.totalEarnings)}</Text>
+            <Text style={styles.earningsTotal}>
+              {formatCurrency(stats.totalEarnings)}
+            </Text>
             <Text style={styles.earningsLabel}>Total Earnings</Text>
-            <TouchableOpacity style={styles.earningsButton}>
-              <MaterialIcons name="account-balance-wallet" size={16} color={Colors.primary} />
-              <Text style={styles.earningsButtonText}>View Earnings History</Text>
+            <TouchableOpacity 
+              style={styles.earningsButton}
+              onPress={() => navigation.navigate('EarningsHistory')}
+            >
+              <MaterialIcons
+                name="account-balance-wallet"
+                size={16}
+                color={Colors.primary}
+              />
+              <Text style={styles.earningsButtonText}>
+                View Earnings History
+              </Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -365,22 +415,38 @@ export default function DriverProfileScreen({ navigation }: any) {
         {/* Settings */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Driver Settings</Text>
-          
+
           <View style={styles.settingsCard}>
             <View style={styles.settingItem}>
               <View style={styles.settingLabelContainer}>
-                <MaterialIcons name="notifications" size={20} color={Colors.primary} />
+                <MaterialIcons
+                  name="notifications"
+                  size={20}
+                  color={Colors.primary}
+                />
                 <Text style={styles.settingLabel}>Push Notifications</Text>
               </View>
               <Switch
                 value={settings.notificationsEnabled}
-                onValueChange={(value) => setSettings(prev => ({ ...prev, notificationsEnabled: value }))}
-                trackColor={{ false: Colors.text.disabled, true: Colors.primary + '80' }}
-                thumbColor={settings.notificationsEnabled ? Colors.primary : Colors.text.secondary}
+                onValueChange={value =>
+                  setSettings(prev => ({
+                    ...prev,
+                    notificationsEnabled: value,
+                  }))
+                }
+                trackColor={{
+                  false: Colors.text.disabled,
+                  true: Colors.primary + '80',
+                }}
+                thumbColor={
+                  settings.notificationsEnabled
+                    ? Colors.primary
+                    : Colors.text.secondary
+                }
                 ios_backgroundColor={Colors.text.disabled}
               />
             </View>
-            
+
             <View style={styles.settingItem}>
               <View style={styles.settingLabelContainer}>
                 <MaterialIcons name="place" size={20} color={Colors.primary} />
@@ -388,23 +454,39 @@ export default function DriverProfileScreen({ navigation }: any) {
               </View>
               <Switch
                 value={settings.allowLocationTracking}
-                onValueChange={(value) => setSettings(prev => ({ ...prev, allowLocationTracking: value }))}
-                trackColor={{ false: Colors.text.disabled, true: Colors.primary + '80' }}
-                thumbColor={settings.allowLocationTracking ? Colors.primary : Colors.text.secondary}
+                onValueChange={value =>
+                  setSettings(prev => ({
+                    ...prev,
+                    allowLocationTracking: value,
+                  }))
+                }
+                trackColor={{
+                  false: Colors.text.disabled,
+                  true: Colors.primary + '80',
+                }}
+                thumbColor={
+                  settings.allowLocationTracking
+                    ? Colors.primary
+                    : Colors.text.secondary
+                }
                 ios_backgroundColor={Colors.text.disabled}
               />
             </View>
-            
+
             <View style={styles.settingItem}>
               <View style={styles.settingLabelContainer}>
-                <MaterialIcons name="explore" size={20} color={Colors.primary} />
+                <MaterialIcons
+                  name="explore"
+                  size={20}
+                  color={Colors.primary}
+                />
                 <Text style={styles.settingLabel}>Preferred Job Radius</Text>
               </View>
               <View style={styles.radiusInputContainer}>
                 <TextInput
                   style={styles.radiusInput}
                   value={settings.preferredRadius.toString()}
-                  onChangeText={(value) => {
+                  onChangeText={value => {
                     const num = parseInt(value);
                     if (!isNaN(num) && num > 0) {
                       setSettings(prev => ({ ...prev, preferredRadius: num }));
@@ -417,8 +499,8 @@ export default function DriverProfileScreen({ navigation }: any) {
                 <Text style={styles.radiusUnit}>miles</Text>
               </View>
             </View>
-            
-            <TouchableOpacity 
+
+            <TouchableOpacity
               style={styles.saveButton}
               onPress={saveDriverSettings}
               disabled={savingSettings}
@@ -435,42 +517,70 @@ export default function DriverProfileScreen({ navigation }: any) {
         {/* Account Options */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Account</Text>
-          
+
           <View style={styles.optionsCard}>
-            <TouchableOpacity style={styles.optionItem}>
+            <TouchableOpacity 
+              style={styles.optionItem}
+              onPress={() => navigation.navigate('EditProfile')}
+            >
               <MaterialIcons name="person" size={20} color={Colors.primary} />
               <Text style={styles.optionText}>Edit Profile</Text>
-              <MaterialIcons name="chevron-right" size={20} color={Colors.text.secondary} />
+              <MaterialIcons
+                name="chevron-right"
+                size={20}
+                color={Colors.text.secondary}
+              />
             </TouchableOpacity>
-            
-            <TouchableOpacity style={styles.optionItem}>
+
+            <TouchableOpacity 
+              style={styles.optionItem}
+              onPress={() => navigation.navigate('VehicleInfo')}
+            >
+              <MaterialIcons name="directions-car" size={20} color={Colors.primary} />
+              <Text style={styles.optionText}>Vehicle Information</Text>
+              <MaterialIcons
+                name="chevron-right"
+                size={20}
+                color={Colors.text.secondary}
+              />
+            </TouchableOpacity>
+
+            <TouchableOpacity 
+              style={styles.optionItem}
+              onPress={() => navigation.navigate('SecurityPrivacy')}
+            >
               <MaterialIcons name="security" size={20} color={Colors.primary} />
               <Text style={styles.optionText}>Security & Privacy</Text>
-              <MaterialIcons name="chevron-right" size={20} color={Colors.text.secondary} />
+              <MaterialIcons
+                name="chevron-right"
+                size={20}
+                color={Colors.text.secondary}
+              />
             </TouchableOpacity>
-            
-            <TouchableOpacity style={styles.optionItem}>
+
+            <TouchableOpacity 
+              style={styles.optionItem}
+              onPress={() => navigation.navigate('HelpSupport')}
+            >
               <MaterialIcons name="help" size={20} color={Colors.primary} />
               <Text style={styles.optionText}>Help & Support</Text>
-              <MaterialIcons name="chevron-right" size={20} color={Colors.text.secondary} />
+              <MaterialIcons
+                name="chevron-right"
+                size={20}
+                color={Colors.text.secondary}
+              />
             </TouchableOpacity>
-            
-            <TouchableOpacity 
-              style={styles.optionItem}
-              onPress={() => navigation.navigate('NetworkDiagnostic')}
-            >
-              <MaterialIcons name="wifi-tethering" size={20} color={Colors.primary} />
-              <Text style={styles.optionText}>Network Diagnostics</Text>
-              <MaterialIcons name="chevron-right" size={20} color={Colors.text.secondary} />
-            </TouchableOpacity>
-            
-            <TouchableOpacity 
-              style={styles.optionItem}
-              onPress={handleSignOut}
-            >
+
+            <TouchableOpacity style={styles.optionItem} onPress={handleSignOut}>
               <MaterialIcons name="logout" size={20} color={Colors.error} />
-              <Text style={[styles.optionText, { color: Colors.error }]}>Sign Out</Text>
-              <MaterialIcons name="chevron-right" size={20} color={Colors.text.secondary} />
+              <Text style={[styles.optionText, { color: Colors.error }]}>
+                Sign Out
+              </Text>
+              <MaterialIcons
+                name="chevron-right"
+                size={20}
+                color={Colors.text.secondary}
+              />
             </TouchableOpacity>
           </View>
         </View>
@@ -480,19 +590,27 @@ export default function DriverProfileScreen({ navigation }: any) {
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Admin Functions</Text>
             <View style={styles.settingsCard}>
-              <TouchableOpacity 
+              <TouchableOpacity
                 style={styles.adminButton}
                 onPress={() => navigation.navigate('AdminDashboard')}
               >
-                <MaterialIcons name="dashboard" size={20} color={Colors.primary} />
+                <MaterialIcons
+                  name="dashboard"
+                  size={20}
+                  color={Colors.primary}
+                />
                 <Text style={styles.adminButtonText}>Admin Dashboard</Text>
               </TouchableOpacity>
-              
-              <TouchableOpacity 
+
+              <TouchableOpacity
                 style={[styles.adminButton, { marginTop: 12 }]}
                 onPress={() => navigation.navigate('AdminAssignment')}
               >
-                <MaterialIcons name="assignment" size={20} color={Colors.primary} />
+                <MaterialIcons
+                  name="assignment"
+                  size={20}
+                  color={Colors.primary}
+                />
                 <Text style={styles.adminButtonText}>Driver Assignment</Text>
               </TouchableOpacity>
             </View>
@@ -501,7 +619,7 @@ export default function DriverProfileScreen({ navigation }: any) {
 
         {/* Version */}
         <Text style={styles.versionText}>DriveDrop v1.0.0</Text>
-        
+
         {/* Bottom padding for scroll */}
         <View style={{ height: 40 }} />
       </ScrollView>

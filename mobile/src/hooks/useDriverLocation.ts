@@ -81,10 +81,10 @@ export function useDriverLocation({ shipmentId, isDriver = false, driverId }: Us
     const fetchLatestLocation = async () => {
       try {
         const { data, error } = await supabase
-          .rpc('get_latest_driver_location', { p_shipment_id: shipmentId });
+          .rpc('get_latest_driver_location', { p_shipment_id: shipmentId } as any);
           
         if (error) throw error;
-        if (data && data.length > 0) {
+        if (data && (data as any[]).length > 0) {
           setDriverLocation(data[0] as unknown as DriverLocation);
         }
       } catch (err) {

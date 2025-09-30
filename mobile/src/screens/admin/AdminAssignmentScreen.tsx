@@ -254,7 +254,7 @@ export default function AdminAssignmentScreen({
       const applicationsByShipment: { [key: string]: Application[] } = {};
 
       if (!error && allApplications) {
-        allApplications.forEach(app => {
+        allApplications.forEach((app: any) => {
           if (!applicationsByShipment[app.shipment_id]) {
             applicationsByShipment[app.shipment_id] = [];
           }

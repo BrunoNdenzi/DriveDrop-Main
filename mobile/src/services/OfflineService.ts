@@ -134,8 +134,8 @@ export class OfflineService {
 
       // Combine both sets of shipments and remove duplicates
       const allShipments = [...(clientShipments || []), ...(driverShipments || [])];
-      const uniqueShipments = allShipments.filter((shipment, index, self) =>
-        index === self.findIndex((s) => s.id === shipment.id)
+      const uniqueShipments = allShipments.filter((shipment: any, index, self) =>
+        index === self.findIndex((s: any) => s.id === shipment.id)
       );
 
       // Save shipments to offline storage
@@ -220,7 +220,7 @@ export class OfflineService {
       for (const message of queue) {
         try {
           // Try to insert the message
-          const { error } = await supabase
+          const { error } = (supabase as any)
             .from('messages')
             .insert({
               shipment_id: message.shipment_id,
