@@ -216,7 +216,7 @@ export const getConversationMessages = asyncHandler(async (req: AuthenticatedReq
 
   try {
     // First check if user can access this conversation
-    const { data: conversationCheck, error: conversationError } = await supabase
+    const { data: conversationCheck, error: conversationError } = await supabaseAdmin
       .from('conversations')
       .select(`
         id,
@@ -227,10 +227,18 @@ export const getConversationMessages = asyncHandler(async (req: AuthenticatedReq
         shipment_id
       `)
       .eq('id', conversationId)
-      .single();
+      .maybeSingle();
 
-    if (conversationError || !conversationCheck) {
-      console.error('Conversation not found:', conversationError);
+    if (conversationError) {
+      console.error('Database error checking conversation:', conversationError);
+      return res.status(400).json(errorResponse('Database error: ' + conversationError.message, 'DATABASE_ERROR'));
+    }
+
+    if (!conversationCheck) {
+      console.error('Conversation not found in database:', {
+        conversationId: conversationId,
+        userId: userId
+      });
       return res.status(404).json(errorResponse('Conversation not found', 'CONVERSATION_NOT_FOUND'));
     }
 
@@ -250,7 +258,7 @@ export const getConversationMessages = asyncHandler(async (req: AuthenticatedReq
     }
 
     // Get messages directly
-    const { data, error } = await supabase
+    const { data, error } = await supabaseAdmin
       .from('messages')
       .select(`
         id,
@@ -342,7 +350,7 @@ export const markMessageAsRead = asyncHandler(async (req: AuthenticatedRequest, 
 
   try {
     // First verify the message exists and user can access it
-    const { data: messageCheck, error: messageError } = await supabase
+    const { data: messageCheck, error: messageError } = await supabaseAdmin
       .from('messages')
       .select(`
         id,
@@ -354,10 +362,18 @@ export const markMessageAsRead = asyncHandler(async (req: AuthenticatedRequest, 
         )
       `)
       .eq('id', messageId)
-      .single();
+      .maybeSingle();
 
-    if (messageError || !messageCheck) {
-      console.error('Message not found:', messageError);
+    if (messageError) {
+      console.error('Database error checking message:', messageError);
+      return res.status(400).json(errorResponse('Database error: ' + messageError.message, 'DATABASE_ERROR'));
+    }
+
+    if (!messageCheck) {
+      console.error('Message not found in database:', {
+        messageId: messageId,
+        userId: userId
+      });
       return res.status(404).json(errorResponse('Message not found', 'MESSAGE_NOT_FOUND'));
     }
 
@@ -377,7 +393,7 @@ export const markMessageAsRead = asyncHandler(async (req: AuthenticatedRequest, 
     }
 
     // Update the message as read
-    const { data, error } = await supabase
+    const { data, error } = await supabaseAdmin
       .from('messages')
       .update({ read_at: new Date().toISOString() })
       .eq('id', messageId)
