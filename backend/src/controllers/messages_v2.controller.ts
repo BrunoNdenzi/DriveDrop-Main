@@ -523,7 +523,7 @@ export const getMessagingStatus = asyncHandler(async (req: AuthenticatedRequest,
 
   try {
     // Get conversation details
-    const { data: conversation, error: convError } = await supabase
+    const { data: conversation, error: convError } = await supabaseAdmin
       .from('conversations')
       .select(`
         *,
@@ -536,17 +536,31 @@ export const getMessagingStatus = asyncHandler(async (req: AuthenticatedRequest,
         )
       `)
       .eq('id', conversationId)
-      .single();
+      .maybeSingle();
 
-    if (convError || !conversation) {
+    if (convError) {
+      console.error('Database error getting conversation:', convError);
+      return res.status(400).json(errorResponse('Database error: ' + convError.message, 'DATABASE_ERROR'));
+    }
+
+    if (!conversation) {
+      console.error('Conversation not found:', {
+        conversationId: conversationId,
+        userId: userId
+      });
       return res.status(404).json(errorResponse('Conversation not found', 'CONVERSATION_NOT_FOUND'));
     }
 
     // Check if user can access
-    const { data: canAccess } = await supabase.rpc('can_access_conversation', {
-      p_conversation_id: conversationId,
-      p_user_id: userId
-    });
+    const { data: userProfile } = await supabaseAdmin
+      .from('profiles')
+      .select('role')
+      .eq('id', userId)
+      .single();
+
+    const canAccess = userProfile?.role === 'admin' || 
+                     conversation.client_id === userId || 
+                     conversation.driver_id === userId;
 
     const status = {
       conversation_id: conversationId,
