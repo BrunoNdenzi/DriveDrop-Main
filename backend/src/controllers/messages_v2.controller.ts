@@ -3,7 +3,7 @@
  * Complete re-implementation from scratch
  */
 import { Request, Response } from 'express';
-import { supabase } from '../lib/supabase';
+import { supabase, supabaseAdmin } from '../lib/supabase';
 
 interface AuthenticatedRequest extends Request {
   user?: {
@@ -74,7 +74,20 @@ export const sendMessage = asyncHandler(async (req: AuthenticatedRequest, res: R
       userId: userId
     });
 
-    const { data: conversationCheck, error: conversationError } = await supabase
+    // Debug: Let's see what conversations exist in the table
+    const { data: allConversations, error: debugError } = await supabaseAdmin
+      .from('conversations')
+      .select('id, client_id, driver_id, is_active')
+      .limit(10);
+
+    console.log('🔍 Debug - All conversations in table:', {
+      count: allConversations?.length || 0,
+      conversations: allConversations,
+      debugError: debugError?.message
+    });
+
+    // Now check the specific conversation
+    const { data: conversationCheck, error: conversationError } = await supabaseAdmin
       .from('conversations')
       .select(`
         id,
@@ -92,7 +105,10 @@ export const sendMessage = asyncHandler(async (req: AuthenticatedRequest, res: R
       error: conversationError?.message,
       data: conversationCheck,
       conversationId: conversation_id,
-      userId: userId
+      userId: userId,
+      conversationIdType: typeof conversation_id,
+      conversationIdLength: conversation_id?.length,
+      isValidUUID: /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(conversation_id)
     });
 
     if (conversationError) {
@@ -132,7 +148,7 @@ export const sendMessage = asyncHandler(async (req: AuthenticatedRequest, res: R
     }
 
     // Insert the message directly
-    const { data, error } = await supabase
+    const { data, error } = await supabaseAdmin
       .from('messages')
       .insert({
         conversation_id: conversation_id,
