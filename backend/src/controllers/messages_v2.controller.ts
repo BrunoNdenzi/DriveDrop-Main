@@ -148,6 +148,7 @@ export const sendMessage = asyncHandler(async (req: AuthenticatedRequest, res: R
     }
 
     // Insert the message directly
+    const now = new Date().toISOString();
     const { data, error } = await supabaseAdmin
       .from('messages')
       .insert({
@@ -155,7 +156,8 @@ export const sendMessage = asyncHandler(async (req: AuthenticatedRequest, res: R
         sender_id: userId,
         content: content.trim(),
         message_type: message_type,
-        delivered_at: new Date().toISOString()
+        sent_at: now,
+        delivered_at: now
       })
       .select(`
         id,
