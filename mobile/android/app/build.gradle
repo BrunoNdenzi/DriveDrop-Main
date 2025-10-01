@@ -3,9 +3,6 @@ apply plugin: "com.android.application"
 apply plugin: "org.jetbrains.kotlin.android"
 apply plugin: "com.facebook.react"
 
-// Apply Sentry plugin after other plugins to avoid configuration cache issues
-apply plugin: "io.sentry.android.gradle"
-
 def projectRoot = rootDir.getAbsoluteFile().getParentFile().getAbsolutePath()
 
 /**

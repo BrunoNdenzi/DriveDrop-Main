@@ -1,7 +1,6 @@
 import React, { Component, ErrorInfo, ReactNode } from 'react';
 import { View, Text, StyleSheet, ScrollView, Button } from 'react-native';
 import { Colors } from '../constants/Colors';
-import * as Sentry from '@sentry/react-native';
 
 interface Props {
   children: ReactNode;
@@ -29,12 +28,7 @@ class ErrorBoundary extends Component<Props, State> {
   }
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo) {
-    // Log the error to Sentry
-    Sentry.withScope(scope => {
-      scope.setExtra('componentStack', errorInfo.componentStack);
-      Sentry.captureException(error);
-    });
-    
+    // Log the error to console
     console.error('Error caught by ErrorBoundary:', error, errorInfo);
     this.setState({
       errorInfo: errorInfo.componentStack || '',

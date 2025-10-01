@@ -1,4 +1,5 @@
 import React from 'react';
+import { View, Text, ActivityIndicator } from 'react-native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { NavigationContainer } from '@react-navigation/native';
@@ -230,7 +231,25 @@ export default function Navigation() {
 
   // Show loading screen while checking authentication
   if (loading) {
-    return null;
+    return (
+      <NavigationContainer>
+        <View style={{ 
+          flex: 1, 
+          justifyContent: 'center', 
+          alignItems: 'center',
+          backgroundColor: '#ffffff'
+        }}>
+          <ActivityIndicator size="large" color={Colors.primary} />
+          <Text style={{ 
+            marginTop: 16, 
+            fontSize: 16, 
+            color: Colors.text.secondary || '#666'
+          }}>
+            Loading...
+          </Text>
+        </View>
+      </NavigationContainer>
+    );
   }
 
   return (
