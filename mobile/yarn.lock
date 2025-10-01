@@ -1868,10 +1868,10 @@
   dependencies:
     "@sinonjs/commons" "^3.0.0"
 
-"@stripe/stripe-react-native@^0.53.1":
-  version "0.53.1"
-  resolved "https://registry.yarnpkg.com/@stripe/stripe-react-native/-/stripe-react-native-0.53.1.tgz#ef9cd60d4fdfd3ba701715aefe052bb3596aca98"
-  integrity sha512-RAqEnAJ7IJSFfoDPQSDntLAoyJNGCl2bSacnd+x74tCmPjWsMcQ4HH1+mAUKJOqPlaGc5RIy+HxYw/S1EkMlXQ==
+"@stripe/stripe-react-native@^0.54.0":
+  version "0.54.0"
+  resolved "https://registry.yarnpkg.com/@stripe/stripe-react-native/-/stripe-react-native-0.54.0.tgz#8519592ebc5e7a142200e0a3eeb5b8c0449178a7"
+  integrity sha512-dF5ZVJOYpDcNYWfho4x2NcDzKVubG0dcDJzVKpJepOx1ib6zDreW9pi0EgGYvKR+B4Nvam7CU6TZxBTLSSYeKg==
 
 "@supabase/auth-js@2.71.1":
   version "2.71.1"

@@ -36,7 +36,7 @@
     "@rneui/base": "^4.0.0-rc.8",
     "@rneui/themed": "^4.0.0-rc.8",
     "@sentry/react-native": "~6.20.0",
-    "@stripe/stripe-react-native": "^0.53.1",
+    "@stripe/stripe-react-native": "^0.54.0",
     "@supabase/supabase-js": "^2.50.5",
     "date-fns": "^4.1.0",
     "expo": "~54.0.0",
@@ -61,11 +61,10 @@
     "react-native-maps": "1.20.1",
     "react-native-pager-view": "6.9.1",
     "react-native-paper": "^5.14.5",
-    "react-native-reanimated": "~4.1.0",
+    "react-native-reanimated": "~3.3.0",
     "react-native-safe-area-context": "~5.6.0",
     "react-native-screens": "~4.16.0",
-    "react-native-url-polyfill": "^2.0.0",
-    "react-native-worklets": "^0.5.1"
+    "react-native-url-polyfill": "^2.0.0"
   },
   "devDependencies": {
     "@babel/core": "^7.25.2",
