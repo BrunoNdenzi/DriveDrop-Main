@@ -5,6 +5,8 @@ module.exports = ({ config }) => {
     ...config,
     name: "DriveDrop",
     slug: "drivedrop",
+    owner: "drivedrop", // Organization account
+    projectId: "cee4610e-7236-4481-be20-707b4b147f19",
     version: "1.5.0", // Updated version for new release
     orientation: "portrait",
     icon: "./assets/icon.png",
@@ -42,9 +44,9 @@ module.exports = ({ config }) => {
       googleMapsApiKey: process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY || '',
       stripePublishableKey: process.env.EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY || '',
       sentryDsn: process.env.SENTRY_DSN || '',
-      projectId: "ce011283-21f8-4f0d-adb1-206f02d37e65", // This should be replaced with your actual Expo project ID
+      projectId: "cee4610e-7236-4481-be20-707b4b147f19", // Organization project ID
       eas: {
-        projectId: "ce011283-21f8-4f0d-adb1-206f02d37e65" // This should be replaced with your actual EAS project ID
+        projectId: "cee4610e-7236-4481-be20-707b4b147f19" // Organization project ID
       }
     },
     plugins: [
