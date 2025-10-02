@@ -1,0 +1,17 @@
+# PEPK Command for Google Play Console Upload
+
+# Replace the placeholders with actual values:
+# --keystore=@drivedrop__drivedrop.jks
+# --alias=cee99183665473db5cb5676a801350b8
+# --output=output.zip
+# --include-cert
+
+# Full command to run:
+java -jar pepk.jar --keystore=@drivedrop__drivedrop.jks --alias=cee99183665473db5cb5676a801350b8 --output=output.zip --include-cert --rsa-aes-encryption --encryption-key-path=/path/to/encryption_public_key.pem
+
+# You'll need to:
+# 1. Download the PEPK tool from step 2
+# 2. Download the encryption public key from step 1
+# 3. Run this command with the correct path to the encryption key
+# 4. Enter the keystore password when prompted: 6515c9e31c7274579be332380d9fb7ea
+# 5. Enter the key password when prompted: 63f453b23a7a80424f204726dc19f9c6

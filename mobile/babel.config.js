@@ -3,7 +3,7 @@ module.exports = function (api) {
   return {
     presets: ['babel-preset-expo'],
     plugins: [
-      // react-native-worklets/plugin removed for New Architecture compatibility
+      'react-native-reanimated/plugin',
     ],
   };
 };

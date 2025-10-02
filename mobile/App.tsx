@@ -13,46 +13,43 @@ import ErrorBoundary from './src/components/ErrorBoundary';
 
 export default function App() {
   const [isLoading, setIsLoading] = useState(true);
-  const [hasEnvVars, setHasEnvVars] = useState(false);
   const [initError, setInitError] = useState<string | null>(null);
   
   useEffect(() => {
     const initializeApp = async () => {
       try {
-        // Check for required environment variables with fallbacks
+        // Small delay to ensure all native modules are loaded
+        await new Promise(resolve => setTimeout(resolve, 100));
+        
+        // Check for required environment variables with safe fallbacks
         let supabaseUrl, supabaseAnonKey, apiUrl;
         
         try {
           supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL || 
-            Constants.expoConfig?.extra?.supabaseUrl;
+            Constants.expoConfig?.extra?.supabaseUrl || 'https://placeholder.supabase.co';
           supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || 
-            Constants.expoConfig?.extra?.supabaseAnonKey;
+            Constants.expoConfig?.extra?.supabaseAnonKey || 'placeholder-key';
           apiUrl = process.env.EXPO_PUBLIC_API_URL || 
-            Constants.expoConfig?.extra?.apiUrl;
+            Constants.expoConfig?.extra?.apiUrl || 'https://drivedrop-main-production.up.railway.app';
         } catch (error) {
           console.warn('Error accessing environment variables:', error);
-          // Set default values for development
-          supabaseUrl = 'https://default.supabase.co';
-          supabaseAnonKey = 'default-key';
-          apiUrl = 'http://localhost:3000';
+          // Set safe default values
+          supabaseUrl = 'https://placeholder.supabase.co';
+          supabaseAnonKey = 'placeholder-key';
+          apiUrl = 'https://drivedrop-main-production.up.railway.app';
         }
         
-        const hasRequiredVars = !!supabaseUrl && !!supabaseAnonKey && !!apiUrl;
-        // Allow app to continue even without env vars for testing
-        setHasEnvVars(true); // Always set to true to allow app startup
-        
-        if (!hasRequiredVars) {
-          console.warn('Missing environment variables:', {
-            supabaseUrl: !!supabaseUrl,
-            supabaseAnonKey: !!supabaseAnonKey,
-            apiUrl: !!apiUrl
-          });
-        }
+        console.log('Environment check complete:', {
+          hasSupabaseUrl: !!supabaseUrl,
+          hasSupabaseAnonKey: !!supabaseAnonKey,
+          hasApiUrl: !!apiUrl
+        });
         
         setIsLoading(false);
       } catch (error) {
         console.error('App initialization error:', error);
-        setInitError('Failed to initialize app');
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+        setInitError(`Failed to initialize app: ${errorMessage}`);
         setIsLoading(false);
       }
     };
@@ -63,7 +60,7 @@ export default function App() {
   if (isLoading) {
     return (
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#ffffff' }}>
-        <ActivityIndicator size="large" color="#0000ff" />
+        <ActivityIndicator size="large" color="#0066CC" />
         <Text style={{ marginTop: 16, fontSize: 16, color: '#666' }}>Loading DriveDrop...</Text>
       </View>
     );
@@ -73,18 +70,17 @@ export default function App() {
     return (
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20, backgroundColor: '#ffffff' }}>
         <Text style={{ fontSize: 18, textAlign: 'center', marginBottom: 20, color: '#ff0000' }}>
-          Initialization Error
+          App Initialization Error
         </Text>
         <Text style={{ textAlign: 'center', color: '#666' }}>
           {initError}
         </Text>
         <Text style={{ textAlign: 'center', marginTop: 20, color: '#666' }}>
-          Please restart the app or contact support.
+          Please restart the app. If the problem persists, contact support.
         </Text>
       </View>
     );
   }
-  
   
   return (
     <ErrorBoundary>

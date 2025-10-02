@@ -44,6 +44,6 @@ ext {
     targetSdkVersion = 34
     compileSdkVersion = 34
     buildToolsVersion = "34.0.0"
-    ndkVersion = "26.1.10909125"
+    ndkVersion = "27.1.12297006"
     kotlinVersion = "1.9.22"
 }
