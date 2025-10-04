@@ -38,7 +38,7 @@
     "@rneui/base": "^4.0.0-rc.8",
     "@rneui/themed": "^4.0.0-rc.8",
     "@sentry/react-native": "~7.1.0",
-    "@stripe/stripe-react-native": "0.50.3",
+    "@stripe/stripe-react-native": "0.37.3",
     "@supabase/supabase-js": "^2.50.5",
     "date-fns": "^4.1.0",
     "expo": "54.0.12",
