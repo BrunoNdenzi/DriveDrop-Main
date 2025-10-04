@@ -1,5 +1,5 @@
 import { Alert } from 'react-native';
-import { supabase } from '../supabase';
+import { supabase } from '../lib/supabase';
 import NetworkUtil from './NetworkUtil';
 
 /**
@@ -57,6 +57,7 @@ export const ShipmentUtil = {
       // Update the shipment status
       const { error } = await supabase
         .from('shipments')
+        // @ts-ignore - Supabase type inference issue
         .update({
           status: newStatus,
           updated_at: new Date().toISOString()
@@ -113,6 +114,7 @@ export const ShipmentUtil = {
     try {
       const { error } = await supabase
         .from('shipment_status_history')
+        // @ts-ignore - Supabase type inference issue
         .insert({
           shipment_id: shipmentId,
           status,

@@ -22,11 +22,22 @@ const ExpoSecureStoreAdapter = {
 const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL || Constants.expoConfig?.extra?.supabaseUrl as string;
 const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || Constants.expoConfig?.extra?.supabaseAnonKey as string;
 
-// Instead of throwing an error that might crash the app, we'll log it and use fallbacks for development
-if (!supabaseUrl || !supabaseAnonKey) {
-  console.error('⚠️ Missing Supabase configuration. Using fallback values for development only.');
-  // These fallbacks won't work in production but will prevent immediate crashes
+// Validate Supabase configuration
+if (!supabaseUrl || !supabaseAnonKey || !supabaseUrl.startsWith('http')) {
+  console.error('⚠️ Invalid Supabase configuration:', {
+    hasUrl: !!supabaseUrl,
+    hasKey: !!supabaseAnonKey,
+    urlValue: supabaseUrl,
+  });
+  throw new Error(
+    `Invalid Supabase configuration. Please ensure EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_ANON_KEY are set correctly. Current URL: ${supabaseUrl || 'undefined'}`
+  );
 }
+
+console.log('✅ Supabase configuration loaded:', {
+  url: supabaseUrl,
+  hasKey: !!supabaseAnonKey,
+});
 
 // Create Supabase client
 export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey, {
