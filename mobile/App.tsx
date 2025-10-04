@@ -4,6 +4,7 @@ import { StatusBar } from 'expo-status-bar';
 import { View, Text, ActivityIndicator } from 'react-native';
 import 'react-native-url-polyfill/auto';
 import Constants from 'expo-constants';
+import crashlytics from '@react-native-firebase/crashlytics';
 
 import Navigation from './src/navigation';
 import { AuthProvider } from './src/context/AuthContext';
@@ -18,6 +19,10 @@ export default function App() {
   useEffect(() => {
     const initializeApp = async () => {
       try {
+        // Initialize Firebase Crashlytics
+        await crashlytics().setCrashlyticsCollectionEnabled(true);
+        console.log('Firebase Crashlytics initialized');
+        
         // Small delay to ensure all native modules are loaded
         await new Promise(resolve => setTimeout(resolve, 100));
         
@@ -48,6 +53,10 @@ export default function App() {
         setIsLoading(false);
       } catch (error) {
         console.error('App initialization error:', error);
+        // Log to Crashlytics
+        if (error instanceof Error) {
+          crashlytics().recordError(error);
+        }
         const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
         setInitError(`Failed to initialize app: ${errorMessage}`);
         setIsLoading(false);

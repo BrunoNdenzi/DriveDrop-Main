@@ -1,21 +1,21 @@
 {
   "project_info": {
-    "project_number": "443456240960",
-    "project_id": "drivedrop-pre-roll",
-    "storage_bucket": "drivedrop-pre-roll.firebasestorage.app"
+    "project_number": "785127607649",
+    "project_id": "drivedrop-analytics",
+    "storage_bucket": "drivedrop-analytics.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:443456240960:android:70219efdd7227ac6fd8ea5",
+        "mobilesdk_app_id": "1:785127607649:android:6dceeb860c959750888920",
         "android_client_info": {
-          "package_name": "com.drivedrop.mobile"
+          "package_name": "com.drivedrop.drivedrop"
         }
       },
       "oauth_client": [],
       "api_key": [
         {
-          "current_key": "AIzaSyCe48idgL0Zv64BXrMsDBJhvhwT39X64k0"
+          "current_key": "AIzaSyCMlzRO4Av2g33JaUgQHhQ1YUxdjPVlPns"
         }
       ],
       "services": {
