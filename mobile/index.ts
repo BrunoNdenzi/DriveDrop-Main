@@ -1,3 +1,20 @@
+// CRITICAL: Patch NativeModules IMMEDIATELY before ANY other imports
+// This must be the FIRST code that runs to prevent Samsung device crashes
+import { NativeModules } from 'react-native';
+
+const originalModules = { ...NativeModules };
+Object.keys(originalModules).forEach((name) => {
+  const mod = originalModules[name];
+  if (!mod) {
+    NativeModules[name] = { getConstants: () => ({}) };
+  } else if (typeof mod === 'object') {
+    const orig = mod.getConstants;
+    mod.getConstants = orig && typeof orig === 'function' 
+      ? function(...args: any[]) { try { return orig.apply(this, args); } catch { return {}; } }
+      : () => ({});
+  }
+});
+
 import { registerRootComponent } from 'expo';
 import { initializeNativeModulePolyfills } from './src/utils/nativeModulePolyfill';
 
