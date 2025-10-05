@@ -4,7 +4,8 @@ import { StatusBar } from 'expo-status-bar';
 import { View, Text, ActivityIndicator, Platform } from 'react-native';
 import 'react-native-url-polyfill/auto';
 import Constants from 'expo-constants';
-import crashlytics from '@react-native-firebase/crashlytics';
+// TEMPORARILY DISABLED: Firebase Crashlytics might be causing startup crashes
+// import crashlytics from '@react-native-firebase/crashlytics';
 
 import Navigation from './src/navigation';
 import { AuthProvider } from './src/context/AuthContext';
@@ -32,9 +33,10 @@ export default function App() {
         const criticalModules = ['PlatformConstants', 'DeviceInfo'];
         await waitForNativeModules(criticalModules, 2000);
         
-        // Initialize Firebase Crashlytics
-        await crashlytics().setCrashlyticsCollectionEnabled(true);
-        console.log('Firebase Crashlytics initialized');
+        // TEMPORARILY DISABLED: Firebase Crashlytics initialization
+        // This might be causing startup crashes
+        // await crashlytics().setCrashlyticsCollectionEnabled(true);
+        console.log('Skipping Firebase Crashlytics for now');
         
         // Additional delay for Samsung devices to ensure all modules are loaded
         await new Promise(resolve => setTimeout(resolve, 200));
@@ -66,10 +68,10 @@ export default function App() {
         setIsLoading(false);
       } catch (error) {
         console.error('App initialization error:', error);
-        // Log to Crashlytics
-        if (error instanceof Error) {
-          crashlytics().recordError(error);
-        }
+        // TEMPORARILY DISABLED: Crashlytics logging
+        // if (error instanceof Error) {
+        //   crashlytics().recordError(error);
+        // }
         const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
         setInitError(`Failed to initialize app: ${errorMessage}`);
         setIsLoading(false);
