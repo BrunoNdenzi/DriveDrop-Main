@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
-import { View, Text, ActivityIndicator } from 'react-native';
+import { View, Text, ActivityIndicator, Platform } from 'react-native';
 import 'react-native-url-polyfill/auto';
 import Constants from 'expo-constants';
 import crashlytics from '@react-native-firebase/crashlytics';
@@ -11,6 +11,7 @@ import { AuthProvider } from './src/context/AuthContext';
 import { BookingProvider } from './src/context/BookingContext';
 import { NotificationProvider } from './src/contexts/NotificationContext';
 import ErrorBoundary from './src/components/ErrorBoundary';
+import { initializeNativeModulePolyfills, waitForNativeModules } from './src/utils/nativeModulePolyfill';
 
 export default function App() {
   const [isLoading, setIsLoading] = useState(true);
@@ -19,12 +20,24 @@ export default function App() {
   useEffect(() => {
     const initializeApp = async () => {
       try {
+        console.log('=== DriveDrop App Initialization Starting ===');
+        console.log('Platform:', Platform.OS, Platform.Version);
+        
+        // CRITICAL: Initialize native module polyfills FIRST
+        // This prevents crashes on Samsung devices where modules might not be ready
+        initializeNativeModulePolyfills();
+        
+        // Wait for critical native modules to be ready
+        // This is especially important for Samsung devices
+        const criticalModules = ['PlatformConstants', 'DeviceInfo'];
+        await waitForNativeModules(criticalModules, 2000);
+        
         // Initialize Firebase Crashlytics
         await crashlytics().setCrashlyticsCollectionEnabled(true);
         console.log('Firebase Crashlytics initialized');
         
-        // Small delay to ensure all native modules are loaded
-        await new Promise(resolve => setTimeout(resolve, 100));
+        // Additional delay for Samsung devices to ensure all modules are loaded
+        await new Promise(resolve => setTimeout(resolve, 200));
         
         // Check for required environment variables with safe fallbacks
         let supabaseUrl, supabaseAnonKey, apiUrl;
