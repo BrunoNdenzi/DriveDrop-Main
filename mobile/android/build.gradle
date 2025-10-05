@@ -11,7 +11,8 @@ buildscript {
     classpath('org.jetbrains.kotlin:compose-compiler-gradle-plugin:1.9.22')
     classpath('io.sentry:sentry-android-gradle-plugin:4.2.0')
     classpath('com.google.gms:google-services:4.4.3')
-    classpath('com.google.firebase:firebase-crashlytics-gradle:3.0.2')
+    // TEMPORARILY DISABLED: Firebase Crashlytics causing startup crashes
+    // classpath('com.google.firebase:firebase-crashlytics-gradle:3.0.2')
   }
 }
 

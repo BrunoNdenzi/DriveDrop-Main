@@ -1,11 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
-import { View, Text, ActivityIndicator, Platform } from 'react-native';
+import { View, Text, ActivityIndicator, Platform, NativeModules } from 'react-native';
 import 'react-native-url-polyfill/auto';
 import Constants from 'expo-constants';
-// TEMPORARILY DISABLED: Firebase Crashlytics might be causing startup crashes
-// import crashlytics from '@react-native-firebase/crashlytics';
 
 import Navigation from './src/navigation';
 import { AuthProvider } from './src/context/AuthContext';
@@ -23,23 +21,25 @@ export default function App() {
       try {
         console.log('=== DriveDrop App Initialization Starting ===');
         console.log('Platform:', Platform.OS, Platform.Version);
+        console.log('React Native Version:', Platform.constants?.reactNativeVersion);
+        
+        // Log available native modules for debugging
+        const moduleNames = Object.keys(NativeModules);
+        console.log(`[App Init] ${moduleNames.length} native modules available`);
         
         // CRITICAL: Initialize native module polyfills FIRST
         // This prevents crashes on Samsung devices where modules might not be ready
         initializeNativeModulePolyfills();
+        console.log('[App Init] Native module polyfills initialized');
         
         // Wait for critical native modules to be ready
         // This is especially important for Samsung devices
-        const criticalModules = ['PlatformConstants', 'DeviceInfo'];
-        await waitForNativeModules(criticalModules, 2000);
+        const criticalModules = ['PlatformConstants', 'DeviceInfo', 'SourceCode'];
+        console.log(`[App Init] Waiting for critical modules: ${criticalModules.join(', ')}`);
+        await waitForNativeModules(criticalModules, 3000);
         
-        // TEMPORARILY DISABLED: Firebase Crashlytics initialization
-        // This might be causing startup crashes
-        // await crashlytics().setCrashlyticsCollectionEnabled(true);
-        console.log('Skipping Firebase Crashlytics for now');
-        
-        // Additional delay for Samsung devices to ensure all modules are loaded
-        await new Promise(resolve => setTimeout(resolve, 200));
+        // Additional safety delay for module initialization
+        await new Promise(resolve => setTimeout(resolve, 300));
         
         // Check for required environment variables with safe fallbacks
         let supabaseUrl, supabaseAnonKey, apiUrl;
@@ -68,10 +68,8 @@ export default function App() {
         setIsLoading(false);
       } catch (error) {
         console.error('App initialization error:', error);
-        // TEMPORARILY DISABLED: Crashlytics logging
-        // if (error instanceof Error) {
-        //   crashlytics().recordError(error);
-        // }
+        console.error('Error stack:', error instanceof Error ? error.stack : 'No stack trace');
+        
         const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
         setInitError(`Failed to initialize app: ${errorMessage}`);
         setIsLoading(false);

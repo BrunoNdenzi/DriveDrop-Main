@@ -12,60 +12,79 @@ import { NativeModules, Platform } from 'react-native';
  * can be delayed or fail silently
  */
 export function initializeNativeModulePolyfills() {
+  console.log('[Native Module Polyfill] Starting initialization...');
+  
   // Get all native module names
   const moduleNames = Object.keys(NativeModules);
   
-  console.log('[Native Module Polyfill] Checking', moduleNames.length, 'native modules');
+  console.log(`[Native Module Polyfill] Checking ${moduleNames.length} native modules`);
   
   let patchedCount = 0;
+  let nullModules: string[] = [];
   
   moduleNames.forEach((moduleName) => {
-    const module = NativeModules[moduleName];
-    
-    // If module is null or undefined, create a stub
-    if (!module) {
-      console.warn(`[Native Module Polyfill] Module ${moduleName} is null/undefined, creating safe stub`);
-      NativeModules[moduleName] = {
-        getConstants: () => {
-          console.warn(`[Native Module Polyfill] getConstants called on null module: ${moduleName}`);
-          return {};
-        }
-      };
-      patchedCount++;
-      return;
-    }
-    
-    // Check if module exists but getConstants might fail
-    if (typeof module === 'object') {
-      // Wrap getConstants with error handling if it exists
-      const originalGetConstants = module.getConstants;
+    try {
+      const module = NativeModules[moduleName];
       
-      if (typeof originalGetConstants === 'function') {
-        module.getConstants = function(...args: any[]) {
-          try {
-            return originalGetConstants.apply(this, args);
-          } catch (error) {
-            console.warn(`[Native Module Polyfill] getConstants failed for ${moduleName}:`, error);
-            return {}; // Return empty constants instead of crashing
+      // If module is null or undefined, create a stub
+      if (!module) {
+        console.warn(`[Native Module Polyfill] Module ${moduleName} is null/undefined, creating safe stub`);
+        nullModules.push(moduleName);
+        NativeModules[moduleName] = {
+          getConstants: () => {
+            console.warn(`[Native Module Polyfill] getConstants called on stub module: ${moduleName}`);
+            return {};
           }
         };
         patchedCount++;
-      } else {
-        // Add getConstants if module exists but doesn't have it
-        module.getConstants = function() {
-          return {};
-        };
+        return;
       }
+      
+      // Check if module exists but getConstants might fail
+      if (typeof module === 'object') {
+        // Wrap getConstants with error handling if it exists
+        const originalGetConstants = module.getConstants;
+        
+        if (typeof originalGetConstants === 'function') {
+          module.getConstants = function(...args: any[]) {
+            try {
+              const result = originalGetConstants.apply(this, args);
+              return result || {};
+            } catch (error) {
+              console.warn(`[Native Module Polyfill] getConstants failed for ${moduleName}:`, error);
+              return {}; // Return empty constants instead of crashing
+            }
+          };
+          patchedCount++;
+        } else if (!originalGetConstants) {
+          // Add getConstants if module exists but doesn't have it
+          module.getConstants = function() {
+            return {};
+          };
+          patchedCount++;
+        }
+      }
+    } catch (error) {
+      console.error(`[Native Module Polyfill] Error patching ${moduleName}:`, error);
     }
   });
   
   console.log(`[Native Module Polyfill] Patched ${patchedCount} modules with defensive getConstants`);
   
+  if (nullModules.length > 0) {
+    console.warn(`[Native Module Polyfill] Found ${nullModules.length} null modules: ${nullModules.join(', ')}`);
+  }
+  
   // Add device-specific logging
   if (Platform.OS === 'android') {
-    console.log('[Native Module Polyfill] Android device detected');
-    console.log('[Native Module Polyfill] Manufacturer:', Platform.constants?.Manufacturer || 'unknown');
-    console.log('[Native Module Polyfill] Model:', Platform.constants?.Model || 'unknown');
+    try {
+      console.log('[Native Module Polyfill] Android device detected');
+      console.log('[Native Module Polyfill] Manufacturer:', Platform.constants?.Manufacturer || 'unknown');
+      console.log('[Native Module Polyfill] Model:', Platform.constants?.Model || 'unknown');
+      console.log('[Native Module Polyfill] OS Version:', Platform.Version);
+    } catch (error) {
+      console.warn('[Native Module Polyfill] Could not get device info:', error);
+    }
   }
 }
 
@@ -110,17 +129,28 @@ export async function waitForNativeModules(
   
   console.log(`[Native Module Wait] Waiting for modules: ${requiredModules.join(', ')}`);
   
+  // First check - see what's available now
+  const initialAvailable = requiredModules.filter(moduleName => isNativeModuleAvailable(moduleName));
+  console.log(`[Native Module Wait] Initially available: ${initialAvailable.length}/${requiredModules.length}`);
+  
   while (Date.now() - startTime < maxWaitTime) {
     const allAvailable = requiredModules.every(moduleName => isNativeModuleAvailable(moduleName));
     
     if (allAvailable) {
-      console.log(`[Native Module Wait] All modules ready after ${Date.now() - startTime}ms`);
+      const elapsed = Date.now() - startTime;
+      console.log(`[Native Module Wait] All modules ready after ${elapsed}ms`);
       return true;
     }
     
     await new Promise(resolve => setTimeout(resolve, checkInterval));
   }
   
-  console.warn(`[Native Module Wait] Timeout after ${maxWaitTime}ms. Some modules may not be available.`);
+  // Check what's still missing
+  const stillMissing = requiredModules.filter(moduleName => !isNativeModuleAvailable(moduleName));
+  console.warn(
+    `[Native Module Wait] Timeout after ${maxWaitTime}ms. ` +
+    `Missing modules: ${stillMissing.join(', ')}`
+  );
+  
   return false;
 }
