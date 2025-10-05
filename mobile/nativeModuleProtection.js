@@ -12,20 +12,49 @@
   try {
     // Polyfill FormData FIRST (before any modules load)
     if (typeof global !== 'undefined' && !global.FormData) {
-      console.log('[PROTECTION] Adding FormData polyfill...');
-      try {
-        global.FormData = require('form-data');
-        console.log('[PROTECTION] ✅ FormData polyfill added');
-      } catch (e) {
-        console.warn('[PROTECTION] Failed to add FormData polyfill:', e.message);
-        // Create a minimal stub as fallback
-        global.FormData = function FormData() {
-          this._data = {};
-        };
-        global.FormData.prototype.append = function(key, value) {
-          this._data[key] = value;
-        };
-      }
+      console.log('[PROTECTION] Creating FormData polyfill...');
+      
+      // Create a basic FormData implementation
+      var FormDataPolyfill = function() {
+        this._data = [];
+      };
+      
+      FormDataPolyfill.prototype.append = function(name, value, filename) {
+        this._data.push({ name: name, value: value, filename: filename });
+      };
+      
+      FormDataPolyfill.prototype.delete = function(name) {
+        this._data = this._data.filter(function(item) {
+          return item.name !== name;
+        });
+      };
+      
+      FormDataPolyfill.prototype.get = function(name) {
+        var item = this._data.find(function(item) {
+          return item.name === name;
+        });
+        return item ? item.value : null;
+      };
+      
+      FormDataPolyfill.prototype.getAll = function(name) {
+        return this._data
+          .filter(function(item) { return item.name === name; })
+          .map(function(item) { return item.value; });
+      };
+      
+      FormDataPolyfill.prototype.has = function(name) {
+        return this._data.some(function(item) {
+          return item.name === name;
+        });
+      };
+      
+      FormDataPolyfill.prototype.set = function(name, value, filename) {
+        this.delete(name);
+        this.append(name, value, filename);
+      };
+      
+      global.FormData = FormDataPolyfill;
+      console.log('[PROTECTION] ✅ FormData polyfill created');
     }
     
     // Get NativeModules reference
