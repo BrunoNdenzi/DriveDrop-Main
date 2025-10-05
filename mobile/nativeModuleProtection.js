@@ -10,6 +10,24 @@
   console.log('[PROTECTION] Installing native module safety layer...');
   
   try {
+    // Polyfill FormData FIRST (before any modules load)
+    if (typeof global !== 'undefined' && !global.FormData) {
+      console.log('[PROTECTION] Adding FormData polyfill...');
+      try {
+        global.FormData = require('form-data');
+        console.log('[PROTECTION] ✅ FormData polyfill added');
+      } catch (e) {
+        console.warn('[PROTECTION] Failed to add FormData polyfill:', e.message);
+        // Create a minimal stub as fallback
+        global.FormData = function FormData() {
+          this._data = {};
+        };
+        global.FormData.prototype.append = function(key, value) {
+          this._data[key] = value;
+        };
+      }
+    }
+    
     // Get NativeModules reference
     var ReactNative = require('react-native');
     var NativeModules = ReactNative.NativeModules;

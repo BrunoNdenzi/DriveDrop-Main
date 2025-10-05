@@ -4,6 +4,11 @@
  * See: nativeModuleProtection.js
  */
 
+// Polyfill FormData for React Native
+import 'react-native-url-polyfill/auto';
+// @ts-ignore
+global.FormData = global.FormData || require('form-data');
+
 import { registerRootComponent } from 'expo';
 import App from './App';
 
