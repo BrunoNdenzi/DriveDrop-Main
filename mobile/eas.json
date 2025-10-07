@@ -24,6 +24,7 @@
         "buildType": "app-bundle"
       },
       "autoIncrement": true,
+      "resourceClass": "large",
       "env": {
         "EXPO_PUBLIC_ENV": "production",
         "EXPO_PUBLIC_ENABLE_ANALYTICS": "true",
