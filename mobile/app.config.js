@@ -42,9 +42,9 @@ module.exports = ({ config }) => {
       googleMapsApiKey: process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY || '',
       stripePublishableKey: process.env.EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY || '',
       sentryDsn: process.env.SENTRY_DSN || '',
-      projectId: "ce011283-21f8-4f0d-adb1-206f02d37e65", // This should be replaced with your actual Expo project ID
+      projectId: "cee4610e-7236-4481-be20-707b4b147f19",
       eas: {
-        projectId: "ce011283-21f8-4f0d-adb1-206f02d37e65" // This should be replaced with your actual EAS project ID
+        projectId: "cee4610e-7236-4481-be20-707b4b147f19"
       }
     },
     plugins: [
