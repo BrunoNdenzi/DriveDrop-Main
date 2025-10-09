@@ -56,8 +56,27 @@ export const Colors = {
 
 export type ColorKeys = keyof typeof Colors;
 
-// Theme colors for backward compatibility
-export const ThemeColors = Colors;
+// Theme colors for backward compatibility - flattened structure
+export const ThemeColors = {
+  primary: Colors.primary,
+  primaryDark: Colors.primaryDark,
+  primaryLight: Colors.primaryLight,
+  secondary: Colors.secondary,
+  secondaryDark: Colors.secondaryDark,
+  secondaryLight: Colors.secondaryLight,
+  background: Colors.background,
+  surface: Colors.surface,
+  border: Colors.border,
+  text: Colors.text.primary,
+  textSecondary: Colors.text.secondary,
+  textDisabled: Colors.text.disabled,
+  textInverse: Colors.text.inverse,
+  success: Colors.success,
+  warning: Colors.warning,
+  error: Colors.error,
+  danger: Colors.error, // Alias for error
+  info: Colors.info,
+} as const;
 
 // Default theme export
 export const defaultTheme = 'light' as const;
