@@ -65,6 +65,7 @@ export const ThemeColors = {
   secondaryDark: Colors.secondaryDark,
   secondaryLight: Colors.secondaryLight,
   background: Colors.background,
+  backgroundSecondary: Colors.surface, // Using surface as secondary background
   surface: Colors.surface,
   border: Colors.border,
   text: Colors.text.primary,
