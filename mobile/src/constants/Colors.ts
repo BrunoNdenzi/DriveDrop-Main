@@ -55,3 +55,9 @@ export const Colors = {
 } as const;
 
 export type ColorKeys = keyof typeof Colors;
+
+// Theme colors for backward compatibility
+export const ThemeColors = Colors;
+
+// Default theme export
+export const defaultTheme = 'light' as const;
