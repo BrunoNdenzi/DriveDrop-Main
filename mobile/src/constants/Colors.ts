@@ -41,6 +41,23 @@ export const Colors = {
     cancelled: '#E57373', // Light Red
   },
 
+  // Light theme (for compatibility)
+  light: {
+    background: '#F7F9FC',
+    cardBackground: '#FFFFFF',
+    surface: '#FFFFFF',
+    border: '#E1E8ED',
+    text: '#263238',
+    textSecondary: '#607D8B',
+    textDisabled: '#9E9E9E',
+    primary: '#1E88E5',
+    secondary: '#FF9800',
+    success: '#4CAF50',
+    warning: '#FF9800',
+    error: '#F44336',
+    info: '#2196F3',
+  },
+
   // Dark mode (for future implementation)
   dark: {
     background: '#000000',
