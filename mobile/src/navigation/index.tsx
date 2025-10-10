@@ -16,6 +16,7 @@ import ForgotPasswordScreen from '../screens/auth/ForgotPasswordScreen';
 // Client Screens
 import HomeScreen from '../screens/home/HomeScreen';
 import ConsolidatedNewShipmentScreen from '../screens/ConsolidatedNewShipmentScreen';
+import ShipmentCompletionScreen from '../screens/ShipmentCompletionScreen';
 import ShipmentsScreen from '../screens/shipments/ShipmentsScreen';
 import ShipmentDetailsScreen from '../screens/shipments/ShipmentDetailsScreen';
 import ProfileScreen from '../screens/profile/ProfileScreen';
@@ -294,6 +295,12 @@ export default function Navigation() {
               name="CreateShipment"
               component={ConsolidatedNewShipmentScreen}
               options={{ title: 'Create New Shipment' }}
+            />
+            
+            <Stack.Screen
+              name="ShipmentCompletion"
+              component={ShipmentCompletionScreen}
+              options={{ title: 'Complete Shipment' }}
             />
             
             <Stack.Screen

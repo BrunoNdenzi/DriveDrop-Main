@@ -18,6 +18,7 @@ export type RootStackParamList = {
   ShipmentDetails_Driver: { shipmentId: string }; // Driver view of shipment details
   RouteMap: { shipmentId: string };
   CreateShipment: undefined;
+  ShipmentCompletion: { shipmentData: any };
   EditProfile: undefined;
   Notifications: undefined;
   Settings: undefined;
