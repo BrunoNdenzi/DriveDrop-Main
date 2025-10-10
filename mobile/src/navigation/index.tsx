@@ -15,7 +15,7 @@ import ForgotPasswordScreen from '../screens/auth/ForgotPasswordScreen';
 
 // Client Screens
 import HomeScreen from '../screens/home/HomeScreen';
-import EnhancedNewShipmentScreen from '../screens/EnhancedNewShipmentScreen';
+import ConsolidatedNewShipmentScreen from '../screens/ConsolidatedNewShipmentScreen';
 import ShipmentsScreen from '../screens/shipments/ShipmentsScreen';
 import ShipmentDetailsScreen from '../screens/shipments/ShipmentDetailsScreen';
 import ProfileScreen from '../screens/profile/ProfileScreen';
@@ -292,7 +292,7 @@ export default function Navigation() {
             
             <Stack.Screen
               name="CreateShipment"
-              component={EnhancedNewShipmentScreen}
+              component={ConsolidatedNewShipmentScreen}
               options={{ title: 'Create New Shipment' }}
             />
             
