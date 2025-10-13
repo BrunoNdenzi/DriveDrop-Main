@@ -159,7 +159,7 @@ const InvoicePaymentStep: React.FC<Props> = ({
         deliveryCoords.lat, deliveryCoords.lng
       );
 
-      // Create comprehensive shipment payload
+      // Create comprehensive shipment payload with ALL required fields
       const shipmentPayload = {
         client_id: user.id,
         pickup_address: shipmentData.pickupAddress,
@@ -168,9 +168,14 @@ const InvoicePaymentStep: React.FC<Props> = ({
         delivery_location: `POINT(${deliveryCoords.lng} ${deliveryCoords.lat})`,
         description: `Transport of ${shipmentData.vehicleYear || 'Unknown Year'} ${shipmentData.vehicleMake} ${shipmentData.vehicleModel}`,
         vehicle_type: shipmentData.vehicleType?.toLowerCase() || 'sedan',
+        vehicle_year: parseInt(shipmentData.vehicleYear) || new Date().getFullYear(),
+        vehicle_make: shipmentData.vehicleMake || 'Unknown',
+        vehicle_model: shipmentData.vehicleModel || 'Unknown',
         distance_miles: Math.round(calculatedDistance),
         estimated_price: shipmentData.estimatedPrice || 0,
         pickup_date: shipmentData.pickupDate || new Date().toISOString().split('T')[0],
+        delivery_date: shipmentData.deliveryDate || null,
+        scheduled_pickup: shipmentData.pickupDate || new Date().toISOString().split('T')[0],
         is_accident_recovery: false,
         vehicle_count: 1,
         title: `Vehicle Transport - ${shipmentData.vehicleMake} ${shipmentData.vehicleModel}`,
