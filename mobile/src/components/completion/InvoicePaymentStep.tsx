@@ -175,7 +175,6 @@ const InvoicePaymentStep: React.FC<Props> = ({
         estimated_price: shipmentData.estimatedPrice || 0,
         pickup_date: shipmentData.pickupDate || new Date().toISOString().split('T')[0],
         delivery_date: shipmentData.deliveryDate || null,
-        scheduled_pickup: shipmentData.pickupDate || new Date().toISOString().split('T')[0],
         is_accident_recovery: false,
         vehicle_count: 1,
         title: `Vehicle Transport - ${shipmentData.vehicleMake} ${shipmentData.vehicleModel}`,

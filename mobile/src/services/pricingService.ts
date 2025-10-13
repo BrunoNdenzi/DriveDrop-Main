@@ -368,6 +368,69 @@ class PricingService {
       isAccidentRecovery: false,
     });
   }
+
+  /**
+   * Get accurate pricing from backend API (uses server-side logic with minimums and delivery type calculations)
+   */
+  async getBackendPricing(data: {
+    vehicleType: string;
+    distanceMiles: number;
+    pickupDate?: string;
+    deliveryDate?: string;
+    isAccidentRecovery?: boolean;
+    vehicleCount?: number;
+    surgeMultiplier?: number;
+  }): Promise<{ total: number; breakdown: any }> {
+    try {
+      // Import dependencies
+      const { supabase } = await import('../lib/supabase');
+      const { getApiUrl } = await import('../utils/environment');
+
+      // Get the user session for authentication
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (!session) {
+        throw new Error('User not authenticated');
+      }
+
+      const apiUrl = getApiUrl();
+      const response = await fetch(`${apiUrl}/api/v1/pricing/quote`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`
+        },
+        body: JSON.stringify({
+          vehicle_type: data.vehicleType.toLowerCase(),
+          distance_miles: data.distanceMiles,
+          pickup_date: data.pickupDate,
+          delivery_date: data.deliveryDate,
+          is_accident_recovery: data.isAccidentRecovery || false,
+          vehicle_count: data.vehicleCount || 1,
+          surge_multiplier: data.surgeMultiplier || 1.0,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.error('Backend pricing API error:', errorData);
+        throw new Error(errorData.message || 'Failed to get backend pricing');
+      }
+
+      const responseData = await response.json();
+      console.log('Backend pricing API response:', responseData);
+      
+      // Extract data from response - handle nested data structure
+      if (responseData.data) {
+        return responseData.data;
+      }
+      
+      return responseData;
+    } catch (error) {
+      console.error('Error calling backend pricing API:', error);
+      throw error;
+    }
+  }
 }
 
 export const pricingService = new PricingService();
