@@ -362,6 +362,13 @@ const InvoicePaymentStep: React.FC<Props> = ({
   };
 
   const handlePayment = async () => {
+    console.log('Payment button pressed', {
+      paymentIntent: !!paymentIntent,
+      cardComplete,
+      userId: user?.id,
+      sessionExists: !!session
+    });
+
     if (!paymentIntent || !cardComplete) {
       Alert.alert('Payment Error', 'Please complete your card information.');
       return;
@@ -599,6 +606,7 @@ const InvoicePaymentStep: React.FC<Props> = ({
           ]}
           onPress={handlePayment}
           disabled={!cardComplete || isProcessing || !paymentIntent}
+          activeOpacity={0.7}
         >
           {isProcessing ? (
             <View style={styles.processingContainer}>
