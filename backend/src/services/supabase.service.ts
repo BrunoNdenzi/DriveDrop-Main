@@ -293,7 +293,8 @@ export const shipmentService = {
     status?: string;
   }) {
     try {
-      const { data, error } = await supabase
+      // Use supabaseAdmin to bypass RLS - backend service should have full access
+      const { data, error } = await supabaseAdmin
         .from('shipments')
         .insert({
           ...shipmentData,
