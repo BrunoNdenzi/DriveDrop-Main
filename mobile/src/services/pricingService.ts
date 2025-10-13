@@ -380,6 +380,7 @@ class PricingService {
     isAccidentRecovery?: boolean;
     vehicleCount?: number;
     surgeMultiplier?: number;
+    fuelPricePerGallon?: number; // Default: $3.70/gallon
   }): Promise<{ total: number; breakdown: any }> {
     try {
       // Import dependencies
@@ -408,6 +409,7 @@ class PricingService {
           is_accident_recovery: data.isAccidentRecovery || false,
           vehicle_count: data.vehicleCount || 1,
           surge_multiplier: data.surgeMultiplier || 1.0,
+          fuel_price_per_gallon: data.fuelPricePerGallon || 3.70, // Default: $3.70/gallon
         }),
       });
 

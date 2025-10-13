@@ -12,12 +12,14 @@ interface PricingInput {
   surgeMultiplier?: number | undefined; // dynamic demand multiplier (default 1)
   pickupDate?: string | undefined; // ISO date string for delivery type calculation
   deliveryDate?: string | undefined; // ISO date string for delivery type calculation
+  fuelPricePerGallon?: number | undefined; // current fuel price per gallon (default 3.70)
 }
 
 // Pricing constants
 const MIN_MILES = 100;
 const MIN_QUOTE = 150;
 const ACCIDENT_MIN_QUOTE = 80;
+const BASE_FUEL_PRICE = 3.70; // Base fuel price per gallon for adjustment calculation
 
 interface PricingBreakdown {
   baseRatePerMile: number;
@@ -40,6 +42,8 @@ interface PricingBreakdown {
   surgeMultiplier: number;
   deliveryTypeMultiplier: number; // 1.25 for expedited, 0.95 for flexible, 1.0 for standard
   deliveryType: 'expedited' | 'flexible' | 'standard';
+  fuelPricePerGallon: number; // Current fuel price per gallon
+  fuelAdjustmentPercent: number; // Percentage adjustment based on fuel price deviation from base
   minimumApplied: boolean; // true if MIN_QUOTE or ACCIDENT_MIN_QUOTE was applied
   total: number;
 }
@@ -126,6 +130,7 @@ export function calculateQuote(input: PricingInput): { total: number; breakdown:
     surgeMultiplier = 1,
     pickupDate,
     deliveryDate,
+    fuelPricePerGallon = BASE_FUEL_PRICE, // Default to $3.70/gallon
   } = input;
 
   // Determine delivery type and multiplier
@@ -160,7 +165,15 @@ export function calculateQuote(input: PricingInput): { total: number; breakdown:
   // Apply surge, delivery type multiplier, and subtract discount
   let subtotal = (rawBasePrice - bulkDiscountAmount) * surgeMultiplier * deliveryTypeInfo.multiplier;
   
-  // Apply minimum quote logic
+  // Calculate fuel price adjustment (5% per $1 deviation from base price)
+  // Formula: (current_fuel - base_fuel) × 0.05
+  // Example: If fuel is $4.70 (+$1), adjustment is +5% → multiply by 1.05
+  // Example: If fuel is $2.70 (-$1), adjustment is -5% → multiply by 0.95
+  const fuelAdjustmentPercent = (fuelPricePerGallon - BASE_FUEL_PRICE) * 5; // Convert to percentage
+  const fuelAdjustmentMultiplier = 1 + (fuelAdjustmentPercent / 100);
+  subtotal = subtotal * fuelAdjustmentMultiplier;
+  
+  // Apply minimum quote logic AFTER fuel adjustment
   let minimumApplied = false;
   
   if (isAccidentRecovery) {
@@ -194,6 +207,8 @@ export function calculateQuote(input: PricingInput): { total: number; breakdown:
     surgeMultiplier,
     deliveryTypeMultiplier: deliveryTypeInfo.multiplier,
     deliveryType: deliveryTypeInfo.type,
+    fuelPricePerGallon: parseFloat(fuelPricePerGallon.toFixed(2)),
+    fuelAdjustmentPercent: parseFloat(fuelAdjustmentPercent.toFixed(2)),
     minimumApplied,
     total,
   };
