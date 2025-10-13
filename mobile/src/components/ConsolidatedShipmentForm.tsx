@@ -345,30 +345,63 @@ const ConsolidatedShipmentForm: React.FC<ConsolidatedShipmentFormProps> = ({
     }
   }, [formData.vehicleMake]);
 
-  // Real-time pricing calculation
+  // Real-time pricing calculation using backend API
   useEffect(() => {
     const calculatePrice = async () => {
       if (formData.pickupAddress && formData.deliveryAddress && formData.vehicleType) {
         try {
-          // Use actual pricing service
+          // First get distance calculation
           const pricingData = await pricingService.getProgressiveEstimate({
             pickupAddress: formData.pickupAddress,
             deliveryAddress: formData.deliveryAddress,
             vehicleType: formData.vehicleType,
           });
           
-          const estimatedPrice = pricingData.estimate.total;
           const distance = pricingData.distance.miles;
           
-          setRealTimePrice(estimatedPrice);
-          setFormData(prev => ({ 
-            ...prev, 
-            estimatedPrice: estimatedPrice,
-            distance: distance 
-          }));
+          // Now call backend API for accurate pricing with minimums and delivery type logic
+          try {
+            const backendPricing = await pricingService.getBackendPricing({
+              vehicleType: formData.vehicleType,
+              distanceMiles: distance,
+              pickupDate: formData.pickupDate || undefined,
+              deliveryDate: formData.deliveryDate || undefined,
+              isAccidentRecovery: false,
+              vehicleCount: 1,
+              surgeMultiplier: 1.0,
+            });
+            
+            const estimatedPrice = backendPricing.total;
+            
+            console.log('Backend pricing result:', {
+              distance,
+              vehicleType: formData.vehicleType,
+              pickupDate: formData.pickupDate,
+              deliveryDate: formData.deliveryDate,
+              total: estimatedPrice,
+              breakdown: backendPricing.breakdown
+            });
+            
+            setRealTimePrice(estimatedPrice);
+            setFormData(prev => ({ 
+              ...prev, 
+              estimatedPrice: estimatedPrice,
+              distance: distance 
+            }));
+          } catch (backendError) {
+            console.error('Backend pricing API failed, using client-side estimate:', backendError);
+            // Fallback to client-side pricing if backend fails
+            const estimatedPrice = pricingData.estimate.total;
+            setRealTimePrice(estimatedPrice);
+            setFormData(prev => ({ 
+              ...prev, 
+              estimatedPrice: estimatedPrice,
+              distance: distance 
+            }));
+          }
         } catch (error) {
           console.error('Error calculating price:', error);
-          // Fallback to simple calculation if service fails
+          // Fallback to simple calculation if everything fails
           const basePrice = 200;
           const vehicleMultiplier = formData.vehicleType === 'SUV' ? 1.3 : 
                                    formData.vehicleType === 'Truck' ? 1.5 : 1.0;
@@ -389,7 +422,7 @@ const ConsolidatedShipmentForm: React.FC<ConsolidatedShipmentFormProps> = ({
 
     const debounceTimer = setTimeout(calculatePrice, 1000);
     return () => clearTimeout(debounceTimer);
-  }, [formData.pickupAddress, formData.deliveryAddress, formData.vehicleType, formData.isOperable]);
+  }, [formData.pickupAddress, formData.deliveryAddress, formData.vehicleType, formData.isOperable, formData.pickupDate, formData.deliveryDate]);
 
   // Selection helpers
   const vehicleTypes = [
