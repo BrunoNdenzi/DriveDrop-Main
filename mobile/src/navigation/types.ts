@@ -24,6 +24,14 @@ export type RootStackParamList = {
   Settings: undefined;
   NotificationTest: undefined;
   
+  // Messaging Screens
+  ChatScreen: { 
+    shipmentId: string; 
+    otherUserId: string; 
+    otherUserName: string; 
+    otherUserRole: string;
+  };
+  
   // Admin Screens
   AdminAssignment: undefined;
   AdminDashboard: undefined;

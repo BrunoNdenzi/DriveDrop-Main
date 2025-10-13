@@ -29,8 +29,11 @@ import AvailableShipmentsScreen from '../screens/driver/AvailableShipmentsScreen
 import MyShipmentsScreen from '../screens/driver/MyShipmentsScreen';
 import DriverShipmentDetailsScreen from '../screens/driver/ShipmentDetailsScreen';
 import RouteMapScreen from '../screens/driver/RouteMapScreen';
-import MessagesScreen from '../screens/driver/MessagesScreen';
 import DriverProfileScreen from '../screens/driver/DriverProfileScreen';
+
+// Messaging Screens (new clean implementation)
+import ConversationsScreen from '../screens/ConversationsScreen';
+import ChatScreen from '../screens/ChatScreen';
 
 // Diagnostic Screens
 import NetworkDiagnosticScreen from '../screens/NetworkDiagnosticScreen';
@@ -86,7 +89,7 @@ function ClientTabNavigator() {
       />
       <ClientTab.Screen
         name="Messages"
-        component={MessagesScreen}
+        component={ConversationsScreen}
         options={{
           tabBarLabel: 'Messages',
           tabBarIcon: ({ color, size }: { color: string; size: number }) => (
@@ -176,7 +179,7 @@ function DriverTabNavigator() {
       />
       <DriverTab.Screen
         name="Messages"
-        component={MessagesScreen}
+        component={ConversationsScreen}
         options={{
           tabBarLabel: 'Messages',
           tabBarIcon: ({ color, size }: { color: string; size: number }) => (
@@ -289,6 +292,13 @@ export default function Navigation() {
               name="RouteMap"
               component={RouteMapScreen}
               options={{ title: 'Route Map', headerShown: false }}
+            />
+            
+            {/* Messaging Screens */}
+            <Stack.Screen
+              name="ChatScreen"
+              component={ChatScreen}
+              options={{ title: 'Chat' }}
             />
             
             <Stack.Screen
