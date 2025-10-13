@@ -89,26 +89,36 @@ const InvoicePaymentStep: React.FC<Props> = ({
 
   // Create payment intent when component mounts
   useEffect(() => {
+    console.log('InvoicePaymentStep mounted, creating payment intent...');
+    console.log('User authenticated:', !!user, !!session);
+    console.log('Total amount:', totalAmount);
     createPaymentIntent();
   }, []);
 
   const createPaymentIntent = async () => {
     try {
+      console.log('Starting payment intent creation...');
       if (!user?.id || !session) {
+        console.error('User not authenticated:', { userId: user?.id, hasSession: !!session });
         throw new Error('User not authenticated');
       }
 
       // Create the full shipment with all proper data (backend RLS is now fixed)
+      console.log('Creating shipment with details...');
       const shipment = await createShipmentWithAllDetails();
+      console.log('Shipment created:', shipment.id);
 
+      console.log('Creating payment intent for amount:', totalAmount);
       const response = await paymentService.createPaymentIntent(
         shipment.id,
         totalAmount, // Send full amount in dollars - backend calculates 20%
         `Vehicle transport for ${shipmentData.vehicleYear} ${shipmentData.vehicleMake} ${shipmentData.vehicleModel}`
       );
 
+      console.log('Payment intent created:', response);
       setPaymentIntent(response);
       setShipmentId(shipment.id); // Store for later use
+      console.log('Payment intent state updated successfully');
     } catch (error) {
       console.error('Error creating payment intent:', error);
       Alert.alert('Error', 'Failed to initialize payment. Please try again.');
@@ -566,6 +576,12 @@ const InvoicePaymentStep: React.FC<Props> = ({
               cardStyle={styles.cardField}
               style={styles.cardFieldContainer}
               onCardChange={(cardDetails) => {
+                console.log('Card details changed:', {
+                  complete: cardDetails.complete,
+                  validNumber: cardDetails.validNumber,
+                  validCVC: cardDetails.validCVC,
+                  validExpiryDate: cardDetails.validExpiryDate
+                });
                 setCardComplete(cardDetails.complete);
                 setCardError(cardDetails.validNumber === 'Invalid' ? 'Invalid card number' : null);
               }}
@@ -598,13 +614,31 @@ const InvoicePaymentStep: React.FC<Props> = ({
           </Text>
         </View>
 
+        {/* Debug Status - Remove in production */}
+        {(!cardComplete || !paymentIntent) && (
+          <View style={styles.debugContainer}>
+            <Text style={styles.debugText}>
+              {!paymentIntent && '⚠️ Initializing payment...'}
+              {paymentIntent && !cardComplete && '⚠️ Please enter complete card details'}
+            </Text>
+          </View>
+        )}
+
         {/* Payment Button */}
         <TouchableOpacity
           style={[
             styles.payButton,
             (!cardComplete || isProcessing || !paymentIntent) && styles.payButtonDisabled
           ]}
-          onPress={handlePayment}
+          onPress={() => {
+            console.log('Payment button state:', {
+              cardComplete,
+              isProcessing,
+              hasPaymentIntent: !!paymentIntent,
+              canPay: cardComplete && !isProcessing && !!paymentIntent
+            });
+            handlePayment();
+          }}
           disabled={!cardComplete || isProcessing || !paymentIntent}
           activeOpacity={0.7}
         >
@@ -911,6 +945,19 @@ const styles = StyleSheet.create({
     fontStyle: 'italic',
     textAlign: 'center',
     marginTop: 8,
+  },
+  debugContainer: {
+    backgroundColor: '#FFF3CD',
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#FFC107',
+  },
+  debugText: {
+    fontSize: 14,
+    color: '#856404',
+    textAlign: 'center',
   },
 });
 

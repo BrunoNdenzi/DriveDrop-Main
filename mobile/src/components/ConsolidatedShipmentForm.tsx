@@ -577,7 +577,7 @@ const ConsolidatedShipmentForm: React.FC<ConsolidatedShipmentFormProps> = ({
           <Text style={styles.fieldLabel}>Pickup Address *</Text>
           <EnhancedGooglePlacesInput
             label="Pickup Address"
-            placeholder="Enter pickup address"
+            placeholder="Street, City, State ZIP"
             value={formData.pickupAddress}
             onAddressSelect={(address, details) => {
               const fullAddress = `${details.components.streetNumber || ''} ${details.components.streetName || ''}, ${details.components.city || ''}, ${details.components.state || ''} ${details.components.zipCode || ''}`.trim().replace(/^,\s*/, '').replace(/,\s*$/, '');
@@ -634,7 +634,7 @@ const ConsolidatedShipmentForm: React.FC<ConsolidatedShipmentFormProps> = ({
           <Text style={styles.fieldLabel}>Delivery Address *</Text>
           <EnhancedGooglePlacesInput
             label="Delivery Address"
-            placeholder="Enter delivery address"
+            placeholder="Street, City, State ZIP"
             value={formData.deliveryAddress}
             onAddressSelect={(address, details) => {
               const fullAddress = `${details.components.streetNumber || ''} ${details.components.streetName || ''}, ${details.components.city || ''}, ${details.components.state || ''} ${details.components.zipCode || ''}`.trim().replace(/^,\s*/, '').replace(/,\s*$/, '');
