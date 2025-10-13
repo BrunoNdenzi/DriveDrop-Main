@@ -112,17 +112,28 @@ export const createShipment = asyncHandler(async (req: Request, res: Response) =
     pickup_address,
     delivery_address,
     description,
+    title, // Title for the shipment (e.g., "Vehicle Transport - Toyota Camry")
     vehicle_type, // expected from client (sedan, suv, pickup, luxury, motorcycle, heavy)
+    vehicle_year, // Year of the vehicle
+    vehicle_make, // Make of the vehicle (e.g., Toyota)
+    vehicle_model, // Model of the vehicle (e.g., Camry)
     distance_miles, // numeric distance precomputed client or server
     is_accident_recovery,
     vehicle_count,
     estimated_price, // optional override
-    scheduled_pickup,
+    pickup_date, // Pickup date
+    delivery_date, // Delivery date
+    status, // Shipment status (default: 'pending')
   } = req.body;
 
   // Validate required fields
-  if (!pickup_location || !delivery_location || !pickup_address || !delivery_address || !description) {
+  if (!pickup_location || !delivery_location || !pickup_address || !delivery_address) {
     throw createError('Missing required fields', 400, 'MISSING_FIELDS');
+  }
+
+  // Validate title is provided
+  if (!title) {
+    throw createError('Shipment title is required', 400, 'MISSING_TITLE');
   }
 
   if (!req.user?.id) {
@@ -162,9 +173,17 @@ export const createShipment = asyncHandler(async (req: Request, res: Response) =
     delivery_location,
     pickup_address,
     delivery_address,
-    description,
+    description: description || `Transport of ${vehicle_year} ${vehicle_make} ${vehicle_model}`,
+    title,
+    vehicle_type,
+    vehicle_year,
+    vehicle_make,
+    vehicle_model,
+    distance: distance_miles,
     estimated_price: finalEstimatedPrice,
-    scheduled_pickup,
+    pickup_date,
+    delivery_date,
+    status: status || 'pending',
   });
 
   res.status(201).json(successResponse(shipment));
