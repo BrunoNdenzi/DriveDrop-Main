@@ -10,7 +10,14 @@ interface PricingInput {
   vehicleCount?: number | undefined; // for bulk transport
   dynamicFuelCostPerMile?: number | undefined; // optional override from admin panel
   surgeMultiplier?: number | undefined; // dynamic demand multiplier (default 1)
+  pickupDate?: string | undefined; // ISO date string for delivery type calculation
+  deliveryDate?: string | undefined; // ISO date string for delivery type calculation
 }
+
+// Pricing constants
+const MIN_MILES = 100;
+const MIN_QUOTE = 150;
+const ACCIDENT_MIN_QUOTE = 80;
 
 interface PricingBreakdown {
   baseRatePerMile: number;
@@ -31,6 +38,9 @@ interface PricingBreakdown {
   profitMarginPercent: number;
   profitAmount: number;
   surgeMultiplier: number;
+  deliveryTypeMultiplier: number; // 1.25 for expedited, 0.95 for flexible, 1.0 for standard
+  deliveryType: 'expedited' | 'flexible' | 'standard';
+  minimumApplied: boolean; // true if MIN_QUOTE or ACCIDENT_MIN_QUOTE was applied
   total: number;
 }
 
@@ -67,6 +77,45 @@ function determineDistanceBand(miles: number): 'short' | 'mid' | 'long' {
   return 'long';
 }
 
+/**
+ * Determine delivery type based on pickup and delivery dates
+ * Expedited: blank delivery date OR delivery within 7 days of pickup (1.25x multiplier)
+ * Flexible: delivery 7+ days from pickup (0.95x multiplier)
+ * Standard: no dates provided (1.0x multiplier)
+ */
+function determineDeliveryType(pickupDate?: string, deliveryDate?: string): {
+  type: 'expedited' | 'flexible' | 'standard';
+  multiplier: number;
+} {
+  // No dates provided - standard pricing
+  if (!pickupDate) {
+    return { type: 'standard', multiplier: 1.0 };
+  }
+
+  // Blank delivery date means expedited (ASAP)
+  if (!deliveryDate) {
+    return { type: 'expedited', multiplier: 1.25 };
+  }
+
+  try {
+    const pickup = new Date(pickupDate);
+    const delivery = new Date(deliveryDate);
+    
+    // Calculate days between pickup and delivery
+    const daysDiff = Math.ceil((delivery.getTime() - pickup.getTime()) / (1000 * 60 * 60 * 24));
+    
+    // Less than 7 days = expedited, 7+ days = flexible
+    if (daysDiff < 7) {
+      return { type: 'expedited', multiplier: 1.25 };
+    } else {
+      return { type: 'flexible', multiplier: 0.95 };
+    }
+  } catch (error) {
+    logger.warn('Error parsing dates for delivery type, using standard', { pickupDate, deliveryDate, error });
+    return { type: 'standard', multiplier: 1.0 };
+  }
+}
+
 export function calculateQuote(input: PricingInput): { total: number; breakdown: PricingBreakdown } {
   const {
     vehicleType,
@@ -75,7 +124,12 @@ export function calculateQuote(input: PricingInput): { total: number; breakdown:
     vehicleCount = 1,
     dynamicFuelCostPerMile,
     surgeMultiplier = 1,
+    pickupDate,
+    deliveryDate,
   } = input;
+
+  // Determine delivery type and multiplier
+  const deliveryTypeInfo = determineDeliveryType(pickupDate, deliveryDate);
 
   const distanceBand = determineDistanceBand(distanceMiles);
   const baseRates = BASE_RATES[vehicleType];
@@ -103,9 +157,27 @@ export function calculateQuote(input: PricingInput): { total: number; breakdown:
 
   const accidentRecoveryFee: number | undefined = isAccidentRecovery ? baseRates.accident * distanceMiles : undefined;
 
-  // Apply surge & subtract discount
-  const subtotal = (rawBasePrice - bulkDiscountAmount) * surgeMultiplier;
-  const total = Math.max(0, parseFloat((subtotal).toFixed(2)));
+  // Apply surge, delivery type multiplier, and subtract discount
+  let subtotal = (rawBasePrice - bulkDiscountAmount) * surgeMultiplier * deliveryTypeInfo.multiplier;
+  
+  // Apply minimum quote logic
+  let minimumApplied = false;
+  
+  if (isAccidentRecovery) {
+    // Accident recovery minimum
+    if (subtotal < ACCIDENT_MIN_QUOTE) {
+      subtotal = ACCIDENT_MIN_QUOTE;
+      minimumApplied = true;
+    }
+  } else if (distanceMiles < MIN_MILES) {
+    // Standard minimum for trips under MIN_MILES
+    if (subtotal < MIN_QUOTE) {
+      subtotal = MIN_QUOTE;
+      minimumApplied = true;
+    }
+  }
+
+  const total = Math.max(0, parseFloat(subtotal.toFixed(2)));
 
   const breakdown: PricingBreakdown = {
     baseRatePerMile,
@@ -120,6 +192,9 @@ export function calculateQuote(input: PricingInput): { total: number; breakdown:
     profitMarginPercent,
     profitAmount: parseFloat(profitAmount.toFixed(2)),
     surgeMultiplier,
+    deliveryTypeMultiplier: deliveryTypeInfo.multiplier,
+    deliveryType: deliveryTypeInfo.type,
+    minimumApplied,
     total,
   };
 

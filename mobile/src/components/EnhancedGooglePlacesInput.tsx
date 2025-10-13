@@ -65,7 +65,7 @@ interface Prediction {
 
 const EnhancedGooglePlacesInput: React.FC<EnhancedGooglePlacesInputProps> = ({
   label,
-  placeholder = "Enter address or ZIP code",
+  placeholder = "Street, City, State ZIP",
   value = '',
   onAddressSelect,
   onAddressChange,
