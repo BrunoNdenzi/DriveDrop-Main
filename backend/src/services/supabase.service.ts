@@ -280,9 +280,17 @@ export const shipmentService = {
     delivery_location: unknown;
     pickup_address: string;
     delivery_address: string;
-    description: string;
+    description?: string;
+    title: string;
+    vehicle_type?: string;
+    vehicle_year?: number;
+    vehicle_make?: string;
+    vehicle_model?: string;
+    distance?: number;
     estimated_price?: number;
-    scheduled_pickup?: string;
+    pickup_date?: string;
+    delivery_date?: string;
+    status?: string;
   }) {
     try {
       const { data, error } = await supabase
