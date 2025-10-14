@@ -9,7 +9,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
-import { StripeProvider, CardField, useStripe, useConfirmPayment, PaymentIntent } from '@stripe/stripe-react-native';
+import { StripeProvider, CardField, useStripe } from '@stripe/stripe-react-native';
 
 import { Colors } from '../../constants/Colors';
 import { useAuth } from '../../context/AuthContext';
@@ -24,14 +24,8 @@ interface Props {
     termsAccepted: boolean;
     paymentCompleted: boolean;
   };
-  onPaymentComplete: (paymentIntentId: string) => void;
+  onPaymentComplete: (paymentIntentId: string, shipmentId: string) => void;
   onFinalSubmit?: () => void;
-}
-
-interface InvoiceLineItem {
-  description: string;
-  amount: number;
-  type: 'base' | 'fee' | 'insurance' | 'tax';
 }
 
 const InvoicePaymentStep: React.FC<Props> = ({ 
@@ -46,86 +40,74 @@ const InvoicePaymentStep: React.FC<Props> = ({
   const [paymentIntent, setPaymentIntent] = useState<any>(null);
   const [cardComplete, setCardComplete] = useState(false);
   const [cardError, setCardError] = useState<string | null>(null);
-  const [shipmentCreated, setShipmentCreated] = useState(false);
+  const [isInitializing, setIsInitializing] = useState(true);
   const [shipmentId, setShipmentId] = useState<string | null>(null);
 
-  // Calculate invoice line items
-  const calculateInvoice = (): InvoiceLineItem[] => {
-    const basePrice = shipmentData.estimatedPrice || 0;
-    const insuranceFee = Math.round(basePrice * 0.02); // 2% insurance
-    const processingFee = Math.round(basePrice * 0.029 + 30); // 2.9% + $0.30 Stripe fee
-    const tax = Math.round((basePrice + insuranceFee + processingFee) * 0.08); // 8% tax
-    
-    return [
-      {
-        description: 'Vehicle Transport Service',
-        amount: basePrice,
-        type: 'base'
-      },
-      {
-        description: 'Transport Insurance',
-        amount: insuranceFee,
-        type: 'insurance'
-      },
-      {
-        description: 'Payment Processing Fee',
-        amount: processingFee,
-        type: 'fee'
-      },
-      {
-        description: 'Tax',
-        amount: tax,
-        type: 'tax'
-      }
-    ];
-  };
-
-  const invoiceItems = calculateInvoice();
-  const totalAmount = invoiceItems.reduce((sum, item) => sum + item.amount, 0);
+  // Use the quote price from shipmentData - this is the price user was quoted
+  // NOTE: estimatedPrice is in DOLLARS (not cents) from backend pricing service
+  const quotePriceDollars = shipmentData.estimatedPrice || 0; // In dollars
+  const quotePrice = Math.round(quotePriceDollars * 100); // Convert to cents for calculations
   
   // Calculate payment breakdown: 20% upfront, 80% on delivery
-  const upfrontAmount = Math.round(totalAmount * 0.20);
-  const deliveryAmount = totalAmount - upfrontAmount;
+  const upfrontAmount = Math.round(quotePrice * 0.20);
+  const deliveryAmount = quotePrice - upfrontAmount;
 
-  // Create payment intent when component mounts
+  // Create payment intent when component mounts - NO SHIPMENT CREATION YET
   useEffect(() => {
-    console.log('InvoicePaymentStep mounted, creating payment intent...');
+    console.log('InvoicePaymentStep mounted');
+    console.log('Quote price from shipmentData:', quotePrice, 'cents');
     console.log('User authenticated:', !!user, !!session);
-    console.log('Total amount:', totalAmount);
-    createPaymentIntent();
+    
+    if (user && session && quotePrice > 0) {
+      createPaymentIntentOnly();
+    } else {
+      console.error('Cannot create payment intent:', {
+        hasUser: !!user,
+        hasSession: !!session,
+        quotePrice
+      });
+      setIsInitializing(false);
+      Alert.alert('Error', 'Unable to initialize payment. Please try again.');
+    }
   }, []);
 
-  const createPaymentIntent = async () => {
+  /**
+   * Create shipment FIRST (with pending status), then create payment intent
+   * This ensures we have a valid shipment ID for the payment intent
+   */
+  const createPaymentIntentOnly = async () => {
     try {
-      console.log('Starting payment intent creation...');
-      if (!user?.id || !session) {
-        console.error('User not authenticated:', { userId: user?.id, hasSession: !!session });
-        throw new Error('User not authenticated');
-      }
+      setIsInitializing(true);
+      console.log('Creating pending shipment for payment intent...');
 
-      // Create the full shipment with all proper data (backend RLS is now fixed)
-      console.log('Creating shipment with details...');
-      const shipment = await createShipmentWithAllDetails();
-      console.log('Shipment created:', shipment.id);
+      // Step 1: Create shipment with 'pending' status FIRST
+      const pendingShipmentId = await createPendingShipment();
+      console.log('Pending shipment created:', pendingShipmentId);
 
-      console.log('Creating payment intent for amount:', totalAmount);
+      // Step 2: Create payment intent with real shipment ID
+      console.log('Creating payment intent for quote price:', quotePriceDollars);
       const response = await paymentService.createPaymentIntent(
-        shipment.id,
-        totalAmount, // Send full amount in dollars - backend calculates 20%
+        pendingShipmentId,
+        quotePriceDollars, // Send in dollars - backend converts and calculates 20%
         `Vehicle transport for ${shipmentData.vehicleYear} ${shipmentData.vehicleMake} ${shipmentData.vehicleModel}`
       );
 
-      console.log('Payment intent created:', response);
+      console.log('Payment intent created successfully:', (response as any).paymentIntentId || response.id);
       setPaymentIntent(response);
-      setShipmentId(shipment.id); // Store for later use
-      console.log('Payment intent state updated successfully');
+      setShipmentId(pendingShipmentId); // Store the real shipment ID
+      setIsInitializing(false);
     } catch (error) {
       console.error('Error creating payment intent:', error);
+      setIsInitializing(false);
       Alert.alert('Error', 'Failed to initialize payment. Please try again.');
     }
   };
 
-  const createShipmentWithAllDetails = async () => {
+  /**
+   * Create shipment in PENDING status for payment intent
+   * Will be updated to PAID status after successful payment
+   */
+  const createPendingShipment = async (): Promise<string> => {
     try {
       const apiUrl = getApiUrl();
       
@@ -159,7 +141,7 @@ const InvoicePaymentStep: React.FC<Props> = ({
         deliveryCoords.lat, deliveryCoords.lng
       );
 
-      // Create comprehensive shipment payload with ALL required fields
+      // Create shipment with PENDING status (will update to PAID after successful payment)
       const shipmentPayload = {
         client_id: user.id,
         pickup_address: shipmentData.pickupAddress,
@@ -172,16 +154,16 @@ const InvoicePaymentStep: React.FC<Props> = ({
         vehicle_make: shipmentData.vehicleMake || 'Unknown',
         vehicle_model: shipmentData.vehicleModel || 'Unknown',
         distance_miles: Math.round(calculatedDistance),
-        estimated_price: shipmentData.estimatedPrice || 0,
+        estimated_price: quotePrice, // Quoted price in cents
         pickup_date: shipmentData.pickupDate || new Date().toISOString().split('T')[0],
         delivery_date: shipmentData.deliveryDate || null,
         is_accident_recovery: false,
         vehicle_count: 1,
         title: `Vehicle Transport - ${shipmentData.vehicleMake} ${shipmentData.vehicleModel}`,
-        status: 'pending'
+        status: 'pending' // Start as pending, will update to paid after payment
       };
 
-      console.log('Creating shipment with full details:', shipmentPayload);
+      console.log('Creating pending shipment for payment intent:', shipmentPayload);
 
       const response = await fetch(`${apiUrl}/api/v1/shipments`, {
         method: 'POST',
@@ -194,172 +176,86 @@ const InvoicePaymentStep: React.FC<Props> = ({
 
       if (!response.ok) {
         const errorText = await response.text();
-        console.error('Shipment creation failed:', errorText);
-        throw new Error(`Failed to create shipment: ${response.status} - ${errorText}`);
+        console.error('Pending shipment creation failed:', errorText);
+        throw new Error(`Failed to create pending shipment: ${response.status} - ${errorText}`);
       }
 
       const result = await response.json();
-      console.log('Shipment created successfully:', result);
+      console.log('Pending shipment created successfully:', result);
       
-      // Extract shipment ID
       const shipmentId = result.data?.id || result.id;
       if (!shipmentId) {
         throw new Error('No shipment ID returned from shipment creation');
       }
 
-      return { id: shipmentId };
+      return shipmentId;
     } catch (error) {
-      console.error('Error creating shipment with all details:', error);
+      console.error('Error creating pending shipment:', error);
       throw error;
     }
   };
 
-  const createMinimalShipment = async () => {
+  /**
+   * Update shipment status to PAID after successful payment
+   */
+  const updateShipmentStatusToPaid = async (shipmentId: string, paymentIntentId: string) => {
     try {
       const apiUrl = getApiUrl();
       
-      if (!user?.id || !session) {
+      if (!session) {
         throw new Error('User not authenticated');
       }
 
-      // Get coordinates for the addresses (required by backend validation)
-      let pickupCoords = shipmentData.pickupCoordinates;
-      let deliveryCoords = shipmentData.deliveryCoordinates;
+      console.log('Updating shipment status to paid:', shipmentId);
 
-      // Geocode if coordinates not available
-      if (!pickupCoords && shipmentData.pickupAddress) {
-        pickupCoords = await geocodeAddress(shipmentData.pickupAddress);
-      }
-      if (!deliveryCoords && shipmentData.deliveryAddress) {
-        deliveryCoords = await geocodeAddress(shipmentData.deliveryAddress);
-      }
-
-      // Use fallback coordinates if geocoding fails
-      if (!pickupCoords) {
-        pickupCoords = { lat: 32.7767, lng: -96.7970 }; // Dallas fallback
-      }
-      if (!deliveryCoords) {
-        deliveryCoords = { lat: 38.9072, lng: -77.0369 }; // DC fallback
-      }
-
-      // Create minimal shipment with all required fields
-      const minimalPayload = {
-        client_id: user.id,
-        pickup_address: shipmentData.pickupAddress || 'TBD',
-        pickup_location: `POINT(${pickupCoords.lng} ${pickupCoords.lat})`, // Required by backend
-        delivery_address: shipmentData.deliveryAddress || 'TBD',
-        delivery_location: `POINT(${deliveryCoords.lng} ${deliveryCoords.lat})`, // Required by backend  
-        description: `Draft - ${shipmentData.vehicleMake} ${shipmentData.vehicleModel}`,
-        estimated_price: shipmentData.estimatedPrice || 0,
-        title: 'Draft Shipment',
-        status: 'draft'
-      };
-
-      console.log('Creating minimal shipment:', minimalPayload);
-
-      const response = await fetch(`${apiUrl}/api/v1/shipments`, {
-        method: 'POST',
+      const response = await fetch(`${apiUrl}/api/v1/shipments/${shipmentId}`, {
+        method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${session.access_token}`,
         },
-        body: JSON.stringify(minimalPayload),
+        body: JSON.stringify({
+          status: 'paid',
+          payment_intent_id: paymentIntentId
+        }),
       });
 
       if (!response.ok) {
         const errorText = await response.text();
-        console.error('Minimal shipment creation failed:', errorText);
-        throw new Error(`Failed to create minimal shipment: ${response.status}`);
+        console.error('Failed to update shipment status:', errorText);
+        throw new Error(`Failed to update shipment: ${response.status} - ${errorText}`);
       }
 
-      const result = await response.json();
-      console.log('Minimal shipment created:', result);
-      
-      // Extract shipment ID
-      const shipmentId = result.data?.id || result.id;
-      if (!shipmentId) {
-        throw new Error('No shipment ID returned from minimal shipment creation');
-      }
-
-      return { id: shipmentId };
+      console.log('Shipment status updated to paid successfully');
     } catch (error) {
-      console.error('Error creating minimal shipment:', error);
+      console.error('Error updating shipment status:', error);
       throw error;
     }
   };
 
-  const geocodeAddress = async (address: string): Promise<{lat: number, lng: number}> => {
+  // Geocoding helper
+  const geocodeAddress = async (address: string): Promise<{ lat: number; lng: number } | null> => {
     try {
-      const apiKey = process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY || process.env.EXPO_PUBLIC_GOOGLE_PLACES_API_KEY;
-      if (!apiKey) {
-        console.warn('Google Maps API key not found, using fallback coordinates');
-        return getFallbackCoordinates(address);
+      const apiUrl = getApiUrl();
+      const response = await fetch(`${apiUrl}/api/v1/geocode?address=${encodeURIComponent(address)}`);
+      
+      if (!response.ok) {
+        console.error('Geocoding failed:', await response.text());
+        return null;
       }
 
-      const response = await fetch(`https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(address)}&key=${apiKey}`);
       const data = await response.json();
-      
-      if (data.status === 'OK' && data.results.length > 0) {
-        const location = data.results[0].geometry.location;
-        return {
-          lat: location.lat,
-          lng: location.lng
-        };
+      if (data.lat && data.lng) {
+        return { lat: data.lat, lng: data.lng };
       }
-      
-      console.warn('Geocoding failed for address:', address, 'Status:', data.status);
-      return getFallbackCoordinates(address);
+      return null;
     } catch (error) {
-      console.error('Error geocoding address:', address, error);
-      return getFallbackCoordinates(address);
+      console.error('Geocoding error:', error);
+      return null;
     }
   };
 
-  const getFallbackCoordinates = (address: string): {lat: number, lng: number} => {
-    // Common US city coordinates as fallbacks
-    const cityCoordinates: Record<string, {lat: number, lng: number}> = {
-      'dallas': { lat: 32.7767, lng: -96.7970 },
-      'san diego': { lat: 32.7157, lng: -117.1611 },
-      'los angeles': { lat: 34.0522, lng: -118.2437 },
-      'new york': { lat: 40.7128, lng: -74.0060 },
-      'chicago': { lat: 41.8781, lng: -87.6298 },
-      'houston': { lat: 29.7604, lng: -95.3698 },
-      'phoenix': { lat: 33.4484, lng: -112.0740 },
-      'miami': { lat: 25.7617, lng: -80.1918 },
-      'seattle': { lat: 47.6062, lng: -122.3321 },
-      'denver': { lat: 39.7392, lng: -104.9903 },
-    };
-
-    // Try to match city name from address
-    const addressLower = address.toLowerCase();
-    for (const [city, coords] of Object.entries(cityCoordinates)) {
-      if (addressLower.includes(city)) {
-        console.log(`Using fallback coordinates for ${city}: ${coords.lat}, ${coords.lng}`);
-        return coords;
-      }
-    }
-
-    // Extract state and provide state-level fallback
-    const stateCoordinates: Record<string, {lat: number, lng: number}> = {
-      'tx': { lat: 31.9686, lng: -99.9018 }, // Texas center
-      'ca': { lat: 36.7783, lng: -119.4179 }, // California center
-      'ny': { lat: 40.7128, lng: -74.0060 }, // New York center
-      'fl': { lat: 27.7663, lng: -82.6404 }, // Florida center
-    };
-
-    for (const [state, coords] of Object.entries(stateCoordinates)) {
-      if (addressLower.includes(state)) {
-        console.log(`Using fallback state coordinates for ${state}: ${coords.lat}, ${coords.lng}`);
-        return coords;
-      }
-    }
-
-    // Ultimate fallback (geographic center of US)
-    console.log('Using default US center coordinates');
-    return { lat: 39.8283, lng: -98.5795 };
-  };
-
-  // Calculate distance between two coordinates using Haversine formula
+  // Calculate distance between two coordinates
   const calculateDistance = (lat1: number, lng1: number, lat2: number, lng2: number): number => {
     const toRadians = (degrees: number) => degrees * (Math.PI / 180);
     
@@ -393,9 +289,16 @@ const InvoicePaymentStep: React.FC<Props> = ({
       return;
     }
 
+    if (!shipmentId) {
+      Alert.alert('Error', 'Shipment not initialized. Please refresh and try again.');
+      return;
+    }
+
     setIsProcessing(true);
 
     try {
+      // Step 1: Confirm payment with Stripe
+      console.log('Confirming payment with Stripe for shipment:', shipmentId);
       const { error, paymentIntent: confirmedPaymentIntent } = await confirmPayment(
         paymentIntent.client_secret,
         {
@@ -405,87 +308,35 @@ const InvoicePaymentStep: React.FC<Props> = ({
 
       if (error) {
         console.error('Payment confirmation error:', error);
-        Alert.alert('Payment Failed', error.message || 'Payment could not be processed.');
-        return;
+        throw new Error(error.message || 'Payment failed');
       }
 
-      if (confirmedPaymentIntent && confirmedPaymentIntent.status.toString() === 'Succeeded') {
-        // Payment successful, now create the shipment with all completion data
-        await createShipmentWithPayment(confirmedPaymentIntent.id);
-        
-        onPaymentComplete(confirmedPaymentIntent.id);
-        setShipmentCreated(true);
-        
-        if (onFinalSubmit) {
-          onFinalSubmit();
-        }
+      if (confirmedPaymentIntent?.status !== 'Succeeded') {
+        throw new Error('Payment was not successful');
       }
+
+      console.log('Payment confirmed successfully!', confirmedPaymentIntent.id);
+
+      // Step 2: Update shipment status to PAID
+      console.log('Updating shipment status to paid...');
+      await updateShipmentStatusToPaid(shipmentId, confirmedPaymentIntent.id);
+
+      console.log('Shipment status updated successfully');
+
+      // Step 3: Call success callback
+      onPaymentComplete(confirmedPaymentIntent.id, shipmentId);
+
+      Alert.alert(
+        'Payment Successful!',
+        `Your payment of $${(upfrontAmount / 100).toFixed(2)} has been processed. Shipment confirmed!`,
+        [{ text: 'OK', onPress: onFinalSubmit }]
+      );
     } catch (error) {
       console.error('Payment error:', error);
-      Alert.alert('Payment Error', 'An unexpected error occurred. Please try again.');
+      const errorMessage = error instanceof Error ? error.message : 'Payment failed. Please try again.';
+      Alert.alert('Payment Failed', errorMessage);
     } finally {
       setIsProcessing(false);
-    }
-  };
-
-  const createShipmentWithPayment = async (paymentIntentId: string) => {
-    try {
-      if (!shipmentId) {
-        throw new Error('Shipment ID not found');
-      }
-
-      const apiUrl = getApiUrl();
-      const response = await fetch(`${apiUrl}/api/v1/shipments/${shipmentId}`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session?.access_token}`,
-        },
-        body: JSON.stringify({
-          // Update the shipment with completion data
-          vehicle_photos: completionData.vehiclePhotos,
-          ownership_documents: completionData.ownershipDocuments,
-          terms_accepted: completionData.termsAccepted,
-          special_instructions: shipmentData.specialInstructions,
-          
-          // Payment information
-          payment_intent_id: paymentIntentId,
-          status: 'confirmed', // Change from pending to confirmed
-          
-          // Vehicle details
-          vehicle_make: shipmentData.vehicleMake,
-          vehicle_model: shipmentData.vehicleModel,
-          vehicle_year: shipmentData.vehicleYear,
-          is_operable: shipmentData.isOperable,
-        }),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to update shipment');
-      }
-
-      const result = await response.json();
-      console.log('Shipment updated successfully:', result);
-      
-      return result.data;
-    } catch (error) {
-      console.error('Error updating shipment after payment:', error);
-      throw error;
-    }
-  };
-
-  const formatCurrency = (amount: number): string => {
-    return `$${(amount / 100).toFixed(2)}`;
-  };
-
-  const getItemIcon = (type: string): string => {
-    switch (type) {
-      case 'base': return 'local-shipping';
-      case 'insurance': return 'security';
-      case 'fee': return 'credit-card';
-      case 'tax': return 'account-balance';
-      default: return 'attach-money';
     }
   };
 
@@ -495,14 +346,23 @@ const InvoicePaymentStep: React.FC<Props> = ({
         <MaterialIcons name="check-circle" size={64} color="#4CAF50" />
         <Text style={styles.completedTitle}>Payment Successful!</Text>
         <Text style={styles.completedSubtitle}>
-          Your payment of ${upfrontAmount.toFixed(2)} has been processed.
-          Remaining ${deliveryAmount.toFixed(2)} due on delivery.
+          Your payment of ${(upfrontAmount / 100).toFixed(2)} has been processed.
+          Remaining ${(deliveryAmount / 100).toFixed(2)} due on delivery.
         </Text>
         <View style={styles.completedDetails}>
-          <Text style={styles.completedText}>Γ£ô Payment confirmed</Text>
-          <Text style={styles.completedText}>Γ£ô Invoice generated</Text>
-          <Text style={styles.completedText}>Γ£ô Ready for shipment creation</Text>
+          <Text style={styles.completedText}>? Payment confirmed</Text>
+          <Text style={styles.completedText}>? Shipment created</Text>
+          <Text style={styles.completedText}>? Ready for driver assignment</Text>
         </View>
+      </View>
+    );
+  }
+
+  if (isInitializing) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color={Colors.primary} />
+        <Text style={styles.loadingText}>Initializing payment...</Text>
       </View>
     );
   }
@@ -510,12 +370,6 @@ const InvoicePaymentStep: React.FC<Props> = ({
   return (
     <StripeProvider publishableKey={process.env.EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY || ''}>
       <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
-        {/* Invoice Header */}
-        <View style={styles.invoiceHeader}>
-          <Text style={styles.invoiceTitle}>Invoice</Text>
-          <Text style={styles.invoiceNumber}>INV-{Date.now()}</Text>
-        </View>
-
         {/* Shipment Details */}
         <View style={styles.shipmentDetails}>
           <Text style={styles.sectionTitle}>Shipment Details</Text>
@@ -528,45 +382,18 @@ const InvoicePaymentStep: React.FC<Props> = ({
           <View style={styles.detailRow}>
             <Text style={styles.detailLabel}>Route:</Text>
             <Text style={styles.detailValue}>
-              {shipmentData.pickupAddress} ΓåÆ {shipmentData.deliveryAddress}
+              {shipmentData.pickupAddress} ? {shipmentData.deliveryAddress}
             </Text>
           </View>
           <View style={styles.detailRow}>
             <Text style={styles.detailLabel}>Distance:</Text>
             <Text style={styles.detailValue}>{shipmentData.distance} miles</Text>
           </View>
-          <View style={styles.detailRow}>
-            <Text style={styles.detailLabel}>Customer:</Text>
-            <Text style={styles.detailValue}>{shipmentData.customerName}</Text>
-          </View>
-        </View>
-
-        {/* Payment Summary */}
-        <View style={styles.paymentBreakdownSection}>
-          <Text style={styles.sectionTitle}>Payment Summary</Text>
-          
-          <View style={styles.totalRow}>
-            <Text style={styles.totalLabel}>Vehicle Transport Service</Text>
-            <Text style={styles.totalAmount}>${totalAmount.toFixed(2)}</Text>
-          </View>
-          
-          <View style={styles.breakdownItem}>
-            <Text style={styles.breakdownLabel}>Due Now (20%)</Text>
-            <Text style={styles.breakdownAmount}>${upfrontAmount.toFixed(2)}</Text>
-          </View>
-          <View style={styles.breakdownItem}>
-            <Text style={styles.breakdownLabel}>Due on Delivery (80%)</Text>
-            <Text style={styles.breakdownAmount}>${deliveryAmount.toFixed(2)}</Text>
-          </View>
-          
-          <Text style={styles.refundNotice}>
-            * Upfront payment is refundable within 1 hour of booking
-          </Text>
         </View>
 
         {/* Payment Method */}
         <View style={styles.paymentSection}>
-          <Text style={styles.sectionTitle}>Payment Method</Text>
+          <Text style={styles.paymentTitle}>Payment Method</Text>
           <Text style={styles.paymentSubtitle}>
             Your payment is securely processed by Stripe
           </Text>
@@ -586,8 +413,12 @@ const InvoicePaymentStep: React.FC<Props> = ({
                   validCVC: cardDetails.validCVC,
                   validExpiryDate: cardDetails.validExpiryDate
                 });
-                setCardComplete(cardDetails.complete);
+                // Update card complete state
+                const isComplete = cardDetails.complete === true;
+                setCardComplete(isComplete);
                 setCardError(cardDetails.validNumber === 'Invalid' ? 'Invalid card number' : null);
+                
+                console.log('Card complete state updated to:', isComplete);
               }}
             />
             {cardError && (
@@ -610,20 +441,28 @@ const InvoicePaymentStep: React.FC<Props> = ({
         {/* Payment Summary */}
         <View style={styles.paymentSummary}>
           <View style={styles.summaryRow}>
-            <Text style={styles.summaryLabel}>Amount to charge:</Text>
-            <Text style={styles.summaryAmount}>${upfrontAmount.toFixed(2)}</Text>
+            <Text style={styles.summaryLabel}>Total Shipment Cost:</Text>
+            <Text style={styles.summaryAmount}>${quotePriceDollars.toFixed(2)}</Text>
+          </View>
+          <View style={styles.summaryRow}>
+            <Text style={styles.summaryLabel}>Amount to charge now (20%):</Text>
+            <Text style={[styles.summaryAmount, { color: Colors.primary }]}>${(upfrontAmount / 100).toFixed(2)}</Text>
+          </View>
+          <View style={styles.summaryRow}>
+            <Text style={styles.summaryLabel}>Due on delivery (80%):</Text>
+            <Text style={styles.summaryAmount}>${(deliveryAmount / 100).toFixed(2)}</Text>
           </View>
           <Text style={styles.summaryNote}>
-            You will be charged immediately upon confirmation
+            You will be charged ${(upfrontAmount / 100).toFixed(2)} immediately. The remaining ${(deliveryAmount / 100).toFixed(2)} will be charged upon successful delivery.
           </Text>
         </View>
 
-        {/* Debug Status - Remove in production */}
+        {/* Debug Status */}
         {(!cardComplete || !paymentIntent) && (
           <View style={styles.debugContainer}>
             <Text style={styles.debugText}>
-              {!paymentIntent && '⚠️ Initializing payment...'}
-              {paymentIntent && !cardComplete && '⚠️ Please enter complete card details'}
+              {!paymentIntent && '?? Initializing payment...'}
+              {paymentIntent && !cardComplete && '?? Please enter complete card details'}
             </Text>
           </View>
         )}
@@ -634,36 +473,28 @@ const InvoicePaymentStep: React.FC<Props> = ({
             styles.payButton,
             (!cardComplete || isProcessing || !paymentIntent) && styles.payButtonDisabled
           ]}
-          onPress={() => {
-            console.log('Payment button state:', {
-              cardComplete,
-              isProcessing,
-              hasPaymentIntent: !!paymentIntent,
-              canPay: cardComplete && !isProcessing && !!paymentIntent
-            });
-            handlePayment();
-          }}
+          onPress={handlePayment}
           disabled={!cardComplete || isProcessing || !paymentIntent}
           activeOpacity={0.7}
         >
           {isProcessing ? (
             <View style={styles.processingContainer}>
-              <ActivityIndicator size="small" color="white" />
+              <ActivityIndicator size="small" color="#FFFFFF" />
               <Text style={styles.payButtonText}>Processing...</Text>
             </View>
           ) : (
             <>
-              <MaterialIcons name="payment" size={20} color="white" />
+              <MaterialIcons name="credit-card" size={24} color="#FFFFFF" />
               <Text style={styles.payButtonText}>
-                Pay ${upfrontAmount.toFixed(2)} Now
+                Pay ${(upfrontAmount / 100).toFixed(2)} Now
               </Text>
             </>
           )}
         </TouchableOpacity>
 
         {/* Terms Notice */}
-        <Text style={styles.termsNotice}>
-          By completing this payment, you agree to our Terms of Service and authorize this charge.
+        <Text style={styles.termsText}>
+          By completing this payment, you agree to our Terms of Service and authorize this charge
         </Text>
       </ScrollView>
     </StripeProvider>
@@ -673,19 +504,33 @@ const InvoicePaymentStep: React.FC<Props> = ({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: '#FFFFFF',
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 40,
+  },
+  loadingText: {
+    marginTop: 16,
+    fontSize: 16,
+    color: Colors.text.secondary,
   },
   completedContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
     padding: 40,
+    backgroundColor: '#FFFFFF',
   },
   completedTitle: {
     fontSize: 24,
-    fontWeight: '700',
+    fontWeight: 'bold',
     color: '#4CAF50',
     marginTop: 16,
     marginBottom: 8,
+    textAlign: 'center',
   },
   completedSubtitle: {
     fontSize: 16,
@@ -694,47 +539,32 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   completedDetails: {
-    alignItems: 'flex-start',
+    width: '100%',
   },
   completedText: {
     fontSize: 16,
     color: Colors.text.primary,
-    marginBottom: 8,
-  },
-  invoiceHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 24,
-  },
-  invoiceTitle: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: Colors.text.primary,
-  },
-  invoiceNumber: {
-    fontSize: 14,
-    color: Colors.text.secondary,
-    fontFamily: 'monospace',
+    marginVertical: 8,
+    textAlign: 'center',
   },
   shipmentDetails: {
-    backgroundColor: 'white',
     padding: 16,
-    borderRadius: 8,
-    marginBottom: 20,
-    borderWidth: 1,
-    borderColor: '#e0e0e0',
+    backgroundColor: '#F8F9FA',
+    borderRadius: 12,
+    margin: 16,
   },
   sectionTitle: {
     fontSize: 18,
     fontWeight: '600',
     color: Colors.text.primary,
-    marginBottom: 12,
+    marginBottom: 16,
   },
   detailRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 8,
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E0E0E0',
   },
   detailLabel: {
     fontSize: 14,
@@ -748,63 +578,20 @@ const styles = StyleSheet.create({
     flex: 2,
     textAlign: 'right',
   },
-  invoiceItems: {
-    backgroundColor: 'white',
-    padding: 16,
-    borderRadius: 8,
-    marginBottom: 20,
-    borderWidth: 1,
-    borderColor: '#e0e0e0',
-  },
-  lineItem: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 12,
-  },
-  itemInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-  },
-  itemDescription: {
-    fontSize: 14,
-    color: Colors.text.primary,
-    marginLeft: 8,
-  },
-  itemAmount: {
-    fontSize: 14,
-    color: Colors.text.primary,
-    fontWeight: '500',
-  },
-  divider: {
-    height: 1,
-    backgroundColor: '#e0e0e0',
-    marginVertical: 8,
-  },
-  totalRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingTop: 12,
-  },
-  totalLabel: {
-    fontSize: 16,
-    color: Colors.text.primary,
-    fontWeight: '600',
-  },
-  totalAmount: {
-    fontSize: 18,
-    color: Colors.primary,
-    fontWeight: '700',
-  },
   paymentSection: {
-    backgroundColor: 'white',
     padding: 16,
-    borderRadius: 8,
-    marginBottom: 20,
+    margin: 16,
+    marginTop: 0,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#e0e0e0',
+    borderColor: '#E0E0E0',
+  },
+  paymentTitle: {
+    fontSize: 20,
+    fontWeight: '600',
+    color: Colors.text.primary,
+    marginBottom: 8,
   },
   paymentSubtitle: {
     fontSize: 14,
@@ -816,145 +603,73 @@ const styles = StyleSheet.create({
   },
   cardFieldContainer: {
     height: 50,
+    marginVertical: 8,
   },
   cardField: {
-    backgroundColor: '#f8f9fa',
+    backgroundColor: '#F8F9FA',
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#e0e0e0',
-    paddingHorizontal: 12,
-  },
+    borderColor: '#E0E0E0',
+  } as any,
   errorContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     marginTop: 8,
+    paddingHorizontal: 4,
   },
   errorText: {
-    fontSize: 12,
     color: Colors.error,
-    marginLeft: 4,
+    fontSize: 14,
+    marginLeft: 8,
   },
   securityNotice: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#f0f9ff',
+    backgroundColor: '#E3F2FD',
     padding: 12,
-    borderRadius: 6,
+    borderRadius: 8,
   },
   securityText: {
-    fontSize: 12,
-    color: Colors.text.primary,
-    marginLeft: 8,
     flex: 1,
+    fontSize: 12,
+    color: Colors.primary,
+    marginLeft: 8,
   },
   paymentSummary: {
-    backgroundColor: '#f8f9fa',
     padding: 16,
-    borderRadius: 8,
-    marginBottom: 20,
+    margin: 16,
+    marginTop: 0,
+    backgroundColor: '#F8F9FA',
+    borderRadius: 12,
   },
   summaryRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 8,
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E0E0E0',
   },
   summaryLabel: {
-    fontSize: 16,
-    color: Colors.text.primary,
-    fontWeight: '600',
+    fontSize: 14,
+    color: Colors.text.secondary,
   },
   summaryAmount: {
-    fontSize: 18,
-    color: Colors.primary,
-    fontWeight: '700',
+    fontSize: 16,
+    fontWeight: '600',
+    color: Colors.text.primary,
   },
   summaryNote: {
     fontSize: 12,
     color: Colors.text.secondary,
+    marginTop: 12,
     fontStyle: 'italic',
-  },
-  payButton: {
-    flexDirection: 'row',
-    backgroundColor: Colors.primary,
-    paddingVertical: 16,
-    paddingHorizontal: 24,
-    borderRadius: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 16,
-  },
-  payButtonDisabled: {
-    backgroundColor: '#cccccc',
-  },
-  processingContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  payButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: 'white',
-    marginLeft: 8,
-  },
-  termsNotice: {
-    fontSize: 12,
-    color: Colors.text.secondary,
-    textAlign: 'center',
-    lineHeight: 16,
-    marginBottom: 20,
-  },
-  paymentBreakdownSection: {
-    backgroundColor: 'white',
-    padding: 16,
-    borderRadius: 8,
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: Colors.border,
-  },
-  breakdownItem: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 8,
-  },
-  breakdownLabel: {
-    fontSize: 14,
-    color: Colors.text.secondary,
-  },
-  breakdownAmount: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: Colors.text.primary,
-  },
-  breakdownTotal: {
-    borderTopWidth: 1,
-    borderTopColor: Colors.border,
-    marginTop: 8,
-    paddingTop: 12,
-  },
-  breakdownTotalLabel: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: Colors.text.primary,
-  },
-  breakdownTotalAmount: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: Colors.primary,
-  },
-  refundNotice: {
-    fontSize: 12,
-    color: Colors.text.secondary,
-    fontStyle: 'italic',
-    textAlign: 'center',
-    marginTop: 8,
   },
   debugContainer: {
     backgroundColor: '#FFF3CD',
     padding: 12,
+    margin: 16,
+    marginTop: 0,
     borderRadius: 8,
-    marginBottom: 16,
     borderWidth: 1,
     borderColor: '#FFC107',
   },
@@ -962,6 +677,41 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#856404',
     textAlign: 'center',
+  },
+  payButton: {
+    flexDirection: 'row',
+    backgroundColor: Colors.primary,
+    padding: 16,
+    margin: 16,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  payButtonDisabled: {
+    backgroundColor: '#CCCCCC',
+    opacity: 0.6,
+  },
+  payButtonText: {
+    color: '#FFFFFF',
+    fontSize: 18,
+    fontWeight: '600',
+    marginLeft: 8,
+  },
+  processingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  termsText: {
+    fontSize: 12,
+    color: Colors.text.secondary,
+    textAlign: 'center',
+    paddingHorizontal: 24,
+    marginBottom: 24,
   },
 });
 

@@ -203,10 +203,13 @@ const ShipmentCompletionScreen: React.FC<Props> = ({ navigation, route }) => {
           <InvoicePaymentStep
             shipmentData={shipmentData}
             completionData={completionData}
-            onPaymentComplete={(paymentIntentId) => updateCompletionData({ 
-              paymentCompleted: true,
-              stripePaymentIntentId: paymentIntentId
-            })}
+            onPaymentComplete={(paymentIntentId, shipmentId) => {
+              console.log('Payment completed:', paymentIntentId, 'Shipment:', shipmentId);
+              updateCompletionData({ 
+                paymentCompleted: true,
+                stripePaymentIntentId: paymentIntentId
+              });
+            }}
             onFinalSubmit={handleComplete}
           />
         );
