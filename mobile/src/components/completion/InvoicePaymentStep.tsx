@@ -42,6 +42,7 @@ const InvoicePaymentStep: React.FC<Props> = ({
   const [cardError, setCardError] = useState<string | null>(null);
   const [isInitializing, setIsInitializing] = useState(true);
   const [shipmentId, setShipmentId] = useState<string | null>(null);
+  const [manualOverride, setManualOverride] = useState(false); // For testing when CardField doesn't fire
 
   // Use the quote price from shipmentData - this is the price user was quoted
   // NOTE: estimatedPrice is in DOLLARS (not cents) from backend pricing service
@@ -462,14 +463,32 @@ const InvoicePaymentStep: React.FC<Props> = ({
         </View>
 
         {/* Debug Status */}
-        {!cardComplete && (
+        {!(cardComplete || manualOverride) && (
           <View style={styles.debugContainer}>
             <Text style={styles.debugText}>
               ⚠️ Please enter complete card details (Number, Expiry, CVC)
             </Text>
             {/* Additional debug info */}
             <Text style={styles.debugTextSmall}>
-              Card Complete: {cardComplete ? '✓' : '✗'}
+              Card Complete: {cardComplete ? '✓' : '✗'} | Manual Override: {manualOverride ? '✓' : '✗'}
+            </Text>
+            
+            {/* Manual Override Button - FOR DEBUGGING ONLY */}
+            <TouchableOpacity
+              style={[styles.debugButton, manualOverride && { backgroundColor: '#4CAF50' }]}
+              onPress={() => {
+                console.log('🔧 MANUAL OVERRIDE ACTIVATED - Bypassing CardField validation');
+                console.log('WARNING: This is for debugging only. CardField onCardChange is not firing!');
+                setManualOverride(!manualOverride);
+              }}
+            >
+              <Text style={styles.debugButtonText}>
+                {manualOverride ? '✓ Override Active' : '🔧 Enable Manual Override (Debug)'}
+              </Text>
+            </TouchableOpacity>
+            
+            <Text style={[styles.debugTextSmall, { marginTop: 8, color: '#FF9800' }]}>
+              ⚠️ If CardField validation isn't working, use manual override above
             </Text>
           </View>
         )}
@@ -478,10 +497,10 @@ const InvoicePaymentStep: React.FC<Props> = ({
         <TouchableOpacity
           style={[
             styles.payButton,
-            (!cardComplete || isProcessing) && styles.payButtonDisabled
+            (!(cardComplete || manualOverride) || isProcessing) && styles.payButtonDisabled
           ]}
           onPress={handlePayment}
-          disabled={!cardComplete || isProcessing}
+          disabled={!(cardComplete || manualOverride) || isProcessing}
           activeOpacity={0.7}
         >
           {isProcessing ? (
@@ -690,6 +709,18 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: '#856404',
     textAlign: 'center',
+  },
+  debugButton: {
+    backgroundColor: '#FF9800',
+    padding: 10,
+    borderRadius: 6,
+    marginTop: 8,
+    alignItems: 'center',
+  },
+  debugButtonText: {
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: '600',
   },
   payButton: {
     flexDirection: 'row',
