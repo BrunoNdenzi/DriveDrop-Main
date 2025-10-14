@@ -21,6 +21,15 @@ import { realtimeService, DriverLocation } from '../../services/RealtimeService'
 
 type ShipmentDetailsScreenProps = NativeStackScreenProps<RootStackParamList, 'ShipmentDetails'>;
 
+interface CancellationEligibility {
+  eligible: boolean;
+  reason?: string;
+  refund_eligible?: boolean;
+  refund_amount?: number;
+  refund_percentage?: number;
+  message?: string;
+}
+
 export default function ShipmentDetailsScreen({ route, navigation }: ShipmentDetailsScreenProps) {
   const { shipmentId } = route.params;
   const [shipment, setShipment] = useState<any>(null);
@@ -110,43 +119,84 @@ export default function ShipmentDetailsScreen({ route, navigation }: ShipmentDet
   }
 
   async function handleCancelShipment() {
-    Alert.alert(
-      'Cancel Shipment',
-      'Are you sure you want to cancel this shipment?',
-      [
-        {
-          text: 'No',
-          style: 'cancel',
-        },
-        {
-          text: 'Yes, Cancel',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              const { error: updateError } = await supabase
-                .from('shipments')
-                .update({ 
-                  status: 'cancelled',
-                  updated_at: new Date().toISOString()
-                })
-                .eq('id', shipmentId);
-              
-              if (updateError) {
-                console.error('Error cancelling shipment:', updateError);
-                Alert.alert('Error', 'Failed to cancel shipment');
-                return;
-              }
+    try {
+      // First, check cancellation eligibility
+      const { data: eligibilityData, error: eligibilityError } = await supabase
+        .rpc('check_cancellation_eligibility', { p_shipment_id: shipmentId } as any);
 
-              // Local state will be updated by real-time subscription
-              Alert.alert('Success', 'Shipment cancelled successfully');
-            } catch (err) {
-              console.error('Error cancelling shipment:', err);
-              Alert.alert('Error', 'Failed to cancel shipment');
-            }
+      if (eligibilityError) {
+        console.error('Error checking cancellation eligibility:', eligibilityError);
+        Alert.alert('Error', 'Failed to check cancellation eligibility');
+        return;
+      }
+
+      const eligibility = eligibilityData as CancellationEligibility | null;
+
+      if (!eligibility || !eligibility.eligible) {
+        Alert.alert(
+          'Cannot Cancel',
+          eligibility?.reason || 'This shipment cannot be cancelled at this time'
+        );
+        return;
+      }
+
+      // Show confirmation with refund information
+      const refundInfo = eligibility.refund_eligible
+        ? `\n\n💰 Refund: $${((eligibility.refund_amount || 0) / 100).toFixed(2)} (${eligibility.refund_percentage}%)\n${eligibility.message}`
+        : '\n\n⚠️ No refund available for this cancellation';
+
+      Alert.alert(
+        'Cancel Shipment',
+        `Are you sure you want to cancel this shipment?${refundInfo}`,
+        [
+          {
+            text: 'No, Keep Shipment',
+            style: 'cancel',
           },
-        },
-      ]
-    );
+          {
+            text: 'Yes, Cancel',
+            style: 'destructive',
+            onPress: async () => {
+              try {
+                // Update shipment status to cancelled
+                const { error: updateError } = await supabase
+                  .from('shipments')
+                  // @ts-expect-error - Supabase types may be outdated
+                  .update({ 
+                    status: 'cancelled',
+                    updated_at: new Date().toISOString()
+                  })
+                  .eq('id', shipmentId);
+                
+                if (updateError) {
+                  console.error('Error cancelling shipment:', updateError);
+                  Alert.alert('Error', 'Failed to cancel shipment. Please try again.');
+                  return;
+                }
+
+                // Show success message with refund info
+                const successMessage = eligibility.refund_eligible
+                  ? `Your shipment has been cancelled and a refund of $${((eligibility.refund_amount || 0) / 100).toFixed(2)} will be processed within 5-10 business days.`
+                  : 'Your shipment has been cancelled.';
+
+                Alert.alert('Cancelled Successfully', successMessage, [
+                  {
+                    text: 'OK',
+                    onPress: () => navigation.goBack(),
+                  },
+                ]);
+              } catch (err) {
+                console.error('Error cancelling shipment:', err);
+                Alert.alert('Error', 'Failed to cancel shipment. Please try again.');
+              }
+            },
+          },
+        ]
+      );
+    } catch (err) {
+      console.error('Error in handleCancelShipment:', err);
+      Alert.alert('Error', 'An unexpected error occurred. Please try again.');
+    }
   }
 
   const getStatusColor = (status: string) => {
@@ -292,7 +342,8 @@ export default function ShipmentDetailsScreen({ route, navigation }: ShipmentDet
           </View>
         )}
 
-        {shipment.status !== 'delivered' && shipment.status !== 'cancelled' && (
+        {/* Only show cancel button for pending shipments with no driver assigned */}
+        {shipment.status === 'pending' && !shipment.driver_id && (
           <View style={styles.actionsContainer}>
             <TouchableOpacity
               style={styles.cancelButton}

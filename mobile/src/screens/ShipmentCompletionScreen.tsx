@@ -9,6 +9,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
+import { CommonActions } from '@react-navigation/native';
 
 import { Colors } from '../constants/Colors';
 import VehiclePhotosStep from '../components/completion/VehiclePhotosStep';
@@ -85,60 +86,64 @@ const ShipmentCompletionScreen: React.FC<Props> = ({ navigation, route }) => {
   };
 
   const handleComplete = async () => {
-    if (!completionData.paymentCompleted) {
-      Alert.alert('Payment Required', 'Please complete payment to finalize your shipment.');
-      return;
-    }
-
-    setIsSubmitting(true);
-    try {
-      // Submit final shipment to backend
-      const response = await fetch(`${process.env.EXPO_PUBLIC_API_URL}/api/v1/shipments`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          // Add auth headers
+    // Payment already created the shipment! Just show success and navigate
+    // No need to check paymentCompleted - we're in step 4, payment is done
+    Alert.alert(
+      'Thank you for shipping with Drivedrop!',
+      'Your shipment has been confirmed and payment processed. You will be notified once a driver is assigned to your shipment.',
+      [
+        {
+          text: 'View My Shipments',
+          onPress: () => {
+            // Navigate back to tabs, then to Shipments screen
+            navigation.dispatch(
+              CommonActions.reset({
+                index: 0,
+                routes: [
+                  {
+                    name: 'ClientTabs',
+                    state: {
+                      routes: [
+                        { name: 'Home' },
+                        { name: 'Messages' },
+                        { name: 'Shipments' },
+                        { name: 'Profile' },
+                      ],
+                      index: 2, // Shipments tab (0=Home, 1=Messages, 2=Shipments, 3=Profile)
+                    },
+                  },
+                ],
+              })
+            );
+          },
         },
-        body: JSON.stringify({
-          ...shipmentData,
-          vehiclePhotos: completionData.vehiclePhotos,
-          ownershipDocuments: completionData.ownershipDocuments,
-          termsAccepted: completionData.termsAccepted,
-          stripePaymentIntentId: completionData.stripePaymentIntentId,
-          status: 'confirmed',
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to create shipment');
-      }
-
-      const result = await response.json();
-
-      Alert.alert(
-        'Shipment Created Successfully!',
-        `Your shipment has been confirmed and payment processed. Tracking ID: ${result.trackingId}`,
-        [
-          {
-            text: 'View Shipment',
-            onPress: () => navigation.navigate('ShipmentDetails', { shipmentId: result.id }),
+        {
+          text: 'OK',
+          onPress: () => {
+            // Navigate back to tabs, on Home screen
+            navigation.dispatch(
+              CommonActions.reset({
+                index: 0,
+                routes: [
+                  {
+                    name: 'ClientTabs',
+                    state: {
+                      routes: [
+                        { name: 'Home' },
+                        { name: 'Messages' },
+                        { name: 'Shipments' },
+                        { name: 'Profile' },
+                      ],
+                      index: 0, // Home tab
+                    },
+                  },
+                ],
+              })
+            );
           },
-          {
-            text: 'Create Another',
-            onPress: () => navigation.navigate('CreateShipment'),
-          },
-        ]
-      );
-    } catch (error) {
-      console.error('Error completing shipment:', error);
-      Alert.alert(
-        'Error',
-        'Failed to complete shipment. Please try again or contact support.',
-        [{ text: 'OK' }]
-      );
-    } finally {
-      setIsSubmitting(false);
-    }
+        },
+      ]
+    );
   };
 
   const renderStepIndicator = () => (

@@ -166,48 +166,25 @@ const InvoicePaymentStep: React.FC<Props> = ({
   };
 
   /**
-   * Update shipment status to PAID after successful payment
+   * Geocoding helper - Converts address to coordinates
    */
-  const updateShipmentStatusToPaid = async (shipmentId: string, paymentIntentId: string) => {
+  const geocodeAddress = async (address: string): Promise<{ lat: number; lng: number } | null> => {
     try {
       const apiUrl = getApiUrl();
       
       if (!session) {
-        throw new Error('User not authenticated');
+        console.warn('No session for geocoding, using fallback coordinates');
+        return null;
       }
-
-      console.log('Updating shipment status to paid:', shipmentId);
-
-      const response = await fetch(`${apiUrl}/api/v1/shipments/${shipmentId}`, {
-        method: 'PATCH',
+      
+      const response = await fetch(`${apiUrl}/api/v1/maps/geocode`, {
+        method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${session.access_token}`,
         },
-        body: JSON.stringify({
-          status: 'paid',
-          payment_intent_id: paymentIntentId
-        }),
+        body: JSON.stringify({ address }),
       });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('Failed to update shipment status:', errorText);
-        throw new Error(`Failed to update shipment: ${response.status} - ${errorText}`);
-      }
-
-      console.log('Shipment status updated to paid successfully');
-    } catch (error) {
-      console.error('Error updating shipment status:', error);
-      throw error;
-    }
-  };
-
-  // Geocoding helper
-  const geocodeAddress = async (address: string): Promise<{ lat: number; lng: number } | null> => {
-    try {
-      const apiUrl = getApiUrl();
-      const response = await fetch(`${apiUrl}/api/v1/geocode?address=${encodeURIComponent(address)}`);
       
       if (!response.ok) {
         console.error('Geocoding failed:', await response.text());
@@ -215,8 +192,8 @@ const InvoicePaymentStep: React.FC<Props> = ({
       }
 
       const data = await response.json();
-      if (data.lat && data.lng) {
-        return { lat: data.lat, lng: data.lng };
+      if (data.data?.latitude && data.data?.longitude) {
+        return { lat: data.data.latitude, lng: data.data.longitude };
       }
       return null;
     } catch (error) {
@@ -244,13 +221,21 @@ const InvoicePaymentStep: React.FC<Props> = ({
   const handlePayment = async () => {
     console.log('Payment button pressed', {
       cardComplete,
+      manualOverride,
       userId: user?.id,
       sessionExists: !!session
     });
 
-    if (!cardComplete) {
+    // Check if card is complete OR manual override is active
+    if (!cardComplete && !manualOverride) {
       Alert.alert('Payment Error', 'Please complete your card information.');
       return;
+    }
+
+    // Log if using manual override
+    if (manualOverride && !cardComplete) {
+      console.log('⚠️ PROCEEDING WITH MANUAL OVERRIDE - CardField validation bypassed');
+      console.log('⚠️ Stripe will validate the card during payment processing');
     }
 
     if (!user?.id || !session) {
@@ -296,12 +281,11 @@ const InvoicePaymentStep: React.FC<Props> = ({
 
       console.log('Payment confirmed successfully!', confirmedPaymentIntent.id);
 
-      // Step 4: Update shipment status to PAID
-      console.log('Updating shipment status to paid...');
-      await updateShipmentStatusToPaid(createdShipmentId, confirmedPaymentIntent.id);
-      console.log('Shipment status updated successfully');
+      // Note: The backend webhook will automatically update shipment payment_status to 'paid'
+      // We don't need to manually update it here - the webhook handler does this
+      console.log('Shipment payment status will be updated automatically by webhook');
 
-      // Step 5: Call success callback
+      // Step 4: Call success callback
       onPaymentComplete(confirmedPaymentIntent.id, createdShipmentId);
 
       Alert.alert(
@@ -330,7 +314,7 @@ const InvoicePaymentStep: React.FC<Props> = ({
         <View style={styles.completedDetails}>
           <Text style={styles.completedText}>✓ Payment confirmed</Text>
           <Text style={styles.completedText}>✓ Shipment created</Text>
-          <Text style={styles.completedText}>✓ Ready for driver assignment</Text>
+          <Text style={styles.completedText}>✓ Awaiting for driver assignment</Text>
         </View>
       </View>
     );
