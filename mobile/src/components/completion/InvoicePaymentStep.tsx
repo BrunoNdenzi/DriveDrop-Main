@@ -52,56 +52,25 @@ const InvoicePaymentStep: React.FC<Props> = ({
   const upfrontAmount = Math.round(quotePrice * 0.20);
   const deliveryAmount = quotePrice - upfrontAmount;
 
-  // Create payment intent when component mounts - NO SHIPMENT CREATION YET
+  // Initialize component - NO SHIPMENT OR PAYMENT INTENT CREATED YET
+  // We'll create both when user clicks Pay button
   useEffect(() => {
     console.log('InvoicePaymentStep mounted');
     console.log('Quote price from shipmentData:', quotePrice, 'cents');
     console.log('User authenticated:', !!user, !!session);
     
-    if (user && session && quotePrice > 0) {
-      createPaymentIntentOnly();
-    } else {
-      console.error('Cannot create payment intent:', {
+    if (!user || !session || quotePrice <= 0) {
+      console.error('Invalid initialization state:', {
         hasUser: !!user,
         hasSession: !!session,
         quotePrice
       });
-      setIsInitializing(false);
       Alert.alert('Error', 'Unable to initialize payment. Please try again.');
     }
+    
+    // Just mark as ready - don't create anything yet
+    setIsInitializing(false);
   }, []);
-
-  /**
-   * Create shipment FIRST (with pending status), then create payment intent
-   * This ensures we have a valid shipment ID for the payment intent
-   */
-  const createPaymentIntentOnly = async () => {
-    try {
-      setIsInitializing(true);
-      console.log('Creating pending shipment for payment intent...');
-
-      // Step 1: Create shipment with 'pending' status FIRST
-      const pendingShipmentId = await createPendingShipment();
-      console.log('Pending shipment created:', pendingShipmentId);
-
-      // Step 2: Create payment intent with real shipment ID
-      console.log('Creating payment intent for quote price:', quotePriceDollars);
-      const response = await paymentService.createPaymentIntent(
-        pendingShipmentId,
-        quotePriceDollars, // Send in dollars - backend converts and calculates 20%
-        `Vehicle transport for ${shipmentData.vehicleYear} ${shipmentData.vehicleMake} ${shipmentData.vehicleModel}`
-      );
-
-      console.log('Payment intent created successfully:', (response as any).paymentIntentId || response.id);
-      setPaymentIntent(response);
-      setShipmentId(pendingShipmentId); // Store the real shipment ID
-      setIsInitializing(false);
-    } catch (error) {
-      console.error('Error creating payment intent:', error);
-      setIsInitializing(false);
-      Alert.alert('Error', 'Failed to initialize payment. Please try again.');
-    }
-  };
 
   /**
    * Create shipment in PENDING status for payment intent
@@ -273,13 +242,12 @@ const InvoicePaymentStep: React.FC<Props> = ({
 
   const handlePayment = async () => {
     console.log('Payment button pressed', {
-      paymentIntent: !!paymentIntent,
       cardComplete,
       userId: user?.id,
       sessionExists: !!session
     });
 
-    if (!paymentIntent || !cardComplete) {
+    if (!cardComplete) {
       Alert.alert('Payment Error', 'Please complete your card information.');
       return;
     }
@@ -289,18 +257,28 @@ const InvoicePaymentStep: React.FC<Props> = ({
       return;
     }
 
-    if (!shipmentId) {
-      Alert.alert('Error', 'Shipment not initialized. Please refresh and try again.');
-      return;
-    }
-
     setIsProcessing(true);
 
     try {
-      // Step 1: Confirm payment with Stripe
-      console.log('Confirming payment with Stripe for shipment:', shipmentId);
+      // Step 1: Create shipment with PENDING status
+      console.log('Creating pending shipment...');
+      const createdShipmentId = await createPendingShipment();
+      console.log('Pending shipment created:', createdShipmentId);
+      setShipmentId(createdShipmentId);
+
+      // Step 2: Create payment intent
+      console.log('Creating payment intent for quote price:', quotePriceDollars);
+      const paymentIntentResponse = await paymentService.createPaymentIntent(
+        createdShipmentId,
+        quotePriceDollars,
+        `Vehicle transport for ${shipmentData.vehicleYear} ${shipmentData.vehicleMake} ${shipmentData.vehicleModel}`
+      );
+      console.log('Payment intent created:', (paymentIntentResponse as any).paymentIntentId || paymentIntentResponse.id);
+
+      // Step 3: Confirm payment with Stripe
+      console.log('Confirming payment with Stripe...');
       const { error, paymentIntent: confirmedPaymentIntent } = await confirmPayment(
-        paymentIntent.client_secret,
+        paymentIntentResponse.client_secret,
         {
           paymentMethodType: 'Card',
         }
@@ -317,14 +295,13 @@ const InvoicePaymentStep: React.FC<Props> = ({
 
       console.log('Payment confirmed successfully!', confirmedPaymentIntent.id);
 
-      // Step 2: Update shipment status to PAID
+      // Step 4: Update shipment status to PAID
       console.log('Updating shipment status to paid...');
-      await updateShipmentStatusToPaid(shipmentId, confirmedPaymentIntent.id);
-
+      await updateShipmentStatusToPaid(createdShipmentId, confirmedPaymentIntent.id);
       console.log('Shipment status updated successfully');
 
-      // Step 3: Call success callback
-      onPaymentComplete(confirmedPaymentIntent.id, shipmentId);
+      // Step 5: Call success callback
+      onPaymentComplete(confirmedPaymentIntent.id, createdShipmentId);
 
       Alert.alert(
         'Payment Successful!',
@@ -350,19 +327,10 @@ const InvoicePaymentStep: React.FC<Props> = ({
           Remaining ${(deliveryAmount / 100).toFixed(2)} due on delivery.
         </Text>
         <View style={styles.completedDetails}>
-          <Text style={styles.completedText}>? Payment confirmed</Text>
-          <Text style={styles.completedText}>? Shipment created</Text>
-          <Text style={styles.completedText}>? Ready for driver assignment</Text>
+          <Text style={styles.completedText}>✓ Payment confirmed</Text>
+          <Text style={styles.completedText}>✓ Shipment created</Text>
+          <Text style={styles.completedText}>✓ Ready for driver assignment</Text>
         </View>
-      </View>
-    );
-  }
-
-  if (isInitializing) {
-    return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={Colors.primary} />
-        <Text style={styles.loadingText}>Initializing payment...</Text>
       </View>
     );
   }
@@ -407,18 +375,54 @@ const InvoicePaymentStep: React.FC<Props> = ({
               cardStyle={styles.cardField}
               style={styles.cardFieldContainer}
               onCardChange={(cardDetails) => {
-                console.log('Card details changed:', {
-                  complete: cardDetails.complete,
-                  validNumber: cardDetails.validNumber,
-                  validCVC: cardDetails.validCVC,
-                  validExpiryDate: cardDetails.validExpiryDate
+                console.log('═══ CARD CHANGE EVENT ═══');
+                console.log('1. Raw cardDetails object:', JSON.stringify(cardDetails, null, 2));
+                console.log('2. Individual properties:');
+                console.log('   - validNumber:', cardDetails.validNumber, `(type: ${typeof cardDetails.validNumber})`);
+                console.log('   - validCVC:', cardDetails.validCVC, `(type: ${typeof cardDetails.validCVC})`);
+                console.log('   - validExpiryDate:', cardDetails.validExpiryDate, `(type: ${typeof cardDetails.validExpiryDate})`);
+                console.log('   - complete:', cardDetails.complete, `(type: ${typeof cardDetails.complete})`);
+                console.log('   - completeType:', typeof cardDetails.complete);
+                
+                // Try both approaches for validation
+                console.log('3. Validation approaches:');
+                
+                // Approach 1: Check for "Valid" string
+                const isNumberValid = cardDetails.validNumber === 'Valid';
+                const isCvcValid = cardDetails.validCVC === 'Valid';
+                const isExpiryValid = cardDetails.validExpiryDate === 'Valid';
+                const isCompleteStrings = isNumberValid && isCvcValid && isExpiryValid;
+                console.log('   Approach 1 (Valid strings):', {
+                  isNumberValid,
+                  isCvcValid,
+                  isExpiryValid,
+                  result: isCompleteStrings
                 });
-                // Update card complete state
-                const isComplete = cardDetails.complete === true;
-                setCardComplete(isComplete);
+                
+                // Approach 2: Use complete property directly
+                const isCompleteProperty = cardDetails.complete === true;
+                console.log('   Approach 2 (complete property):', isCompleteProperty);
+                
+                // Approach 3: Check for non-Invalid states
+                const noInvalidFields = 
+                  cardDetails.validNumber !== 'Invalid' &&
+                  cardDetails.validCVC !== 'Invalid' &&
+                  cardDetails.validExpiryDate !== 'Invalid' &&
+                  cardDetails.validNumber !== 'Incomplete' &&
+                  cardDetails.validCVC !== 'Incomplete' &&
+                  cardDetails.validExpiryDate !== 'Incomplete';
+                console.log('   Approach 3 (no invalid/incomplete):', noInvalidFields);
+                
+                // Use the most reliable approach
+                const finalIsComplete = isCompleteStrings || isCompleteProperty;
+                console.log('4. FINAL DECISION: isComplete =', finalIsComplete);
+                
+                console.log('5. Updating state...');
+                setCardComplete(finalIsComplete);
                 setCardError(cardDetails.validNumber === 'Invalid' ? 'Invalid card number' : null);
                 
-                console.log('Card complete state updated to:', isComplete);
+                console.log('6. State update called. New cardComplete:', finalIsComplete);
+                console.log('═══════════════════════════\n');
               }}
             />
             {cardError && (
@@ -458,11 +462,14 @@ const InvoicePaymentStep: React.FC<Props> = ({
         </View>
 
         {/* Debug Status */}
-        {(!cardComplete || !paymentIntent) && (
+        {!cardComplete && (
           <View style={styles.debugContainer}>
             <Text style={styles.debugText}>
-              {!paymentIntent && '?? Initializing payment...'}
-              {paymentIntent && !cardComplete && '?? Please enter complete card details'}
+              ⚠️ Please enter complete card details (Number, Expiry, CVC)
+            </Text>
+            {/* Additional debug info */}
+            <Text style={styles.debugTextSmall}>
+              Card Complete: {cardComplete ? '✓' : '✗'}
             </Text>
           </View>
         )}
@@ -471,10 +478,10 @@ const InvoicePaymentStep: React.FC<Props> = ({
         <TouchableOpacity
           style={[
             styles.payButton,
-            (!cardComplete || isProcessing || !paymentIntent) && styles.payButtonDisabled
+            (!cardComplete || isProcessing) && styles.payButtonDisabled
           ]}
           onPress={handlePayment}
-          disabled={!cardComplete || isProcessing || !paymentIntent}
+          disabled={!cardComplete || isProcessing}
           activeOpacity={0.7}
         >
           {isProcessing ? (
@@ -675,6 +682,12 @@ const styles = StyleSheet.create({
   },
   debugText: {
     fontSize: 14,
+    color: '#856404',
+    textAlign: 'center',
+    marginBottom: 4,
+  },
+  debugTextSmall: {
+    fontSize: 11,
     color: '#856404',
     textAlign: 'center',
   },
