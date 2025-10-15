@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+﻿import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -104,29 +104,12 @@ export default function ConversationsScreen() {
     const otherUserId = isClient ? conversation.driver_id : conversation.client_id;
     const otherUserName = isClient ? conversation.driver_name : conversation.client_name;
     const otherUserRole = isClient ? 'driver' : 'client';
-    
-    // Validation: Don't navigate if essential data is missing
-    if (!conversation.shipment_id) {
-      Alert.alert('Error', 'Invalid shipment ID');
-      return;
-    }
-    
-    if (!otherUserId) {
-      Alert.alert(
-        'Cannot Open Chat',
-        isClient 
-          ? 'This shipment has not been assigned to a driver yet.'
-          : 'Cannot identify the client for this shipment.'
-      );
-      return;
-    }
-    
-    (navigation.navigate as any)('ChatScreen', {
+    navigation.navigate('Chat' as never, {
       shipmentId: conversation.shipment_id,
       otherUserId,
-      otherUserName: otherUserName || 'Unknown User',
+      otherUserName,
       otherUserRole,
-    });
+    } as never);
   };
 
   const formatTime = (timestamp: string | null): string => {
