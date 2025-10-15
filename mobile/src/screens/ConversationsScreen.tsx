@@ -52,6 +52,7 @@ export default function ConversationsScreen() {
       const { data, error: queryError } = await supabase
         .from('conversation_summaries')
         .select('*')
+        .in('shipment_status', ['picked_up', 'in_transit', 'delivered']) // Only active/completed shipments
         .order('last_message_at', { ascending: false, nullsFirst: false });
 
       if (queryError) throw queryError;

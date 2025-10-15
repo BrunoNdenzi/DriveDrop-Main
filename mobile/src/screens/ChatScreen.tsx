@@ -65,7 +65,14 @@ export default function ChatScreen() {
       headerRight: () => (
         <TouchableOpacity
           style={styles.headerRight}
-          onPress={() => (navigation.navigate as any)('ShipmentDetails', { id: shipmentId })}
+          onPress={() => {
+            if (!shipmentId || shipmentId === 'undefined') {
+              Alert.alert('Error', 'Invalid shipment ID');
+              return;
+            }
+            // Use correct param name: shipmentId not id
+            (navigation.navigate as any)('ShipmentDetails', { shipmentId: shipmentId });
+          }}
         >
           <MaterialIcons name="info-outline" size={24} color="#007AFF" />
         </TouchableOpacity>
@@ -107,7 +114,7 @@ export default function ChatScreen() {
   const markMessagesAsRead = async () => {
     if (!userProfile?.id) return;
     try {
-      const { error } = await supabase.rpc('mark_shipment_messages_read', {
+      const { error } = await (supabase.rpc as any)('mark_shipment_messages_read', {
         p_shipment_id: shipmentId,
       });
       if (error) console.error('Error marking messages as read:', error);
@@ -181,8 +188,9 @@ export default function ChatScreen() {
     try {
       setSending(true);
       setError(null);
-      const { data, error: insertError } = await supabase
-        .from('messages')
+      
+      // TypeScript workaround for Supabase types
+      const { data, error: insertError } = await (supabase.from('messages') as any)
         .insert({
           shipment_id: shipmentId,
           sender_id: userProfile.id,
@@ -198,7 +206,7 @@ export default function ChatScreen() {
       setMessageText('');
       if (data) {
         setMessages((prev) => {
-          if (prev.some((m) => m.id === data.id)) return prev;
+          if (prev.some((m: any) => m.id === data.id)) return prev;
           return [...prev, data];
         });
         setTimeout(() => {
@@ -413,7 +421,7 @@ const styles = StyleSheet.create({
   errorSubtext: { fontSize: 14, color: '#999', marginTop: 8, textAlign: 'center' },
   retryButton: { marginTop: 24, paddingHorizontal: 32, paddingVertical: 12, backgroundColor: '#007AFF', borderRadius: 8 },
   retryButtonText: { color: '#fff', fontSize: 16, fontWeight: '600' },
-  messagesList: { paddingHorizontal: 16, paddingVertical: 12 },
+  messagesList: { paddingHorizontal: 16, paddingTop: 32, paddingBottom: 12 }, // Increased from 20 to 32
   emptyContainer: { flexGrow: 1 },
   emptyState: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 32 },
   emptyText: { fontSize: 22, fontWeight: '600', color: '#333', marginTop: 20 },
