@@ -164,7 +164,7 @@ export default function AvailableJobsScreen({ navigation }: any) {
       <View style={styles.jobHeader}>
         <Text style={styles.jobTitle}>{item.title}</Text>
         <View style={styles.earnBadge}>
-          <Text style={styles.earnText}>${item.estimated_earnings.toFixed(2)}</Text>
+          <Text style={styles.earnText}>${(item.estimated_earnings / 100).toFixed(2)}</Text>
         </View>
       </View>
 

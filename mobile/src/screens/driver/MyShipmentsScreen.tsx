@@ -89,7 +89,7 @@ function ActiveShipmentsTab({ navigation }: any) {
       const { error } = await supabase
         .from('shipments')
         .update({ 
-          status: newStatus,
+          status: newStatus as 'pending' | 'completed' | 'draft' | 'accepted' | 'assigned' | 'in_transit' | 'in_progress' | 'delivered' | 'cancelled' | 'picked_up' | 'open',
           updated_at: new Date().toISOString(),
           updated_by: userProfile?.id // Add the user ID who is updating
         })
@@ -517,7 +517,7 @@ function ApplicationsTab({ navigation }: any) {
       )}
       
       <View style={styles.detailsContainer}>
-        <Text style={styles.earningsText}>${item.shipment_estimated_price}</Text>
+        <Text style={styles.earningsText}>${(item.shipment_estimated_price / 100).toFixed(2)}</Text>
         <Text style={styles.dateText}>
           Applied: {new Date(item.applied_at).toLocaleDateString()}
         </Text>

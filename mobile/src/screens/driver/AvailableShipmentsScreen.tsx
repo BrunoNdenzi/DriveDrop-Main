@@ -149,7 +149,7 @@ export default function AvailableShipmentsScreen({ navigation }: any) {
     >
       <View style={styles.shipmentHeader}>
         <Text style={styles.shipmentTitle}>{item.title}</Text>
-        <Text style={styles.earningsText}>${item.estimated_earnings}</Text>
+        <Text style={styles.earningsText}>${(item.estimated_earnings / 100).toFixed(2)}</Text>
       </View>
       
       <View style={styles.locationContainer}>

@@ -98,9 +98,11 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
 
   // Format a number as a currency string - improved approach
   const formatCurrency = (amount: number): string => {
-    // Use toLocaleString to format the number with commas
-    return amount.toLocaleString('en-US', {
-      maximumFractionDigits: 0 // No decimal places
+    // Convert from cents to dollars, then format with 2 decimals
+    const dollars = amount / 100;
+    return dollars.toLocaleString('en-US', {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
     });
   };
 
@@ -337,7 +339,7 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
     },
     { 
       label: 'Total Paid', 
-      value: "$" + totalSpent.toString(), // Simple string concatenation to avoid formatting issues
+      value: "$" + (totalSpent / 100).toFixed(2), // Convert cents to dollars
       rawValue: totalSpent,
       icon: 'account-balance-wallet', 
       color: Colors.secondary,

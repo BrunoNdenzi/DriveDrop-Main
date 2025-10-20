@@ -42,7 +42,7 @@ const InvoicePaymentStep: React.FC<Props> = ({
   const [cardError, setCardError] = useState<string | null>(null);
   const [isInitializing, setIsInitializing] = useState(true);
   const [shipmentId, setShipmentId] = useState<string | null>(null);
-  const [manualOverride, setManualOverride] = useState(false); // For testing when CardField doesn't fire
+  const [cardFieldTouched, setCardFieldTouched] = useState(false);
 
   // Use the quote price from shipmentData - this is the price user was quoted
   // NOTE: estimatedPrice is in DOLLARS (not cents) from backend pricing service
@@ -221,21 +221,17 @@ const InvoicePaymentStep: React.FC<Props> = ({
   const handlePayment = async () => {
     console.log('Payment button pressed', {
       cardComplete,
-      manualOverride,
+      cardFieldTouched,
       userId: user?.id,
       sessionExists: !!session
     });
 
-    // Check if card is complete OR manual override is active
-    if (!cardComplete && !manualOverride) {
-      Alert.alert('Payment Error', 'Please complete your card information.');
+    // Note: We proceed with payment even if cardComplete is false
+    // because the CardField onCardChange event may not fire on all platforms.
+    // Stripe's confirmPayment will validate the card and return an error if invalid.
+    if (!cardFieldTouched) {
+      Alert.alert('Payment Error', 'Please enter your card information.');
       return;
-    }
-
-    // Log if using manual override
-    if (manualOverride && !cardComplete) {
-      console.log('⚠️ PROCEEDING WITH MANUAL OVERRIDE - CardField validation bypassed');
-      console.log('⚠️ Stripe will validate the card during payment processing');
     }
 
     if (!user?.id || !session) {
@@ -360,54 +356,30 @@ const InvoicePaymentStep: React.FC<Props> = ({
               cardStyle={styles.cardField}
               style={styles.cardFieldContainer}
               onCardChange={(cardDetails) => {
-                console.log('═══ CARD CHANGE EVENT ═══');
-                console.log('1. Raw cardDetails object:', JSON.stringify(cardDetails, null, 2));
-                console.log('2. Individual properties:');
-                console.log('   - validNumber:', cardDetails.validNumber, `(type: ${typeof cardDetails.validNumber})`);
-                console.log('   - validCVC:', cardDetails.validCVC, `(type: ${typeof cardDetails.validCVC})`);
-                console.log('   - validExpiryDate:', cardDetails.validExpiryDate, `(type: ${typeof cardDetails.validExpiryDate})`);
-                console.log('   - complete:', cardDetails.complete, `(type: ${typeof cardDetails.complete})`);
-                console.log('   - completeType:', typeof cardDetails.complete);
-                
-                // Try both approaches for validation
-                console.log('3. Validation approaches:');
-                
-                // Approach 1: Check for "Valid" string
-                const isNumberValid = cardDetails.validNumber === 'Valid';
-                const isCvcValid = cardDetails.validCVC === 'Valid';
-                const isExpiryValid = cardDetails.validExpiryDate === 'Valid';
-                const isCompleteStrings = isNumberValid && isCvcValid && isExpiryValid;
-                console.log('   Approach 1 (Valid strings):', {
-                  isNumberValid,
-                  isCvcValid,
-                  isExpiryValid,
-                  result: isCompleteStrings
+                console.log('CardField onChange fired:', {
+                  complete: cardDetails.complete,
+                  validNumber: cardDetails.validNumber,
+                  validCVC: cardDetails.validCVC,
+                  validExpiryDate: cardDetails.validExpiryDate
                 });
                 
-                // Approach 2: Use complete property directly
-                const isCompleteProperty = cardDetails.complete === true;
-                console.log('   Approach 2 (complete property):', isCompleteProperty);
+                // Mark that user has interacted with the card field
+                setCardFieldTouched(true);
                 
-                // Approach 3: Check for non-Invalid states
-                const noInvalidFields = 
-                  cardDetails.validNumber !== 'Invalid' &&
-                  cardDetails.validCVC !== 'Invalid' &&
-                  cardDetails.validExpiryDate !== 'Invalid' &&
-                  cardDetails.validNumber !== 'Incomplete' &&
-                  cardDetails.validCVC !== 'Incomplete' &&
-                  cardDetails.validExpiryDate !== 'Incomplete';
-                console.log('   Approach 3 (no invalid/incomplete):', noInvalidFields);
+                // Check if card is complete using multiple methods for compatibility
+                const isComplete = cardDetails.complete === true || 
+                  (cardDetails.validNumber === 'Valid' && 
+                   cardDetails.validCVC === 'Valid' && 
+                   cardDetails.validExpiryDate === 'Valid');
                 
-                // Use the most reliable approach
-                const finalIsComplete = isCompleteStrings || isCompleteProperty;
-                console.log('4. FINAL DECISION: isComplete =', finalIsComplete);
-                
-                console.log('5. Updating state...');
-                setCardComplete(finalIsComplete);
+                setCardComplete(isComplete);
                 setCardError(cardDetails.validNumber === 'Invalid' ? 'Invalid card number' : null);
                 
-                console.log('6. State update called. New cardComplete:', finalIsComplete);
-                console.log('═══════════════════════════\n');
+                console.log('Card validation updated:', { isComplete, cardFieldTouched: true });
+              }}
+              onFocus={() => {
+                console.log('CardField focused');
+                setCardFieldTouched(true);
               }}
             />
             {cardError && (
@@ -446,45 +418,22 @@ const InvoicePaymentStep: React.FC<Props> = ({
           </Text>
         </View>
 
-        {/* Debug Status */}
-        {!(cardComplete || manualOverride) && (
-          <View style={styles.debugContainer}>
-            <Text style={styles.debugText}>
-              ⚠️ Please enter complete card details (Number, Expiry, CVC)
-            </Text>
-            {/* Additional debug info */}
-            <Text style={styles.debugTextSmall}>
-              Card Complete: {cardComplete ? '✓' : '✗'} | Manual Override: {manualOverride ? '✓' : '✗'}
-            </Text>
-            
-            {/* Manual Override Button - FOR DEBUGGING ONLY */}
-            <TouchableOpacity
-              style={[styles.debugButton, manualOverride && { backgroundColor: '#4CAF50' }]}
-              onPress={() => {
-                console.log('🔧 MANUAL OVERRIDE ACTIVATED - Bypassing CardField validation');
-                console.log('WARNING: This is for debugging only. CardField onCardChange is not firing!');
-                setManualOverride(!manualOverride);
-              }}
-            >
-              <Text style={styles.debugButtonText}>
-                {manualOverride ? '✓ Override Active' : '🔧 Enable Manual Override (Debug)'}
-              </Text>
-            </TouchableOpacity>
-            
-            <Text style={[styles.debugTextSmall, { marginTop: 8, color: '#FF9800' }]}>
-              ⚠️ If CardField validation isn't working, use manual override above
+        {/* Validation Hint */}
+        {!cardComplete && cardFieldTouched && (
+          <View style={styles.validationHint}>
+            <Text style={styles.validationHintText}>
+              💡 Tip: If the button stays disabled, you can still click it to proceed. Stripe will validate your card.
             </Text>
           </View>
         )}
-
-        {/* Payment Button */}
+        
         <TouchableOpacity
           style={[
             styles.payButton,
-            (!(cardComplete || manualOverride) || isProcessing) && styles.payButtonDisabled
+            isProcessing && styles.payButtonDisabled
           ]}
           onPress={handlePayment}
-          disabled={!(cardComplete || manualOverride) || isProcessing}
+          disabled={isProcessing}
           activeOpacity={0.7}
         >
           {isProcessing ? (
@@ -694,17 +643,17 @@ const styles = StyleSheet.create({
     color: '#856404',
     textAlign: 'center',
   },
-  debugButton: {
-    backgroundColor: '#FF9800',
-    padding: 10,
-    borderRadius: 6,
-    marginTop: 8,
-    alignItems: 'center',
+  validationHint: {
+    backgroundColor: '#E3F2FD',
+    padding: 12,
+    borderRadius: 8,
+    marginHorizontal: 16,
+    marginBottom: 8,
   },
-  debugButtonText: {
-    color: '#FFFFFF',
+  validationHintText: {
     fontSize: 13,
-    fontWeight: '600',
+    color: '#1976D2',
+    textAlign: 'center',
   },
   payButton: {
     flexDirection: 'row',

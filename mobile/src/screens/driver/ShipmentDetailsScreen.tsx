@@ -112,10 +112,10 @@ export default function ShipmentDetailsScreen({ route, navigation }: any) {
         title: data.title || 'Delivery Service',
         status: data.status,
         client_id: data.client_id,
-        client_name: data.profiles 
-          ? `${data.profiles.first_name} ${data.profiles.last_name}`
+        client_name: (data as any).profiles 
+          ? `${(data as any).profiles.first_name} ${(data as any).profiles.last_name}`
           : 'Unknown Customer',
-        client_phone: data.profiles?.phone || '',
+        client_phone: (data as any).profiles?.phone || '',
         pickup_address: data.pickup_address || '',
         pickup_city: data.pickup_city || '',
         pickup_state: data.pickup_state || '',
@@ -176,7 +176,7 @@ export default function ShipmentDetailsScreen({ route, navigation }: any) {
       const { error } = await supabase
         .from('shipments')
         .update({ 
-          status: newStatus,
+          status: newStatus as 'pending' | 'completed' | 'draft' | 'accepted' | 'assigned' | 'in_transit' | 'in_progress' | 'delivered' | 'cancelled' | 'picked_up' | 'open',
           updated_at: new Date().toISOString()
         })
         .eq('id', shipment.id);
@@ -420,7 +420,7 @@ export default function ShipmentDetailsScreen({ route, navigation }: any) {
             <View style={styles.detailItem}>
               <MaterialIcons name="attach-money" size={20} color={Colors.success} />
               <Text style={styles.detailLabel}>Price</Text>
-              <Text style={styles.detailValue}>${shipment.price}</Text>
+              <Text style={styles.detailValue}>${(shipment.price / 100).toFixed(2)}</Text>
             </View>
             
             {shipment.distance > 0 && (

@@ -58,7 +58,32 @@ export type RootStackParamList = {
     }
   };
   BookingConfirmation: { shipmentId: string };
+  
+  // Vehicle Management Screens
+  VehicleProfiles: undefined;
+  AddEditVehicle: { vehicle?: UserVehicle } | undefined;
+  
+  // Settings Screens
+  NotificationSettings: undefined;
+  PrivacySettings: undefined;
 };
+
+// User vehicle type for navigation
+export interface UserVehicle {
+  id: string;
+  user_id: string;
+  vehicle_type: 'car' | 'van' | 'truck' | 'motorcycle';
+  make: string;
+  model: string;
+  year: number;
+  color: string | null;
+  license_plate: string | null;
+  nickname: string | null;
+  is_primary: boolean;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
 
 export type ClientTabParamList = {
   Home: undefined;

@@ -65,7 +65,7 @@ export function ShipmentListItem({ shipment, onPress, style }: ShipmentListItemP
           </Text>
           {(shipment.estimated_price) && (
             <Text style={styles.priceText}>
-              ${Number(shipment.estimated_price).toFixed(2)}
+              ${(Number(shipment.estimated_price) / 100).toFixed(2)}
             </Text>
           )}
         </View>
