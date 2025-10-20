@@ -161,9 +161,8 @@ export default function ShipmentDetailsScreen({ route, navigation }: ShipmentDet
                 // Update shipment status to cancelled
                 const { error: updateError } = await supabase
                   .from('shipments')
-                  // @ts-expect-error - Supabase types may be outdated
                   .update({ 
-                    status: 'cancelled',
+                    status: 'cancelled' as const,
                     updated_at: new Date().toISOString()
                   })
                   .eq('id', shipmentId);
@@ -302,7 +301,7 @@ export default function ShipmentDetailsScreen({ route, navigation }: ShipmentDet
       {(shipment.estimated_price) && (
             <View style={styles.detailRow}>
               <Text style={styles.detailLabel}>Price</Text>
-        <Text style={styles.detailValue}>${Number(shipment.estimated_price).toFixed(2)}</Text>
+        <Text style={styles.detailValue}>${(Number(shipment.estimated_price) / 100).toFixed(2)}</Text>
             </View>
           )}
           

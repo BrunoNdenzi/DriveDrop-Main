@@ -285,7 +285,7 @@ const ShipmentCompletionScreen: React.FC<Props> = ({ navigation, route }) => {
             disabled={!completionData.paymentCompleted}
           >
             <Text style={[styles.completeButtonText, !completionData.paymentCompleted && styles.completeButtonTextDisabled]}>
-              Complete Shipment
+              Shipment Complete
             </Text>
           </TouchableOpacity>
         )}

@@ -81,12 +81,17 @@ export default function DriverDashboardScreen({ navigation }: any) {
 
   const handleStartShift = async () => {
     try {
+      if (!userProfile?.id) {
+        Alert.alert('Error', 'User not authenticated');
+        return;
+      }
+      
       setIsAvailable(!isAvailable);
       // Update driver settings in the database
       await supabase
         .from('driver_settings')
         .upsert({
-          driver_id: userProfile?.id,
+          driver_id: userProfile.id,
           available_for_jobs: !isAvailable,
           updated_at: new Date().toISOString(),
         });
@@ -211,7 +216,7 @@ export default function DriverDashboardScreen({ navigation }: any) {
                 <View style={styles.jobHeader}>
                   <Text style={styles.jobTitle}>{job.title || `Shipment #${job.id.substring(0, 8)}`}</Text>
                   <View style={styles.earningsBadge}>
-                    <Text style={styles.earningsText}>${job.estimated_price || 0}</Text>
+                    <Text style={styles.earningsText}>${((job.estimated_price || 0) / 100).toFixed(2)}</Text>
                   </View>
                 </View>
                 
@@ -251,7 +256,7 @@ export default function DriverDashboardScreen({ navigation }: any) {
                   disabled={job.hasApplied}
                 >
                   <Text style={[styles.quickApplyText, job.hasApplied && styles.quickApplyTextDisabled]}>
-                    {job.hasApplied ? 'Applied' : 'Accept Job'}
+                    {job.hasApplied ? 'Applied' : 'Apply for Job'}
                   </Text>
                 </TouchableOpacity>
               </View>

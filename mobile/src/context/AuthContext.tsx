@@ -23,6 +23,7 @@ interface AuthContextType {
   loading: boolean;
   error: string | null;
   refreshProfile: () => Promise<void>;
+  signOut: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType>({
@@ -32,6 +33,7 @@ const AuthContext = createContext<AuthContextType>({
   loading: true,
   error: null,
   refreshProfile: async () => {},
+  signOut: async () => {},
 });
 
 // In-memory cache for profile creation status, shared across all instances
@@ -159,6 +161,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  // Function to sign out
+  const signOut = async () => {
+    try {
+      await auth.signOut();
+      setUser(null);
+      setUserProfile(null);
+      setSession(null);
+    } catch (error) {
+      console.error('Error signing out:', error);
+      throw error;
+    }
+  };
+
   // Get the user's session on load
   useEffect(() => {
     let mounted = true;
@@ -232,7 +247,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   return (
-    <AuthContext.Provider value={{ user, userProfile, session, loading, error, refreshProfile }}>
+    <AuthContext.Provider value={{ user, userProfile, session, loading, error, refreshProfile, signOut }}>
       {children}
     </AuthContext.Provider>
   );

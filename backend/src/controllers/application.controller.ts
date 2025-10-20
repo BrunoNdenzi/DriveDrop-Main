@@ -182,16 +182,22 @@ export const getAllApplications = asyncHandler(async (req: Request, res: Respons
       .from('job_applications')
       .select(`
         id,
+        shipment_id,
+        driver_id,
         status,
         applied_at,
+        responded_at,
         notes,
+        updated_at,
         shipment:shipment_id(
           id,
-          pickup_location,
-          delivery_location,
+          title,
+          pickup_address,
+          delivery_address,
           pickup_date,
           status,
-          price
+          price,
+          estimated_price
         ),
         driver:driver_id(
           id,
@@ -199,7 +205,8 @@ export const getAllApplications = asyncHandler(async (req: Request, res: Respons
           last_name,
           email,
           phone,
-          avatar_url
+          avatar_url,
+          rating
         )
       `)
       .order('applied_at', { ascending: false })

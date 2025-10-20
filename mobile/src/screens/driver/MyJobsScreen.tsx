@@ -61,7 +61,7 @@ function ActiveJobsTab({ navigation }: any) {
         delivery_location: job.delivery_address || 'Address not specified',
         distance: job.distance || 0,
         earnings: job.price || 0,
-        customer_name: job.profiles ? `${job.profiles.first_name} ${job.profiles.last_name}` : 'Customer',
+        customer_name: (job as any).profiles ? `${(job as any).profiles.first_name} ${(job as any).profiles.last_name}` : 'Customer',
         status: job.status,
         pickup_date: job.pickup_date || new Date().toISOString(),
         created_at: job.created_at,
@@ -149,7 +149,7 @@ function ActiveJobsTab({ navigation }: any) {
         </View>
         <View style={styles.detailItem}>
           <MaterialIcons name="attach-money" size={16} color={Colors.text.secondary} />
-          <Text style={styles.detailText}>${item.earnings.toFixed(2)}</Text>
+          <Text style={styles.detailText}>${(item.earnings / 100).toFixed(2)}</Text>
         </View>
         <View style={styles.detailItem}>
           <MaterialIcons name="event" size={16} color={Colors.text.secondary} />
@@ -224,7 +224,7 @@ function CompletedJobsTab({ navigation }: any) {
         delivery_location: job.delivery_address || 'Address not specified',
         distance: job.distance || 0,
         earnings: job.price || 0,
-        customer_name: job.profiles ? `${job.profiles.first_name} ${job.profiles.last_name}` : 'Customer',
+        customer_name: (job as any).profiles ? `${(job as any).profiles.first_name} ${(job as any).profiles.last_name}` : 'Customer',
         status: job.status,
         pickup_date: job.pickup_date || new Date().toISOString(),
         created_at: job.created_at,
@@ -286,7 +286,7 @@ function CompletedJobsTab({ navigation }: any) {
         </View>
         <View style={styles.detailItem}>
           <MaterialIcons name="attach-money" size={16} color={Colors.text.secondary} />
-          <Text style={styles.detailText}>${item.earnings.toFixed(2)}</Text>
+          <Text style={styles.detailText}>${(item.earnings / 100).toFixed(2)}</Text>
         </View>
         <View style={styles.detailItem}>
           <MaterialIcons name="event" size={16} color={Colors.text.secondary} />

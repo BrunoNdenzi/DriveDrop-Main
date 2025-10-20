@@ -66,8 +66,8 @@ export default function JobDetailsScreen({ route, navigation }: any) {
           title: `Shipment #${data.id.substring(0, 8)}`,
           status: data.status,
           client_id: data.client_id,
-          client_name: data.profiles ? `${data.profiles.first_name} ${data.profiles.last_name}` : 'Client',
-          client_phone: data.profiles?.phone || 'Not provided',
+          client_name: (data as any).profiles ? `${(data as any).profiles.first_name} ${(data as any).profiles.last_name}` : 'Client',
+          client_phone: (data as any).profiles?.phone || 'Not provided',
           pickup_address: data.pickup_address || 'Address not specified',
           pickup_city: data.pickup_city || '',
           pickup_state: data.pickup_state || '',
@@ -132,7 +132,7 @@ export default function JobDetailsScreen({ route, navigation }: any) {
       const { error } = await supabase
         .from('shipments')
         .update({
-          status: newStatus,
+          status: newStatus as 'pending' | 'completed' | 'draft' | 'accepted' | 'assigned' | 'in_transit' | 'in_progress' | 'delivered' | 'cancelled' | 'picked_up' | 'open',
           updated_at: new Date().toISOString(),
           ...locationData,
         })
@@ -144,7 +144,7 @@ export default function JobDetailsScreen({ route, navigation }: any) {
       await supabase.from('shipment_status_history').insert([
         {
           shipment_id: job.id,
-          status: newStatus,
+          status: newStatus as 'pending' | 'completed' | 'draft' | 'accepted' | 'assigned' | 'in_transit' | 'in_progress' | 'delivered' | 'cancelled' | 'picked_up' | 'open',
           changed_by: userProfile.id,
           changed_at: new Date().toISOString(),
           notes: `Status updated to ${newStatus} by driver`,
@@ -296,7 +296,7 @@ export default function JobDetailsScreen({ route, navigation }: any) {
         {/* Earning Summary */}
         <View style={styles.earningSummary}>
           <Text style={styles.earningSummaryLabel}>Earnings</Text>
-          <Text style={styles.earningSummaryValue}>${job.price.toFixed(2)}</Text>
+          <Text style={styles.earningSummaryValue}>${(job.price / 100).toFixed(2)}</Text>
         </View>
         
         {/* Client Information */}

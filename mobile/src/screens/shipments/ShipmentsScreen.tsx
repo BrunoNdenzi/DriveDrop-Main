@@ -31,8 +31,8 @@ interface Shipment {
   status: string;
   created_at: string;
   estimated_price: number;
-  description?: string;
-  driver_id?: string;
+  description?: string | null;
+  driver_id?: string | null;
 }
 
 export default function ShipmentsScreen({ navigation }: ShipmentsScreenProps) {
@@ -150,7 +150,7 @@ export default function ShipmentsScreen({ navigation }: ShipmentsScreenProps) {
                   <Text style={styles.shipmentTitle}>
                     {item.title || `Shipment #${item.id.substring(0, 8)}`}
                   </Text>
-                  <Text style={styles.shipmentCost}>${item.estimated_price}</Text>
+                  <Text style={styles.shipmentCost}>${(item.estimated_price / 100).toFixed(2)}</Text>
                 </View>
                 <Text style={styles.shipmentRoute}>
                   {item.pickup_address} → {item.delivery_address}

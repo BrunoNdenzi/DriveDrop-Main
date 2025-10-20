@@ -77,7 +77,7 @@ const ShipmentList: React.FC<ShipmentListProps> = ({
             {item.title || `Shipment #${item.id.substring(0, 8)}`}
           </Text>
           <View style={styles.priceBadge}>
-            <Text style={styles.priceText}>${item.estimated_price}</Text>
+            <Text style={styles.priceText}>${(item.estimated_price / 100).toFixed(2)}</Text>
           </View>
         </View>
 
