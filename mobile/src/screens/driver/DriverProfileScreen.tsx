@@ -83,6 +83,35 @@ export default function DriverProfileScreen({ navigation }: any) {
     }
   }, [userProfile]);
 
+  // Real-time sync for availability status
+  useEffect(() => {
+    if (!userProfile?.id) return;
+
+    // Subscribe to driver_settings changes
+    const subscription = supabase
+      .channel(`driver_settings_profile:${userProfile.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'driver_settings',
+          filter: `driver_id=eq.${userProfile.id}`,
+        },
+        (payload) => {
+          const newData = payload.new as any;
+          if (newData && typeof newData.available_for_jobs === 'boolean') {
+            setSettings(prev => ({ ...prev, availableForJobs: newData.available_for_jobs }));
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, [userProfile?.id]);
+
   const fetchDriverData = async () => {
     if (!userProfile?.id) return;
 
@@ -402,7 +431,9 @@ export default function DriverProfileScreen({ navigation }: any) {
   };
 
   const formatCurrency = (amount: number) => {
-    return amount.toLocaleString('en-US', {
+    // Convert from cents to dollars
+    const dollars = amount / 100;
+    return dollars.toLocaleString('en-US', {
       style: 'currency',
       currency: 'USD',
       minimumFractionDigits: 2,
@@ -526,6 +557,15 @@ export default function DriverProfileScreen({ navigation }: any) {
             </TouchableOpacity>
           </View>
           <Text style={styles.earningsAmount}>{formatCurrency(stats.totalEarnings)}</Text>
+          
+          {/* Commission Notice */}
+          <View style={styles.commissionNotice}>
+            <MaterialIcons name="info-outline" size={16} color="#1976D2" />
+            <Text style={styles.commissionNoticeText}>
+              Earnings shown are 90% of shipment value. 10% commission goes to DriveDrop.
+            </Text>
+          </View>
+          
           <View style={styles.earningsDetails}>
             <View style={styles.earningsDetailItem}>
               <MaterialIcons name="local-shipping" size={18} color={Colors.text.secondary} />
@@ -954,6 +994,23 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: Colors.secondary,
     marginBottom: 16,
+  },
+  commissionNotice: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    backgroundColor: '#E3F2FD',
+    padding: 10,
+    borderRadius: 8,
+    marginBottom: 12,
+    borderLeftWidth: 3,
+    borderLeftColor: '#1976D2',
+  },
+  commissionNoticeText: {
+    flex: 1,
+    fontSize: 12,
+    color: '#1565C0',
+    marginLeft: 6,
+    lineHeight: 16,
   },
   earningsDetails: {
     gap: 12,

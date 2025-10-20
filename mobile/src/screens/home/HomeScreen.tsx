@@ -21,17 +21,7 @@ import { Card } from '../../components/ui/Card';
 import { ClientTabParamList } from '../../navigation/types';
 import { useAuth } from '../../context/AuthContext';
 import { ShipmentService } from '../../services/shipmentService';
-
-// Define notification type
-type Notification = {
-  id: string;
-  title: string;
-  message: string;
-  timestamp: Date;
-  isRead: boolean;
-  shipmentId?: string;
-  type: 'pickup' | 'transit' | 'delivery' | 'other';
-};
+import { supabase } from '../../lib/supabase';
 
 type StatItem = {
   label: string;
@@ -52,30 +42,10 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
   const [pendingShipments, setPendingShipments] = useState<number>(0);
   const [completedShipments, setCompletedShipments] = useState<number>(0);
   const [totalSpent, setTotalSpent] = useState<number>(0);
-  // Sample notifications for the user
-  const [userNotifications, setUserNotifications] = useState<Notification[]>([
-    {
-      id: '1',
-      title: 'Shipment Picked Up',
-      message: 'Your shipment #DR001 has been picked up by the carrier',
-      timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000), // 2 hours ago
-      isRead: false,
-      shipmentId: 'DR001',
-      type: 'pickup'
-    },
-    {
-      id: '2',
-      title: 'Shipment In Transit',
-      message: 'Your shipment #DR002 is now in transit',
-      timestamp: new Date(Date.now() - 5 * 60 * 60 * 1000), // 5 hours ago
-      isRead: false,
-      shipmentId: 'DR002',
-      type: 'transit'
-    }
-  ]);
+  const [unreadNotifications, setUnreadNotifications] = useState<number>(0);
   
-  // Compute number of unread notifications
-  const notifications = userNotifications.filter(n => !n.isRead).length;
+  // Alias for consistency with existing code
+  const notifications = unreadNotifications;
 
   // Helper function to format monetary values
   const formatCurrencyValue = (value: string) => {
@@ -115,10 +85,10 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
         setLoading(true);
       }
       
-      // Fetch active shipments (accepted, in_transit)
+      // Fetch active shipments (assigned, picked_up, in_transit)
       const activeData = await ShipmentService.getClientShipments(
         userProfile.id, 
-        ['accepted', 'in_transit']
+        ['assigned', 'picked_up', 'in_transit', 'accepted']
       );
       
       // Fetch pending shipments
@@ -150,8 +120,20 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
       setCompletedShipments(completedData.length);
       setTotalSpent(total);
       
-      // In a real app, we would fetch notifications from the backend
-      // For now, we're just using the sample data defined in state
+      // Fetch notification count (recent status updates since last viewed)
+      const lastViewed = userProfile.notifications_last_viewed_at
+        ? new Date(userProfile.notifications_last_viewed_at)
+        : new Date(0); // Show all if never viewed
+      
+      const { data: recentUpdates } = await supabase
+        .from('shipments')
+        .select('id')
+        .eq('client_id', userProfile.id)
+        .in('status', ['assigned', 'accepted', 'picked_up', 'in_transit', 'delivered'])
+        .gte('updated_at', lastViewed.toISOString());
+      
+      setUnreadNotifications(recentUpdates?.length || 0);
+      
     } catch (error) {
       console.error('Error fetching shipment stats:', error);
       // Set default values in case of error
@@ -159,6 +141,7 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
       setPendingShipments(0);
       setCompletedShipments(0);
       setTotalSpent(0);
+      setUnreadNotifications(0);
     } finally {
       setLoading(false);
       if (isRefreshing) {
@@ -177,128 +160,6 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
   useEffect(() => {
     fetchShipmentData();
   }, [userProfile?.id]);
-  
-  // Handle notification click
-  const handleNotificationPress = (notification: Notification) => {
-    // Mark the notification as read
-    const updatedNotifications = userNotifications.map(n => 
-      n.id === notification.id ? {...n, isRead: true} : n
-    );
-    setUserNotifications(updatedNotifications);
-    
-    // Navigate to the shipment detail if there's a shipmentId
-    if (notification.shipmentId) {
-      // Here you would navigate to the shipment detail screen
-      // For now, we'll just close the modal and show an alert
-      setShowNotifications(false);
-      Alert.alert(
-        "Shipment Details",
-        `Viewing details for shipment ${notification.shipmentId}`,
-        [{ text: "OK" }]
-      );
-    }
-  };
-  
-  // Render a single notification item
-  const renderNotificationItem = (notification: Notification) => {
-    const getIconForType = (type: string) => {
-      switch (type) {
-        case 'pickup': return 'local-shipping';
-        case 'transit': return 'directions';
-        case 'delivery': return 'check-circle';
-        default: return 'notifications';
-      }
-    };
-    
-    const getColorForType = (type: string) => {
-      switch (type) {
-        case 'pickup': return Colors.primary;
-        case 'transit': return Colors.warning;
-        case 'delivery': return Colors.success;
-        default: return Colors.text.secondary;
-      }
-    };
-    
-    // Format the timestamp to relative time (e.g. "2 hours ago")
-    const formatRelativeTime = (date: Date) => {
-      const now = new Date();
-      const diffMs = now.getTime() - date.getTime();
-      const diffMins = Math.round(diffMs / (1000 * 60));
-      
-      if (diffMins < 1) return 'Just now';
-      if (diffMins < 60) return `${diffMins} minutes ago`;
-      
-      const diffHours = Math.round(diffMins / 60);
-      if (diffHours < 24) return `${diffHours} hours ago`;
-      
-      const diffDays = Math.round(diffHours / 24);
-      return `${diffDays} days ago`;
-    };
-    
-    return (
-      <TouchableOpacity 
-        key={notification.id} 
-        style={[
-          styles.notificationItem, 
-          !notification.isRead && styles.unreadNotification
-        ]}
-        onPress={() => handleNotificationPress(notification)}
-      >
-        <View style={[styles.notificationIconContainer, { backgroundColor: getColorForType(notification.type) + '15' }]}>
-          <MaterialIcons name={getIconForType(notification.type) as any} size={24} color={getColorForType(notification.type)} />
-        </View>
-        <View style={styles.notificationContent}>
-          <Text style={styles.notificationTitle}>{notification.title}</Text>
-          <Text style={styles.notificationMessage}>{notification.message}</Text>
-          <Text style={styles.notificationTime}>{formatRelativeTime(notification.timestamp)}</Text>
-        </View>
-        {!notification.isRead && <View style={styles.unreadIndicator} />}
-      </TouchableOpacity>
-    );
-  };
-  
-  // Render the notifications modal
-  const renderNotificationsModal = () => {
-    if (!showNotifications) return null;
-    
-    return (
-      <View style={styles.modalOverlay}>
-        <View style={styles.modalContainer}>
-          <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>Notifications</Text>
-            <TouchableOpacity onPress={() => setShowNotifications(false)}>
-              <MaterialIcons name="close" size={24} color={Colors.text.primary} />
-            </TouchableOpacity>
-          </View>
-          
-          <ScrollView style={styles.modalContent}>
-            {userNotifications.length > 0 ? (
-              userNotifications
-                .sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime())
-                .map(renderNotificationItem)
-            ) : (
-              <View style={styles.emptyNotifications}>
-                <MaterialIcons name="notifications-off" size={40} color={Colors.text.secondary} />
-                <Text style={styles.emptyNotificationsText}>No notifications</Text>
-              </View>
-            )}
-          </ScrollView>
-          
-          {notifications > 0 && (
-            <TouchableOpacity 
-              style={styles.markAllReadButton}
-              onPress={() => {
-                const updatedNotifications = userNotifications.map(n => ({...n, isRead: true}));
-                setUserNotifications(updatedNotifications);
-              }}
-            >
-              <Text style={styles.markAllReadText}>Mark all as read</Text>
-            </TouchableOpacity>
-          )}
-        </View>
-      </View>
-    );
-  };
 
   const getUserInitial = () => {
     if (userProfile?.first_name) {
@@ -355,48 +216,92 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
   })));
 
   // Handle support action to show contact options
-  // Create a component for the notifications modal
-  const [showNotifications, setShowNotifications] = useState(false);
+  const handleNotifications = async () => {
+    if (!userProfile?.id) return;
 
-  const handleNotifications = () => {
-    if (notifications > 0) {
+    try {
+      // Fetch recent shipment status updates (last 7 days)
+      const sevenDaysAgo = new Date();
+      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+
+      const { data: shipmentUpdates, error } = await supabase
+        .from('shipments')
+        .select(`
+          id,
+          title,
+          status,
+          pickup_address,
+          delivery_address,
+          estimated_price,
+          updated_at,
+          driver_id,
+          profiles:driver_id (
+            first_name,
+            last_name
+          )
+        `)
+        .eq('client_id', userProfile.id)
+        .in('status', ['assigned', 'accepted', 'picked_up', 'in_transit', 'delivered'])
+        .gte('updated_at', sevenDaysAgo.toISOString())
+        .order('updated_at', { ascending: false })
+        .limit(10);
+
+      if (error) throw error;
+
+      if (!shipmentUpdates || shipmentUpdates.length === 0) {
+        Alert.alert('Notifications', 'No recent updates on your shipments');
+        return;
+      }
+
+      // Format notifications
+      const getStatusMessage = (status: string) => {
+        switch (status) {
+          case 'assigned': return '✅ DRIVER ASSIGNED';
+          case 'accepted': return '✅ ACCEPTED BY DRIVER';
+          case 'picked_up': return '📦 PICKED UP';
+          case 'in_transit': return '🚚 IN TRANSIT';
+          case 'delivered': return '✅ DELIVERED';
+          default: return status.toUpperCase();
+        }
+      };
+
+      const message = shipmentUpdates.map((shipment: any) => {
+        const statusMsg = getStatusMessage(shipment.status);
+        const driverName = shipment.profiles 
+          ? `${shipment.profiles.first_name} ${shipment.profiles.last_name}`
+          : 'Driver';
+        const price = `$${((shipment.estimated_price || 0) / 100).toFixed(2)}`;
+        
+        return `${statusMsg}\n${shipment.title}\nFrom: ${shipment.pickup_address}\nDriver: ${driverName}\nPrice: ${price}`;
+      }).join('\n\n---\n\n');
+
+      // Mark notifications as viewed
+      await supabase
+        .from('profiles')
+        .update({ notifications_last_viewed_at: new Date().toISOString() } as any)
+        .eq('id', userProfile.id);
+
       Alert.alert(
-        "Notifications",
-        "You have " + notifications + " unread notifications",
+        `Shipment Updates (${shipmentUpdates.length})`,
+        message,
         [
           {
-            text: "View All",
-            onPress: () => setShowNotifications(true)
+            text: 'View My Shipments',
+            onPress: () => navigation.navigate('Shipments')
           },
           {
-            text: "Mark All Read",
-            onPress: () => {
-              // Mark all notifications as read
-              const updatedNotifications = userNotifications.map(n => ({...n, isRead: true}));
-              setUserNotifications(updatedNotifications);
-            }
-          },
-          {
-            text: "Close",
-            style: "cancel"
+            text: 'Close',
+            style: 'cancel'
           }
         ]
       );
-    } else {
-      Alert.alert(
-        "Notifications",
-        "You have no new notifications",
-        [
-          {
-            text: "View All",
-            onPress: () => setShowNotifications(true)
-          },
-          {
-            text: "Close",
-            style: "cancel"
-          }
-        ]
-      );
+
+      // Refresh notification count after viewing
+      await fetchShipmentData();
+
+    } catch (error) {
+      console.error('Error fetching notifications:', error);
+      Alert.alert('Error', 'Failed to load notifications');
     }
   };
 
@@ -471,14 +376,15 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
         
         <TouchableOpacity style={styles.notificationButton} onPress={handleNotifications}>
           <MaterialIcons name="notifications-none" size={24} color={Colors.text.primary} />
-          {notifications > 0 && <View style={styles.notificationBadge}>
-            {notifications > 1 && <Text style={styles.notificationCount}>{notifications}</Text>}
-          </View>}
+          {notifications > 0 && (
+            <View style={styles.notificationBadge}>
+              <Text style={styles.notificationCount}>
+                {notifications > 9 ? '9+' : notifications}
+              </Text>
+            </View>
+          )}
         </TouchableOpacity>
       </View>
-      
-      {/* Notifications Modal */}
-      {showNotifications && renderNotificationsModal()}
 
       <ScrollView 
         style={styles.content} 

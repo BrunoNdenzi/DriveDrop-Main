@@ -8,6 +8,7 @@ export interface UserProfile {
   last_name: string;
   avatar_url?: string;
   role: 'client' | 'driver' | 'admin';
+  notifications_last_viewed_at?: string;
 }
 
 export interface Message {
