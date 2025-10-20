@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { StyleSheet, View, Text, TouchableOpacity, ScrollView, Alert } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
+import { useFocusEffect } from '@react-navigation/native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { Colors } from '../../constants/Colors';
 import { useAuth } from '../../context/AuthContext';
@@ -18,10 +19,70 @@ export default function DriverDashboardScreen({ navigation }: any) {
   const [availableJobs, setAvailableJobs] = useState<any[]>([]);
   const [isAvailable, setIsAvailable] = useState(true);
   const [loading, setLoading] = useState(true);
+  const [unreadNotifications, setUnreadNotifications] = useState(0);
 
   useEffect(() => {
     fetchDashboardData();
+    loadDriverAvailability();
   }, []);
+
+  // Real-time sync for availability status
+  useEffect(() => {
+    if (!userProfile?.id) return;
+
+    // Subscribe to driver_settings changes
+    const subscription = supabase
+      .channel(`driver_settings:${userProfile.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'driver_settings',
+          filter: `driver_id=eq.${userProfile.id}`,
+        },
+        (payload) => {
+          const newData = payload.new as any;
+          if (newData && typeof newData.available_for_jobs === 'boolean') {
+            setIsAvailable(newData.available_for_jobs);
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, [userProfile?.id]);
+
+  // Refresh when screen comes into focus
+  useFocusEffect(
+    React.useCallback(() => {
+      fetchDashboardData();
+      loadDriverAvailability();
+    }, [])
+  );
+
+  const loadDriverAvailability = async () => {
+    if (!userProfile?.id) return;
+    
+    try {
+      const { data, error } = await supabase
+        .from('driver_settings')
+        .select('available_for_jobs')
+        .eq('driver_id', userProfile.id)
+        .single();
+      
+      if (error && error.code !== 'PGRST116') {
+        console.error('Error loading driver availability:', error);
+        return;
+      }
+      
+      setIsAvailable(data?.available_for_jobs ?? true);
+    } catch (error) {
+      console.error('Error loading driver availability:', error);
+    }
+  };
 
   const fetchDashboardData = async () => {
     if (!userProfile) return;
@@ -30,13 +91,13 @@ export default function DriverDashboardScreen({ navigation }: any) {
       setLoading(true);
       
       // Fetch driver stats
-      const [activeJobsResult, completedJobsResult] = await Promise.all([
-        // Active jobs count
+      const [activeJobsResult, completedJobsResult, applicationsResult] = await Promise.all([
+        // Active jobs count - FIXED: Include all active statuses
         supabase
           .from('shipments')
           .select('*', { count: 'exact', head: true })
           .eq('driver_id', userProfile.id)
-          .in('status', ['accepted', 'in_transit']),
+          .in('status', ['assigned', 'accepted', 'picked_up', 'in_transit']),
         
         // Completed jobs count and earnings
         supabase
@@ -44,33 +105,39 @@ export default function DriverDashboardScreen({ navigation }: any) {
           .select('estimated_price')
           .eq('driver_id', userProfile.id)
           .eq('status', 'delivered'),
+
+        // Get pending applications
+        supabase
+          .from('job_applications')
+          .select('*', { count: 'exact', head: true })
+          .eq('driver_id', userProfile.id)
+          .eq('status', 'pending')
       ]);
 
       // Get available jobs using ShipmentService
       const availableJobsData = await ShipmentService.getAvailableShipments(userProfile.id);
 
-      // Get all applications for this driver for tracking purposes
-      const { data: applications, error: appsError } = await supabase
-        .from('job_applications')
-        .select('shipment_id, status')
-        .eq('driver_id', userProfile.id);
-
-      if (appsError) {
-        console.error('Error fetching driver applications:', appsError);
-      } else {
-        console.log(`DriverScreen: Found ${applications?.length || 0} applications for driver ${userProfile.id}:`, applications);
-        
-        // Update the pendingJobs count in stats
-        setStats({
-          activeJobs: activeJobsResult.count || 0,
-          pendingJobs: applications?.filter(app => app.status === 'pending').length || 0,
-          completedJobs: completedJobsResult.data?.length || 0,
-          totalEarnings: completedJobsResult.data?.reduce((sum, job) => sum + (job.estimated_price || 0), 0) || 0,
-        });
-      }
+      // Calculate notifications (application responses since last viewed)
+      const lastViewed = userProfile.notifications_last_viewed_at 
+        ? new Date(userProfile.notifications_last_viewed_at)
+        : new Date(0); // Show all if never viewed
       
-      // availableJobsData already excludes jobs the driver has applied for
-      console.log(`DriverScreen: Showing ${availableJobsData.length} jobs, with ${0} marked as applied`);
+      const { data: respondedApps } = await supabase
+        .from('job_applications')
+        .select('id')
+        .eq('driver_id', userProfile.id)
+        .in('status', ['accepted', 'rejected'])
+        .gte('responded_at', lastViewed.toISOString());
+
+      setUnreadNotifications(respondedApps?.length || 0);
+
+      setStats({
+        activeJobs: activeJobsResult.count || 0,
+        pendingJobs: applicationsResult.count || 0,
+        completedJobs: completedJobsResult.data?.length || 0,
+        totalEarnings: completedJobsResult.data?.reduce((sum, job) => sum + (job.estimated_price || 0), 0) || 0,
+      });
+      
       setAvailableJobs(availableJobsData);
     } catch (error) {
       console.error('Error fetching dashboard data:', error);
@@ -86,23 +153,92 @@ export default function DriverDashboardScreen({ navigation }: any) {
         return;
       }
       
-      setIsAvailable(!isAvailable);
+      // Toggle availability - store new value first
+      const newAvailability = !isAvailable;
+      setIsAvailable(newAvailability);
+      
       // Update driver settings in the database
       await supabase
         .from('driver_settings')
         .upsert({
           driver_id: userProfile.id,
-          available_for_jobs: !isAvailable,
+          available_for_jobs: newAvailability,
           updated_at: new Date().toISOString(),
         });
       
       Alert.alert(
         'Shift Status Updated', 
-        isAvailable ? 'You are now offline and will not receive new job requests.' : 'You are now online and available for jobs!'
+        newAvailability ? 'You are now online and available for jobs!' : 'You are now offline and will not receive new job requests.'
       );
     } catch (error) {
       console.error('Error updating shift status:', error);
       Alert.alert('Error', 'Failed to update shift status. Please try again.');
+    }
+  };
+
+  const handleNotificationsPress = async () => {
+    if (!userProfile?.id) return;
+
+    try {
+      // Fetch notifications (application responses)
+      const { data: notifications, error } = await supabase
+        .from('job_applications')
+        .select(`
+          id,
+          status,
+          responded_at,
+          notes,
+          shipments:shipment_id (
+            id,
+            title,
+            pickup_address,
+            delivery_address,
+            estimated_price
+          )
+        `)
+        .eq('driver_id', userProfile.id)
+        .in('status', ['accepted', 'rejected'])
+        .order('responded_at', { ascending: false })
+        .limit(10);
+
+      if (error) throw error;
+
+      if (!notifications || notifications.length === 0) {
+        Alert.alert('Notifications', 'No new notifications');
+        return;
+      }
+
+      // Show notifications
+      const message = notifications.map((notif: any) => {
+        const shipment = notif.shipments;
+        const title = shipment?.title || 'Delivery Service';
+        const status = notif.status === 'accepted' ? '✅ ACCEPTED' : '❌ REJECTED';
+        return `${status}\n${title}\nFrom: ${shipment?.pickup_address || 'N/A'}`;
+      }).join('\n\n---\n\n');
+
+      // Mark notifications as viewed
+      await supabase
+        .from('profiles')
+        .update({ notifications_last_viewed_at: new Date().toISOString() } as any)
+        .eq('id', userProfile.id);
+
+      Alert.alert(
+        `Notifications (${notifications.length})`,
+        message,
+        [
+          {
+            text: 'View Applications',
+            onPress: () => navigation.navigate('MyShipments', { screen: 'Applications' })
+          },
+          { text: 'Close', style: 'cancel' }
+        ]
+      );
+
+      // Refresh dashboard to update badge
+      fetchDashboardData();
+    } catch (error) {
+      console.error('Error fetching notifications:', error);
+      Alert.alert('Error', 'Failed to load notifications');
     }
   };
 
@@ -146,8 +282,18 @@ export default function DriverDashboardScreen({ navigation }: any) {
             </Text>
           </View>
         </View>
-        <TouchableOpacity style={styles.notificationButton}>
+        <TouchableOpacity 
+          style={styles.notificationButton}
+          onPress={handleNotificationsPress}
+        >
           <MaterialIcons name="notifications" size={24} color={Colors.text.inverse} />
+          {unreadNotifications > 0 && (
+            <View style={styles.notificationBadge}>
+              <Text style={styles.notificationBadgeText}>
+                {unreadNotifications > 9 ? '9+' : unreadNotifications}
+              </Text>
+            </View>
+          )}
         </TouchableOpacity>
       </View>
 
@@ -582,5 +728,23 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontWeight: '600',
     marginLeft: 4,
+  },
+  notificationBadge: {
+    position: 'absolute',
+    top: -4,
+    right: -4,
+    backgroundColor: Colors.error,
+    borderRadius: 10,
+    minWidth: 20,
+    height: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: Colors.primary,
+  },
+  notificationBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 11,
+    fontWeight: 'bold',
   },
 });

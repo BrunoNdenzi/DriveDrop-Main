@@ -3,6 +3,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { NavigationContainer } from '@react-navigation/native';
 import { MaterialIcons } from '@expo/vector-icons';
+import { View, ActivityIndicator, StyleSheet } from 'react-native';
 
 import { RootStackParamList, ClientTabParamList, DriverTabParamList } from './types';
 import { useAuth } from '../context/AuthContext';
@@ -222,7 +223,11 @@ export default function Navigation() {
 
   // Show loading screen while checking authentication
   if (loading) {
-    return null;
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color={Colors.primary} />
+      </View>
+    );
   }
 
   return (
@@ -407,3 +412,12 @@ export default function Navigation() {
     </NavigationContainer>
   );
 }
+
+const styles = StyleSheet.create({
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: Colors.background,
+  },
+});

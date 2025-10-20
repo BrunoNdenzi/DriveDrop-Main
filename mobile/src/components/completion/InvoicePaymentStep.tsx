@@ -416,6 +416,17 @@ const InvoicePaymentStep: React.FC<Props> = ({
           <Text style={styles.summaryNote}>
             You will be charged ${(upfrontAmount / 100).toFixed(2)} immediately. The remaining ${(deliveryAmount / 100).toFixed(2)} will be charged upon successful delivery.
           </Text>
+          
+          {/* Important Payment Notice */}
+          <View style={styles.importantNotice}>
+            <MaterialIcons name="info" size={20} color="#FF9800" />
+            <View style={styles.noticeTextContainer}>
+              <Text style={styles.noticeTitle}>Important Payment Information</Text>
+              <Text style={styles.noticeText}>
+                The remaining 80% (${(deliveryAmount / 100).toFixed(2)}) will be locked in your account and automatically charged upon successful delivery of your vehicle. This ensures secure payment for the driver while protecting your interests.
+              </Text>
+            </View>
+          </View>
         </View>
 
         {/* Validation Hint */}
@@ -622,6 +633,30 @@ const styles = StyleSheet.create({
     color: Colors.text.secondary,
     marginTop: 12,
     fontStyle: 'italic',
+  },
+  importantNotice: {
+    flexDirection: 'row',
+    backgroundColor: '#FFF9E6',
+    padding: 12,
+    borderRadius: 8,
+    marginTop: 16,
+    borderLeftWidth: 4,
+    borderLeftColor: '#FF9800',
+  },
+  noticeTextContainer: {
+    flex: 1,
+    marginLeft: 8,
+  },
+  noticeTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#E65100',
+    marginBottom: 4,
+  },
+  noticeText: {
+    fontSize: 12,
+    color: '#5D4037',
+    lineHeight: 18,
   },
   debugContainer: {
     backgroundColor: '#FFF3CD',

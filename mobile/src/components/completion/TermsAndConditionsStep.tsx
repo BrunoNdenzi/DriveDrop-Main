@@ -48,10 +48,13 @@ const TERMS_CONTENT = {
     {
       title: "Payment Terms",
       content: [
-        "Payment is required before vehicle pickup unless alternative arrangements have been made.",
+        "A 20% deposit is required at booking to secure your shipment and confirm the service.",
+        "The remaining 80% will be locked (pre-authorized) in your account at the time of booking and will be automatically charged upon successful delivery of your vehicle.",
+        "The locked funds ensure secure payment for the driver while protecting your interests during transport.",
         "All prices are quoted in US dollars and include standard transport insurance.",
         "Additional fees may apply for expedited service, oversized vehicles, or special handling requirements.",
-        "Refunds are subject to our cancellation policy and may incur processing fees."
+        "Refunds for the locked 80% are subject to our cancellation policy and delivery confirmation.",
+        "If delivery is not completed as agreed, the locked funds will be released back to your account within 5-7 business days."
       ]
     },
     {
@@ -145,7 +148,7 @@ const TermsAndConditionsStep: React.FC<Props> = ({ shipmentData, accepted, onAcc
   };
 
   return (
-    <View style={styles.container}>
+    <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
       {/* Header */}
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Terms and Conditions</Text>
@@ -179,18 +182,26 @@ const TermsAndConditionsStep: React.FC<Props> = ({ shipmentData, accepted, onAcc
 
       {/* Controls */}
       <View style={styles.controls}>
-        <TouchableOpacity onPress={expandAllSections} style={styles.controlButton}>
-          <MaterialIcons name="expand-more" size={20} color={Colors.primary} />
+        <TouchableOpacity 
+          onPress={expandAllSections} 
+          style={styles.controlButton}
+          activeOpacity={0.7}
+        >
+          <MaterialIcons name="unfold-more" size={20} color="#FFFFFF" />
           <Text style={styles.controlButtonText}>Expand All</Text>
         </TouchableOpacity>
-        <TouchableOpacity onPress={collapseAllSections} style={styles.controlButton}>
-          <MaterialIcons name="expand-less" size={20} color={Colors.primary} />
+        <TouchableOpacity 
+          onPress={collapseAllSections} 
+          style={styles.controlButton}
+          activeOpacity={0.7}
+        >
+          <MaterialIcons name="unfold-less" size={20} color="#FFFFFF" />
           <Text style={styles.controlButtonText}>Collapse All</Text>
         </TouchableOpacity>
       </View>
 
       {/* Terms Content */}
-      <ScrollView style={styles.termsContainer} showsVerticalScrollIndicator={false}>
+      <View style={styles.termsContent}>
         {TERMS_CONTENT.sections.map((section, index) => (
           <View key={index} style={styles.section}>
             <TouchableOpacity 
@@ -236,7 +247,7 @@ const TermsAndConditionsStep: React.FC<Props> = ({ shipmentData, accepted, onAcc
             These terms constitute a legally binding agreement. By accepting, you agree to resolve any disputes through arbitration and waive the right to a jury trial.
           </Text>
         </View>
-      </ScrollView>
+      </View>
 
       {/* Acceptance Section */}
       <View style={styles.acceptanceSection}>
@@ -263,7 +274,7 @@ const TermsAndConditionsStep: React.FC<Props> = ({ shipmentData, accepted, onAcc
           By checking this box, you electronically sign this agreement and acknowledge receipt of a copy.
         </Text>
       </View>
-    </View>
+    </ScrollView>
   );
 };
 
@@ -316,24 +327,30 @@ const styles = StyleSheet.create({
   },
   controls: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    justifyContent: 'space-around',
     marginBottom: 16,
+    paddingHorizontal: 8,
   },
   controlButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 8,
-    borderRadius: 6,
-    backgroundColor: '#f0f9ff',
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    backgroundColor: Colors.primary,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+    elevation: 2,
   },
   controlButtonText: {
     fontSize: 14,
-    color: Colors.primary,
-    marginLeft: 4,
-    fontWeight: '500',
+    color: '#FFFFFF',
+    marginLeft: 6,
+    fontWeight: '600',
   },
-  termsContainer: {
-    flex: 1,
+  termsContent: {
     marginBottom: 20,
   },
   section: {

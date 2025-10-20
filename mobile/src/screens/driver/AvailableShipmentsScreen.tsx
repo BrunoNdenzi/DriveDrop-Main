@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { StyleSheet, View, Text, FlatList, TouchableOpacity, RefreshControl, Alert } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
 import { Colors } from '../../constants/Colors';
 import { supabase } from '../../lib/supabase';
@@ -212,45 +213,51 @@ export default function AvailableShipmentsScreen({ navigation }: any) {
   );
 
   return (
-    <View style={styles.container}>
-      <StatusBar style="dark" />
-      
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Available Shipments</Text>
-        <Text style={styles.headerSubtitle}>
-          {availableShipments.length} shipments available
-        </Text>
-      </View>
+    <SafeAreaView style={styles.safeArea} edges={['top']}>
+      <View style={styles.container}>
+        <StatusBar style="dark" />
+        
+        <View style={styles.header}>
+          <Text style={styles.headerTitle}>Available Shipments</Text>
+          <Text style={styles.headerSubtitle}>
+            {availableShipments.length} shipments available
+          </Text>
+        </View>
 
-      <FlatList
-        data={availableShipments}
-        renderItem={renderShipmentItem}
-        keyExtractor={(item) => item.id}
-        contentContainerStyle={styles.listContainer}
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={handleRefresh}
-            colors={[Colors.primary]}
-            tintColor={Colors.primary}
-          />
-        }
-        showsVerticalScrollIndicator={false}
-        ListEmptyComponent={
-          <View style={styles.emptyContainer}>
-            <MaterialIcons name="search-off" size={64} color={Colors.text.secondary} />
-            <Text style={styles.emptyTitle}>No Shipments Available</Text>
-            <Text style={styles.emptyText}>
-              Check back later for new delivery opportunities.
-            </Text>
-          </View>
-        }
-      />
-    </View>
+        <FlatList
+          data={availableShipments}
+          renderItem={renderShipmentItem}
+          keyExtractor={(item) => item.id}
+          contentContainerStyle={styles.listContainer}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={handleRefresh}
+              colors={[Colors.primary]}
+              tintColor={Colors.primary}
+            />
+          }
+          showsVerticalScrollIndicator={false}
+          ListEmptyComponent={
+            <View style={styles.emptyContainer}>
+              <MaterialIcons name="search-off" size={64} color={Colors.text.secondary} />
+              <Text style={styles.emptyTitle}>No Shipments Available</Text>
+              <Text style={styles.emptyText}>
+                Check back later for new delivery opportunities.
+              </Text>
+            </View>
+          }
+        />
+      </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+    backgroundColor: Colors.background,
+  },
   container: {
     flex: 1,
     backgroundColor: Colors.background,

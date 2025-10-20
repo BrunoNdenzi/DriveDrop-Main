@@ -209,14 +209,16 @@ const CollapsibleSection: React.FC<CollapsibleSectionProps> = ({
             size={24} 
             color={isValid ? Colors.success : Colors.primary} 
           />
-          <Text style={styles.sectionTitle}>{title}</Text>
+          <Text style={styles.sectionTitle} numberOfLines={1} ellipsizeMode="tail">
+            {title}
+          </Text>
           {isValid && !isExpanded && (
             <MaterialIcons name="check-circle" size={20} color={Colors.success} />
           )}
         </View>
         <View style={styles.sectionHeaderRight}>
           {!isExpanded && summary && (
-            <Text style={styles.sectionSummary} numberOfLines={1}>
+            <Text style={styles.sectionSummary} numberOfLines={1} ellipsizeMode="tail">
               {summary}
             </Text>
           )}
@@ -1078,9 +1080,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 16,
+    paddingVertical: 16, // More vertical padding
+    paddingHorizontal: 12, // Horizontal padding
     borderBottomWidth: 1,
     borderBottomColor: Colors.border,
+    minHeight: 60, // Ensure minimum height for breathing room
   },
   sectionHeaderValid: {
     backgroundColor: '#f0f9f0',
@@ -1092,22 +1096,27 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     flex: 1,
+    marginRight: 12, // Add spacing before right section
   },
   sectionHeaderRight: {
     flexDirection: 'row',
     alignItems: 'center',
+    flexShrink: 0, // Prevent shrinking
+    gap: 8, // Add gap between summary and icon
   },
   sectionTitle: {
     fontSize: 16,
     fontWeight: '600',
     marginLeft: 12,
+    marginRight: 8, // Add spacing after title
     color: Colors.text.primary,
+    flex: 1, // Allow title to take available space
   },
   sectionSummary: {
     fontSize: 12,
     color: Colors.text.secondary,
-    marginRight: 8,
-    maxWidth: 120,
+    maxWidth: 150, // Increased from 120
+    flexShrink: 1, // Allow shrinking if needed
   },
   sectionContent: {
     overflow: 'hidden',

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { StyleSheet, View, Text, FlatList, TouchableOpacity, RefreshControl, Alert } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
 import { Colors } from '../../constants/Colors';
 import { supabase } from '../../lib/supabase';
@@ -225,36 +226,41 @@ export default function AvailableJobsScreen({ navigation }: any) {
   );
 
   return (
-    <View style={styles.container}>
-      <StatusBar style="light" />
-      
-      {/* Header */}
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Available Jobs</Text>
-      </View>
+    <SafeAreaView style={styles.safeArea} edges={['top']}>
+      <View style={styles.container}>
+        <StatusBar style="light" />
+        
+        {/* Header */}
+        <View style={styles.header}>
+          <Text style={styles.headerTitle}>Available Jobs</Text>
+        </View>
 
-      <FlatList
-        data={availableJobs}
-        renderItem={renderJobItem}
-        keyExtractor={(item) => item.id}
-        contentContainerStyle={styles.listContainer}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
-        }
-        ListEmptyComponent={loading ? null : renderEmptyList()}
-      />
-    </View>
+        <FlatList
+          data={availableJobs}
+          renderItem={renderJobItem}
+          keyExtractor={(item) => item.id}
+          contentContainerStyle={styles.listContainer}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
+          }
+          ListEmptyComponent={loading ? null : renderEmptyList()}
+        />
+      </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+    backgroundColor: Colors.secondary, // Match header color
+  },
   container: {
     flex: 1,
     backgroundColor: Colors.background,
   },
   header: {
     backgroundColor: Colors.secondary,
-    paddingTop: 60,
     paddingBottom: 20,
     paddingHorizontal: 24,
     borderBottomLeftRadius: 15,

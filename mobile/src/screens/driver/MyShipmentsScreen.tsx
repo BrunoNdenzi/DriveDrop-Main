@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { StyleSheet, View, Text, FlatList, TouchableOpacity, RefreshControl, Alert } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
 import { createMaterialTopTabNavigator } from '@react-navigation/material-top-tabs';
 import { Colors } from '../../constants/Colors';
@@ -186,7 +187,7 @@ function ActiveShipmentsTab({ navigation }: any) {
         </View>
         
         <View style={styles.detailsContainer}>
-          <Text style={styles.earningsText}>${item.earnings}</Text>
+          <Text style={styles.earningsText}>${(item.earnings / 100).toFixed(2)}</Text>
           <Text style={styles.dateText}>
             {new Date(item.pickup_date).toLocaleDateString()}
           </Text>
@@ -339,7 +340,7 @@ function CompletedShipmentsTab({ navigation }: any) {
       </View>
       
       <View style={styles.detailsContainer}>
-        <Text style={styles.earningsText}>${item.earnings}</Text>
+        <Text style={styles.earningsText}>${(item.earnings / 100).toFixed(2)}</Text>
         <Text style={styles.dateText}>
           Completed: {new Date(item.pickup_date).toLocaleDateString()}
         </Text>
@@ -393,50 +394,50 @@ function ApplicationsTab({ navigation }: any) {
     
     setLoading(true);
     try {
-      // Check if API URL is configured
-      const apiUrl = getApiUrl();
-      if (!apiUrl) {
-        throw new Error('API URL is not configured. Please check your environment variables.');
-      }
-      
-      console.log('Fetching from:', `${apiUrl}/api/v1/drivers/applications`);
-      
-      // Use the backend API to get driver applications
-      const response = await fetch(`${apiUrl}/api/v1/drivers/applications`, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${session?.access_token}`,
-          'Content-Type': 'application/json',
-        },
-      });
+      // Fetch applications directly from Supabase with shipment details
+      const { data, error } = await supabase
+        .from('job_applications')
+        .select(`
+          *,
+          shipments:shipment_id (
+            id,
+            title,
+            pickup_address,
+            delivery_address,
+            distance,
+            estimated_price,
+            pickup_date,
+            client_id,
+            status
+          )
+        `)
+        .eq('driver_id', userProfile.id)
+        .order('applied_at', { ascending: false });
 
-      // Handle response (even if it's not JSON)
-      let result;
-      const contentType = response.headers.get('content-type');
-      if (contentType && contentType.includes('application/json')) {
-        result = await response.json();
-      } else {
-        const text = await response.text();
-        throw new Error(`Invalid response format: ${text}`);
-      }
+      if (error) throw error;
 
-      if (response.ok && result.success) {
-        setApplications(result.data || []);
-      } else {
-        throw new Error(result.error?.message || `Failed to fetch applications: ${response.status} ${response.statusText}`);
-      }
+      // Transform data to match expected format
+      const transformedApplications = data.map((app: any) => ({
+        id: app.id,
+        shipment_id: app.shipment_id,
+        status: app.status,
+        applied_at: app.applied_at,
+        responded_at: app.responded_at,
+        notes: app.notes,
+        // Shipment details
+        shipment_title: app.shipments?.title || 'Delivery Service',
+        shipment_pickup_address: app.shipments?.pickup_address || 'Not available',
+        shipment_delivery_address: app.shipments?.delivery_address || 'Not available',
+        shipment_distance: app.shipments?.distance || 0,
+        shipment_estimated_price: app.shipments?.estimated_price || 0,
+        shipment_pickup_date: app.shipments?.pickup_date,
+        shipment_status: app.shipments?.status,
+      }));
+
+      setApplications(transformedApplications);
     } catch (error) {
       console.error('Error fetching applications:', error);
-      // More detailed error message
-      let errorMessage = 'Failed to load applications.';
-      if (error instanceof Error) {
-        if (error.message.includes('Network request failed')) {
-          errorMessage = 'Network request failed. Please check your internet connection and make sure the API server is running.';
-        } else {
-          errorMessage = `Error: ${error.message}`;
-        }
-      }
-      Alert.alert('Error Loading Applications', errorMessage);
+      Alert.alert('Error', 'Failed to load applications. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -448,32 +449,46 @@ function ApplicationsTab({ navigation }: any) {
   };
 
   const cancelApplication = async (applicationId: string) => {
-    try {
-      const apiUrl = getApiUrl();
-      const response = await fetch(`${apiUrl}/api/v1/applications/${applicationId}/status`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session?.access_token}`,
+    Alert.alert(
+      'Cancel Application',
+      'Are you sure you want to cancel this application?',
+      [
+        {
+          text: 'No',
+          style: 'cancel'
         },
-        body: JSON.stringify({
-          status: 'cancelled',
-          notes: 'Cancelled by driver via mobile app'
-        }),
-      });
+        {
+          text: 'Yes',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              if (!userProfile?.id) {
+                Alert.alert('Error', 'User profile not found.');
+                return;
+              }
 
-      const result = await response.json();
+              const { error } = await supabase
+                .from('job_applications')
+                .update({
+                  status: 'rejected',
+                  notes: 'Cancelled by driver via mobile app',
+                  updated_at: new Date().toISOString()
+                })
+                .eq('id', applicationId)
+                .eq('driver_id', userProfile.id); // Ensure driver can only cancel their own
 
-      if (response.ok && result.success) {
-        Alert.alert('Success', 'Application cancelled successfully.');
-        fetchApplications(); // Refresh the list
-      } else {
-        throw new Error(result.error?.message || 'Failed to cancel application');
-      }
-    } catch (error) {
-      console.error('Error cancelling application:', error);
-      Alert.alert('Error', 'Failed to cancel application.');
-    }
+              if (error) throw error;
+
+              Alert.alert('Success', 'Application cancelled successfully.');
+              fetchApplications(); // Refresh the list
+            } catch (error) {
+              console.error('Error cancelling application:', error);
+              Alert.alert('Error', 'Failed to cancel application. Please try again.');
+            }
+          }
+        }
+      ]
+    );
   };
 
   const getStatusColor = (status: string) => {
@@ -486,8 +501,16 @@ function ApplicationsTab({ navigation }: any) {
     }
   };
 
+  const viewShipmentDetails = (shipmentId: string) => {
+    navigation.navigate('ShipmentDetails_Driver', { shipmentId });
+  };
+
   const renderApplicationItem = ({ item }: { item: any }) => (
-    <View style={styles.shipmentCard}>
+    <TouchableOpacity
+      style={styles.shipmentCard}
+      onPress={() => viewShipmentDetails(item.shipment_id)}
+      activeOpacity={0.7}
+    >
       <View style={styles.shipmentHeader}>
         <Text style={styles.shipmentTitle}>{item.shipment_title || 'Delivery Service'}</Text>
         <View style={[styles.statusBadge, { backgroundColor: getStatusColor(item.status) + '20' }]}>
@@ -513,11 +536,22 @@ function ApplicationsTab({ navigation }: any) {
       </View>
       
       {item.notes && (
-        <Text style={styles.notesText}>Notes: {item.notes}</Text>
+        <View style={styles.notesContainer}>
+          <Text style={styles.notesLabel}>Your Note:</Text>
+          <Text style={styles.notesText}>{item.notes}</Text>
+        </View>
+      )}
+      
+      {item.responded_at && (
+        <Text style={styles.respondedText}>
+          Responded: {new Date(item.responded_at).toLocaleDateString()}
+        </Text>
       )}
       
       <View style={styles.detailsContainer}>
-        <Text style={styles.earningsText}>${(item.shipment_estimated_price / 100).toFixed(2)}</Text>
+        <Text style={styles.earningsText}>
+          ${(item.shipment_estimated_price / 100).toFixed(2)}
+        </Text>
         <Text style={styles.dateText}>
           Applied: {new Date(item.applied_at).toLocaleDateString()}
         </Text>
@@ -526,13 +560,25 @@ function ApplicationsTab({ navigation }: any) {
       {item.status === 'pending' && (
         <TouchableOpacity
           style={styles.cancelButton}
-          onPress={() => cancelApplication(item.id)}
+          onPress={(e) => {
+            e.stopPropagation(); // Prevent triggering the card's onPress
+            cancelApplication(item.id);
+          }}
         >
           <MaterialIcons name="cancel" size={16} color={Colors.error} />
           <Text style={styles.cancelButtonText}>Cancel Application</Text>
         </TouchableOpacity>
       )}
-    </View>
+      
+      {item.status === 'accepted' && item.shipment_status === 'open' && (
+        <View style={styles.acceptedNotice}>
+          <MaterialIcons name="check-circle" size={16} color={Colors.success} />
+          <Text style={styles.acceptedNoticeText}>
+            Application accepted! The shipment will be assigned to you once the client confirms.
+          </Text>
+        </View>
+      )}
+    </TouchableOpacity>
   );
 
   return (
@@ -568,51 +614,57 @@ function ApplicationsTab({ navigation }: any) {
 // Main component with tab navigation
 export default function MyShipmentsScreen() {
   return (
-    <View style={styles.container}>
-      <StatusBar style="dark" />
-      <Tab.Navigator
-        screenOptions={{
-          tabBarActiveTintColor: Colors.primary,
-          tabBarInactiveTintColor: Colors.text.secondary,
-          tabBarStyle: {
-            backgroundColor: Colors.background,
-            elevation: 0,
-            shadowOpacity: 0,
-            borderBottomWidth: 1,
-            borderBottomColor: Colors.border,
-          },
-          tabBarIndicatorStyle: {
-            backgroundColor: Colors.primary,
-            height: 3,
-          },
-          tabBarLabelStyle: {
-            fontSize: 12,
-            fontWeight: '600',
-            textTransform: 'none',
-          },
-        }}
-      >
-        <Tab.Screen 
-          name="Active" 
-          component={ActiveShipmentsTab}
-          options={{ tabBarLabel: 'Active' }}
-        />
-        <Tab.Screen 
-          name="Completed" 
-          component={CompletedShipmentsTab}
-          options={{ tabBarLabel: 'Completed' }}
-        />
-        <Tab.Screen 
-          name="Applications" 
-          component={ApplicationsTab}
-          options={{ tabBarLabel: 'Applications' }}
-        />
-      </Tab.Navigator>
-    </View>
+    <SafeAreaView style={styles.safeArea} edges={['top']}>
+      <View style={styles.container}>
+        <StatusBar style="dark" />
+        <Tab.Navigator
+          screenOptions={{
+            tabBarActiveTintColor: Colors.primary,
+            tabBarInactiveTintColor: Colors.text.secondary,
+            tabBarStyle: {
+              backgroundColor: Colors.background,
+              elevation: 0,
+              shadowOpacity: 0,
+              borderBottomWidth: 1,
+              borderBottomColor: Colors.border,
+            },
+            tabBarIndicatorStyle: {
+              backgroundColor: Colors.primary,
+              height: 3,
+            },
+            tabBarLabelStyle: {
+              fontSize: 12,
+              fontWeight: '600',
+              textTransform: 'none',
+            },
+          }}
+        >
+          <Tab.Screen 
+            name="Active" 
+            component={ActiveShipmentsTab}
+            options={{ tabBarLabel: 'Active' }}
+          />
+          <Tab.Screen 
+            name="Completed" 
+            component={CompletedShipmentsTab}
+            options={{ tabBarLabel: 'Completed' }}
+          />
+          <Tab.Screen 
+            name="Applications" 
+            component={ApplicationsTab}
+            options={{ tabBarLabel: 'Applications' }}
+          />
+        </Tab.Navigator>
+      </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+    backgroundColor: Colors.background,
+  },
   container: {
     flex: 1,
     backgroundColor: Colors.background,
@@ -731,11 +783,43 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     marginLeft: 4,
   },
+  notesContainer: {
+    backgroundColor: Colors.info + '10',
+    padding: 8,
+    borderRadius: 8,
+    marginBottom: 8,
+  },
+  notesLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: Colors.text.primary,
+    marginBottom: 4,
+  },
   notesText: {
     fontSize: 12,
     color: Colors.text.secondary,
     fontStyle: 'italic',
+  },
+  respondedText: {
+    fontSize: 12,
+    color: Colors.success,
+    fontWeight: '500',
     marginBottom: 8,
+  },
+  acceptedNotice: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.success + '10',
+    padding: 10,
+    borderRadius: 8,
+    marginTop: 8,
+  },
+  acceptedNoticeText: {
+    fontSize: 12,
+    color: Colors.success,
+    fontWeight: '500',
+    marginLeft: 8,
+    flex: 1,
   },
   emptyContainer: {
     flex: 1,

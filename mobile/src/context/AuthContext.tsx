@@ -14,6 +14,7 @@ export interface UserProfile {
   rating?: number;
   created_at: string;
   updated_at: string;
+  notifications_last_viewed_at?: string;
 }
 
 interface AuthContextType {
@@ -177,10 +178,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // Get the user's session on load
   useEffect(() => {
     let mounted = true;
+    let timeoutId: NodeJS.Timeout;
     
     async function loadUserSession() {
       try {
         setLoading(true);
+        
+        // Set a timeout to prevent indefinite loading
+        timeoutId = setTimeout(() => {
+          if (mounted && loading) {
+            console.warn('Auth loading timeout - setting loading to false');
+            setLoading(false);
+          }
+        }, 10000); // 10 second timeout
         
         // Get the user's current session
         const { data, error } = await auth.getSession();
@@ -206,6 +216,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
       } finally {
         if (mounted) {
+          clearTimeout(timeoutId);
           setLoading(false);
         }
       }
@@ -227,6 +238,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const profile = await fetchUserProfile(newSession.user.id);
         if (mounted) {
           setUserProfile(profile);
+          // Ensure loading is false after profile is fetched
+          setLoading(false);
         }
       } else {
         setSession(null);

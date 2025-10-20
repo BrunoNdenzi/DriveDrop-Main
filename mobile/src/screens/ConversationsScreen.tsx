@@ -56,7 +56,13 @@ export default function ConversationsScreen() {
         .order('last_message_at', { ascending: false, nullsFirst: false });
 
       if (queryError) throw queryError;
-      setConversations(data || []);
+      
+      // Filter out conversations with null shipment_id and cast to Conversation type
+      const validConversations = (data || [])
+        .filter(conv => conv.shipment_id !== null && conv.client_id !== null && conv.driver_id !== null)
+        .map(conv => conv as Conversation);
+      
+      setConversations(validConversations);
     } catch (err: any) {
       console.error('Error loading conversations:', err);
       setError(err.message || 'Failed to load conversations');
@@ -244,7 +250,7 @@ export default function ConversationsScreen() {
 
   if (loading) {
     return (
-      <SafeAreaView style={styles.container}>
+      <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color="#007AFF" />
           <Text style={styles.loadingText}>Loading conversations...</Text>
@@ -255,7 +261,7 @@ export default function ConversationsScreen() {
 
   if (error && conversations.length === 0) {
     return (
-      <SafeAreaView style={styles.container}>
+      <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
         <View style={styles.errorContainer}>
           <MaterialIcons name="error-outline" size={60} color="#FF3B30" />
           <Text style={styles.errorText}>Failed to load conversations</Text>
@@ -269,7 +275,10 @@ export default function ConversationsScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={['bottom']}>
+    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+      <View style={styles.header}>
+        <Text style={styles.headerTitle}>Messages</Text>
+      </View>
       <FlatList
         data={conversations}
         renderItem={renderConversationItem}
@@ -285,6 +294,18 @@ export default function ConversationsScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#F7F8FA' },
+  header: {
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 16,
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E5EA',
+  },
+  headerTitle: {
+    fontSize: 28,
+    fontWeight: '700',
+    color: '#000000',
+  },
   loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   loadingText: { marginTop: 12, fontSize: 16, color: '#666' },
   errorContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 32 },
