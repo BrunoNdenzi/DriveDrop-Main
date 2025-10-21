@@ -165,13 +165,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // Function to sign out
   const signOut = async () => {
     try {
+      // Sign out from Supabase first (needs session for refresh token)
       await auth.signOut();
+    } catch (error) {
+      // Ignore refresh token errors during sign out - they're harmless
+      if (!(error instanceof Error) || !error.message.includes('Refresh Token')) {
+        console.error('Error signing out:', error);
+      }
+    } finally {
+      // Always clear state regardless of sign out success/failure
       setUser(null);
       setUserProfile(null);
       setSession(null);
-    } catch (error) {
-      console.error('Error signing out:', error);
-      throw error;
+      setLoading(false);
     }
   };
 
@@ -229,6 +235,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       console.log(`Auth event: ${event}`);
       
       if (!mounted) return;
+      
+      // Handle sign out immediately
+      if (event === 'SIGNED_OUT') {
+        setSession(null);
+        setUser(null);
+        setUserProfile(null);
+        setLoading(false);
+        return;
+      }
       
       if (newSession) {
         setSession(newSession);
