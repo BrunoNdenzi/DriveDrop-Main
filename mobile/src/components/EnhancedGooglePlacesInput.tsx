@@ -88,6 +88,8 @@ const EnhancedGooglePlacesInput: React.FC<EnhancedGooglePlacesInputProps> = ({
 
   const inputRef = useRef<TextInput>(null);
   const debounceRef = useRef<NodeJS.Timeout | null>(null);
+  // Flag to indicate a selection (press) is in progress to avoid onBlur hiding
+  const isSelectingRef = useRef(false);
   const apiKey = getGoogleMapsApiKey();
 
   // Update input when value prop changes
@@ -154,6 +156,9 @@ const EnhancedGooglePlacesInput: React.FC<EnhancedGooglePlacesInputProps> = ({
 
   const handlePredictionSelect = async (prediction: Prediction) => {
     try {
+      // Mark that a selection is in progress so onBlur doesn't hide the list
+      isSelectingRef.current = true;
+
       // Immediately hide predictions and clear state to prevent double-click
       setShowPredictions(false);
       setPredictions([]);
@@ -204,11 +209,16 @@ const EnhancedGooglePlacesInput: React.FC<EnhancedGooglePlacesInputProps> = ({
       Alert.alert('Error', 'Failed to get address details. Please try again.');
     } finally {
       setLoading(false);
+      // Selection finished
+      isSelectingRef.current = false;
     }
   };
 
   const handleZipInfoSelect = () => {
     if (!zipInfo) return;
+
+    // Mark selection in progress
+    isSelectingRef.current = true;
 
     const formattedAddress = `${zipInfo.city}, ${zipInfo.stateCode} ${zipInfo.zipCode}`;
     setInputText(formattedAddress);
@@ -232,6 +242,11 @@ const EnhancedGooglePlacesInput: React.FC<EnhancedGooglePlacesInputProps> = ({
     };
 
     onAddressSelect(formattedAddress, addressDetails);
+
+    // Small timeout to ensure onBlur (if it fired) doesn't hide anything prematurely
+    setTimeout(() => {
+      isSelectingRef.current = false;
+    }, 50);
   };
 
   const validateCurrentInput = () => {
@@ -248,10 +263,9 @@ const EnhancedGooglePlacesInput: React.FC<EnhancedGooglePlacesInputProps> = ({
 
   const handleBlur = () => {
     validateCurrentInput();
-    // Delay hiding predictions to allow selection
-    setTimeout(() => {
-      setShowPredictions(false);
-    }, 150);
+    // Don't hide predictions on blur - let them persist
+    // They'll be hidden when user makes a selection or starts typing again
+    // This completely avoids the race condition with touch events
   };
 
   const handleFocus = () => {
@@ -264,6 +278,9 @@ const EnhancedGooglePlacesInput: React.FC<EnhancedGooglePlacesInputProps> = ({
     <TouchableOpacity
       style={styles.predictionItem}
       onPress={() => handlePredictionSelect(item)}
+      onPressIn={() => { isSelectingRef.current = true; }}
+      onPressOut={() => { /* keep flag until selection finishes */ }}
+      activeOpacity={0.7}
     >
       <MaterialIcons name="location-on" size={20} color={ThemeColors.primary} />
       <View style={styles.predictionText}>
@@ -277,6 +294,9 @@ const EnhancedGooglePlacesInput: React.FC<EnhancedGooglePlacesInputProps> = ({
     <TouchableOpacity
       style={styles.zipInfoItem}
       onPress={handleZipInfoSelect}
+      onPressIn={() => { isSelectingRef.current = true; }}
+      onPressOut={() => { /* keep flag until selection finishes */ }}
+      activeOpacity={0.7}
     >
       <MaterialIcons name="location-city" size={20} color={ThemeColors.secondary} />
       <View style={styles.predictionText}>
@@ -327,13 +347,22 @@ const EnhancedGooglePlacesInput: React.FC<EnhancedGooglePlacesInputProps> = ({
       {/* Predictions List */}
       {showPredictions && (predictions.length > 0 || zipInfo) && (
         <View style={styles.predictionsContainer}>
+          {/* Close button */}
+          <TouchableOpacity 
+            style={styles.closeButton}
+            onPress={() => setShowPredictions(false)}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          >
+            <MaterialIcons name="close" size={18} color={ThemeColors.textSecondary} />
+          </TouchableOpacity>
+
           {/* ZIP Code Info */}
           {zipInfo && renderZipInfo()}
           
           {/* Address Predictions */}
           <ScrollView
             style={styles.predictionsList}
-            keyboardShouldPersistTaps="handled"
+            keyboardShouldPersistTaps="always"
             showsVerticalScrollIndicator={false}
             nestedScrollEnabled={true}
           >
@@ -411,6 +440,16 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
+    position: 'relative',
+  },
+  closeButton: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    zIndex: 10,
+    backgroundColor: ThemeColors.background,
+    borderRadius: 12,
+    padding: 4,
   },
   predictionsList: {
     maxHeight: 160,
