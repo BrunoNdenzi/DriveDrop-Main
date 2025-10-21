@@ -17,6 +17,11 @@ interface PricingBreakdown {
   bulkDiscountPercent: number;
   bulkDiscountAmount: number;
   surgeMultiplier: number;
+  deliveryTypeMultiplier: number; // 1.25 for expedited, 0.95 for flexible, 1.0 for standard
+  deliveryType: 'expedited' | 'flexible' | 'standard';
+  fuelPricePerGallon: number;
+  fuelAdjustmentPercent: number;
+  minimumApplied: boolean;
   total: number;
 }
 
@@ -37,6 +42,12 @@ interface PricingData {
 }
 
 type VehicleType = 'sedan' | 'suv' | 'truck';
+
+// Pricing constants
+const MIN_MILES = 100;
+const MIN_QUOTE = 150;
+const ACCIDENT_MIN_QUOTE = 80;
+const BASE_FUEL_PRICE = 3.70; // Base fuel price per gallon for adjustment calculation
 
 // Base rates table - simplified for current implementation
 const BASE_RATES: Record<VehicleType, { short: number; mid: number; long: number; accident: number }> = {
@@ -78,6 +89,45 @@ class PricingService {
     if (miles <= 500) return 'short';
     if (miles <= 1500) return 'mid';
     return 'long';
+  }
+
+  /**
+   * Determine delivery type based on pickup and delivery dates
+   * Expedited: blank delivery date OR delivery within 7 days of pickup (1.25x multiplier)
+   * Flexible: delivery 7+ days from pickup (0.95x multiplier)
+   * Standard: no dates provided (1.0x multiplier)
+   */
+  private determineDeliveryType(pickupDate?: string, deliveryDate?: string): {
+    type: 'expedited' | 'flexible' | 'standard';
+    multiplier: number;
+  } {
+    // No dates provided - standard pricing
+    if (!pickupDate) {
+      return { type: 'standard', multiplier: 1.0 };
+    }
+
+    // Blank delivery date means expedited (ASAP)
+    if (!deliveryDate) {
+      return { type: 'expedited', multiplier: 1.25 };
+    }
+
+    try {
+      const pickup = new Date(pickupDate);
+      const delivery = new Date(deliveryDate);
+      
+      // Calculate days between pickup and delivery
+      const daysDiff = Math.ceil((delivery.getTime() - pickup.getTime()) / (1000 * 60 * 60 * 24));
+      
+      // Less than 7 days = expedited, 7+ days = flexible
+      if (daysDiff < 7) {
+        return { type: 'expedited', multiplier: 1.25 };
+      } else {
+        return { type: 'flexible', multiplier: 0.95 };
+      }
+    } catch (error) {
+      console.warn('Error parsing dates for delivery type, using standard', { pickupDate, deliveryDate, error });
+      return { type: 'standard', multiplier: 1.0 };
+    }
   }
 
   /**
@@ -289,6 +339,9 @@ class PricingService {
     vehicleType: string;
     vehicleCount?: number;
     isAccidentRecovery?: boolean;
+    pickupDate?: string;
+    deliveryDate?: string;
+    fuelPricePerGallon?: number;
   }): Promise<PricingData> {
     // Estimate distance from available data
     const distanceEstimate = this.estimateDistance(data);
@@ -305,6 +358,9 @@ class PricingService {
       distanceMiles: distanceEstimate.miles,
       isAccidentRecovery: data.isAccidentRecovery || false,
       vehicleCount: data.vehicleCount || 1,
+      pickupDate: data.pickupDate,
+      deliveryDate: data.deliveryDate,
+      fuelPricePerGallon: data.fuelPricePerGallon,
     });
     
     // Calculate price range
@@ -344,7 +400,7 @@ class PricingService {
   }
 
   /**
-   * Calculate quote (similar to backend logic)
+   * Calculate quote (matches backend logic exactly)
    */
   private calculateQuote(input: {
     vehicleType: VehicleType;
@@ -352,6 +408,9 @@ class PricingService {
     isAccidentRecovery?: boolean;
     vehicleCount?: number;
     surgeMultiplier?: number;
+    pickupDate?: string;
+    deliveryDate?: string;
+    fuelPricePerGallon?: number;
   }): { total: number; breakdown: PricingBreakdown } {
     const {
       vehicleType,
@@ -359,7 +418,13 @@ class PricingService {
       isAccidentRecovery = false,
       vehicleCount = 1,
       surgeMultiplier = 1,
+      pickupDate,
+      deliveryDate,
+      fuelPricePerGallon = BASE_FUEL_PRICE, // Default to $3.70/gallon
     } = input;
+
+    // Determine delivery type and multiplier
+    const deliveryTypeInfo = this.determineDeliveryType(pickupDate, deliveryDate);
 
     const distanceBand = this.determineDistanceBand(distanceMiles);
     const baseRates = BASE_RATES[vehicleType];
@@ -370,8 +435,34 @@ class PricingService {
     const bulkDiscountPercent = this.getBulkDiscountPercent(vehicleCount);
     const bulkDiscountAmount = (rawBasePrice * bulkDiscountPercent) / 100;
 
-    // Apply surge & subtract discount
-    const subtotal = (rawBasePrice - bulkDiscountAmount) * surgeMultiplier;
+    // Apply surge, delivery type multiplier, and subtract discount
+    let subtotal = (rawBasePrice - bulkDiscountAmount) * surgeMultiplier * deliveryTypeInfo.multiplier;
+    
+    // Calculate fuel price adjustment (5% per $1 deviation from base price)
+    // Formula: (current_fuel - base_fuel) × 0.05
+    // Example: If fuel is $4.70 (+$1), adjustment is +5% → multiply by 1.05
+    // Example: If fuel is $2.70 (-$1), adjustment is -5% → multiply by 0.95
+    const fuelAdjustmentPercent = (fuelPricePerGallon - BASE_FUEL_PRICE) * 5; // Convert to percentage
+    const fuelAdjustmentMultiplier = 1 + (fuelAdjustmentPercent / 100);
+    subtotal = subtotal * fuelAdjustmentMultiplier;
+    
+    // Apply minimum quote logic AFTER fuel adjustment
+    let minimumApplied = false;
+    
+    if (isAccidentRecovery) {
+      // Accident recovery minimum
+      if (subtotal < ACCIDENT_MIN_QUOTE) {
+        subtotal = ACCIDENT_MIN_QUOTE;
+        minimumApplied = true;
+      }
+    } else if (distanceMiles < MIN_MILES) {
+      // Standard minimum for trips under MIN_MILES
+      if (subtotal < MIN_QUOTE) {
+        subtotal = MIN_QUOTE;
+        minimumApplied = true;
+      }
+    }
+
     const total = Math.max(0, parseFloat(subtotal.toFixed(2)));
 
     const breakdown: PricingBreakdown = {
@@ -381,6 +472,11 @@ class PricingService {
       bulkDiscountPercent,
       bulkDiscountAmount: parseFloat(bulkDiscountAmount.toFixed(2)),
       surgeMultiplier,
+      deliveryTypeMultiplier: deliveryTypeInfo.multiplier,
+      deliveryType: deliveryTypeInfo.type,
+      fuelPricePerGallon: parseFloat(fuelPricePerGallon.toFixed(2)),
+      fuelAdjustmentPercent: parseFloat(fuelAdjustmentPercent.toFixed(2)),
+      minimumApplied,
       total,
     };
 

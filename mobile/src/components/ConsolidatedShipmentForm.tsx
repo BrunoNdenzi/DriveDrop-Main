@@ -18,6 +18,7 @@ import { Colors } from '../constants/Colors';
 import EnhancedGooglePlacesInput from './EnhancedGooglePlacesInput';
 import { pricingService } from '../services/pricingService';
 import { useAuth } from '../context/AuthContext';
+import { USA_VEHICLE_DATA } from '../data/vehicleData';
 
 interface ShipmentData {
   // Customer Info
@@ -49,77 +50,24 @@ interface ShipmentData {
   distance: number;
 }
 
-// Vehicle database
+// Helper function to build vehicle database for standard types using comprehensive USA data
+const buildStandardVehicleDatabase = () => {
+  const database: Record<string, Record<string, string[]>> = {};
+  const standardTypes = ['Sedan', 'SUV', 'Truck', 'Coupe', 'Convertible', 'Van'];
+  
+  standardTypes.forEach(type => {
+    database[type] = {};
+    USA_VEHICLE_DATA.forEach(make => {
+      database[type][make.name] = make.models;
+    });
+  });
+  
+  return database;
+};
+
+// Vehicle database - combines comprehensive USA vehicle data with specialized categories
 const VEHICLE_DATABASE = {
-  'Sedan': {
-    'Toyota': ['Camry', 'Corolla', 'Avalon', 'Prius'],
-    'Honda': ['Civic', 'Accord', 'Insight'],
-    'BMW': ['3 Series', '5 Series', '7 Series'],
-    'Mercedes-Benz': ['C-Class', 'E-Class', 'S-Class'],
-    'Audi': ['A3', 'A4', 'A6', 'A8'],
-    'Nissan': ['Altima', 'Sentra', 'Maxima'],
-    'Ford': ['Fusion', 'Focus'],
-    'Hyundai': ['Elantra', 'Sonata'],
-    'Kia': ['Forte', 'Optima'],
-    'Volkswagen': ['Jetta', 'Passat'],
-    'Subaru': ['Legacy', 'Impreza'],
-    'Mazda': ['Mazda3', 'Mazda6']
-  },
-  'SUV': {
-    'Toyota': ['RAV4', 'Highlander', '4Runner', 'Sequoia', 'Land Cruiser'],
-    'Honda': ['CR-V', 'Pilot', 'Passport', 'HR-V'],
-    'Ford': ['Explorer', 'Expedition', 'Escape', 'Edge', 'Bronco'],
-    'Chevrolet': ['Suburban', 'Tahoe', 'Traverse', 'Equinox', 'Blazer'],
-    'BMW': ['X3', 'X5', 'X7', 'iX'],
-    'Mercedes-Benz': ['GLE', 'GLS', 'GLA', 'GLB', 'GLC'],
-    'Audi': ['Q3', 'Q5', 'Q7', 'Q8', 'e-tron'],
-    'Nissan': ['Rogue', 'Pathfinder', 'Armada', 'Murano'],
-    'Hyundai': ['Tucson', 'Santa Fe', 'Palisade'],
-    'Kia': ['Sorento', 'Telluride', 'Sportage'],
-    'Jeep': ['Grand Cherokee', 'Wrangler', 'Cherokee', 'Compass'],
-    'Cadillac': ['Escalade', 'XT5', 'XT6'],
-    'Lincoln': ['Navigator', 'Aviator', 'Corsair']
-  },
-  'Truck': {
-    'Ford': ['F-150', 'F-250', 'F-350', 'Ranger', 'Maverick'],
-    'Chevrolet': ['Silverado 1500', 'Silverado 2500', 'Colorado'],
-    'Ram': ['1500', '2500', '3500'],
-    'Toyota': ['Tacoma', 'Tundra'],
-    'Nissan': ['Frontier', 'Titan'],
-    'GMC': ['Sierra 1500', 'Sierra 2500', 'Canyon'],
-    'Jeep': ['Gladiator'],
-    'Honda': ['Ridgeline']
-  },
-  'Coupe': {
-    'BMW': ['2 Series', '4 Series', '8 Series'],
-    'Mercedes-Benz': ['C-Class Coupe', 'E-Class Coupe', 'S-Class Coupe'],
-    'Audi': ['A5', 'TT'],
-    'Ford': ['Mustang'],
-    'Chevrolet': ['Camaro', 'Corvette'],
-    'Dodge': ['Challenger', 'Charger'],
-    'Nissan': ['370Z', 'GT-R'],
-    'Toyota': ['Supra', '86'],
-    'Subaru': ['BRZ'],
-    'Porsche': ['911', 'Cayman', 'Panamera']
-  },
-  'Convertible': {
-    'BMW': ['2 Series Convertible', '4 Series Convertible', '8 Series Convertible'],
-    'Mercedes-Benz': ['C-Class Convertible', 'E-Class Convertible', 'SL-Class'],
-    'Audi': ['A5 Convertible', 'TT Roadster'],
-    'Ford': ['Mustang Convertible'],
-    'Chevrolet': ['Camaro Convertible', 'Corvette Convertible'],
-    'Mazda': ['MX-5 Miata'],
-    'Porsche': ['911 Convertible', 'Boxster'],
-    'Mini': ['Cooper Convertible'],
-    'Jeep': ['Wrangler']
-  },
-  'Van': {
-    'Ford': ['Transit', 'E-Series'],
-    'Chevrolet': ['Express', 'City Express'],
-    'Mercedes-Benz': ['Sprinter', 'Metris'],
-    'RAM': ['ProMaster', 'ProMaster City'],
-    'Nissan': ['NV200', 'NV1500', 'NV2500', 'NV3500']
-  },
+  ...buildStandardVehicleDatabase(),
   'Motorcycle': {
     'Harley-Davidson': ['Street', 'Sportster', 'Touring', 'CVO', 'Softail'],
     'Honda': ['CBR', 'CRF', 'Gold Wing', 'Rebel', 'Africa Twin'],
@@ -357,6 +305,8 @@ const ConsolidatedShipmentForm: React.FC<ConsolidatedShipmentFormProps> = ({
             pickupAddress: formData.pickupAddress,
             deliveryAddress: formData.deliveryAddress,
             vehicleType: formData.vehicleType,
+            pickupDate: formData.pickupDate || undefined,
+            deliveryDate: formData.deliveryDate || undefined,
           });
           
           const distance = pricingData.distance.miles;
@@ -484,7 +434,13 @@ const ConsolidatedShipmentForm: React.FC<ConsolidatedShipmentFormProps> = ({
     const customerValid = !!(formData.customerName && formData.customerEmail && formData.customerPhone);
     const pickupValid = !!(formData.pickupAddress && formData.pickupDate);
     const deliveryValid = !!(formData.deliveryAddress);
-    const vehicleValid = !!(formData.vehicleType && formData.vehicleMake && formData.vehicleModel && formData.vehicleYear);
+    const yearNum = parseInt(formData.vehicleYear);
+    const yearValid = formData.vehicleYear && 
+                      formData.vehicleYear.length === 4 && 
+                      !isNaN(yearNum) && 
+                      yearNum >= 1900 && 
+                      yearNum <= new Date().getFullYear() + 2;
+    const vehicleValid = !!(formData.vehicleType && formData.vehicleMake && formData.vehicleModel && yearValid);
     const detailsValid = !!(formData.shipmentType);
     const pricingValid = realTimePrice > 0;
 
@@ -742,8 +698,10 @@ const ConsolidatedShipmentForm: React.FC<ConsolidatedShipmentFormProps> = ({
               style={styles.textInput}
               value={formData.vehicleYear}
               onChangeText={(value) => updateField('vehicleYear', value)}
-              placeholder="2020"
+              placeholder="e.g., 2020"
+              placeholderTextColor="#999"
               keyboardType="numeric"
+              maxLength={4}
             />
           </View>
           
