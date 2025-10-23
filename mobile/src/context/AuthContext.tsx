@@ -185,15 +185,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     let mounted = true;
     let timeoutId: NodeJS.Timeout;
+    let authStateLoading = false; // Prevent race conditions
     
     async function loadUserSession() {
       try {
         setLoading(true);
         
         // Set a timeout to prevent indefinite loading
+        // Don't check loading state in closure - it's stale
         timeoutId = setTimeout(() => {
-          if (mounted && loading) {
-            console.warn('Auth loading timeout - setting loading to false');
+          if (mounted) {
+            console.warn('Auth loading timeout - forcing loading to false');
             setLoading(false);
           }
         }, 10000); // 10 second timeout
@@ -209,10 +211,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           setSession(data.session);
           setUser(data.session.user);
           
-          // Fetch user profile
-          const profile = await fetchUserProfile(data.session.user.id);
-          if (mounted) {
-            setUserProfile(profile);
+          // Fetch user profile with timeout protection
+          try {
+            const profile = await Promise.race([
+              fetchUserProfile(data.session.user.id),
+              new Promise<null>((_, reject) => 
+                setTimeout(() => reject(new Error('Profile fetch timeout')), 8000)
+              )
+            ]);
+            if (mounted) {
+              setUserProfile(profile);
+            }
+          } catch (profileError) {
+            console.error('Error fetching profile:', profileError);
+            // Continue even if profile fetch fails - user can still use app
+            if (mounted) {
+              setUserProfile(null);
+            }
           }
         }
       } catch (e: any) {
@@ -236,40 +251,67 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       
       if (!mounted) return;
       
-      // Handle sign out immediately
-      if (event === 'SIGNED_OUT') {
-        setSession(null);
-        setUser(null);
-        setUserProfile(null);
-        setLoading(false);
+      // Prevent concurrent auth state changes from racing
+      if (authStateLoading) {
+        console.log('Auth state change already in progress, skipping');
         return;
       }
+      authStateLoading = true;
       
-      if (newSession) {
-        setSession(newSession);
-        setUser(newSession.user);
+      try {
+        // Handle sign out immediately
+        if (event === 'SIGNED_OUT') {
+          setSession(null);
+          setUser(null);
+          setUserProfile(null);
+          setLoading(false);
+          return;
+        }
         
-        // Fetch user profile
-        const profile = await fetchUserProfile(newSession.user.id);
-        if (mounted) {
-          setUserProfile(profile);
-          // Ensure loading is false after profile is fetched
+        if (newSession) {
+          setSession(newSession);
+          setUser(newSession.user);
+          
+          // Fetch user profile with timeout protection
+          try {
+            const profile = await Promise.race([
+              fetchUserProfile(newSession.user.id),
+              new Promise<null>((_, reject) => 
+                setTimeout(() => reject(new Error('Profile fetch timeout')), 8000)
+              )
+            ]);
+            if (mounted) {
+              setUserProfile(profile);
+            }
+          } catch (profileError) {
+            console.error('Error fetching profile in auth change:', profileError);
+            // Continue even if profile fetch fails
+            if (mounted) {
+              setUserProfile(null);
+            }
+          }
+          
+          if (mounted) {
+            setLoading(false);
+          }
+        } else {
+          setSession(null);
+          setUser(null);
+          setUserProfile(null);
           setLoading(false);
         }
-      } else {
-        setSession(null);
-        setUser(null);
-        setUserProfile(null);
-      }
-      
-      if (mounted) {
-        setLoading(false);
+      } finally {
+        authStateLoading = false;
+        if (mounted) {
+          setLoading(false);
+        }
       }
     });
 
     // Cleanup function
     return () => {
       mounted = false;
+      clearTimeout(timeoutId);
       data.subscription.unsubscribe();
     };
   }, []);

@@ -304,6 +304,8 @@ const ConsolidatedShipmentForm: React.FC<ConsolidatedShipmentFormProps> = ({
           const pricingData = await pricingService.getProgressiveEstimate({
             pickupAddress: formData.pickupAddress,
             deliveryAddress: formData.deliveryAddress,
+            pickupLocation: formData.pickupCoordinates,
+            deliveryLocation: formData.deliveryCoordinates,
             vehicleType: formData.vehicleType,
             pickupDate: formData.pickupDate || undefined,
             deliveryDate: formData.deliveryDate || undefined,
@@ -571,11 +573,14 @@ const ConsolidatedShipmentForm: React.FC<ConsolidatedShipmentFormProps> = ({
             placeholder="Street, City, State ZIP"
             value={formData.pickupAddress}
             onAddressSelect={(address, details) => {
+              // Get coordinates from either location (full address) or components (ZIP lookup)
+              const coordinates = details.coordinates || details.components.coordinates;
+              
               const fullAddress = `${details.components.streetNumber || ''} ${details.components.streetName || ''}, ${details.components.city || ''}, ${details.components.state || ''} ${details.components.zipCode || ''}`.trim().replace(/^,\s*/, '').replace(/,\s*$/, '');
               setFormData(prev => ({ 
                 ...prev, 
                 pickupAddress: fullAddress,
-                pickupCoordinates: details.coordinates
+                pickupCoordinates: coordinates
               }));
             }}
             required={true}
@@ -628,11 +633,14 @@ const ConsolidatedShipmentForm: React.FC<ConsolidatedShipmentFormProps> = ({
             placeholder="Street, City, State ZIP"
             value={formData.deliveryAddress}
             onAddressSelect={(address, details) => {
+              // Get coordinates from either location (full address) or components (ZIP lookup)
+              const coordinates = details.coordinates || details.components.coordinates;
+              
               const fullAddress = `${details.components.streetNumber || ''} ${details.components.streetName || ''}, ${details.components.city || ''}, ${details.components.state || ''} ${details.components.zipCode || ''}`.trim().replace(/^,\s*/, '').replace(/,\s*$/, '');
               setFormData(prev => ({ 
                 ...prev, 
                 deliveryAddress: fullAddress,
-                deliveryCoordinates: details.coordinates
+                deliveryCoordinates: coordinates
               }));
             }}
             required={true}
