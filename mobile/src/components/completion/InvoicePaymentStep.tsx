@@ -60,18 +60,20 @@ const InvoicePaymentStep: React.FC<Props> = ({
     console.log('Quote price from shipmentData:', quotePrice, 'cents');
     console.log('User authenticated:', !!user, !!session);
     
+    // Log any initialization issues but don't block - we'll validate properly when payment is attempted
     if (!user || !session || quotePrice <= 0) {
-      console.error('Invalid initialization state:', {
+      console.warn('Initialization state check:', {
         hasUser: !!user,
         hasSession: !!session,
         quotePrice
       });
-      Alert.alert('Error', 'Unable to initialize payment. Please try again.');
+      // Don't show error alert here - user might still be loading
+      // The handlePayment function will validate auth properly
     }
     
     // Just mark as ready - don't create anything yet
     setIsInitializing(false);
-  }, []);
+  }, [user, session, quotePrice]);
 
   /**
    * Create shipment in PENDING status for payment intent
@@ -226,18 +228,16 @@ const InvoicePaymentStep: React.FC<Props> = ({
       sessionExists: !!session
     });
 
-    // Note: We proceed with payment even if cardComplete is false
-    // because the CardField onCardChange event may not fire on all platforms.
-    // Stripe's confirmPayment will validate the card and return an error if invalid.
-    if (!cardFieldTouched) {
-      Alert.alert('Payment Error', 'Please enter your card information.');
-      return;
-    }
-
+    // Authentication check - this is critical
     if (!user?.id || !session) {
       Alert.alert('Authentication Error', 'Please log in to complete payment.');
       return;
     }
+
+    // Note: We no longer check cardFieldTouched because the onCardChange/onFocus events
+    // may not fire reliably on all platforms. Instead, we proceed with the payment
+    // and let Stripe's confirmPayment validate the card. If the card is invalid or empty,
+    // Stripe will return a proper error message.
 
     setIsProcessing(true);
 
@@ -268,11 +268,27 @@ const InvoicePaymentStep: React.FC<Props> = ({
 
       if (error) {
         console.error('Payment confirmation error:', error);
-        throw new Error(error.message || 'Payment failed');
+        // Provide more user-friendly error messages for common Stripe errors
+        let userMessage = error.message || 'Payment failed';
+        const errorCode = error.code as string;
+        
+        if (errorCode === 'card_declined' || errorCode === 'CardDeclined') {
+          userMessage = 'Your card was declined. Please try a different card.';
+        } else if (errorCode === 'incomplete_card' || errorCode === 'IncompleteCard') {
+          userMessage = 'Please enter complete card details (card number, expiry date, and CVC).';
+        } else if (errorCode === 'invalid_card_number' || errorCode === 'InvalidCardNumber') {
+          userMessage = 'Invalid card number. Please check and try again.';
+        } else if (errorCode === 'invalid_expiry_date' || errorCode === 'InvalidExpiryDate') {
+          userMessage = 'Invalid expiry date. Please check and try again.';
+        } else if (errorCode === 'invalid_cvc' || errorCode === 'InvalidCvc') {
+          userMessage = 'Invalid security code (CVC). Please check and try again.';
+        }
+        
+        throw new Error(userMessage);
       }
 
       if (confirmedPaymentIntent?.status !== 'Succeeded') {
-        throw new Error('Payment was not successful');
+        throw new Error('Payment was not successful. Please try again.');
       }
 
       console.log('Payment confirmed successfully!', confirmedPaymentIntent.id);
