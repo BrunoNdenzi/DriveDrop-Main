@@ -64,7 +64,7 @@ export function Input({
             rightIcon && styles.inputWithRightIcon,
             inputStyle,
           ]}
-          placeholderTextColor={Colors.text.disabled}
+          placeholderTextColor={Colors.text.secondary}
           {...props}
         />
         
