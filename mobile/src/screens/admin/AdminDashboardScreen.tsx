@@ -124,27 +124,27 @@ function AdminDashboardScreen({ navigation }: AdminDashboardScreenProps) {
         console.error('Error fetching pending shipments:', pendingError);
       }
 
-      // Get active shipments count
+      // Get active shipments count (includes all active statuses)
       const { count: activeShipments, error: activeError } = await supabase
         .from('shipments')
         .select('*', { count: 'exact', head: true })
-        .in('status', ['accepted', 'in_transit']);
+        .in('status', ['assigned', 'accepted', 'picked_up', 'in_transit', 'in_progress']);
 
       if (activeError) {
         console.error('Error fetching active shipments:', activeError);
       }
 
-      // Get completed shipments count
+      // Get completed shipments count (both delivered and completed)
       const { count: completedShipments, error: completedError } = await supabase
         .from('shipments')
         .select('*', { count: 'exact', head: true })
-        .eq('status', 'delivered');
+        .in('status', ['delivered', 'completed']);
 
       if (completedError) {
         console.error('Error fetching completed shipments:', completedError);
       }
 
-      // Get pending applications count
+      // Get pending applications count (job_applications, not driver_applications)
       const { count: pendingApplications, error: applicationsError } = await supabase
         .from('job_applications')
         .select('*', { count: 'exact', head: true })
@@ -280,7 +280,7 @@ function AdminDashboardScreen({ navigation }: AdminDashboardScreenProps) {
 
             <TouchableOpacity 
               style={styles.actionButton}
-              onPress={() => alert('Driver Applications - Feature coming soon')}
+              onPress={() => navigation.navigate('AdminJobApplications')}
             >
               <MaterialIcons name="assignment-ind" size={32} color={Colors.text.inverse} />
               <Text style={styles.actionButtonText}>Driver Applications</Text>

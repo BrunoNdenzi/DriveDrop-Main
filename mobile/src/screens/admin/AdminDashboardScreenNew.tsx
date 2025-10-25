@@ -220,7 +220,7 @@ export default function AdminDashboardScreen({ navigation }: AdminDashboardScree
 
             <TouchableOpacity 
               style={styles.actionButton}
-              onPress={() => alert('Driver Applications - Feature coming soon')}
+              onPress={() => navigation.navigate('AdminJobApplications')}
             >
               <MaterialIcons name="assignment-ind" size={32} color={Colors.white} />
               <Text style={styles.actionButtonText}>Driver Applications</Text>

@@ -63,6 +63,12 @@ module.exports = ({ config }) => {
             "./assets/notification_sound.wav"
           ]
         }
+      ],
+      [
+        "./plugins/withGoogleMaps.js",
+        {
+          apiKey: process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY || ''
+        }
       ]
     ]
   };
