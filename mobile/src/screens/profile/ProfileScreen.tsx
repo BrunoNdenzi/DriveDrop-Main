@@ -303,51 +303,53 @@ export default function ProfileScreen({ navigation }: ProfileScreenProps) {
           </View>
         </View>
 
-        {/* Support Section */}
+        {/* Support & Contact Section */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Support & Legal</Text>
+          <Text style={styles.sectionTitle}>Support & Contact</Text>
           <View style={styles.menuCard}>
             <TouchableOpacity 
               style={styles.menuItem}
               onPress={() => {
-                Linking.openURL('https://drivedrop.com/help');
-              }}
-            >
-              <MaterialIcons name="help-outline" size={22} color={Colors.primary} />
-              <Text style={styles.menuText}>Help Center</Text>
-              <MaterialIcons name="open-in-new" size={18} color={Colors.text.secondary} />
-            </TouchableOpacity>
-
-            <TouchableOpacity 
-              style={styles.menuItem}
-              onPress={() => {
-                Linking.openURL('mailto:support@drivedrop.com');
+                Linking.openURL('mailto:support@drivedrop.us.com');
               }}
             >
               <MaterialIcons name="email" size={22} color={Colors.primary} />
-              <Text style={styles.menuText}>Contact Support</Text>
+              <Text style={styles.menuText}>Email Support</Text>
+              <Text style={styles.menuSubtext}>support@drivedrop.us.com</Text>
               <MaterialIcons name="open-in-new" size={18} color={Colors.text.secondary} />
             </TouchableOpacity>
 
             <TouchableOpacity 
               style={styles.menuItem}
               onPress={() => {
-                Linking.openURL('https://drivedrop.com/terms');
+                Linking.openURL('tel:5551234567');
               }}
             >
-              <MaterialIcons name="description" size={22} color={Colors.primary} />
-              <Text style={styles.menuText}>Terms of Service</Text>
+              <MaterialIcons name="phone" size={22} color={Colors.primary} />
+              <Text style={styles.menuText}>Call Support</Text>
+              <Text style={styles.menuSubtext}>(555) 123-4567</Text>
               <MaterialIcons name="open-in-new" size={18} color={Colors.text.secondary} />
             </TouchableOpacity>
 
             <TouchableOpacity 
               style={styles.menuItem}
               onPress={() => {
-                Linking.openURL('https://drivedrop.com/privacy');
+                Linking.openURL('https://drivedrop.us.com/privacy_policy.html');
               }}
             >
               <MaterialIcons name="privacy-tip" size={22} color={Colors.primary} />
               <Text style={styles.menuText}>Privacy Policy</Text>
+              <MaterialIcons name="open-in-new" size={18} color={Colors.text.secondary} />
+            </TouchableOpacity>
+
+            <TouchableOpacity 
+              style={styles.menuItem}
+              onPress={() => {
+                Linking.openURL('https://drivedrop.us.com/terms_of_service.html');
+              }}
+            >
+              <MaterialIcons name="description" size={22} color={Colors.primary} />
+              <Text style={styles.menuText}>Terms of Service</Text>
               <MaterialIcons name="open-in-new" size={18} color={Colors.text.secondary} />
             </TouchableOpacity>
           </View>
@@ -621,6 +623,12 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: Colors.text.primary,
     marginLeft: 16,
+  },
+  menuSubtext: {
+    fontSize: 13,
+    color: Colors.text.secondary,
+    marginLeft: 16,
+    marginRight: 8,
   },
   signOutButton: {
     flexDirection: 'row',

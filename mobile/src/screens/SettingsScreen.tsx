@@ -188,39 +188,6 @@ export default function SettingsScreen() {
           disabled={saving}
           buttonStyle={styles.saveButton}
         />
-        
-        <Divider style={styles.divider} />
-        
-        <View style={styles.section}>
-          <Text h4 style={styles.sectionTitle}>Account</Text>
-          
-          <Text style={styles.infoText}>
-            Signed in as: {user?.email}
-          </Text>
-          
-          <Button
-            title="Test Notification"
-            type="outline"
-            onPress={() => sendTestNotification()}
-            buttonStyle={styles.testButton}
-          />
-          
-          <Button
-            title="Advanced Notification Testing"
-            type="outline"
-            onPress={() => navigation.navigate('NotificationTest')}
-            buttonStyle={styles.testButton}
-            containerStyle={{ marginTop: 8 }}
-          />
-          
-          <Button
-            title="Sign Out"
-            type="outline"
-            onPress={handleSignOut}
-            buttonStyle={styles.signOutButton}
-            titleStyle={styles.signOutButtonText}
-          />
-        </View>
       </ScrollView>
     </SafeAreaView>
   );

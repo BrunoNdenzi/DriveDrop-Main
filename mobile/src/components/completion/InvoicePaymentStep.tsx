@@ -596,6 +596,9 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     borderWidth: 1,
     borderColor: '#E0E0E0',
+    textColor: '#263238',
+    placeholderColor: '#9E9E9E',
+    textErrorColor: '#F44336',
   } as any,
   errorContainer: {
     flexDirection: 'row',

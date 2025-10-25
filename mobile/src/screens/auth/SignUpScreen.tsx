@@ -138,6 +138,7 @@ export default function SignUpScreen({ navigation }: SignUpScreenProps) {
               <TextInput
                 style={styles.input}
                 placeholder="First name"
+                placeholderTextColor="#9E9E9E"
                 value={firstName}
                 onChangeText={setFirstName}
                 autoCorrect={false}
@@ -152,6 +153,7 @@ export default function SignUpScreen({ navigation }: SignUpScreenProps) {
               <TextInput
                 style={styles.input}
                 placeholder="Last name"
+                placeholderTextColor="#9E9E9E"
                 value={lastName}
                 onChangeText={setLastName}
                 autoCorrect={false}
@@ -198,6 +200,7 @@ export default function SignUpScreen({ navigation }: SignUpScreenProps) {
             <TextInput
               style={styles.input}
               placeholder="Enter your email"
+              placeholderTextColor="#9E9E9E"
               value={email}
               onChangeText={setEmail}
               keyboardType="email-address"
@@ -214,6 +217,7 @@ export default function SignUpScreen({ navigation }: SignUpScreenProps) {
             <TextInput
               style={styles.input}
               placeholder="Create a password"
+              placeholderTextColor="#9E9E9E"
               value={password}
               onChangeText={setPassword}
               secureTextEntry
@@ -230,6 +234,7 @@ export default function SignUpScreen({ navigation }: SignUpScreenProps) {
             <TextInput
               style={styles.input}
               placeholder="Confirm your password"
+              placeholderTextColor="#9E9E9E"
               value={confirmPassword}
               onChangeText={setConfirmPassword}
               secureTextEntry

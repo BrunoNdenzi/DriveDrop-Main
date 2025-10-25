@@ -16,7 +16,7 @@ import * as Location from 'expo-location';
 import { Colors } from '../../constants/Colors';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../context/AuthContext';
-import { getCurrentLocation, getRoute } from '../../utils/maps';
+import { getCurrentLocation, getRoute, decodePolyline, openExternalNavigation, parseLocationData } from '../../utils/maps';
 import { realtimeService } from '../../services/RealtimeService';
 
 const { width, height } = Dimensions.get('window');
@@ -26,7 +26,7 @@ interface ShipmentData {
   id: string;
   title?: string;
   status: string;
-  driver_id?: string;
+  driver_id?: string | null;
   client_id?: string;
   pickup_address?: string;
   delivery_address?: string;
@@ -59,6 +59,7 @@ export default function RouteMapScreen({ route, navigation }: RouteMapScreenProp
   const [routeInfo, setRouteInfo] = useState<{ distance: string; duration: string } | null>(null);
   const [locationTrackingEnabled, setLocationTrackingEnabled] = useState(false);
   const [isLocationPermissionGranted, setIsLocationPermissionGranted] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   
   const mapRef = useRef<MapView>(null);
   const locationWatchId = useRef<Location.LocationSubscription | null>(null);
@@ -77,6 +78,12 @@ export default function RouteMapScreen({ route, navigation }: RouteMapScreenProp
       realtimeService.stopLocationTracking();
     };
   }, [shipmentId]);
+  
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    await fetchShipmentDetails();
+    setRefreshing(false);
+  };
 
   const checkLocationPermission = async () => {
     const { status } = await Location.getForegroundPermissionsAsync();
@@ -105,12 +112,26 @@ export default function RouteMapScreen({ route, navigation }: RouteMapScreenProp
         // Generate route if we have pickup/delivery coordinates
         if (data.pickup_location && data.delivery_location) {
           // Extract coordinates from location objects
+          console.log('Raw location data:', {
+            pickup_location: data.pickup_location,
+            pickup_location_type: typeof data.pickup_location,
+            delivery_location: data.delivery_location,
+            delivery_location_type: typeof data.delivery_location
+          });
+          
           const pickupCoords = extractCoordinates(data.pickup_location);
           const deliveryCoords = extractCoordinates(data.delivery_location);
+          
+          console.log('Shipment coordinates:', {
+            pickup: pickupCoords,
+            delivery: deliveryCoords,
+            status: data.status
+          });
           
           if (pickupCoords && deliveryCoords) {
             // For shipments that are already picked up, route from current location to delivery
             if (data.status === 'picked_up' || data.status === 'in_transit') {
+              console.log('Calculating route to delivery location');
               calculateRoute(
                 location.coords.latitude,
                 location.coords.longitude,
@@ -119,6 +140,7 @@ export default function RouteMapScreen({ route, navigation }: RouteMapScreenProp
               );
             } else {
               // For shipments not yet picked up, route from current location to pickup
+              console.log('Calculating route to pickup location');
               calculateRoute(
                 location.coords.latitude,
                 location.coords.longitude,
@@ -126,7 +148,11 @@ export default function RouteMapScreen({ route, navigation }: RouteMapScreenProp
                 pickupCoords.longitude
               );
             }
+          } else {
+            console.warn('Could not extract coordinates from location data');
           }
+        } else {
+          console.warn('Missing pickup or delivery location data');
         }
       }
       
@@ -177,38 +203,14 @@ export default function RouteMapScreen({ route, navigation }: RouteMapScreenProp
   };
   
   const extractCoordinates = (locationObject: any) => {
-    if (!locationObject) return null;
+    // Log what we're trying to parse
+    console.log('Attempting to parse location:', JSON.stringify(locationObject));
     
-    try {
-      // Handle different possible formats of location data
-      if (typeof locationObject === 'string') {
-        // Try to parse JSON string
-        const parsed = JSON.parse(locationObject);
-        if (parsed.lat !== undefined && parsed.lng !== undefined) {
-          return { latitude: parsed.lat, longitude: parsed.lng };
-        }
-        if (parsed.latitude !== undefined && parsed.longitude !== undefined) {
-          return { latitude: parsed.latitude, longitude: parsed.longitude };
-        }
-      } else if (typeof locationObject === 'object') {
-        // Handle object format
-        if (locationObject.lat !== undefined && locationObject.lng !== undefined) {
-          return { latitude: locationObject.lat, longitude: locationObject.lng };
-        }
-        if (locationObject.latitude !== undefined && locationObject.longitude !== undefined) {
-          return { latitude: locationObject.latitude, longitude: locationObject.longitude };
-        }
-        // Handle PostGIS point format (assuming it's stored in coordinates property)
-        if (locationObject.coordinates && Array.isArray(locationObject.coordinates) && locationObject.coordinates.length === 2) {
-          // PostGIS typically stores as [longitude, latitude]
-          return { latitude: locationObject.coordinates[1], longitude: locationObject.coordinates[0] };
-        }
-      }
-    } catch (e) {
-      console.error('Error parsing location:', e);
-    }
+    // Use the centralized parseLocationData utility function
+    const result = parseLocationData(locationObject);
     
-    return null;
+    console.log('Parse result:', result);
+    return result;
   };
       
   const startLocationTracking = async () => {
@@ -292,33 +294,25 @@ export default function RouteMapScreen({ route, navigation }: RouteMapScreenProp
 
   const calculateRoute = async (startLat: number, startLng: number, endLat: number, endLng: number) => {
     try {
+      console.log('Calculating route from', { startLat, startLng }, 'to', { endLat, endLng });
       const routeData = await getRoute(startLat, startLng, endLat, endLng);
+      console.log('Route data received:', routeData);
       
-      // Generate a simple route for now
-      const steps = routeData.steps || [];
-      const coords = [];
+      let coords: Array<{ latitude: number; longitude: number }> = [];
       
-      // Add starting point
-      coords.push({
-        latitude: startLat,
-        longitude: startLng,
-      });
-      
-      // Add intermediate points
-      for (const step of steps) {
-        if (step.end_location) {
-          coords.push({
-            latitude: step.end_location.lat,
-            longitude: step.end_location.lng,
-          });
+      // If we have a polyline, decode it for smooth route display
+      if (routeData.polyline) {
+        try {
+          coords = decodePolyline(routeData.polyline);
+        } catch (decodeError) {
+          console.error('Error decoding polyline:', decodeError);
+          // Fall back to step-by-step coordinates
+          coords = generateCoordsFromSteps(startLat, startLng, endLat, endLng, routeData.steps);
         }
+      } else {
+        // No polyline available, generate from steps
+        coords = generateCoordsFromSteps(startLat, startLng, endLat, endLng, routeData.steps);
       }
-      
-      // Add ending point
-      coords.push({
-        latitude: endLat,
-        longitude: endLng,
-      });
       
       setRouteCoordinates(coords);
       
@@ -331,14 +325,51 @@ export default function RouteMapScreen({ route, navigation }: RouteMapScreenProp
       // Fit map to show all coordinates
       if (mapRef.current && coords.length > 0) {
         mapRef.current.fitToCoordinates(coords, {
-          edgePadding: { top: 50, right: 50, bottom: 50, left: 50 },
+          edgePadding: { top: 100, right: 50, bottom: 300, left: 50 },
           animated: true,
         });
       }
     } catch (error) {
       console.error('Error calculating route:', error);
-      Alert.alert('Route Error', 'Failed to calculate route.');
+      Alert.alert('Route Error', 'Failed to calculate route. Please try again.');
     }
+  };
+  
+  const generateCoordsFromSteps = (
+    startLat: number,
+    startLng: number,
+    endLat: number,
+    endLng: number,
+    steps: any[]
+  ): Array<{ latitude: number; longitude: number }> => {
+    const coords: Array<{ latitude: number; longitude: number }> = [];
+    
+    // Add starting point
+    coords.push({
+      latitude: startLat,
+      longitude: startLng,
+    });
+    
+    // Add intermediate points from steps
+    for (const step of steps || []) {
+      if (step.end_location) {
+        coords.push({
+          latitude: step.end_location.lat,
+          longitude: step.end_location.lng,
+        });
+      }
+    }
+    
+    // Add ending point if not already included
+    const lastCoord = coords[coords.length - 1];
+    if (!lastCoord || lastCoord.latitude !== endLat || lastCoord.longitude !== endLng) {
+      coords.push({
+        latitude: endLat,
+        longitude: endLng,
+      });
+    }
+    
+    return coords;
   };
 
   const renderDestinationMarker = () => {
@@ -415,9 +446,11 @@ export default function RouteMapScreen({ route, navigation }: RouteMapScreenProp
         ref={mapRef}
         style={styles.map}
         provider={PROVIDER_GOOGLE}
-        showsUserLocation
-        showsMyLocationButton
-        followsUserLocation
+        showsUserLocation={isLocationPermissionGranted}
+        showsMyLocationButton={isLocationPermissionGranted}
+        followsUserLocation={locationTrackingEnabled}
+        showsTraffic={true}
+        showsCompass={true}
         initialRegion={
           currentLocation
             ? {
@@ -468,6 +501,17 @@ export default function RouteMapScreen({ route, navigation }: RouteMapScreenProp
         <Text style={styles.headerTitle}>
           {shipment ? shipment.title || `Shipment #${shipment.id.substring(0, 8)}` : 'Route Map'}
         </Text>
+        <TouchableOpacity 
+          style={styles.refreshButton}
+          onPress={handleRefresh}
+          disabled={refreshing}
+        >
+          <MaterialIcons 
+            name="refresh" 
+            size={24} 
+            color={refreshing ? Colors.text.disabled : Colors.text.inverse} 
+          />
+        </TouchableOpacity>
       </View>
       
       {/* Location Tracking Toggle - Only show for drivers */}
@@ -485,36 +529,73 @@ export default function RouteMapScreen({ route, navigation }: RouteMapScreenProp
         </View>
       )}
       
-      {/* Route Info Card */}
-      {routeInfo && (
+      {/* Route Info Card - Always show if shipment loaded */}
+      {shipment && (
         <View style={styles.routeInfoCard}>
           <View style={styles.routeInfoHeader}>
             <MaterialIcons name="directions" size={24} color={Colors.primary} />
             <Text style={styles.routeInfoTitle}>Route Information</Text>
           </View>
           
-          <View style={styles.routeDetails}>
-            <View style={styles.routeDetailItem}>
-              <MaterialIcons name="straighten" size={20} color={Colors.text.secondary} />
-              <Text style={styles.routeDetailLabel}>Distance:</Text>
-              <Text style={styles.routeDetailValue}>{routeInfo.distance}</Text>
+          {routeInfo ? (
+            <View style={styles.routeDetails}>
+              <View style={styles.routeDetailItem}>
+                <MaterialIcons name="straighten" size={20} color={Colors.text.secondary} />
+                <Text style={styles.routeDetailLabel}>Distance:</Text>
+                <Text style={styles.routeDetailValue}>{routeInfo.distance}</Text>
+              </View>
+              
+              <View style={styles.routeDetailItem}>
+                <MaterialIcons name="schedule" size={20} color={Colors.text.secondary} />
+                <Text style={styles.routeDetailLabel}>Estimated Time:</Text>
+                <Text style={styles.routeDetailValue}>{routeInfo.duration}</Text>
+              </View>
             </View>
-            
-            <View style={styles.routeDetailItem}>
-              <MaterialIcons name="schedule" size={20} color={Colors.text.secondary} />
-              <Text style={styles.routeDetailLabel}>Estimated Time:</Text>
-              <Text style={styles.routeDetailValue}>{routeInfo.duration}</Text>
+          ) : (
+            <View style={styles.routeDetails}>
+              <Text style={styles.calculatingText}>Calculating route...</Text>
             </View>
-          </View>
+          )}
           
           <TouchableOpacity 
             style={styles.startNavigationButton}
             onPress={() => {
-              // This would typically open external navigation app
-              Alert.alert('Navigation', 'Opening external navigation app...');
+              // Get destination coordinates
+              let destCoords;
+              let destLabel = 'Destination';
+              
+              if (shipment?.status === 'picked_up' || shipment?.status === 'in_transit') {
+                // Navigate to delivery location
+                if (shipment.delivery_lat !== undefined && shipment.delivery_lng !== undefined) {
+                  destCoords = {
+                    latitude: shipment.delivery_lat,
+                    longitude: shipment.delivery_lng
+                  };
+                } else if (shipment.delivery_location) {
+                  destCoords = extractCoordinates(shipment.delivery_location);
+                }
+                destLabel = shipment.delivery_address || 'Delivery Location';
+              } else {
+                // Navigate to pickup location
+                if (shipment?.pickup_lat !== undefined && shipment?.pickup_lng !== undefined) {
+                  destCoords = {
+                    latitude: shipment.pickup_lat,
+                    longitude: shipment.pickup_lng
+                  };
+                } else if (shipment?.pickup_location) {
+                  destCoords = extractCoordinates(shipment.pickup_location);
+                }
+                destLabel = shipment?.pickup_address || 'Pickup Location';
+              }
+              
+              if (destCoords) {
+                openExternalNavigation(destCoords.latitude, destCoords.longitude, destLabel);
+              } else {
+                Alert.alert('Error', 'Unable to open navigation. Location coordinates not available.');
+              }
             }}
           >
-            <MaterialIcons name="navigation" size={16} color={Colors.text.inverse} />
+            <MaterialIcons name="navigation" size={20} color={Colors.text.inverse} />
             <Text style={styles.startNavigationText}>Start Navigation</Text>
           </TouchableOpacity>
         </View>
@@ -536,21 +617,27 @@ const styles = StyleSheet.create({
     top: 0,
     left: 0,
     right: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
     paddingTop: 60,
     paddingBottom: 20,
     paddingHorizontal: 16,
   },
   backButton: {
     padding: 8,
-    marginRight: 16,
+  },
+  refreshButton: {
+    padding: 8,
   },
   headerTitle: {
+    flex: 1,
     fontSize: 18,
     fontWeight: '700',
     color: Colors.text.inverse,
+    textAlign: 'center',
+    marginHorizontal: 8,
   },
   routeInfoCard: {
     position: 'absolute',
@@ -579,6 +666,12 @@ const styles = StyleSheet.create({
   },
   routeDetails: {
     marginBottom: 16,
+  },
+  calculatingText: {
+    fontSize: 14,
+    color: Colors.text.secondary,
+    fontStyle: 'italic',
+    marginBottom: 8,
   },
   routeDetailItem: {
     flexDirection: 'row',

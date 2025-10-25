@@ -148,7 +148,7 @@ export default function AvailableJobsScreen({ navigation }: any) {
 
       Alert.alert(
         'Success',
-        'Application submitted successfully! You will be notified when the client makes a decision.',
+        'Application submitted successfully! You will be notified when assigned.',
         [{ text: 'OK', onPress: () => fetchAvailableJobs() }] // Refresh the list
       );
     } catch (error: any) {
