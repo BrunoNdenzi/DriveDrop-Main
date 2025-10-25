@@ -420,7 +420,7 @@ export default function ShipmentDetailsScreen({ route, navigation }: any) {
             <View style={styles.detailItem}>
               <MaterialIcons name="attach-money" size={20} color={Colors.success} />
               <Text style={styles.detailLabel}>Price</Text>
-              <Text style={styles.detailValue}>${(shipment.price / 100).toFixed(2)}</Text>
+              <Text style={styles.detailValue}>${shipment.price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</Text>
             </View>
             
             {shipment.distance > 0 && (

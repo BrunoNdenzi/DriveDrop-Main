@@ -200,7 +200,7 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
     },
     { 
       label: 'Total Paid', 
-      value: "$" + (totalSpent / 100).toFixed(2), // Convert cents to dollars
+      value: "$" + totalSpent.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
       rawValue: totalSpent,
       icon: 'account-balance-wallet', 
       color: Colors.secondary,
@@ -270,7 +270,7 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
         const driverName = shipment.profiles 
           ? `${shipment.profiles.first_name} ${shipment.profiles.last_name}`
           : 'Driver';
-        const price = `$${((shipment.estimated_price || 0) / 100).toFixed(2)}`;
+        const price = `$${(shipment.estimated_price || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
         
         return `${statusMsg}\n${shipment.title}\nFrom: ${shipment.pickup_address}\nDriver: ${driverName}\nPrice: ${price}`;
       }).join('\n\n---\n\n');

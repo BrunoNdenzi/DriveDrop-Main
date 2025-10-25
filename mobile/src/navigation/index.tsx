@@ -31,6 +31,7 @@ import MyShipmentsScreen from '../screens/driver/MyShipmentsScreen';
 import DriverShipmentDetailsScreen from '../screens/driver/ShipmentDetailsScreen';
 import RouteMapScreen from '../screens/driver/RouteMapScreen';
 import DriverProfileScreen from '../screens/driver/DriverProfileScreen';
+import TransactionHistoryScreen from '../screens/driver/TransactionHistoryScreen';
 
 // Messaging Screens (new clean implementation)
 import ConversationsScreen from '../screens/ConversationsScreen';
@@ -304,6 +305,12 @@ export default function Navigation() {
               name="RouteMap"
               component={RouteMapScreen}
               options={{ title: 'Route Map', headerShown: false }}
+            />
+            
+            <Stack.Screen
+              name="TransactionHistory"
+              component={TransactionHistoryScreen}
+              options={{ headerShown: false }}
             />
             
             {/* Messaging Screens */}

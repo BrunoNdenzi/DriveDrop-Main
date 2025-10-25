@@ -111,6 +111,10 @@ export default function AdminJobApplicationsScreen({ navigation }: Props): JSX.E
     loadApplications();
   };
 
+  const formatCurrency = (amount: number) => {
+    return `$${amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  };
+
   const updateStatus = async (applicationId: string, newStatus: 'accepted' | 'rejected') => {
     try {
       // Use the stored procedure to update application status
@@ -261,7 +265,7 @@ export default function AdminJobApplicationsScreen({ navigation }: Props): JSX.E
                     <View style={styles.detailRow}>
                       <MaterialIcons name="attach-money" size={18} color={Colors.primary} />
                       <Text style={styles.detailLabel}>Price:</Text>
-                      <Text style={styles.detailValue}>${app.shipment.estimated_price?.toFixed(2) || '0.00'}</Text>
+                      <Text style={styles.detailValue}>{formatCurrency(app.shipment.estimated_price || 0)}</Text>
                     </View>
 
                     <View style={styles.dateRow}>

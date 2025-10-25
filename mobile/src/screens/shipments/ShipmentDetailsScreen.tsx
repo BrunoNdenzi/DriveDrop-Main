@@ -142,7 +142,7 @@ export default function ShipmentDetailsScreen({ route, navigation }: ShipmentDet
 
       // Show confirmation with refund information
       const refundInfo = eligibility.refund_eligible
-        ? `\n\n💰 Refund: $${((eligibility.refund_amount || 0) / 100).toFixed(2)} (${eligibility.refund_percentage}%)\n${eligibility.message}`
+        ? `\n\n💰 Refund: $${(eligibility.refund_amount || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} (${eligibility.refund_percentage}%)\n${eligibility.message}`
         : '\n\n⚠️ No refund available for this cancellation';
 
       Alert.alert(
@@ -175,7 +175,7 @@ export default function ShipmentDetailsScreen({ route, navigation }: ShipmentDet
 
                 // Show success message with refund info
                 const successMessage = eligibility.refund_eligible
-                  ? `Your shipment has been cancelled and a refund of $${((eligibility.refund_amount || 0) / 100).toFixed(2)} will be processed within 5-10 business days.`
+                  ? `Your shipment has been cancelled and a refund of $${(eligibility.refund_amount || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} will be processed within 5-10 business days.`
                   : 'Your shipment has been cancelled.';
 
                 Alert.alert('Cancelled Successfully', successMessage, [
@@ -301,7 +301,7 @@ export default function ShipmentDetailsScreen({ route, navigation }: ShipmentDet
       {(shipment.estimated_price) && (
             <View style={styles.detailRow}>
               <Text style={styles.detailLabel}>Price</Text>
-        <Text style={styles.detailValue}>${(Number(shipment.estimated_price) / 100).toFixed(2)}</Text>
+        <Text style={styles.detailValue}>${Number(shipment.estimated_price).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</Text>
             </View>
           )}
           
