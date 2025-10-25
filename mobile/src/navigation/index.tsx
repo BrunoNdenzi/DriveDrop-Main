@@ -55,6 +55,7 @@ import BookingConfirmationScreen from '../screens/booking/BookingConfirmationScr
 // Import admin screens
 import AdminAssignmentScreen from '../screens/admin/AdminAssignmentScreen';
 import AdminDashboardScreen from '../screens/admin/AdminDashboardScreen';
+import AdminJobApplicationsScreen from '../screens/admin/AdminJobApplicationsScreen';
 
 // Create navigators
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -279,6 +280,12 @@ export default function Navigation() {
               name="AdminAssignment"
               component={AdminAssignmentScreen}
               options={{ title: 'Driver Assignment' }}
+            />
+            
+            <Stack.Screen
+              name="AdminJobApplications"
+              component={AdminJobApplicationsScreen}
+              options={{ headerShown: false }}
             />
             
             <Stack.Screen

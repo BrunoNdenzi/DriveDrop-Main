@@ -92,19 +92,19 @@ export default function DriverDashboardScreen({ navigation }: any) {
       
       // Fetch driver stats
       const [activeJobsResult, completedJobsResult, applicationsResult] = await Promise.all([
-        // Active jobs count - FIXED: Include all active statuses
+        // Active jobs count - Include all active statuses
         supabase
           .from('shipments')
           .select('*', { count: 'exact', head: true })
           .eq('driver_id', userProfile.id)
-          .in('status', ['assigned', 'accepted', 'picked_up', 'in_transit']),
+          .in('status', ['assigned', 'accepted', 'picked_up', 'in_transit', 'in_progress']),
         
-        // Completed jobs count and earnings
+        // Completed jobs count and earnings (both delivered and completed)
         supabase
           .from('shipments')
           .select('estimated_price')
           .eq('driver_id', userProfile.id)
-          .eq('status', 'delivered'),
+          .in('status', ['delivered', 'completed']),
 
         // Get pending applications
         supabase

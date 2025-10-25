@@ -50,7 +50,7 @@ function ActiveShipmentsTab({ navigation }: any) {
           profiles:client_id(first_name, last_name)
         `)
         .eq('driver_id', userProfile.id)
-        .in('status', ['assigned', 'picked_up', 'in_transit'])
+        .in('status', ['assigned', 'accepted', 'picked_up', 'in_transit', 'in_progress'])
         .order('pickup_date', { ascending: true });
 
       if (error) throw error;
@@ -117,15 +117,24 @@ function ActiveShipmentsTab({ navigation }: any) {
 
   const getStatusColor = (status: string) => {
     switch (status) {
+      case 'accepted': return Colors.info;
       case 'assigned': return Colors.warning;
       case 'picked_up': return Colors.info;
       case 'in_transit': return Colors.secondary;
+      case 'in_progress': return Colors.secondary;
       default: return Colors.text.secondary;
     }
   };
 
   const getStatusAction = (shipment: Shipment) => {
     switch (shipment.status) {
+      case 'accepted':
+        return {
+          label: 'Mark Assigned',
+          action: () => updateShipmentStatus(shipment.id, 'assigned'),
+          icon: 'assignment',
+          color: Colors.warning
+        };
       case 'assigned':
         return {
           label: 'Mark Picked Up',
@@ -141,6 +150,7 @@ function ActiveShipmentsTab({ navigation }: any) {
           color: Colors.secondary
         };
       case 'in_transit':
+      case 'in_progress':
         return {
           label: 'Complete Delivery',
           action: () => updateShipmentStatus(shipment.id, 'delivered'),

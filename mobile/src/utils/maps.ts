@@ -1,5 +1,6 @@
 import * as Location from 'expo-location';
 import { Alert } from 'react-native';
+import { getGoogleMapsApiKey } from './googleMaps';
 
 /**
  * Request location permissions and get the current position
@@ -49,8 +50,8 @@ export const getRoute = async (
   endLng: number
 ): Promise<any> => {
   try {
-    // Get Google Maps API key from environment
-    const apiKey = process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY;
+    // Get Google Maps API key using the proper utility function
+    const apiKey = getGoogleMapsApiKey();
     
     if (!apiKey) {
       console.warn('Google Maps API key not configured. Using fallback route calculation.');
@@ -350,27 +351,32 @@ const parseWKB = (wkbHex: string): { latitude: number; longitude: number } | nul
  * @returns {number} The double precision number
  */
 const hexToDouble = (hex: string, littleEndian: boolean = false): number => {
-  // Reverse pairs if little endian
-  if (littleEndian) {
-    const pairs = hex.match(/.{2}/g) || [];
-    hex = pairs.reverse().join('');
+  try {
+    // Create a buffer
+    const buffer = new ArrayBuffer(8);
+    const view = new DataView(buffer);
+    
+    // Parse hex string as bytes
+    if (littleEndian) {
+      // Little endian: read bytes in reverse order
+      for (let i = 0; i < 8; i++) {
+        const byteHex = hex.substr(i * 2, 2);
+        view.setUint8(i, parseInt(byteHex, 16));
+      }
+    } else {
+      // Big endian
+      for (let i = 0; i < 8; i++) {
+        const byteHex = hex.substr(i * 2, 2);
+        view.setUint8(i, parseInt(byteHex, 16));
+      }
+    }
+    
+    // Read as double (little endian if original was little endian)
+    return view.getFloat64(0, littleEndian);
+  } catch (e) {
+    console.error('Error in hexToDouble:', e);
+    return NaN;
   }
-  
-  // Convert hex to binary
-  const binary = parseInt(hex, 16);
-  
-  // Create a buffer and write the number
-  const buffer = new ArrayBuffer(8);
-  const view = new DataView(buffer);
-  
-  // Write as big endian 64-bit integer
-  const high = Math.floor(binary / 0x100000000);
-  const low = binary % 0x100000000;
-  view.setUint32(0, high, false);
-  view.setUint32(4, low, false);
-  
-  // Read as double
-  return view.getFloat64(0, false);
 };
 
 /**
