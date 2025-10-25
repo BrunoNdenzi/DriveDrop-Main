@@ -33,6 +33,10 @@ function ActiveShipmentsTab({ navigation }: any) {
   const [loading, setLoading] = useState(true);
   const { userProfile, session } = useAuth();
 
+  const formatCurrency = (amount: number) => {
+    return `$${amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  };
+
   useEffect(() => {
     fetchActiveShipments();
   }, []);
@@ -130,7 +134,7 @@ function ActiveShipmentsTab({ navigation }: any) {
     switch (shipment.status) {
       case 'accepted':
         return {
-          label: 'Mark Assigned',
+          label: 'Confirm',
           action: () => updateShipmentStatus(shipment.id, 'assigned'),
           icon: 'assignment',
           color: Colors.warning
@@ -197,7 +201,7 @@ function ActiveShipmentsTab({ navigation }: any) {
         </View>
         
         <View style={styles.detailsContainer}>
-          <Text style={styles.earningsText}>${(item.earnings / 100).toFixed(2)}</Text>
+          <Text style={styles.earningsText}>{formatCurrency(item.earnings)}</Text>
           <Text style={styles.dateText}>
             {new Date(item.pickup_date).toLocaleDateString()}
           </Text>
@@ -262,6 +266,10 @@ function CompletedShipmentsTab({ navigation }: any) {
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
   const { userProfile, session } = useAuth();
+
+  const formatCurrency = (amount: number) => {
+    return `$${amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  };
 
   useEffect(() => {
     fetchCompletedShipments();
@@ -350,7 +358,7 @@ function CompletedShipmentsTab({ navigation }: any) {
       </View>
       
       <View style={styles.detailsContainer}>
-        <Text style={styles.earningsText}>${(item.earnings / 100).toFixed(2)}</Text>
+        <Text style={styles.earningsText}>{formatCurrency(item.earnings)}</Text>
         <Text style={styles.dateText}>
           Completed: {new Date(item.pickup_date).toLocaleDateString()}
         </Text>
@@ -394,6 +402,10 @@ function ApplicationsTab({ navigation }: any) {
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
   const { userProfile, session } = useAuth();
+
+  const formatCurrency = (amount: number) => {
+    return `$${amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  };
 
   useEffect(() => {
     fetchApplications();
@@ -560,7 +572,7 @@ function ApplicationsTab({ navigation }: any) {
       
       <View style={styles.detailsContainer}>
         <Text style={styles.earningsText}>
-          ${(item.shipment_estimated_price / 100).toFixed(2)}
+          {formatCurrency(item.shipment_estimated_price)}
         </Text>
         <Text style={styles.dateText}>
           Applied: {new Date(item.applied_at).toLocaleDateString()}

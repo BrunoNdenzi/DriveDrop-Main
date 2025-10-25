@@ -30,6 +30,10 @@ export default function AvailableShipmentsScreen({ navigation }: any) {
   const [loading, setLoading] = useState(true);
   const { userProfile, session } = useAuth();
 
+  const formatCurrency = (amount: number) => {
+    return `$${amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  };
+
   useEffect(() => {
     fetchAvailableShipments();
   }, []);
@@ -150,7 +154,7 @@ export default function AvailableShipmentsScreen({ navigation }: any) {
     >
       <View style={styles.shipmentHeader}>
         <Text style={styles.shipmentTitle}>{item.title}</Text>
-        <Text style={styles.earningsText}>${(item.estimated_earnings / 100).toFixed(2)}</Text>
+        <Text style={styles.earningsText}>{formatCurrency(item.estimated_earnings)}</Text>
       </View>
       
       <View style={styles.locationContainer}>

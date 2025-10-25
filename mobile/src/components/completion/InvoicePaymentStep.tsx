@@ -45,27 +45,30 @@ const InvoicePaymentStep: React.FC<Props> = ({
   const [cardFieldTouched, setCardFieldTouched] = useState(false);
 
   // Use the quote price from shipmentData - this is the price user was quoted
-  // NOTE: estimatedPrice is in DOLLARS (not cents) from backend pricing service
+  // NOTE: estimatedPrice is in DOLLARS from pricing service
   const quotePriceDollars = shipmentData.estimatedPrice || 0; // In dollars
-  const quotePrice = Math.round(quotePriceDollars * 100); // Convert to cents for calculations
   
-  // Calculate payment breakdown: 20% upfront, 80% on delivery
-  const upfrontAmount = Math.round(quotePrice * 0.20);
-  const deliveryAmount = quotePrice - upfrontAmount;
+  // For Stripe payment intent, we need cents
+  const quotePriceCents = Math.round(quotePriceDollars * 100); // Convert to cents for Stripe
+  
+  // Calculate payment breakdown: 20% upfront, 80% on delivery (in cents)
+  const upfrontAmount = Math.round(quotePriceCents * 0.20);
+  const deliveryAmount = quotePriceCents - upfrontAmount;
 
   // Initialize component - NO SHIPMENT OR PAYMENT INTENT CREATED YET
   // We'll create both when user clicks Pay button
   useEffect(() => {
     console.log('InvoicePaymentStep mounted');
-    console.log('Quote price from shipmentData:', quotePrice, 'cents');
+    console.log('Quote price from shipmentData (dollars):', quotePriceDollars);
+    console.log('Quote price for Stripe (cents):', quotePriceCents);
     console.log('User authenticated:', !!user, !!session);
     
     // Log any initialization issues but don't block - we'll validate properly when payment is attempted
-    if (!user || !session || quotePrice <= 0) {
+    if (!user || !session || quotePriceDollars <= 0) {
       console.warn('Initialization state check:', {
         hasUser: !!user,
         hasSession: !!session,
-        quotePrice
+        quotePriceDollars
       });
       // Don't show error alert here - user might still be loading
       // The handlePayment function will validate auth properly
@@ -73,7 +76,7 @@ const InvoicePaymentStep: React.FC<Props> = ({
     
     // Just mark as ready - don't create anything yet
     setIsInitializing(false);
-  }, [user, session, quotePrice]);
+  }, [user, session, quotePriceDollars, quotePriceCents]);
 
   /**
    * Create shipment in PENDING status for payment intent
@@ -126,7 +129,7 @@ const InvoicePaymentStep: React.FC<Props> = ({
         vehicle_make: shipmentData.vehicleMake || 'Unknown',
         vehicle_model: shipmentData.vehicleModel || 'Unknown',
         distance_miles: Math.round(calculatedDistance),
-        estimated_price: quotePrice, // Quoted price in cents
+        estimated_price: quotePriceDollars, // Store in DOLLARS (not cents)
         pickup_date: shipmentData.pickupDate || new Date().toISOString().split('T')[0],
         delivery_date: shipmentData.deliveryDate || null,
         is_accident_recovery: false,
@@ -252,7 +255,7 @@ const InvoicePaymentStep: React.FC<Props> = ({
       console.log('Creating payment intent for quote price:', quotePriceDollars);
       const paymentIntentResponse = await paymentService.createPaymentIntent(
         createdShipmentId,
-        quotePriceDollars,
+        quotePriceDollars, // Pass in DOLLARS (paymentService will convert to cents)
         `Vehicle transport for ${shipmentData.vehicleYear} ${shipmentData.vehicleMake} ${shipmentData.vehicleModel}`
       );
       console.log('Payment intent created:', (paymentIntentResponse as any).paymentIntentId || paymentIntentResponse.id);

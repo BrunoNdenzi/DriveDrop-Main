@@ -132,14 +132,18 @@ export default function DriverProfileScreen({ navigation }: any) {
         .eq('driver_id', userProfile.id)
         .in('status', ['accepted', 'picked_up', 'in_transit']);
       
-      // Fetch total earnings from completed shipments
+      // Fetch total earnings from completed shipments (both delivered and completed)
       const { data: earnings } = await supabase
         .from('shipments')
         .select('estimated_price')
         .eq('driver_id', userProfile.id)
-        .eq('status', 'delivered');
+        .in('status', ['delivered', 'completed']);
       
-      const totalEarnings = earnings?.reduce((sum, job) => sum + (job.estimated_price || 0), 0) || 0;
+      // Calculate total earnings with 10% commission (driver gets 90%)
+      const totalEarnings = earnings?.reduce((sum, job) => {
+        const price = job.estimated_price || 0;
+        return sum + (price * 0.90); // 90% to driver
+      }, 0) || 0;
       
       // Fetch ratings
       const { data: ratings } = await supabase
@@ -431,13 +435,7 @@ export default function DriverProfileScreen({ navigation }: any) {
   };
 
   const formatCurrency = (amount: number) => {
-    // Convert from cents to dollars
-    const dollars = amount / 100;
-    return dollars.toLocaleString('en-US', {
-      style: 'currency',
-      currency: 'USD',
-      minimumFractionDigits: 2,
-    });
+    return `$${amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   };
 
   const getUserInitial = () => {
@@ -552,7 +550,7 @@ export default function DriverProfileScreen({ navigation }: any) {
         <View style={styles.earningsCard}>
           <View style={styles.earningsHeader}>
             <Text style={styles.sectionTitle}>Total Earnings</Text>
-            <TouchableOpacity>
+            <TouchableOpacity onPress={() => navigation.navigate('TransactionHistory')}>
               <Text style={styles.viewAllText}>View All</Text>
             </TouchableOpacity>
           </View>
@@ -567,10 +565,6 @@ export default function DriverProfileScreen({ navigation }: any) {
           </View>
           
           <View style={styles.earningsDetails}>
-            <View style={styles.earningsDetailItem}>
-              <MaterialIcons name="local-shipping" size={18} color={Colors.text.secondary} />
-              <Text style={styles.earningsDetailText}>{stats.activeJobs} Active Jobs</Text>
-            </View>
             <View style={styles.earningsDetailItem}>
               <MaterialIcons name="account-balance-wallet" size={18} color={Colors.text.secondary} />
               <Text style={styles.earningsDetailText}>Payout every Friday</Text>
