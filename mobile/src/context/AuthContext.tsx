@@ -48,8 +48,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [error, setError] = useState<string | null>(null);
 
   // Function to fetch or create user profile - uses a mutex pattern to prevent race conditions
-  const fetchUserProfile = async (userId: string): Promise<UserProfile | null> => {
+  const fetchUserProfile = async (userId: string, skipIfCached: boolean = false): Promise<UserProfile | null> => {
     try {
+      // If we already have a profile and skipIfCached is true, return it immediately
+      if (skipIfCached && userProfile?.id === userId) {
+        console.log('Using cached profile for user:', userId);
+        return userProfile;
+      }
+
       // Check if there's already an ongoing fetch/creation operation for this user
       if (profileCreationStatus.has(userId)) {
         console.log('Profile fetch/creation already in progress for user:', userId);
@@ -148,6 +154,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       return result;
     } catch (e) {
+      // Clean up on error to prevent deadlock
+      profileCreationStatus.delete(userId);
+      console.error('Error in fetchUserProfile wrapper:', e);
       console.error('Unexpected error in profile fetch/creation:', e);
       profileCreationStatus.delete(userId);
       return null;
@@ -184,7 +193,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // Get the user's session on load
   useEffect(() => {
     let mounted = true;
-    let timeoutId: NodeJS.Timeout;
+    let timeoutId: NodeJS.Timeout | null = null;
     let authStateLoading = false; // Prevent race conditions
     
     async function loadUserSession() {
@@ -192,7 +201,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setLoading(true);
         
         // Set a timeout to prevent indefinite loading
-        // Don't check loading state in closure - it's stale
         timeoutId = setTimeout(() => {
           if (mounted) {
             console.warn('Auth loading timeout - forcing loading to false');
@@ -203,6 +211,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         // Get the user's current session
         const { data, error } = await auth.getSession();
         
+        // Clear timeout immediately after session is retrieved
+        if (timeoutId) {
+          clearTimeout(timeoutId);
+          timeoutId = null;
+        }
+        
         if (error) {
           throw error;
         }
@@ -211,7 +225,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           setSession(data.session);
           setUser(data.session.user);
           
-          // Fetch user profile with timeout protection
+          // Fetch user profile with timeout protection (8 seconds)
           try {
             const profile = await Promise.race([
               fetchUserProfile(data.session.user.id),
@@ -224,6 +238,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             }
           } catch (profileError) {
             console.error('Error fetching profile:', profileError);
+            // Clean up the profile creation status to prevent deadlock
+            profileCreationStatus.delete(data.session.user.id);
             // Continue even if profile fetch fails - user can still use app
             if (mounted) {
               setUserProfile(null);
@@ -236,8 +252,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           console.error('Error loading user session:', e);
         }
       } finally {
-        if (mounted) {
+        if (mounted && timeoutId) {
           clearTimeout(timeoutId);
+        }
+        if (mounted) {
           setLoading(false);
         }
       }
@@ -265,34 +283,55 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           setUser(null);
           setUserProfile(null);
           setLoading(false);
+          // Clear any pending profile operations
+          if (user?.id) {
+            profileCreationStatus.delete(user.id);
+          }
           return;
         }
+        
+        // Skip profile fetch for TOKEN_REFRESHED if we already have the profile
+        // This prevents unnecessary database queries and race conditions
+        const shouldSkipProfileFetch = event === 'TOKEN_REFRESHED' && userProfile?.id === newSession?.user?.id;
         
         if (newSession) {
           setSession(newSession);
           setUser(newSession.user);
           
-          // Fetch user profile with timeout protection
-          try {
-            const profile = await Promise.race([
-              fetchUserProfile(newSession.user.id),
-              new Promise<null>((_, reject) => 
-                setTimeout(() => reject(new Error('Profile fetch timeout')), 8000)
-              )
-            ]);
+          if (shouldSkipProfileFetch) {
+            console.log('Token refreshed, skipping profile fetch (already cached)');
+            // Just ensure loading is false
             if (mounted) {
-              setUserProfile(profile);
+              setLoading(false);
             }
-          } catch (profileError) {
-            console.error('Error fetching profile in auth change:', profileError);
-            // Continue even if profile fetch fails
+          } else {
+            // Fetch user profile with timeout protection (8 seconds)
+            // Use skipIfCached for events that don't need fresh data
+            const useCache = event === 'TOKEN_REFRESHED' || event === 'USER_UPDATED';
+            
+            try {
+              const profile = await Promise.race([
+                fetchUserProfile(newSession.user.id, useCache),
+                new Promise<null>((_, reject) => 
+                  setTimeout(() => reject(new Error('Profile fetch timeout')), 8000)
+                )
+              ]);
+              if (mounted) {
+                setUserProfile(profile);
+              }
+            } catch (profileError) {
+              console.error('Error fetching profile in auth change:', profileError);
+              // Clean up the profile creation status to prevent deadlock
+              profileCreationStatus.delete(newSession.user.id);
+              // Continue even if profile fetch fails
+              if (mounted) {
+                setUserProfile(null);
+              }
+            }
+            
             if (mounted) {
-              setUserProfile(null);
+              setLoading(false);
             }
-          }
-          
-          if (mounted) {
-            setLoading(false);
           }
         } else {
           setSession(null);
@@ -311,7 +350,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Cleanup function
     return () => {
       mounted = false;
-      clearTimeout(timeoutId);
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
       data.subscription.unsubscribe();
     };
   }, []);

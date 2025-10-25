@@ -250,7 +250,7 @@ export default function DriverDashboardScreen({ navigation }: any) {
 
     try {
       await ShipmentService.applyForShipment(jobId, userProfile.id);
-      Alert.alert('Success', 'Application submitted successfully! You will be notified when the client makes a decision.');
+      Alert.alert('Success', 'Application submitted successfully! You will be notified when assigned.');
       fetchDashboardData(); // Refresh data to show updated job lists
     } catch (error: any) {
       console.error('Error applying to job:', error);
