@@ -18,6 +18,7 @@ import { Colors } from '../../constants/Colors';
 import { supabase } from '../../lib/supabase';
 import { parseLocationData, calculateDistance } from '../../utils/maps';
 import { getGoogleMapsApiKey } from '../../utils/environment';
+import { MapErrorBoundary } from '../../components/MapErrorBoundary';
 
 interface ShipmentMapData {
   id: string;
@@ -753,8 +754,12 @@ export default function AdminShipmentsMapScreen({ navigation }: any) {
   }
 
   return (
-    <View style={styles.container}>
-      <StatusBar style="light" />
+    <MapErrorBoundary
+      onRetry={loadShipments}
+      fallbackMessage="Failed to load admin shipments map. Please check your internet connection and try again."
+    >
+      <View style={styles.container}>
+        <StatusBar style="light" />
 
       {/* Map */}
       <MapView
@@ -816,6 +821,7 @@ export default function AdminShipmentsMapScreen({ navigation }: any) {
       {/* Filter Modal */}
       {renderFilterModal()}
     </View>
+    </MapErrorBoundary>
   );
 }
 

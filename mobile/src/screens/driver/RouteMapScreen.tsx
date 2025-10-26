@@ -19,6 +19,7 @@ import { useAuth } from '../../context/AuthContext';
 import { getCurrentLocation, getRoute, decodePolyline, openExternalNavigation, openExternalNavigationWithWaypoints, parseLocationData, calculateDistance } from '../../utils/maps';
 import { realtimeService } from '../../services/RealtimeService';
 import { getGoogleMapsApiKey } from '../../utils/environment';
+import { MapErrorBoundary } from '../../components/MapErrorBoundary';
 
 const { width, height } = Dimensions.get('window');
 
@@ -654,8 +655,16 @@ export default function RouteMapScreen({ route, navigation }: RouteMapScreenProp
   }
 
   return (
-    <View style={styles.container}>
-      <StatusBar style="light" />
+    <MapErrorBoundary 
+      onRetry={() => {
+        setLoading(true);
+        setMapError(null);
+        fetchShipmentDetails();
+      }}
+      fallbackMessage="The route map could not be loaded. Please check your internet connection and try again."
+    >
+      <View style={styles.container}>
+        <StatusBar style="light" />
       
       <MapView
         ref={mapRef}
@@ -890,6 +899,7 @@ export default function RouteMapScreen({ route, navigation }: RouteMapScreenProp
         </View>
       )}
     </View>
+    </MapErrorBoundary>
   );
 }
 

@@ -6,7 +6,7 @@
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
-    "newArchEnabled": true,
+    "newArchEnabled": false,
     "splash": {
       "image": "./assets/splash_icon.png",
       "resizeMode": "contain",
@@ -21,12 +21,30 @@
         "foregroundImage": "./assets/adaptive_icon.png",
         "backgroundColor": "#ffffff"
       },
+      "permissions": [
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_FINE_LOCATION",
+        "INTERNET",
+        "ACCESS_NETWORK_STATE"
+      ],
+      "config": {
+        "googleMaps": {
+          "apiKey": "{{EXPO_PUBLIC_GOOGLE_MAPS_API_KEY}}"
+        }
+      },
       "edgeToEdgeEnabled": true
     },
     "web": {
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
+      "expo-location",
+      [
+        "react-native-maps",
+        {
+          "googleMapsApiKey": "{{EXPO_PUBLIC_GOOGLE_MAPS_API_KEY}}"
+        }
+      ],
       [
         "./plugins/withGoogleMaps.js",
         {
