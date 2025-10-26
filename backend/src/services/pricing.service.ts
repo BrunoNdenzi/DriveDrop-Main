@@ -1,4 +1,5 @@
 import { logger } from '@utils/logger';
+import { pricingConfigService } from './pricingConfig.service';
 
 // Vehicle categories supported
 export type VehicleType = 'sedan' | 'suv' | 'pickup' | 'luxury' | 'motorcycle' | 'heavy';
@@ -120,6 +121,187 @@ function determineDeliveryType(pickupDate?: string, deliveryDate?: string): {
   }
 }
 
+export async function calculateQuoteWithDynamicConfig(input: PricingInput): Promise<{ total: number; breakdown: PricingBreakdown }> {
+  try {
+    // Get dynamic pricing configuration
+    const config = await pricingConfigService.getActiveConfig();
+    
+    // Use dynamic values from config, with input overrides
+    const {
+      vehicleType,
+      distanceMiles,
+      isAccidentRecovery = false,
+      vehicleCount = 1,
+      dynamicFuelCostPerMile,
+      surgeMultiplier: inputSurgeMultiplier,
+      pickupDate,
+      deliveryDate,
+      fuelPricePerGallon: inputFuelPrice,
+    } = input;
+
+    // Use config values with input overrides
+    const fuelPricePerGallon = inputFuelPrice ?? config.current_fuel_price;
+    const baseFuelPrice = config.base_fuel_price;
+    const minQuote = config.min_quote;
+    const accidentMinQuote = config.accident_min_quote;
+    const minMiles = config.min_miles;
+    
+    // Apply surge multiplier from config if enabled, or use input override
+    let surgeMultiplier = inputSurgeMultiplier ?? 1;
+    if (config.surge_enabled && !inputSurgeMultiplier) {
+      surgeMultiplier = config.surge_multiplier;
+    }
+
+    // Determine delivery type and multiplier using config values
+    const deliveryTypeInfo = determineDeliveryTypeWithConfig(
+      pickupDate, 
+      deliveryDate,
+      config
+    );
+
+    const distanceBand = determineDistanceBandWithConfig(distanceMiles, config);
+    const baseRates = BASE_RATES[vehicleType];
+    const baseRatePerMile = isAccidentRecovery ? baseRates.accident : baseRates[distanceBand];
+    const rawBasePrice = baseRatePerMile * distanceMiles;
+
+    // Bulk discount
+    const bulkDiscountPercent = config.bulk_discount_enabled 
+      ? getBulkDiscountPercent(vehicleCount) 
+      : 0;
+    const bulkDiscountAmount = (rawBasePrice * bulkDiscountPercent) / 100;
+
+    // Cost components (allow dynamic override for fuel)
+    const costComponentsPerMile = {
+      fuel: dynamicFuelCostPerMile ?? COST_COMPONENT_DEFAULTS.fuel,
+      driver: COST_COMPONENT_DEFAULTS.driver,
+      insurance: COST_COMPONENT_DEFAULTS.insurance,
+      maintenance: COST_COMPONENT_DEFAULTS.maintenance,
+      tolls: COST_COMPONENT_DEFAULTS.tolls,
+    };
+    const operatingCostPerMile = Object.values(costComponentsPerMile).reduce((a, b) => a + b, 0);
+    const operatingCostTotal = operatingCostPerMile * distanceMiles;
+
+    // Profit margin – choose 30% midpoint of 25–35 range; could be dynamic later
+    const profitMarginPercent = 30;
+    const profitAmount = (operatingCostTotal * profitMarginPercent) / 100;
+
+    const accidentRecoveryFee: number | undefined = isAccidentRecovery ? baseRates.accident * distanceMiles : undefined;
+
+    // Apply surge, delivery type multiplier, and subtract discount
+    let subtotal = (rawBasePrice - bulkDiscountAmount) * surgeMultiplier * deliveryTypeInfo.multiplier;
+    
+    // Calculate fuel price adjustment using config values
+    const fuelAdjustmentPercent = (fuelPricePerGallon - baseFuelPrice) * (config.fuel_adjustment_per_dollar / 100);
+    const fuelAdjustmentMultiplier = 1 + fuelAdjustmentPercent;
+    subtotal = subtotal * fuelAdjustmentMultiplier;
+    
+    // Apply minimum quote logic AFTER fuel adjustment using config values
+    let minimumApplied = false;
+    
+    if (isAccidentRecovery) {
+      // Accident recovery minimum
+      if (subtotal < accidentMinQuote) {
+        subtotal = accidentMinQuote;
+        minimumApplied = true;
+      }
+    } else if (distanceMiles < minMiles) {
+      // Standard minimum for trips under MIN_MILES
+      if (subtotal < minQuote) {
+        subtotal = minQuote;
+        minimumApplied = true;
+      }
+    }
+
+    const total = Math.max(0, parseFloat(subtotal.toFixed(2)));
+
+    const breakdown: PricingBreakdown = {
+      baseRatePerMile,
+      distanceBand,
+      rawBasePrice: parseFloat(rawBasePrice.toFixed(2)),
+      accidentRecoveryFee,
+      bulkDiscountPercent,
+      bulkDiscountAmount: parseFloat(bulkDiscountAmount.toFixed(2)),
+      costComponentsPerMile,
+      operatingCostPerMile: parseFloat(operatingCostPerMile.toFixed(3)),
+      operatingCostTotal: parseFloat(operatingCostTotal.toFixed(2)),
+      profitMarginPercent,
+      profitAmount: parseFloat(profitAmount.toFixed(2)),
+      surgeMultiplier,
+      deliveryTypeMultiplier: deliveryTypeInfo.multiplier,
+      deliveryType: deliveryTypeInfo.type,
+      fuelPricePerGallon: parseFloat(fuelPricePerGallon.toFixed(2)),
+      fuelAdjustmentPercent: parseFloat(fuelAdjustmentPercent.toFixed(2)),
+      minimumApplied,
+      total,
+    };
+
+    logger.debug('Calculated pricing with dynamic config', { input, breakdown, configId: config.id });
+    return { total, breakdown };
+  } catch (error) {
+    logger.error('Error calculating quote with dynamic config, falling back to static', { error });
+    // Fallback to static calculation
+    return calculateQuote(input);
+  }
+}
+
+function determineDistanceBandWithConfig(miles: number, config: any): 'short' | 'mid' | 'long' {
+  if (miles <= config.short_distance_max) return 'short';
+  if (miles <= config.mid_distance_max) return 'mid';
+  return 'long';
+}
+
+function determineDeliveryTypeWithConfig(
+  pickupDate?: string, 
+  deliveryDate?: string,
+  config?: any
+): {
+  type: 'expedited' | 'flexible' | 'standard';
+  multiplier: number;
+} {
+  // Use config multipliers if available, otherwise use defaults
+  const expeditedMult = config?.expedited_multiplier ?? 1.25;
+  const standardMult = config?.standard_multiplier ?? 1.00;
+  const flexibleMult = config?.flexible_multiplier ?? 0.95;
+  
+  // Check if services are enabled
+  const expeditedEnabled = config?.expedited_service_enabled ?? true;
+  const flexibleEnabled = config?.flexible_service_enabled ?? true;
+
+  // No dates provided - standard pricing
+  if (!pickupDate) {
+    return { type: 'standard', multiplier: standardMult };
+  }
+
+  // Blank delivery date means expedited (ASAP)
+  if (!deliveryDate) {
+    return expeditedEnabled 
+      ? { type: 'expedited', multiplier: expeditedMult }
+      : { type: 'standard', multiplier: standardMult };
+  }
+
+  try {
+    const pickup = new Date(pickupDate);
+    const delivery = new Date(deliveryDate);
+    
+    // Calculate days between pickup and delivery
+    const daysDiff = Math.ceil((delivery.getTime() - pickup.getTime()) / (1000 * 60 * 60 * 24));
+    
+    // Less than 7 days = expedited, 7+ days = flexible
+    if (daysDiff < 7) {
+      return expeditedEnabled
+        ? { type: 'expedited', multiplier: expeditedMult }
+        : { type: 'standard', multiplier: standardMult };
+    } else {
+      return flexibleEnabled
+        ? { type: 'flexible', multiplier: flexibleMult }
+        : { type: 'standard', multiplier: standardMult };
+    }
+  } catch (error) {
+    logger.warn('Error parsing dates for delivery type, using standard', { pickupDate, deliveryDate, error });
+    return { type: 'standard', multiplier: standardMult };
+  }
+}
+
 export function calculateQuote(input: PricingInput): { total: number; breakdown: PricingBreakdown } {
   const {
     vehicleType,
@@ -217,4 +399,7 @@ export function calculateQuote(input: PricingInput): { total: number; breakdown:
   return { total, breakdown };
 }
 
-export const pricingService = { calculateQuote };
+export const pricingService = { 
+  calculateQuote,
+  calculateQuoteWithDynamicConfig,
+};

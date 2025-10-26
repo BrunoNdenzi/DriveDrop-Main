@@ -5,7 +5,7 @@ module.exports = ({ config }) => {
     ...config,
     name: "DriveDrop",
     slug: "drivedrop",
-    version: "1.5.0", // Updated version for new release
+    version: "1.7.0", // Updated version to match app.json
     orientation: "portrait",
     icon: "./assets/icon.png",
     userInterfaceStyle: "light",
@@ -26,7 +26,8 @@ module.exports = ({ config }) => {
         foregroundImage: "./assets/adaptive_icon.png",
         backgroundColor: "#ffffff"
       },
-      package: "com.drivedrop.mobile"
+      package: "com.drivedrop.mobile",
+      versionCode: 9
     },
     web: {
       favicon: "./assets/favicon.png"

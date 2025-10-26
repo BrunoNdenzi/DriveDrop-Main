@@ -16,7 +16,7 @@
       "supportsTablet": true
     },
     "android": {
-      "versionCode": 8,
+      "versionCode": 9,
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive_icon.png",
         "backgroundColor": "#ffffff"
@@ -25,6 +25,19 @@
     },
     "web": {
       "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      [
+        "./plugins/withGoogleMaps.js",
+        {
+          "apiKey": "{{EXPO_PUBLIC_GOOGLE_MAPS_API_KEY}}"
+        }
+      ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "your-project-id"
+      }
     }
   }
 }

@@ -18,6 +18,7 @@ import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../context/AuthContext';
 import { getCurrentLocation, getRoute, decodePolyline, openExternalNavigation, parseLocationData } from '../../utils/maps';
 import { realtimeService } from '../../services/RealtimeService';
+import { getGoogleMapsApiKey } from '../../utils/environment';
 
 const { width, height } = Dimensions.get('window');
 
@@ -60,11 +61,21 @@ export default function RouteMapScreen({ route, navigation }: RouteMapScreenProp
   const [locationTrackingEnabled, setLocationTrackingEnabled] = useState(false);
   const [isLocationPermissionGranted, setIsLocationPermissionGranted] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [mapError, setMapError] = useState<string | null>(null);
   
   const mapRef = useRef<MapView>(null);
   const locationWatchId = useRef<Location.LocationSubscription | null>(null);
 
   useEffect(() => {
+    // Check if Google Maps API key is configured
+    const apiKey = getGoogleMapsApiKey();
+    if (!apiKey) {
+      console.warn('Google Maps API key is not configured');
+      setMapError('Google Maps API key is not configured. Please contact support.');
+      setLoading(false);
+      return;
+    }
+    
     fetchShipmentDetails();
     checkLocationPermission();
     
@@ -438,6 +449,35 @@ export default function RouteMapScreen({ route, navigation }: RouteMapScreenProp
     );
   }
 
+  // Show error if Google Maps fails to load
+  if (mapError) {
+    return (
+      <View style={styles.container}>
+        <StatusBar style="light" />
+        <View style={styles.errorContainer}>
+          <MaterialIcons name="error-outline" size={64} color={Colors.error} />
+          <Text style={styles.errorTitle}>Map Error</Text>
+          <Text style={styles.errorText}>{mapError}</Text>
+          <TouchableOpacity 
+            style={styles.retryButton}
+            onPress={() => {
+              setMapError(null);
+              fetchShipmentDetails();
+            }}
+          >
+            <Text style={styles.retryButtonText}>Retry</Text>
+          </TouchableOpacity>
+          <TouchableOpacity 
+            style={styles.backButtonAlt}
+            onPress={() => navigation.goBack()}
+          >
+            <Text style={styles.backButtonAltText}>Go Back</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    );
+  }
+
   return (
     <View style={styles.container}>
       <StatusBar style="light" />
@@ -451,6 +491,9 @@ export default function RouteMapScreen({ route, navigation }: RouteMapScreenProp
         followsUserLocation={locationTrackingEnabled}
         showsTraffic={true}
         showsCompass={true}
+        onMapReady={() => {
+          console.log('Map is ready');
+        }}
         initialRegion={
           currentLocation
             ? {
@@ -720,6 +763,45 @@ const styles = StyleSheet.create({
     marginTop: 16,
     fontSize: 16,
     color: Colors.text.primary,
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: Colors.background,
+    padding: 24,
+  },
+  errorTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: Colors.text.primary,
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  errorText: {
+    fontSize: 14,
+    color: Colors.text.secondary,
+    textAlign: 'center',
+    marginBottom: 24,
+  },
+  retryButton: {
+    backgroundColor: Colors.primary,
+    paddingHorizontal: 32,
+    paddingVertical: 12,
+    borderRadius: 8,
+    marginBottom: 12,
+  },
+  retryButtonText: {
+    color: Colors.text.inverse,
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  backButtonAlt: {
+    paddingVertical: 12,
+  },
+  backButtonAltText: {
+    color: Colors.primary,
+    fontSize: 16,
   },
   trackingToggleContainer: {
     position: 'absolute',
