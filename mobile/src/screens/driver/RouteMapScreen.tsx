@@ -72,10 +72,21 @@ export default function RouteMapScreen({ route, navigation }: RouteMapScreenProp
   useEffect(() => {
     // Check if Google Maps API key is configured
     const apiKey = getGoogleMapsApiKey();
+    console.log('Google Maps API Key check:', {
+      hasKey: !!apiKey,
+      keyLength: apiKey?.length || 0,
+      keyPrefix: apiKey?.substring(0, 10) || 'none'
+    });
+    
     if (!apiKey) {
-      console.warn('Google Maps API key is not configured');
-      setMapError('Google Maps API key is not configured. Please contact support.');
+      console.error('CRITICAL: Google Maps API key is missing!');
+      setMapError('Map configuration error. Please ensure Google Maps API key is set.');
       setLoading(false);
+      Alert.alert(
+        'Configuration Error',
+        'Google Maps is not properly configured. Please contact support.',
+        [{ text: 'OK', onPress: () => navigation.goBack() }]
+      );
       return;
     }
     
@@ -108,6 +119,10 @@ export default function RouteMapScreen({ route, navigation }: RouteMapScreenProp
     try {
       setLoading(true);
       
+      if (!shipmentId) {
+        throw new Error('No shipment ID provided');
+      }
+      
       const { data, error } = await supabase
         .from('shipments')
         .select('*')
@@ -115,61 +130,68 @@ export default function RouteMapScreen({ route, navigation }: RouteMapScreenProp
         .single();
       
       if (error) throw error;
+      if (!data) throw new Error('Shipment not found');
       
       setShipment(data);
       
-      // Get current location
-      const location = await getCurrentLocation();
-      if (location) {
-        setCurrentLocation(location);
+      // Get current location with error handling
+      let location = null;
+      try {
+        location = await getCurrentLocation();
+        if (location) {
+          setCurrentLocation(location);
+        }
+      } catch (locationError) {
+        console.error('Error getting current location:', locationError);
+        // Continue anyway - we can still show the map
+      }
+      
+      // Generate route if we have all required data
+      if (data.pickup_location && data.delivery_location && location) {
+        // Extract coordinates from location objects
+        console.log('Raw location data:', {
+          pickup_location: data.pickup_location,
+          pickup_location_type: typeof data.pickup_location,
+          delivery_location: data.delivery_location,
+          delivery_location_type: typeof data.delivery_location
+        });
         
-        // Generate route if we have pickup/delivery coordinates
-        if (data.pickup_location && data.delivery_location) {
-          // Extract coordinates from location objects
-          console.log('Raw location data:', {
-            pickup_location: data.pickup_location,
-            pickup_location_type: typeof data.pickup_location,
-            delivery_location: data.delivery_location,
-            delivery_location_type: typeof data.delivery_location
-          });
-          
-          const pickupCoords = extractCoordinates(data.pickup_location);
-          const deliveryCoords = extractCoordinates(data.delivery_location);
-          
-          console.log('Shipment coordinates:', {
-            pickup: pickupCoords,
-            delivery: deliveryCoords,
-            status: data.status
-          });
-          
-          if (pickupCoords && deliveryCoords) {
-            // For shipments that are already picked up, route from current location to delivery only
-            if (data.status === 'picked_up' || data.status === 'in_transit') {
-              console.log('Calculating route to delivery location (already picked up)');
-              calculateRoute(
-                location.coords.latitude,
-                location.coords.longitude,
-                deliveryCoords.latitude,
-                deliveryCoords.longitude
-              );
-            } else {
-              // For shipments not yet picked up, show FULL route: current → pickup → delivery
-              console.log('Calculating full route: current → pickup → delivery');
-              calculateMultiLegRoute(
-                location.coords.latitude,
-                location.coords.longitude,
-                pickupCoords.latitude,
-                pickupCoords.longitude,
-                deliveryCoords.latitude,
-                deliveryCoords.longitude
-              );
-            }
+        const pickupCoords = extractCoordinates(data.pickup_location);
+        const deliveryCoords = extractCoordinates(data.delivery_location);
+        
+        console.log('Shipment coordinates:', {
+          pickup: pickupCoords,
+          delivery: deliveryCoords,
+          status: data.status
+        });
+        
+        if (pickupCoords && deliveryCoords) {
+          // For shipments that are already picked up, route from current location to delivery only
+          if (data.status === 'picked_up' || data.status === 'in_transit') {
+            console.log('Calculating route to delivery location (already picked up)');
+            calculateRoute(
+              location.coords.latitude,
+              location.coords.longitude,
+              deliveryCoords.latitude,
+              deliveryCoords.longitude
+            );
           } else {
-            console.warn('Could not extract coordinates from location data');
+            // For shipments not yet picked up, show FULL route: current → pickup → delivery
+            console.log('Calculating full route: current → pickup → delivery');
+            calculateMultiLegRoute(
+              location.coords.latitude,
+              location.coords.longitude,
+              pickupCoords.latitude,
+              pickupCoords.longitude,
+              deliveryCoords.latitude,
+              deliveryCoords.longitude
+            );
           }
         } else {
-          console.warn('Missing pickup or delivery location data');
+          console.warn('Could not extract valid coordinates');
         }
+      } else {
+        console.warn('Missing required data for route calculation');
       }
       
       // Auto-enable location tracking for in-transit shipments
@@ -177,9 +199,11 @@ export default function RouteMapScreen({ route, navigation }: RouteMapScreenProp
           data.driver_id === userProfile?.id) {
         toggleLocationTracking(true);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error fetching shipment details:', error);
-      Alert.alert('Error', 'Failed to load shipment details.');
+      const errorMessage = error?.message || 'Failed to load shipment details';
+      Alert.alert('Error', errorMessage);
+      setMapError(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -219,14 +243,31 @@ export default function RouteMapScreen({ route, navigation }: RouteMapScreenProp
   };
   
   const extractCoordinates = (locationObject: any) => {
-    // Log what we're trying to parse
-    console.log('Attempting to parse location:', JSON.stringify(locationObject));
-    
-    // Use the centralized parseLocationData utility function
-    const result = parseLocationData(locationObject);
-    
-    console.log('Parse result:', result);
-    return result;
+    try {
+      // Log what we're trying to parse
+      console.log('Attempting to parse location:', JSON.stringify(locationObject));
+      
+      // Return null if locationObject is null/undefined
+      if (!locationObject) {
+        console.warn('Location object is null or undefined');
+        return null;
+      }
+      
+      // Use the centralized parseLocationData utility function
+      const result = parseLocationData(locationObject);
+      
+      // Validate the result
+      if (result && typeof result.latitude === 'number' && typeof result.longitude === 'number') {
+        console.log('Parse result:', result);
+        return result;
+      } else {
+        console.error('Invalid parse result:', result);
+        return null;
+      }
+    } catch (error) {
+      console.error('Error in extractCoordinates:', error);
+      return null;
+    }
   };
       
   const startLocationTracking = async () => {
@@ -636,7 +677,13 @@ export default function RouteMapScreen({ route, navigation }: RouteMapScreenProp
                 latitudeDelta: 0.05,
                 longitudeDelta: 0.05,
               }
-            : undefined
+            : {
+                // Default to USA center if no location
+                latitude: 39.8283,
+                longitude: -98.5795,
+                latitudeDelta: 50,
+                longitudeDelta: 50,
+              }
         }
       >
         {/* Current Location Marker */}

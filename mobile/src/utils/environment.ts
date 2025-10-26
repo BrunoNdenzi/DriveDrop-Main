@@ -21,46 +21,68 @@ const getEnvironment = (): Environment => {
   const expoConfig = Constants.expoConfig as any;
   const releaseChannel = expoConfig?.releaseChannel;
   
+  // Try to get from process.env first (works in production builds)
+  const envGoogleMapsKey = process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY;
+  const envSupabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
+  const envSupabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
+  const envStripeKey = process.env.EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY;
+  
+  // Fallback to expoConfig.extra
+  const googleMapsApiKey = envGoogleMapsKey || expoConfig?.extra?.googleMapsApiKey || '';
+  const supabaseUrl = envSupabaseUrl || expoConfig?.extra?.supabaseUrl || '';
+  const supabaseAnonKey = envSupabaseAnonKey || expoConfig?.extra?.supabaseAnonKey || '';
+  const stripePublishableKey = envStripeKey || expoConfig?.extra?.stripePublishableKey || '';
+  
+  // Log for debugging in production (remove in final version)
+  if (__DEV__) {
+    console.log('Environment loaded:', {
+      hasGoogleMapsKey: !!googleMapsApiKey,
+      hasSupabaseUrl: !!supabaseUrl,
+      hasSupabaseKey: !!supabaseAnonKey,
+      releaseChannel: releaseChannel || 'default'
+    });
+  }
+  
   // Default to development if no release channel
   if (!releaseChannel || releaseChannel === 'default') {
     return {
       apiUrl: DEV_API_URL,
-      supabaseUrl: expoConfig?.extra?.supabaseUrl || '',
-      supabaseAnonKey: expoConfig?.extra?.supabaseAnonKey || '',
-      googleMapsApiKey: expoConfig?.extra?.googleMapsApiKey || '',
-      stripePublishableKey: expoConfig?.extra?.stripePublishableKey || '',
+      supabaseUrl,
+      supabaseAnonKey,
+      googleMapsApiKey,
+      stripePublishableKey,
     };
   }
   
   // Production environment
   if (releaseChannel.indexOf('prod') !== -1) {
     return {
-  apiUrl: 'https://drivedrop-main-production.up.railway.app',
-      supabaseUrl: expoConfig?.extra?.supabaseUrl || '',
-      supabaseAnonKey: expoConfig?.extra?.supabaseAnonKey || '',
-      googleMapsApiKey: expoConfig?.extra?.googleMapsApiKey || '',
-      stripePublishableKey: expoConfig?.extra?.stripePublishableKey || '',
+      apiUrl: 'https://drivedrop-main-production.up.railway.app',
+      supabaseUrl,
+      supabaseAnonKey,
+      googleMapsApiKey,
+      stripePublishableKey,
     };
   }
   
   // Staging environment
   if (releaseChannel.indexOf('staging') !== -1) {
     return {
-  apiUrl: 'https://drivedrop-main-production.up.railway.app',
-      supabaseUrl: expoConfig?.extra?.supabaseUrl || '',
-      supabaseAnonKey: expoConfig?.extra?.supabaseAnonKey || '',
-      googleMapsApiKey: expoConfig?.extra?.googleMapsApiKey || '',
-      stripePublishableKey: expoConfig?.extra?.stripePublishableKey || '',
+      apiUrl: 'https://drivedrop-main-production.up.railway.app',
+      supabaseUrl,
+      supabaseAnonKey,
+      googleMapsApiKey,
+      stripePublishableKey,
     };
   }
   
   // Default to development if no match
   return {
     apiUrl: DEV_API_URL,
-    supabaseUrl: expoConfig?.extra?.supabaseUrl || '',
-    supabaseAnonKey: expoConfig?.extra?.supabaseAnonKey || '',
-    googleMapsApiKey: expoConfig?.extra?.googleMapsApiKey || '',
-    stripePublishableKey: expoConfig?.extra?.stripePublishableKey || '',
+    supabaseUrl,
+    supabaseAnonKey,
+    googleMapsApiKey,
+    stripePublishableKey,
   };
 };
 
