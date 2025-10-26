@@ -16,7 +16,7 @@ import * as Location from 'expo-location';
 import { Colors } from '../../constants/Colors';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../context/AuthContext';
-import { getCurrentLocation, getRoute, decodePolyline, openExternalNavigation, parseLocationData } from '../../utils/maps';
+import { getCurrentLocation, getRoute, decodePolyline, openExternalNavigation, openExternalNavigationWithWaypoints, parseLocationData, calculateDistance } from '../../utils/maps';
 import { realtimeService } from '../../services/RealtimeService';
 import { getGoogleMapsApiKey } from '../../utils/environment';
 
@@ -57,6 +57,9 @@ export default function RouteMapScreen({ route, navigation }: RouteMapScreenProp
   const [shipment, setShipment] = useState<ShipmentData | null>(null);
   const [currentLocation, setCurrentLocation] = useState<Location.LocationObject | null>(null);
   const [routeCoordinates, setRouteCoordinates] = useState<any[]>([]);
+  const [leg1Coordinates, setLeg1Coordinates] = useState<any[]>([]); // Current → Pickup
+  const [leg2Coordinates, setLeg2Coordinates] = useState<any[]>([]); // Pickup → Delivery
+  const [isMultiLegRoute, setIsMultiLegRoute] = useState(false);
   const [routeInfo, setRouteInfo] = useState<{ distance: string; duration: string } | null>(null);
   const [locationTrackingEnabled, setLocationTrackingEnabled] = useState(false);
   const [isLocationPermissionGranted, setIsLocationPermissionGranted] = useState(false);
@@ -140,9 +143,9 @@ export default function RouteMapScreen({ route, navigation }: RouteMapScreenProp
           });
           
           if (pickupCoords && deliveryCoords) {
-            // For shipments that are already picked up, route from current location to delivery
+            // For shipments that are already picked up, route from current location to delivery only
             if (data.status === 'picked_up' || data.status === 'in_transit') {
-              console.log('Calculating route to delivery location');
+              console.log('Calculating route to delivery location (already picked up)');
               calculateRoute(
                 location.coords.latitude,
                 location.coords.longitude,
@@ -150,13 +153,15 @@ export default function RouteMapScreen({ route, navigation }: RouteMapScreenProp
                 deliveryCoords.longitude
               );
             } else {
-              // For shipments not yet picked up, route from current location to pickup
-              console.log('Calculating route to pickup location');
-              calculateRoute(
+              // For shipments not yet picked up, show FULL route: current → pickup → delivery
+              console.log('Calculating full route: current → pickup → delivery');
+              calculateMultiLegRoute(
                 location.coords.latitude,
                 location.coords.longitude,
                 pickupCoords.latitude,
-                pickupCoords.longitude
+                pickupCoords.longitude,
+                deliveryCoords.latitude,
+                deliveryCoords.longitude
               );
             }
           } else {
@@ -258,6 +263,7 @@ export default function RouteMapScreen({ route, navigation }: RouteMapScreenProp
           
           // Update route if needed
           if (shipment && (shipment.status === 'picked_up' || shipment.status === 'in_transit')) {
+            // Already picked up - route to delivery only
             if (shipment.delivery_lat !== undefined && shipment.delivery_lng !== undefined) {
               calculateRoute(
                 newLocation.coords.latitude,
@@ -277,29 +283,154 @@ export default function RouteMapScreen({ route, navigation }: RouteMapScreenProp
               }
             }
           } else if (shipment) {
-            if (shipment.pickup_lat !== undefined && shipment.pickup_lng !== undefined) {
+            // Not yet picked up - show full route: current → pickup → delivery
+            const pickupCoords = shipment.pickup_lat !== undefined && shipment.pickup_lng !== undefined
+              ? { latitude: shipment.pickup_lat, longitude: shipment.pickup_lng }
+              : (shipment.pickup_location ? extractCoordinates(shipment.pickup_location) : null);
+            
+            const deliveryCoords = shipment.delivery_lat !== undefined && shipment.delivery_lng !== undefined
+              ? { latitude: shipment.delivery_lat, longitude: shipment.delivery_lng }
+              : (shipment.delivery_location ? extractCoordinates(shipment.delivery_location) : null);
+            
+            if (pickupCoords && deliveryCoords) {
+              calculateMultiLegRoute(
+                newLocation.coords.latitude,
+                newLocation.coords.longitude,
+                pickupCoords.latitude,
+                pickupCoords.longitude,
+                deliveryCoords.latitude,
+                deliveryCoords.longitude
+              );
+            } else if (pickupCoords) {
+              // Fallback to just pickup if delivery coords missing
               calculateRoute(
                 newLocation.coords.latitude,
                 newLocation.coords.longitude,
-                shipment.pickup_lat,
-                shipment.pickup_lng
+                pickupCoords.latitude,
+                pickupCoords.longitude
               );
-            } else if (shipment.pickup_location) {
-              const pickupCoords = extractCoordinates(shipment.pickup_location);
-              if (pickupCoords) {
-                calculateRoute(
-                  newLocation.coords.latitude,
-                  newLocation.coords.longitude,
-                  pickupCoords.latitude,
-                  pickupCoords.longitude
-                );
-              }
             }
           }
         }
       );
     } catch (error) {
       console.error('Error tracking location:', error);
+    }
+  };
+
+  const calculateMultiLegRoute = async (
+    currentLat: number, 
+    currentLng: number,
+    pickupLat: number,
+    pickupLng: number,
+    deliveryLat: number,
+    deliveryLng: number
+  ) => {
+    try {
+      console.log('Calculating multi-leg route:', {
+        current: { lat: currentLat, lng: currentLng },
+        pickup: { lat: pickupLat, lng: pickupLng },
+        delivery: { lat: deliveryLat, lng: deliveryLng }
+      });
+
+      // Check if the route distance is reasonable
+      const straightLineToPickup = calculateDistance(currentLat, currentLng, pickupLat, pickupLng);
+      const straightLineToDelivery = calculateDistance(pickupLat, pickupLng, deliveryLat, deliveryLng);
+      const straightLineTotal = straightLineToPickup + straightLineToDelivery;
+
+      console.log('Route distances (straight line):', {
+        toPickup: `${straightLineToPickup.toFixed(0)} km`,
+        toDelivery: `${straightLineToDelivery.toFixed(0)} km`,
+        total: `${straightLineTotal.toFixed(0)} km`
+      });
+
+      // Warn if the route seems impossibly long (intercontinental)
+      if (straightLineTotal > 5000) {
+        Alert.alert(
+          'Location Mismatch',
+          `The route distance (${straightLineTotal.toFixed(0)} km) suggests you and the shipment are on different continents.\n\n` +
+          'This may be due to:\n' +
+          '• Test/mock GPS data\n' +
+          '• Incorrect shipment location data\n' +
+          '• GPS signal issues\n\n' +
+          'The map will show an estimated route, but actual navigation may not be possible.',
+          [{ text: 'OK' }]
+        );
+      }
+
+      // Calculate both legs of the journey
+      const [leg1Data, leg2Data] = await Promise.all([
+        getRoute(currentLat, currentLng, pickupLat, pickupLng),
+        getRoute(pickupLat, pickupLng, deliveryLat, deliveryLng)
+      ]);
+
+      console.log('Multi-leg route data received:', { leg1Data, leg2Data });
+
+      let leg1Coords: Array<{ latitude: number; longitude: number }> = [];
+      let leg2Coords: Array<{ latitude: number; longitude: number }> = [];
+
+      // Decode leg 1: current → pickup
+      if (leg1Data.polyline) {
+        try {
+          leg1Coords = decodePolyline(leg1Data.polyline);
+        } catch (decodeError) {
+          console.error('Error decoding leg 1 polyline:', decodeError);
+          leg1Coords = generateCoordsFromSteps(currentLat, currentLng, pickupLat, pickupLng, leg1Data.steps);
+        }
+      } else {
+        leg1Coords = generateCoordsFromSteps(currentLat, currentLng, pickupLat, pickupLng, leg1Data.steps);
+      }
+
+      // Decode leg 2: pickup → delivery
+      if (leg2Data.polyline) {
+        try {
+          leg2Coords = decodePolyline(leg2Data.polyline);
+        } catch (decodeError) {
+          console.error('Error decoding leg 2 polyline:', decodeError);
+          leg2Coords = generateCoordsFromSteps(pickupLat, pickupLng, deliveryLat, deliveryLng, leg2Data.steps);
+        }
+      } else {
+        leg2Coords = generateCoordsFromSteps(pickupLat, pickupLng, deliveryLat, deliveryLng, leg2Data.steps);
+      }
+
+      // Combine both legs into a single route for fitToCoordinates
+      const allCoords = [...leg1Coords, ...leg2Coords];
+      
+      // Store separate leg coordinates for rendering with different colors
+      setLeg1Coordinates(leg1Coords);
+      setLeg2Coordinates(leg2Coords);
+      setRouteCoordinates(allCoords);
+      setIsMultiLegRoute(true);
+
+      // Calculate total distance and duration
+      const totalDistance = (leg1Data.distance?.value || 0) + (leg2Data.distance?.value || 0);
+      const totalDuration = (leg1Data.duration?.value || 0) + (leg2Data.duration?.value || 0);
+
+      // Format total distance (convert meters to miles/km)
+      const distanceInMiles = (totalDistance / 1609.34).toFixed(1);
+      const distanceInKm = (totalDistance / 1000).toFixed(1);
+      const distanceText = `${distanceInMiles} mi (${distanceInKm} km)`;
+
+      // Format total duration (convert seconds to hours/minutes)
+      const hours = Math.floor(totalDuration / 3600);
+      const minutes = Math.floor((totalDuration % 3600) / 60);
+      const durationText = hours > 0 ? `${hours}h ${minutes}m` : `${minutes} min`;
+
+      setRouteInfo({
+        distance: distanceText,
+        duration: durationText,
+      });
+
+      // Fit map to show all coordinates
+      if (mapRef.current && allCoords.length > 0) {
+        mapRef.current.fitToCoordinates(allCoords, {
+          edgePadding: { top: 100, right: 50, bottom: 300, left: 50 },
+          animated: true,
+        });
+      }
+    } catch (error) {
+      console.error('Error calculating multi-leg route:', error);
+      Alert.alert('Route Error', 'Failed to calculate route. Please try again.');
     }
   };
 
@@ -326,6 +457,9 @@ export default function RouteMapScreen({ route, navigation }: RouteMapScreenProp
       }
       
       setRouteCoordinates(coords);
+      setIsMultiLegRoute(false); // Single-leg route
+      setLeg1Coordinates([]);
+      setLeg2Coordinates([]);
       
       // Set route info
       setRouteInfo({
@@ -524,12 +658,36 @@ export default function RouteMapScreen({ route, navigation }: RouteMapScreenProp
         {renderDestinationMarker()}
         
         {/* Route Line */}
-        {routeCoordinates.length > 1 && (
-          <Polyline
-            coordinates={routeCoordinates}
-            strokeColor={Colors.primary}
-            strokeWidth={4}
-          />
+        {isMultiLegRoute ? (
+          <>
+            {/* Leg 1: Current Location → Pickup (Orange/Amber) */}
+            {leg1Coordinates.length > 1 && (
+              <Polyline
+                coordinates={leg1Coordinates}
+                strokeColor="#FF9800" // Orange for "going to pickup"
+                strokeWidth={4}
+                lineDashPattern={[1]} // Solid line
+              />
+            )}
+            {/* Leg 2: Pickup → Delivery (Blue/Primary) */}
+            {leg2Coordinates.length > 1 && (
+              <Polyline
+                coordinates={leg2Coordinates}
+                strokeColor={Colors.primary} // Primary blue for "delivery leg"
+                strokeWidth={4}
+                lineDashPattern={[1]} // Solid line
+              />
+            )}
+          </>
+        ) : (
+          /* Single leg route */
+          routeCoordinates.length > 1 && (
+            <Polyline
+              coordinates={routeCoordinates}
+              strokeColor={Colors.primary}
+              strokeWidth={4}
+            />
+          )
         )}
       </MapView>
       
@@ -593,6 +751,21 @@ export default function RouteMapScreen({ route, navigation }: RouteMapScreenProp
                 <Text style={styles.routeDetailLabel}>Estimated Time:</Text>
                 <Text style={styles.routeDetailValue}>{routeInfo.duration}</Text>
               </View>
+              
+              {/* Route Legend for multi-leg routes */}
+              {isMultiLegRoute && (
+                <View style={styles.routeLegend}>
+                  <Text style={styles.routeLegendTitle}>Route:</Text>
+                  <View style={styles.routeLegendItem}>
+                    <View style={[styles.routeLegendLine, { backgroundColor: '#FF9800' }]} />
+                    <Text style={styles.routeLegendText}>To Pickup</Text>
+                  </View>
+                  <View style={styles.routeLegendItem}>
+                    <View style={[styles.routeLegendLine, { backgroundColor: Colors.primary }]} />
+                    <Text style={styles.routeLegendText}>To Delivery</Text>
+                  </View>
+                </View>
+              )}
             </View>
           ) : (
             <View style={styles.routeDetails}>
@@ -603,38 +776,64 @@ export default function RouteMapScreen({ route, navigation }: RouteMapScreenProp
           <TouchableOpacity 
             style={styles.startNavigationButton}
             onPress={() => {
-              // Get destination coordinates
-              let destCoords;
-              let destLabel = 'Destination';
+              // Check if we need multi-leg navigation (before pickup) or single destination
+              const needsPickup = shipment?.status !== 'picked_up' && shipment?.status !== 'in_transit';
               
-              if (shipment?.status === 'picked_up' || shipment?.status === 'in_transit') {
-                // Navigate to delivery location
-                if (shipment.delivery_lat !== undefined && shipment.delivery_lng !== undefined) {
+              if (needsPickup) {
+                // Multi-leg route: Current → Pickup → Delivery
+                const pickupCoords = shipment?.pickup_lat !== undefined && shipment?.pickup_lng !== undefined
+                  ? { latitude: shipment.pickup_lat, longitude: shipment.pickup_lng }
+                  : shipment?.pickup_location 
+                    ? extractCoordinates(shipment.pickup_location)
+                    : null;
+                
+                const deliveryCoords = shipment?.delivery_lat !== undefined && shipment?.delivery_lng !== undefined
+                  ? { latitude: shipment.delivery_lat, longitude: shipment.delivery_lng }
+                  : shipment?.delivery_location 
+                    ? extractCoordinates(shipment.delivery_location)
+                    : null;
+                
+                if (pickupCoords && deliveryCoords) {
+                  // Use waypoint navigation: Current location → Pickup (waypoint) → Delivery (destination)
+                  openExternalNavigationWithWaypoints(
+                    currentLocation ? {
+                      latitude: currentLocation.coords.latitude,
+                      longitude: currentLocation.coords.longitude
+                    } : null,
+                    [{
+                      latitude: pickupCoords.latitude,
+                      longitude: pickupCoords.longitude,
+                      label: shipment?.pickup_address || 'Pickup Location'
+                    }],
+                    {
+                      latitude: deliveryCoords.latitude,
+                      longitude: deliveryCoords.longitude,
+                      label: shipment?.delivery_address || 'Delivery Location'
+                    }
+                  );
+                } else {
+                  Alert.alert('Error', 'Unable to open navigation. Pickup or delivery coordinates not available.');
+                }
+              } else {
+                // Single destination: Current → Delivery
+                let destCoords;
+                let destLabel = 'Destination';
+                
+                if (shipment?.delivery_lat !== undefined && shipment?.delivery_lng !== undefined) {
                   destCoords = {
                     latitude: shipment.delivery_lat,
                     longitude: shipment.delivery_lng
                   };
-                } else if (shipment.delivery_location) {
+                } else if (shipment?.delivery_location) {
                   destCoords = extractCoordinates(shipment.delivery_location);
                 }
-                destLabel = shipment.delivery_address || 'Delivery Location';
-              } else {
-                // Navigate to pickup location
-                if (shipment?.pickup_lat !== undefined && shipment?.pickup_lng !== undefined) {
-                  destCoords = {
-                    latitude: shipment.pickup_lat,
-                    longitude: shipment.pickup_lng
-                  };
-                } else if (shipment?.pickup_location) {
-                  destCoords = extractCoordinates(shipment.pickup_location);
+                destLabel = shipment?.delivery_address || 'Delivery Location';
+                
+                if (destCoords) {
+                  openExternalNavigation(destCoords.latitude, destCoords.longitude, destLabel);
+                } else {
+                  Alert.alert('Error', 'Unable to open navigation. Delivery coordinates not available.');
                 }
-                destLabel = shipment?.pickup_address || 'Pickup Location';
-              }
-              
-              if (destCoords) {
-                openExternalNavigation(destCoords.latitude, destCoords.longitude, destLabel);
-              } else {
-                Alert.alert('Error', 'Unable to open navigation. Location coordinates not available.');
               }
             }}
           >
@@ -824,5 +1023,32 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: Colors.text.primary,
     fontWeight: '500',
+  },
+  routeLegend: {
+    marginTop: 12,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: Colors.border,
+  },
+  routeLegendTitle: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: Colors.text.secondary,
+    marginBottom: 8,
+  },
+  routeLegendItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: 4,
+  },
+  routeLegendLine: {
+    width: 30,
+    height: 4,
+    borderRadius: 2,
+    marginRight: 8,
+  },
+  routeLegendText: {
+    fontSize: 12,
+    color: Colors.text.primary,
   },
 });
