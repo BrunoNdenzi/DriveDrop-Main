@@ -50,6 +50,18 @@ export const getRoute = async (
   endLng: number
 ): Promise<any> => {
   try {
+    // Check if the distance is reasonable for a driving route (< 5000 km)
+    const straightLineDistance = calculateDistance(startLat, startLng, endLat, endLng);
+    
+    if (straightLineDistance > 5000) {
+      console.warn(
+        `Route distance (${straightLineDistance.toFixed(0)} km) exceeds reasonable driving distance.`,
+        'This may indicate GPS coordinates from different continents.',
+        `Start: ${startLat}, ${startLng}`,
+        `End: ${endLat}, ${endLng}`
+      );
+    }
+    
     // Get Google Maps API key using the proper utility function
     const apiKey = getGoogleMapsApiKey();
     
@@ -66,6 +78,13 @@ export const getRoute = async (
     const response = await fetch(url);
     const data = await response.json();
     
+    // Log the API response status for debugging
+    console.log('Google Directions API status:', data.status);
+    if (data.status !== 'OK') {
+      console.log('API error details:', data.error_message || 'No error message');
+      console.log('Available routes:', data.routes?.length || 0);
+    }
+    
     if (data.status === 'OK' && data.routes && data.routes.length > 0) {
       const route = data.routes[0];
       const leg = route.legs[0];
@@ -81,6 +100,7 @@ export const getRoute = async (
       };
     } else {
       console.warn('Google Directions API returned no routes. Using fallback.');
+      console.warn('Reason: Distance may be too far or route requires non-driving transport (flight, ferry)');
       return getFallbackRoute(startLat, startLng, endLat, endLng);
     }
   } catch (error) {
@@ -306,6 +326,116 @@ export const openExternalNavigation = (
 };
 
 /**
+ * Open external navigation with multiple waypoints (Google Maps)
+ * Creates a route from current location through waypoints to final destination
+ * @param {Object} origin Starting point {latitude, longitude}
+ * @param {Array<Object>} waypoints Array of waypoints [{latitude, longitude, label}]
+ * @param {Object} destination Final destination {latitude, longitude, label}
+ */
+export const openExternalNavigationWithWaypoints = (
+  origin: { latitude: number; longitude: number } | null,
+  waypoints: Array<{ latitude: number; longitude: number; label?: string }>,
+  destination: { latitude: number; longitude: number; label?: string }
+): void => {
+  const { Linking, Platform, Alert } = require('react-native');
+  
+  try {
+    // For Android, we'll use Google Maps intent with waypoints
+    if (Platform.OS === 'android') {
+      // Build waypoints string for Google Maps
+      const waypointsStr = waypoints
+        .map(wp => `${wp.latitude},${wp.longitude}`)
+        .join('|');
+      
+      // Google Maps URL format with waypoints:
+      // https://www.google.com/maps/dir/?api=1&origin=current&waypoints=lat1,lng1|lat2,lng2&destination=lat,lng
+      let url = 'https://www.google.com/maps/dir/?api=1';
+      
+      // Add origin (use "current location" or specific coordinates)
+      if (origin) {
+        url += `&origin=${origin.latitude},${origin.longitude}`;
+      } else {
+        url += '&origin=current+location';
+      }
+      
+      // Add waypoints if any
+      if (waypoints.length > 0) {
+        url += `&waypoints=${encodeURIComponent(waypointsStr)}`;
+      }
+      
+      // Add destination
+      url += `&destination=${destination.latitude},${destination.longitude}`;
+      
+      // Add navigation mode (driving)
+      url += '&travelmode=driving';
+      
+      console.log('Opening Google Maps with URL:', url);
+      Linking.openURL(url);
+    } 
+    // For iOS, Apple Maps doesn't support waypoints well via URL scheme
+    // So we'll use Google Maps web URL which will open in Google Maps app if installed
+    else if (Platform.OS === 'ios') {
+      // Try to open Google Maps app first
+      const waypointsStr = waypoints
+        .map(wp => `${wp.latitude},${wp.longitude}`)
+        .join('|');
+      
+      let googleMapsUrl = 'comgooglemaps://?';
+      
+      // Add origin
+      if (origin) {
+        googleMapsUrl += `saddr=${origin.latitude},${origin.longitude}`;
+      } else {
+        googleMapsUrl += 'saddr=current+location';
+      }
+      
+      // Add destination
+      googleMapsUrl += `&daddr=${destination.latitude},${destination.longitude}`;
+      
+      // Add waypoints
+      if (waypoints.length > 0) {
+        googleMapsUrl += `&waypoints=${encodeURIComponent(waypointsStr)}`;
+      }
+      
+      googleMapsUrl += '&directionsmode=driving';
+      
+      // Try to open Google Maps app
+      Linking.canOpenURL(googleMapsUrl).then((supported: boolean) => {
+        if (supported) {
+          console.log('Opening Google Maps app on iOS');
+          Linking.openURL(googleMapsUrl);
+        } else {
+          // Fallback to Google Maps web URL
+          let webUrl = 'https://www.google.com/maps/dir/?api=1';
+          
+          if (origin) {
+            webUrl += `&origin=${origin.latitude},${origin.longitude}`;
+          } else {
+            webUrl += '&origin=current+location';
+          }
+          
+          if (waypoints.length > 0) {
+            webUrl += `&waypoints=${encodeURIComponent(waypointsStr)}`;
+          }
+          
+          webUrl += `&destination=${destination.latitude},${destination.longitude}`;
+          webUrl += '&travelmode=driving';
+          
+          console.log('Opening Google Maps web on iOS');
+          Linking.openURL(webUrl);
+        }
+      });
+    }
+  } catch (error) {
+    console.error('Error opening navigation:', error);
+    Alert.alert(
+      'Navigation Error',
+      'Unable to open navigation app. Please ensure you have Google Maps installed.'
+    );
+  }
+};
+
+/**
  * Parse WKB (Well-Known Binary) hexadecimal string from PostGIS
  * Format: 0101000020E6100000[longitude as hex][latitude as hex]
  * @param {string} wkbHex WKB hexadecimal string
@@ -320,20 +450,26 @@ const parseWKB = (wkbHex: string): { latitude: number; longitude: number } | nul
     // Next 8 bytes - longitude as double
     // Next 8 bytes - latitude as double
     
-    if (!wkbHex || wkbHex.length < 42) {
+    if (!wkbHex || wkbHex.length < 50) {
+      console.error('Invalid WKB hex length:', wkbHex?.length);
       return null;
     }
     
-    // Extract longitude (bytes 18-33, which is characters 36-51 in hex string)
+    // Extract longitude (16 hex chars = 8 bytes, starting at position 18)
     const lonHex = wkbHex.substring(18, 34);
-    // Extract latitude (bytes 34-49, which is characters 52-67 in hex string)
+    // Extract latitude (16 hex chars = 8 bytes, starting at position 34)
     const latHex = wkbHex.substring(34, 50);
+    
+    console.log('WKB parsing - Lon hex:', lonHex, 'Lat hex:', latHex);
     
     // Convert hex to IEEE 754 double (little endian)
     const longitude = hexToDouble(lonHex, true);
     const latitude = hexToDouble(latHex, true);
     
+    console.log('WKB parsing result - Lon:', longitude, 'Lat:', latitude);
+    
     if (isNaN(longitude) || isNaN(latitude)) {
+      console.error('Invalid coordinates after parsing');
       return null;
     }
     
@@ -352,26 +488,30 @@ const parseWKB = (wkbHex: string): { latitude: number; longitude: number } | nul
  */
 const hexToDouble = (hex: string, littleEndian: boolean = false): number => {
   try {
+    if (hex.length !== 16) {
+      console.error('Invalid hex length for double:', hex.length, 'Expected 16');
+      return NaN;
+    }
+
     // Create a buffer
     const buffer = new ArrayBuffer(8);
     const view = new DataView(buffer);
     
-    // Parse hex string as bytes
-    if (littleEndian) {
-      // Little endian: read bytes in reverse order
-      for (let i = 0; i < 8; i++) {
-        const byteHex = hex.substr(i * 2, 2);
-        view.setUint8(i, parseInt(byteHex, 16));
+    // Parse hex string as bytes and write to buffer
+    for (let i = 0; i < 8; i++) {
+      const byteHex = hex.substring(i * 2, i * 2 + 2);
+      const byteValue = parseInt(byteHex, 16);
+      
+      if (isNaN(byteValue)) {
+        console.error('Invalid byte hex:', byteHex, 'at position', i);
+        return NaN;
       }
-    } else {
-      // Big endian
-      for (let i = 0; i < 8; i++) {
-        const byteHex = hex.substr(i * 2, 2);
-        view.setUint8(i, parseInt(byteHex, 16));
-      }
+      
+      view.setUint8(i, byteValue);
     }
     
-    // Read as double (little endian if original was little endian)
+    // Read as double with correct endianness
+    // littleEndian parameter tells DataView how to interpret the bytes
     return view.getFloat64(0, littleEndian);
   } catch (e) {
     console.error('Error in hexToDouble:', e);
