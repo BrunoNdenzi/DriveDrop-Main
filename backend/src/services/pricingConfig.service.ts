@@ -175,14 +175,24 @@ class PricingConfigService {
       // Validate inputs
       this.validateConfigUpdates(updates);
 
-      // Update the configuration
+      // Get the old config first for history tracking
+      const { data: oldConfig } = await supabaseAdmin
+        .from('pricing_config')
+        .select('*')
+        .eq('id', configId)
+        .single();
+
+      if (!oldConfig) {
+        throw createError('Pricing configuration not found', 404, 'NOT_FOUND');
+      }
+
+      // Update the configuration (don't include change_reason in the update)
       const { data, error } = await supabaseAdmin
         .from('pricing_config')
         .update({
           ...updates,
           updated_at: new Date().toISOString(),
           updated_by: userId,
-          change_reason: changeReason || 'No reason provided',
         })
         .eq('id', configId)
         .select()
@@ -194,6 +204,27 @@ class PricingConfigService {
         throw createError('Pricing configuration not found', 404, 'NOT_FOUND');
       }
 
+      // Manually create history entry with change_reason
+      const changedFields: string[] = [];
+      const updatesRecord = updates as Record<string, any>;
+      Object.keys(updates).forEach(key => {
+        if (oldConfig[key] !== updatesRecord[key]) {
+          changedFields.push(key);
+        }
+      });
+
+      if (changedFields.length > 0) {
+        await supabaseAdmin
+          .from('pricing_config_history')
+          .insert({
+            config_id: configId,
+            changed_by: userId,
+            change_reason: changeReason || 'No reason provided',
+            changed_fields: changedFields,
+            config_snapshot: data,
+          });
+      }
+
       // Clear cache to force refresh
       this.clearCache();
 
@@ -201,7 +232,7 @@ class PricingConfigService {
         configId,
         userId,
         changeReason,
-        changes: Object.keys(updates)
+        changes: changedFields
       });
 
       return data;
