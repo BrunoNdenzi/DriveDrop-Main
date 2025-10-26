@@ -293,6 +293,14 @@ function AdminDashboardScreen({ navigation }: AdminDashboardScreenProps) {
               <MaterialIcons name="attach-money" size={32} color={Colors.text.inverse} />
               <Text style={styles.actionButtonText}>Pricing Config</Text>
             </TouchableOpacity>
+            
+            <TouchableOpacity 
+              style={[styles.actionButton, styles.mapButton]}
+              onPress={() => navigation.navigate('AdminShipmentsMap')}
+            >
+              <MaterialIcons name="map" size={32} color={Colors.text.inverse} />
+              <Text style={styles.actionButtonText}>Shipments Map</Text>
+            </TouchableOpacity>
           </View>
         </View>
 
@@ -406,6 +414,9 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 3,
+  },
+  mapButton: {
+    backgroundColor: '#10B981', // Green color for map feature
   },
   actionButtonText: {
     color: Colors.text.inverse,
