@@ -285,6 +285,14 @@ function AdminDashboardScreen({ navigation }: AdminDashboardScreenProps) {
               <MaterialIcons name="assignment-ind" size={32} color={Colors.text.inverse} />
               <Text style={styles.actionButtonText}>Driver Applications</Text>
             </TouchableOpacity>
+            
+            <TouchableOpacity 
+              style={styles.actionButton}
+              onPress={() => navigation.navigate('AdminPricing')}
+            >
+              <MaterialIcons name="attach-money" size={32} color={Colors.text.inverse} />
+              <Text style={styles.actionButtonText}>Pricing Config</Text>
+            </TouchableOpacity>
           </View>
         </View>
 

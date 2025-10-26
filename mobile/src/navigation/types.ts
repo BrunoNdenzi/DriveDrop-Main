@@ -37,6 +37,7 @@ export type RootStackParamList = {
   AdminAssignment: undefined;
   AdminDashboard: undefined;
   AdminJobApplications: undefined;
+  AdminPricing: undefined;
   
   // Diagnostic Screens
   NetworkDiagnostic: undefined;
