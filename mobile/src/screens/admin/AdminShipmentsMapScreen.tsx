@@ -85,6 +85,7 @@ export default function AdminShipmentsMapScreen({ navigation }: any) {
   const [showFilters, setShowFilters] = useState(false);
   const [showLegend, setShowLegend] = useState(false);
   const [showStats, setShowStats] = useState(false);
+  const [mapError, setMapError] = useState<string | null>(null);
   const [filters, setFilters] = useState<FilterState>({
     status: 'all',
     dateRange: '7d',
@@ -113,13 +114,22 @@ export default function AdminShipmentsMapScreen({ navigation }: any) {
 
   const checkGoogleMapsApi = () => {
     const apiKey = getGoogleMapsApiKey();
+    console.log('Google Maps API Key check:', {
+      hasKey: !!apiKey,
+      keyLength: apiKey?.length || 0
+    });
+    
     if (!apiKey) {
+      setMapError('Google Maps is not properly configured');
+      setLoading(false);
       Alert.alert(
         'Configuration Required',
         'Google Maps API key is not configured. Please contact support.',
-        [{ text: 'OK' }]
+        [{ text: 'OK', onPress: () => navigation.goBack() }]
       );
+      return false;
     }
+    return true;
   };
 
   const loadShipments = async () => {
@@ -744,6 +754,39 @@ export default function AdminShipmentsMapScreen({ navigation }: any) {
     );
   };
 
+  // Show error screen if map initialization failed
+  if (mapError) {
+    return (
+      <View style={styles.container}>
+        <StatusBar style="light" />
+        <View style={styles.errorContainer}>
+          <MaterialIcons name="error-outline" size={64} color={Colors.error} />
+          <Text style={styles.errorTitle}>Map Unavailable</Text>
+          <Text style={styles.errorMessage}>{mapError}</Text>
+          <TouchableOpacity
+            style={styles.retryButton}
+            onPress={() => {
+              setMapError(null);
+              setLoading(true);
+              if (checkGoogleMapsApi()) {
+                loadShipments();
+                loadAllStatistics();
+              }
+            }}
+          >
+            <Text style={styles.retryButtonText}>Try Again</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={() => navigation.goBack()}
+          >
+            <Text style={styles.backButtonText}>Go Back</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    );
+  }
+
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
@@ -762,6 +805,7 @@ export default function AdminShipmentsMapScreen({ navigation }: any) {
         <StatusBar style="light" />
 
       {/* Map */}
+      {!mapError && (
       <MapView
         ref={mapRef}
         provider={PROVIDER_GOOGLE}
@@ -779,6 +823,7 @@ export default function AdminShipmentsMapScreen({ navigation }: any) {
       >
         {renderShipmentMarkers()}
       </MapView>
+      )}
 
       {/* Top Bar */}
       <View style={styles.topBar}>
@@ -1228,5 +1273,42 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: '#FFF',
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+    backgroundColor: Colors.background,
+  },
+  errorTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: Colors.text.primary,
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  errorMessage: {
+    fontSize: 16,
+    color: Colors.text.secondary,
+    textAlign: 'center',
+    marginBottom: 24,
+  },
+  retryButton: {
+    backgroundColor: Colors.primary,
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 8,
+    marginBottom: 12,
+  },
+  retryButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  backButtonText: {
+    color: Colors.primary,
+    fontSize: 16,
+    fontWeight: '600',
   },
 });
