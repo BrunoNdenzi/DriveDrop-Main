@@ -654,6 +654,36 @@ export default function RouteMapScreen({ route, navigation }: RouteMapScreenProp
     );
   }
 
+  // If there's a critical error, show error screen instead of MapView
+  if (mapError) {
+    return (
+      <View style={styles.container}>
+        <StatusBar style="light" />
+        <View style={styles.errorContainer}>
+          <MaterialIcons name="error-outline" size={64} color={Colors.error} />
+          <Text style={styles.errorTitle}>Map Unavailable</Text>
+          <Text style={styles.errorText}>{mapError}</Text>
+          <TouchableOpacity
+            style={styles.retryButton}
+            onPress={() => {
+              setMapError(null);
+              setLoading(true);
+              fetchShipmentDetails();
+            }}
+          >
+            <Text style={styles.retryButtonText}>Try Again</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.backButtonAlt}
+            onPress={() => navigation.goBack()}
+          >
+            <Text style={styles.backButtonAltText}>Go Back</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    );
+  }
+
   return (
     <MapErrorBoundary 
       onRetry={() => {
@@ -666,6 +696,7 @@ export default function RouteMapScreen({ route, navigation }: RouteMapScreenProp
       <View style={styles.container}>
         <StatusBar style="light" />
       
+      {!mapError && (
       <MapView
         ref={mapRef}
         style={styles.map}
@@ -746,6 +777,7 @@ export default function RouteMapScreen({ route, navigation }: RouteMapScreenProp
           )
         )}
       </MapView>
+      )}
       
       {/* Header */}
       <View style={styles.headerContainer}>
