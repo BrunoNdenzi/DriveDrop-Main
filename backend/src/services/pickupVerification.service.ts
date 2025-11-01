@@ -154,11 +154,13 @@ export class PickupVerificationService {
         throw createError(error.message, 500, 'VERIFICATION_CREATE_FAILED');
       }
       
-      // Fetch the created verification
+      // Fetch the created verification (get the most recent one)
       const { data: createdVerification, error: fetchError } = await supabase
         .from('pickup_verifications')
         .select('*')
         .eq('shipment_id', shipmentId)
+        .order('created_at', { ascending: false })
+        .limit(1)
         .single();
       
       if (fetchError || !createdVerification) {
