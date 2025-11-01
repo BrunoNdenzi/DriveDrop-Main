@@ -16,6 +16,7 @@ import { StatusBar } from 'expo-status-bar';
 import { Colors } from '../../constants/Colors';
 import { auth } from '../../lib/supabase';
 import { RootStackParamList } from '../../navigation/types';
+import Logo from '../../components/common/Logo';
 
 type LoginScreenProps = NativeStackScreenProps<RootStackParamList, 'Login'>;
 
@@ -62,6 +63,11 @@ export default function LoginScreen({ navigation }: LoginScreenProps) {
     >
       <StatusBar style="dark" />
       <ScrollView contentContainerStyle={styles.scrollContent}>
+        {/* Logo */}
+        <View style={styles.logoContainer}>
+          <Logo variant="primary" size="large" />
+        </View>
+
         <View style={styles.header}>
           <Text style={styles.title}>Welcome Back</Text>
           <Text style={styles.subtitle}>Sign in to continue to DriveDrop</Text>
@@ -142,6 +148,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     paddingTop: 40,
     paddingBottom: 24,
+  },
+  logoContainer: {
+    alignItems: 'center',
+    marginBottom: 32,
   },
   header: {
     marginBottom: 40,

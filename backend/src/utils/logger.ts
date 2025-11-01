@@ -2,7 +2,7 @@
  * Logger utility
  */
 import { Request, Response, NextFunction } from 'express';
-import config from '@config';
+import config from '../config';
 
 // Simple logger with colored output and timestamp
 export const logger = {

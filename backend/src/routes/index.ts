@@ -15,6 +15,10 @@ import { diagnosticsRoutes } from './diagnostics.routes';
 import pricingRoutes from './pricing.routes';
 import adminRoutes from './admin.routes';
 
+console.log('[DEBUG] About to import pickupVerificationRoutes...');
+// import pickupVerificationRoutes from './pickupVerification.routes';
+// console.log('[DEBUG] pickupVerificationRoutes imported:', !!pickupVerificationRoutes);
+
 const router = Router();
 
 // API welcome message
@@ -34,6 +38,7 @@ router.get('/', (_req, res) => {
       drivers: '/api/v1/drivers',
       messages: '/api/v1/messages',
       admin: '/api/v1/admin',
+      pickupVerification: '/api/v1/shipments (pickup verification endpoints)',
     },
   });
 });
@@ -41,6 +46,7 @@ router.get('/', (_req, res) => {
 // Register routes
 router.use('/auth', authRoutes);
 router.use('/users', userRoutes);
+// router.use('/shipments', pickupVerificationRoutes); // Pickup verification routes (must be before shipmentRoutes) - TEMPORARILY DISABLED FOR DEBUG
 router.use('/shipments', shipmentRoutes);
 router.use('/payments', paymentsRoutes);
 router.use('/sms', smsRoutes);
