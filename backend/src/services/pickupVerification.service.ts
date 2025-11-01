@@ -154,6 +154,18 @@ export class PickupVerificationService {
         throw createError(rpcError.message, 500, 'VERIFICATION_CREATE_FAILED');
       }
       
+      // Update shipment status to pickup_verification_pending
+      const { error: statusError } = await supabase.rpc('update_shipment_status_safe', {
+        p_shipment_id: shipmentId,
+        p_new_status: 'pickup_verification_pending',
+        p_user_id: driverId,
+      });
+      
+      if (statusError) {
+        logger.error('Error updating shipment status:', statusError);
+        throw createError(statusError.message, 500, 'STATUS_UPDATE_FAILED');
+      }
+      
       // Fetch the created verification record
       const { data: fetchedVerification, error: fetchError } = await supabase
         .from('pickup_verifications')
