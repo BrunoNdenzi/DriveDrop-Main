@@ -277,7 +277,7 @@ export class PickupVerificationService {
         .update({
           verification_status: request.decision,
           differences_description: request.differences ? JSON.stringify(request.differences) : null,
-          driver_notes: request.driverNotes,
+          comparison_notes: request.driverNotes ? { driver: request.driverNotes } : null,
           distance_from_address_meters: distance,
           verification_completed_at: new Date().toISOString(),
         })
