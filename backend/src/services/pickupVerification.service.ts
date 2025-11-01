@@ -139,39 +139,35 @@ export class PickupVerificationService {
     try {
       logger.info(`Starting verification for shipment ${shipmentId}`);
       
-      // Update shipment status
-      const { error: statusError } = await supabase.rpc('update_shipment_status_safe', {
-        p_shipment_id: shipmentId,
-        p_new_status: 'pickup_verification_pending',
-        p_user_id: driverId,
-      });
-      
-      if (statusError) {
-        throw createError(statusError.message, 400, 'STATUS_UPDATE_FAILED');
-      }
-      
-      // Create verification record
-      const { data: verification, error } = await supabase
-        .from('pickup_verifications')
-        .insert({
-          shipment_id: shipmentId,
-          driver_id: driverId,
-          pickup_location: `POINT(${request.location.lng} ${request.location.lat})`,
-          gps_accuracy_meters: request.location.accuracy,
-          verification_status: 'pending',
-          driver_photos: [],
-          client_photos_reference: [],
-        })
-        .select()
-        .single();
+      // Create verification record using PostGIS function
+      const { error } = await supabase
+        .rpc('create_pickup_verification', {
+          p_shipment_id: shipmentId,
+          p_driver_id: driverId,
+          p_lat: request.location.lat,
+          p_lng: request.location.lng,
+          p_accuracy: request.location.accuracy
+        });
       
       if (error) {
         logger.error('Error creating verification record:', error);
         throw createError(error.message, 500, 'VERIFICATION_CREATE_FAILED');
       }
       
-      logger.info('Verification started successfully:', verification.id);
-      return verification as PickupVerification;
+      // Fetch the created verification
+      const { data: createdVerification, error: fetchError } = await supabase
+        .from('pickup_verifications')
+        .select('*')
+        .eq('shipment_id', shipmentId)
+        .single();
+      
+      if (fetchError || !createdVerification) {
+        logger.error('Error fetching verification record:', fetchError);
+        throw createError('Failed to fetch verification record', 500, 'VERIFICATION_CREATE_FAILED');
+      }
+      
+      logger.info('Verification started successfully:', createdVerification.id);
+      return createdVerification as PickupVerification;
     } catch (error) {
       logger.error('PickupVerificationService.startVerification error:', { error });
       throw error;
