@@ -214,7 +214,6 @@ export class PickupVerificationService {
         .from('pickup_verifications')
         .update({
           driver_photos: updatedPhotos,
-          photo_count: updatedPhotos.length,
         })
         .eq('id', verificationId);
       
