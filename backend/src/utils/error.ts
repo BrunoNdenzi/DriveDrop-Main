@@ -2,7 +2,7 @@
  * Error utilities
  */
 import { Request, Response, NextFunction } from 'express';
-import { ApiError } from '@middlewares/error.middleware';
+import { ApiError } from '../middlewares/error.middleware';
 
 /**
  * Create a standardized API error

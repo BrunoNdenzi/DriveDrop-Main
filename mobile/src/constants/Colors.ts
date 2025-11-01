@@ -1,11 +1,12 @@
 /**
  * DriveDrop design system colors following a modern, clean aesthetic
+ * Updated to match Looka brand identity
  */
 export const Colors = {
-  // Main colors
-  primary: '#1E88E5', // DriveDrop blue
-  primaryDark: '#1565C0',
-  primaryLight: '#64B5F6',
+  // Main colors - Matching Looka teal/turquoise brand
+  primary: '#00B8A9', // DriveDrop teal (matches Looka logo)
+  primaryDark: '#008C7F',
+  primaryLight: '#5CD6CA',
   secondary: '#FF9800', // DriveDrop orange
   secondaryDark: '#F57C00',
   secondaryLight: '#FFB74D',
@@ -34,9 +35,9 @@ export const Colors = {
   // Shipment status colors
   status: {
     pending: '#FFB74D', // Orange
-    accepted: '#64B5F6', // Light Blue
-    picked_up: '#64B5F6', // Light Blue
-    in_transit: '#1E88E5', // Blue
+    accepted: '#5CD6CA', // Light Teal
+    picked_up: '#5CD6CA', // Light Teal
+    in_transit: '#00B8A9', // Teal
     delivered: '#81C784', // Light Green
     cancelled: '#E57373', // Light Red
   },
@@ -50,7 +51,7 @@ export const Colors = {
     text: '#263238',
     textSecondary: '#607D8B',
     textDisabled: '#9E9E9E',
-    primary: '#1E88E5',
+    primary: '#00B8A9',
     secondary: '#FF9800',
     success: '#4CAF50',
     warning: '#FF9800',

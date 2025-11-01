@@ -16,7 +16,17 @@ export interface Shipment {
   price?: number;
 }
 
-export type ShipmentStatus = 'pending' | 'accepted' | 'picked_up' | 'in_transit' | 'delivered' | 'cancelled';
+export type ShipmentStatus = 
+  | 'pending'
+  | 'accepted'
+  | 'driver_en_route'
+  | 'driver_arrived'
+  | 'pickup_verification_pending'
+  | 'pickup_verified'
+  | 'picked_up'
+  | 'in_transit'
+  | 'delivered'
+  | 'cancelled';
 
 export interface ShipmentItem {
   id: string;
@@ -42,6 +52,10 @@ export interface TrackingInfo {
 export const shipmentStatusMap: Record<ShipmentStatus, string> = {
   pending: 'Pending',
   accepted: 'Accepted',
+  driver_en_route: 'Driver En Route',
+  driver_arrived: 'Driver Arrived',
+  pickup_verification_pending: 'Verifying Pickup',
+  pickup_verified: 'Pickup Verified',
   picked_up: 'Picked Up',
   in_transit: 'In Transit',
   delivered: 'Delivered',
@@ -54,10 +68,18 @@ export const getStatusColor = (status: ShipmentStatus): string => {
       return '#FFB74D'; // Orange
     case 'accepted':
       return '#64B5F6'; // Light Blue
+    case 'driver_en_route':
+      return '#00B8A9'; // Teal (brand color)
+    case 'driver_arrived':
+      return '#00B8A9'; // Teal
+    case 'pickup_verification_pending':
+      return '#FF9800'; // Orange (action needed)
+    case 'pickup_verified':
+      return '#4CAF50'; // Green
     case 'picked_up':
-      return '#64B5F6'; // Light Blue
+      return '#00B8A9'; // Teal
     case 'in_transit':
-      return '#1E88E5'; // Blue
+      return '#00B8A9'; // Teal (brand color)
     case 'delivered':
       return '#81C784'; // Light Green
     case 'cancelled':

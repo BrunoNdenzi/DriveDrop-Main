@@ -9,6 +9,7 @@ import {
   Platform,
   ScrollView,
   Alert,
+  Linking,
 } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { StatusBar } from 'expo-status-bar';
@@ -51,6 +52,41 @@ export default function SignUpScreen({ navigation }: SignUpScreenProps) {
 
     if (password.length < 6) {
       Alert.alert('Error', 'Password must be at least 6 characters');
+      return;
+    }
+
+    // ⚠️ DRIVER VERIFICATION REQUIRED
+    if (role === 'driver') {
+      Alert.alert(
+        'Driver Application Required',
+        'To become a driver, you need to complete our verification process including:\n\n• Background check\n• Driver\'s license verification\n• Insurance verification\n• Vehicle inspection\n\nThis must be completed on our website for security and compliance.\n\nWould you like to apply now?',
+        [
+          {
+            text: 'Cancel',
+            style: 'cancel'
+          },
+          {
+            text: 'Apply on Website',
+            onPress: async () => {
+              const url = 'https://drivedrop.com/apply-driver';
+              const canOpen = await Linking.canOpenURL(url);
+              if (canOpen) {
+                await Linking.openURL(url);
+              } else {
+                Alert.alert('Error', 'Cannot open website. Please visit drivedrop.com/apply-driver');
+              }
+            }
+          },
+          {
+            text: 'Sign Up as Client',
+            onPress: () => {
+              setRole('client');
+              Alert.alert('Role Changed', 'You can now sign up as a client. To become a driver later, visit our website.');
+            }
+          }
+        ],
+        { cancelable: true }
+      );
       return;
     }
 
@@ -190,6 +226,9 @@ export default function SignUpScreen({ navigation }: SignUpScreenProps) {
                 </Text>
                 <Text style={[styles.roleSubtext, role === 'driver' && styles.roleSubtextSelected]}>
                   Deliver Cars
+                </Text>
+                <Text style={[styles.verificationNote, role === 'driver' && styles.verificationNoteSelected]}>
+                  • Verification Required
                 </Text>
               </TouchableOpacity>
             </View>
@@ -365,6 +404,15 @@ const styles = StyleSheet.create({
   },
   roleSubtextSelected: {
     color: Colors.primary,
+  },
+  verificationNote: {
+    fontSize: 10,
+    color: '#FFA500',
+    marginTop: 4,
+    fontWeight: '500',
+  },
+  verificationNoteSelected: {
+    color: '#FF8C00',
   },
   button: {
     backgroundColor: Colors.primary,
