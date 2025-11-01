@@ -62,23 +62,37 @@ export class PickupVerificationService {
     try {
       logger.info(`Marking driver ${driverId} arrived for shipment ${shipmentId}`);
       
-      // Get shipment pickup coordinates
+      // Get shipment pickup coordinates using PostGIS
       const { data: shipment, error: shipmentError } = await supabase
-        .from('shipments')
-        .select('pickup_lat, pickup_lng')
-        .eq('id', shipmentId)
-        .single();
+        .rpc('get_shipment_coordinates', { shipment_id: shipmentId });
       
-      if (shipmentError || !shipment) {
-        throw createError('Shipment not found', 404, 'SHIPMENT_NOT_FOUND');
+      if (shipmentError || !shipment || shipment.length === 0) {
+        logger.warn(`Shipment ${shipmentId} not found or has no pickup location`);
+        // Skip GPS verification if no pickup location is set
+        // Update status directly
+        const { error } = await supabase.rpc('update_shipment_status_safe', {
+          p_shipment_id: shipmentId,
+          p_new_status: 'driver_arrived',
+          p_user_id: driverId,
+        });
+        
+        if (error) {
+          logger.error('Error marking driver arrived:', error);
+          throw createError('Failed to update shipment status', 500, 'STATUS_UPDATE_FAILED');
+        }
+        
+        logger.info(`Driver ${driverId} marked as arrived for shipment ${shipmentId} (no GPS verification)`);
+        return;
       }
+      
+      const pickupCoords = shipment[0];
       
       // Verify driver is within 100m of pickup location
       const distance = this.calculateDistance(
         location.lat,
         location.lng,
-        shipment.pickup_lat,
-        shipment.pickup_lng
+        pickupCoords.lat,
+        pickupCoords.lng
       );
       
       if (distance > 100) {
