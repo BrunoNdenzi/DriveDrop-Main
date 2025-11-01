@@ -2,7 +2,7 @@
  * Pickup Verification Service
  * Backend service for handling driver pickup verification operations
  */
-import { supabase } from '../lib/supabase';
+import { supabaseAdmin as supabase } from '../lib/supabase';
 import { createError } from '../utils/error';
 import { logger } from '../utils/logger';
 import type {
