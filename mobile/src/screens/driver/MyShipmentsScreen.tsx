@@ -54,7 +54,17 @@ function ActiveShipmentsTab({ navigation }: any) {
           profiles:client_id(first_name, last_name)
         `)
         .eq('driver_id', userProfile.id)
-        .in('status', ['assigned', 'accepted', 'picked_up', 'in_transit', 'in_progress'])
+        .in('status', [
+          'assigned', 
+          'accepted', 
+          'driver_en_route', 
+          'driver_arrived', 
+          'pickup_verification_pending',
+          'pickup_verified',
+          'picked_up', 
+          'in_transit', 
+          'in_progress'
+        ])
         .order('pickup_date', { ascending: true });
 
       if (error) throw error;
@@ -121,8 +131,12 @@ function ActiveShipmentsTab({ navigation }: any) {
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'accepted': return Colors.info;
       case 'assigned': return Colors.warning;
+      case 'accepted': return Colors.info;
+      case 'driver_en_route': return Colors.secondary;
+      case 'driver_arrived': return Colors.primary;
+      case 'pickup_verification_pending': return Colors.warning;
+      case 'pickup_verified': return Colors.success;
       case 'picked_up': return Colors.info;
       case 'in_transit': return Colors.secondary;
       case 'in_progress': return Colors.secondary;
@@ -131,25 +145,55 @@ function ActiveShipmentsTab({ navigation }: any) {
   };
 
   const getStatusAction = (shipment: Shipment) => {
+    // IMPORTANT: Actions in list view should navigate to detail screen
+    // to maintain the proper status flow with verification steps
     switch (shipment.status) {
-      case 'accepted':
-        return {
-          label: 'Confirm',
-          action: () => updateShipmentStatus(shipment.id, 'assigned'),
-          icon: 'assignment',
-          color: Colors.warning
-        };
       case 'assigned':
         return {
-          label: 'Mark Picked Up',
-          action: () => updateShipmentStatus(shipment.id, 'picked_up'),
+          label: 'View & Accept',
+          action: () => viewShipmentDetails(shipment.id),
+          icon: 'visibility',
+          color: Colors.info
+        };
+      case 'accepted':
+        return {
+          label: 'Start Trip',
+          action: () => viewShipmentDetails(shipment.id),
+          icon: 'local-shipping',
+          color: Colors.secondary
+        };
+      case 'driver_en_route':
+        return {
+          label: "I've Arrived",
+          action: () => viewShipmentDetails(shipment.id),
+          icon: 'location-on',
+          color: Colors.primary
+        };
+      case 'driver_arrived':
+        return {
+          label: 'Start Verification',
+          action: () => viewShipmentDetails(shipment.id),
+          icon: 'camera-alt',
+          color: Colors.warning
+        };
+      case 'pickup_verification_pending':
+        return {
+          label: 'Continue Verification',
+          action: () => viewShipmentDetails(shipment.id),
+          icon: 'camera-alt',
+          color: Colors.warning
+        };
+      case 'pickup_verified':
+        return {
+          label: 'Mark as Picked Up',
+          action: () => viewShipmentDetails(shipment.id),
           icon: 'check-circle',
           color: Colors.success
         };
       case 'picked_up':
         return {
           label: 'Start Transit',
-          action: () => updateShipmentStatus(shipment.id, 'in_transit'),
+          action: () => viewShipmentDetails(shipment.id),
           icon: 'local-shipping',
           color: Colors.secondary
         };
@@ -157,7 +201,7 @@ function ActiveShipmentsTab({ navigation }: any) {
       case 'in_progress':
         return {
           label: 'Complete Delivery',
-          action: () => updateShipmentStatus(shipment.id, 'delivered'),
+          action: () => viewShipmentDetails(shipment.id),
           icon: 'flag',
           color: Colors.primary
         };

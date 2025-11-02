@@ -25,6 +25,10 @@ export type RootStackParamList = {
   Settings: undefined;
   NotificationTest: undefined;
   
+  // Pickup Verification Screens
+  DriverPickupVerification: { shipmentId: string };
+  VerificationReview: { shipmentId: string; photos: any[] };
+  
   // Messaging Screens
   ChatScreen: { 
     shipmentId: string; 

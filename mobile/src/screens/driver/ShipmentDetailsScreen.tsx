@@ -166,7 +166,7 @@ export default function ShipmentDetailsScreen({ route, navigation }: any) {
       }
       
       // Validate status against schema
-      const validStatuses = ['pending', 'accepted', 'assigned', 'in_transit', 'in_progress', 'delivered', 'completed', 'cancelled'];
+      const validStatuses = ['pending', 'accepted', 'assigned', 'driver_en_route', 'driver_arrived', 'pickup_verification_pending', 'pickup_verified', 'picked_up', 'in_transit', 'in_progress', 'delivered', 'completed', 'cancelled'];
       if (!validStatuses.includes(newStatus)) {
         Alert.alert('Error', `Invalid status: ${newStatus}. Please contact support.`);
         setStatusUpdating(false);
@@ -176,7 +176,7 @@ export default function ShipmentDetailsScreen({ route, navigation }: any) {
       const { error } = await supabase
         .from('shipments')
         .update({ 
-          status: newStatus as 'pending' | 'completed' | 'draft' | 'accepted' | 'assigned' | 'in_transit' | 'in_progress' | 'delivered' | 'cancelled' | 'picked_up' | 'open',
+          status: newStatus as 'pending' | 'completed' | 'draft' | 'accepted' | 'assigned' | 'driver_en_route' | 'driver_arrived' | 'pickup_verification_pending' | 'pickup_verified' | 'picked_up' | 'in_transit' | 'in_progress' | 'delivered' | 'cancelled' | 'open',
           updated_at: new Date().toISOString()
         })
         .eq('id', shipment.id);
@@ -194,8 +194,8 @@ export default function ShipmentDetailsScreen({ route, navigation }: any) {
         return;
       }
 
-      // Start location tracking if status is in_transit
-      if (newStatus === 'in_transit' && userProfile) {
+      // Start location tracking if status is driver_en_route or in_transit
+      if ((newStatus === 'driver_en_route' || newStatus === 'in_transit') && userProfile) {
         realtimeService.startLocationTracking(
           shipment.id,
           userProfile.id,
@@ -216,6 +216,67 @@ export default function ShipmentDetailsScreen({ route, navigation }: any) {
     } finally {
       setStatusUpdating(false);
     }
+  };
+
+  const handleNextAction = async () => {
+    const nextAction = getNextStatusAction();
+    if (!nextAction) return;
+
+    // If action navigates to a screen
+    if (nextAction.navigate) {
+      navigation.navigate(nextAction.navigate, { shipmentId: shipment?.id });
+      return;
+    }
+
+    // If action requires the driver to accept an assigned job (call RPC)
+    if (nextAction.requiresAccept) {
+      if (!shipment?.id) {
+        Alert.alert('Error', 'Shipment ID is missing.');
+        return;
+      }
+      
+      try {
+        const { data, error } = await supabase.rpc('accept_shipment', { shipment_id: shipment.id });
+        if (error) throw error;
+        Alert.alert('Accepted', 'You have accepted the shipment. You may now Start Trip.');
+        // Refresh shipment details
+        fetchShipmentDetails();
+      } catch (err) {
+        console.error('Error accepting shipment:', err);
+        Alert.alert('Error', 'Failed to accept shipment. Please try again.');
+      }
+      return;
+    }
+    // If action requires GPS
+    if (nextAction.requiresGPS) {
+      try {
+        const { status } = await Location.requestForegroundPermissionsAsync();
+        if (status !== 'granted') {
+          Alert.alert(
+            'Location Permission Required',
+            'Please enable location services to continue.'
+          );
+          return;
+        }
+
+        const location = await Location.getCurrentPositionAsync({
+          accuracy: Location.Accuracy.Balanced
+        });
+
+        // For driver_arrived, verify GPS is close to pickup location
+        if (nextAction.status === 'driver_arrived') {
+          // TODO: Add GPS proximity check here
+          // For now, just proceed
+        }
+      } catch (error) {
+        console.error('Error getting location:', error);
+        Alert.alert('Error', 'Could not get your current location. Please try again.');
+        return;
+      }
+    }
+
+    // Update status
+    await updateShipmentStatus(nextAction.status);
   };
 
   const openNavigationApp = (address: string) => {
@@ -241,7 +302,11 @@ export default function ShipmentDetailsScreen({ route, navigation }: any) {
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'pending': return Colors.warning;
-      case 'assigned': return Colors.info;
+      case 'accepted': return Colors.info;
+      case 'driver_en_route': return Colors.secondary;
+      case 'driver_arrived': return Colors.primary;
+      case 'pickup_verification_pending': return Colors.warning;
+      case 'pickup_verified': return Colors.success;
       case 'picked_up': return Colors.secondary;
       case 'in_transit': return Colors.primary;
       case 'delivered': return Colors.success;
@@ -253,8 +318,52 @@ export default function ShipmentDetailsScreen({ route, navigation }: any) {
   const getNextStatusAction = () => {
     if (!shipment) return null;
     
+    console.log('🔍 Current shipment status:', shipment.status);
+    
     switch (shipment.status) {
       case 'assigned':
+        return {
+          label: 'Accept Job',
+          status: 'accepted',
+          icon: 'check-circle',
+          color: Colors.info,
+          requiresAccept: true,
+        };
+      case 'accepted':
+        return {
+          label: 'Start Trip',
+          status: 'driver_en_route',
+          icon: 'local-shipping',
+          color: Colors.secondary,
+          requiresGPS: true
+        };
+      case 'driver_en_route':
+        return {
+          label: "I've Arrived",
+          status: 'driver_arrived',
+          icon: 'location-on',
+          color: Colors.primary,
+          requiresGPS: true
+        };
+      case 'driver_arrived':
+        console.log('✅ Returning Start Verification button');
+        return {
+          label: 'Start Verification',
+          status: 'pickup_verification_pending',
+          icon: 'camera-alt',
+          color: Colors.warning,
+          navigate: 'DriverPickupVerification'
+        };
+      case 'pickup_verification_pending':
+        console.log('✅ Returning Continue Verification button');
+        return {
+          label: 'Continue Verification',
+          status: 'pickup_verification_pending',
+          icon: 'camera-alt',
+          color: Colors.warning,
+          navigate: 'DriverPickupVerification'
+        };
+      case 'pickup_verified':
         return {
           label: 'Mark as Picked Up',
           status: 'picked_up',
@@ -266,7 +375,8 @@ export default function ShipmentDetailsScreen({ route, navigation }: any) {
           label: 'Start Transit',
           status: 'in_transit',
           icon: 'local-shipping',
-          color: Colors.secondary
+          color: Colors.secondary,
+          requiresGPS: true
         };
       case 'in_transit':
         return {
@@ -276,6 +386,7 @@ export default function ShipmentDetailsScreen({ route, navigation }: any) {
           color: Colors.primary
         };
       default:
+        console.log('⚠️ No action for status:', shipment.status);
         return null;
     }
   };
@@ -312,6 +423,19 @@ export default function ShipmentDetailsScreen({ route, navigation }: any) {
       <StatusBar style="dark" />
       
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+        {/* Assigned Job Banner - Alert driver they need to accept */}
+        {shipment.status === 'assigned' && (
+          <View style={styles.assignedBanner}>
+            <MaterialIcons name="info" size={24} color={Colors.info} />
+            <View style={styles.bannerTextContainer}>
+              <Text style={styles.bannerTitle}>Job Assigned to You!</Text>
+              <Text style={styles.bannerText}>
+                An admin has assigned this shipment to you. Please review the details and tap "Accept Job" below to begin.
+              </Text>
+            </View>
+          </View>
+        )}
+
         {/* Header */}
         <View style={styles.header}>
           <Text style={styles.shipmentTitle}>{shipment.title}</Text>
@@ -469,7 +593,7 @@ export default function ShipmentDetailsScreen({ route, navigation }: any) {
         {nextAction && (
           <TouchableOpacity
             style={[styles.statusButton, { backgroundColor: nextAction.color }]}
-            onPress={() => updateShipmentStatus(nextAction.status)}
+            onPress={handleNextAction}
             disabled={statusUpdating}
           >
             {statusUpdating ? (
@@ -682,5 +806,32 @@ const styles = StyleSheet.create({
     color: Colors.background,
     fontWeight: '600',
     marginLeft: 8,
+  },
+  assignedBanner: {
+    flexDirection: 'row',
+    backgroundColor: Colors.info + '15',
+    padding: 16,
+    marginHorizontal: 16,
+    marginTop: 16,
+    marginBottom: 8,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: Colors.info,
+    alignItems: 'flex-start',
+  },
+  bannerTextContainer: {
+    flex: 1,
+    marginLeft: 12,
+  },
+  bannerTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: Colors.info,
+    marginBottom: 4,
+  },
+  bannerText: {
+    fontSize: 14,
+    color: Colors.text.primary,
+    lineHeight: 20,
   },
 });

@@ -32,6 +32,7 @@ import DriverShipmentDetailsScreen from '../screens/driver/ShipmentDetailsScreen
 import RouteMapScreen from '../screens/driver/RouteMapScreen';
 import DriverProfileScreen from '../screens/driver/DriverProfileScreen';
 import TransactionHistoryScreen from '../screens/driver/TransactionHistoryScreen';
+import DriverPickupVerificationScreen from '../screens/driver/DriverPickupVerificationScreen';
 
 // Messaging Screens (new clean implementation)
 import ConversationsScreen from '../screens/ConversationsScreen';
@@ -313,6 +314,12 @@ export default function Navigation() {
               name="ShipmentDetails_Driver"
               component={DriverShipmentDetailsScreen}
               options={{ title: 'Shipment Details' }}
+            />
+            
+            <Stack.Screen
+              name="DriverPickupVerification"
+              component={DriverPickupVerificationScreen}
+              options={{ title: 'Pickup Verification' }}
             />
             
             <Stack.Screen
