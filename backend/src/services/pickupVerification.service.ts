@@ -139,7 +139,33 @@ export class PickupVerificationService {
     try {
       logger.info(`Starting verification for shipment ${shipmentId}`);
       
-      // Create verification record using PostGIS function
+      // Check if verification already exists for this shipment
+      const { data: existingVerification, error: checkError } = await supabase
+        .from('pickup_verifications')
+        .select('*')
+        .eq('shipment_id', shipmentId)
+        .maybeSingle();
+      
+      if (checkError) {
+        logger.error('Error checking existing verification:', checkError);
+        throw createError(checkError.message, 500, 'VERIFICATION_CHECK_FAILED');
+      }
+      
+      // If verification already exists, return it (resume verification)
+      if (existingVerification) {
+        logger.info(`Verification already exists for shipment ${shipmentId}, resuming:`, existingVerification.id);
+        
+        // Update shipment status to pickup_verification_pending if not already
+        await supabase.rpc('update_shipment_status_safe', {
+          p_shipment_id: shipmentId,
+          p_new_status: 'pickup_verification_pending',
+          p_user_id: driverId,
+        });
+        
+        return existingVerification as PickupVerification;
+      }
+      
+      // Create new verification record using PostGIS function
       const { error: rpcError } = await supabase
         .rpc('create_pickup_verification', {
           p_shipment_id: shipmentId,

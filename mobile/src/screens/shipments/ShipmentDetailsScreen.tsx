@@ -18,6 +18,7 @@ import { RootStackParamList } from '../../navigation/types';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../context/AuthContext';
 import { realtimeService, DriverLocation } from '../../services/RealtimeService';
+import ClientPickupAlertModal from '../../components/ClientPickupAlertModal';
 
 type ShipmentDetailsScreenProps = NativeStackScreenProps<RootStackParamList, 'ShipmentDetails'>;
 
@@ -36,12 +37,15 @@ export default function ShipmentDetailsScreen({ route, navigation }: ShipmentDet
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [driverLocation, setDriverLocation] = useState<DriverLocation | null>(null);
+  const [pickupVerification, setPickupVerification] = useState<any>(null);
+  const [showVerificationAlert, setShowVerificationAlert] = useState(false);
   const { user } = useAuth();
   const realtimeChannelRef = useRef<RealtimeChannel | null>(null);
   const locationChannelRef = useRef<RealtimeChannel | null>(null);
 
   useEffect(() => {
     loadShipmentDetails();
+    loadPickupVerification();
     
     // Set up real-time subscription
     if (shipmentId) {
@@ -115,6 +119,32 @@ export default function ShipmentDetailsScreen({ route, navigation }: ShipmentDet
       setError('Failed to load shipment details');
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function loadPickupVerification() {
+    try {
+      const { data, error: fetchError } = await supabase
+        .from('pickup_verifications')
+        .select('*')
+        .eq('shipment_id', shipmentId)
+        .single();
+
+      if (fetchError && fetchError.code !== 'PGRST116') {
+        console.error('Error fetching pickup verification:', fetchError);
+        return;
+      }
+
+      if (data) {
+        setPickupVerification(data);
+        
+        // Show alert modal if verification has minor differences and pending client response
+        if (data.verification_status === 'minor_differences' && !data.client_response) {
+          setShowVerificationAlert(true);
+        }
+      }
+    } catch (err) {
+      console.error('Error loading pickup verification:', err);
     }
   }
 
@@ -202,6 +232,19 @@ export default function ShipmentDetailsScreen({ route, navigation }: ShipmentDet
     switch (status) {
       case 'pending':
         return Colors.warning;
+      case 'accepted':
+      case 'assigned':
+        return Colors.secondary;
+      case 'driver_en_route':
+        return Colors.secondary;
+      case 'driver_arrived':
+        return Colors.primary;
+      case 'pickup_verification_pending':
+        return Colors.warning;
+      case 'pickup_verified':
+        return Colors.success;
+      case 'picked_up':
+        return Colors.primary;
       case 'in_transit':
         return Colors.primary;
       case 'delivered':
@@ -273,6 +316,68 @@ export default function ShipmentDetailsScreen({ route, navigation }: ShipmentDet
             </Text>
           </View>
         </View>
+
+        {/* Pickup Verification Status */}
+        {pickupVerification && (
+          <View style={styles.verificationCard}>
+            <View style={styles.verificationHeader}>
+              <MaterialIcons 
+                name={pickupVerification.verification_status === 'matches' ? 'check-circle' : 
+                      pickupVerification.verification_status === 'minor_differences' ? 'warning' : 
+                      'error'} 
+                size={24} 
+                color={pickupVerification.verification_status === 'matches' ? Colors.success : 
+                       pickupVerification.verification_status === 'minor_differences' ? Colors.warning : 
+                       Colors.error} 
+              />
+              <Text style={styles.verificationTitle}>Pickup Verification</Text>
+            </View>
+            
+            <View style={styles.verificationStatus}>
+              <Text style={styles.verificationLabel}>Status:</Text>
+              <Text style={[
+                styles.verificationValue,
+                { color: pickupVerification.verification_status === 'matches' ? Colors.success : 
+                         pickupVerification.verification_status === 'minor_differences' ? Colors.warning : 
+                         Colors.error }
+              ]}>
+                {pickupVerification.verification_status === 'matches' ? 'Vehicle Matches' :
+                 pickupVerification.verification_status === 'minor_differences' ? 'Minor Differences Found' :
+                 'Major Issues Reported'}
+              </Text>
+            </View>
+            
+            {pickupVerification.verification_completed_at && (
+              <View style={styles.verificationDetail}>
+                <Text style={styles.verificationLabel}>Verified at:</Text>
+                <Text style={styles.verificationValue}>
+                  {formatDate(pickupVerification.verification_completed_at)}
+                </Text>
+              </View>
+            )}
+            
+            {pickupVerification.verification_status === 'minor_differences' && !pickupVerification.client_response && (
+              <View style={styles.verificationAlert}>
+                <MaterialIcons name="access-time" size={16} color={Colors.warning} />
+                <Text style={styles.verificationAlertText}>
+                  Awaiting your response - Please review the verification photos
+                </Text>
+              </View>
+            )}
+            
+            {pickupVerification.client_response && (
+              <View style={styles.verificationDetail}>
+                <Text style={styles.verificationLabel}>Your Response:</Text>
+                <Text style={[
+                  styles.verificationValue,
+                  { color: pickupVerification.client_response === 'approved' ? Colors.success : Colors.error }
+                ]}>
+                  {pickupVerification.client_response === 'approved' ? 'Approved' : 'Disputed'}
+                </Text>
+              </View>
+            )}
+          </View>
+        )}
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Shipment Details</Text>
@@ -376,6 +481,19 @@ export default function ShipmentDetailsScreen({ route, navigation }: ShipmentDet
           </View>
         )}
       </ScrollView>
+      
+      {/* Client Pickup Verification Alert Modal */}
+      {pickupVerification && (
+        <ClientPickupAlertModal
+          visible={showVerificationAlert}
+          onClose={() => {
+            setShowVerificationAlert(false);
+            loadPickupVerification(); // Reload to get updated status
+          }}
+          verification={pickupVerification}
+          shipmentId={shipmentId}
+        />
+      )}
     </View>
   );
 }
@@ -521,5 +639,63 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     fontSize: 16,
     marginLeft: 8,
+  },
+  verificationCard: {
+    backgroundColor: Colors.surface,
+    padding: 16,
+    borderRadius: 12,
+    marginBottom: 24,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  verificationHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  verificationTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: Colors.text.primary,
+    marginLeft: 12,
+  },
+  verificationStatus: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+  },
+  verificationDetail: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
+  verificationLabel: {
+    fontSize: 14,
+    color: Colors.text.secondary,
+  },
+  verificationValue: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: Colors.text.primary,
+  },
+  verificationAlert: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.warning + '20',
+    padding: 12,
+    borderRadius: 8,
+    marginTop: 12,
+  },
+  verificationAlertText: {
+    fontSize: 14,
+    color: Colors.warning,
+    fontWeight: '500',
+    marginLeft: 8,
+    flex: 1,
   },
 });
