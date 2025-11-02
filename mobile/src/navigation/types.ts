@@ -14,8 +14,8 @@ export type RootStackParamList = {
   DriverTabs: undefined;
   
   // Screens accessible from tabs
-  ShipmentDetails: { shipmentId: string };
-  ShipmentDetails_Driver: { shipmentId: string }; // Driver view of shipment details
+  ShipmentDetails: { shipmentId: string; refreshTrigger?: number };
+  ShipmentDetails_Driver: { shipmentId: string; refreshTrigger?: number }; // Driver view of shipment details
   RouteMap: { shipmentId: string };
   TransactionHistory: undefined;
   CreateShipment: undefined;

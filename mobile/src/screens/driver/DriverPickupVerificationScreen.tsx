@@ -9,6 +9,7 @@ import {
   Alert,
   ActivityIndicator,
   Dimensions,
+  Modal,
 } from 'react-native';
 import { CameraView, CameraType, useCameraPermissions } from 'expo-camera';
 import * as ImagePicker from 'expo-image-picker';
@@ -22,7 +23,7 @@ import { supabase } from '../../lib/supabase';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../../navigation/types';
 
-const { width } = Dimensions.get('window');
+const { width, height } = Dimensions.get('window');
 
 type DriverPickupVerificationScreenProps = NativeStackScreenProps<
   RootStackParamList,
@@ -36,13 +37,22 @@ interface Photo {
   timestamp: string;
 }
 
+interface ClientPhotos {
+  front: string[];
+  rear: string[];
+  left: string[];
+  right: string[];
+  interior: string[];
+  damage: string[];
+}
+
 const REQUIRED_ANGLES = [
-  { value: 'front', label: 'Front', icon: 'directions-car' },
-  { value: 'back', label: 'Back', icon: 'directions-car' },
-  { value: 'left_side', label: 'Left Side', icon: 'arrow-back' },
-  { value: 'right_side', label: 'Right Side', icon: 'arrow-forward' },
-  { value: 'interior', label: 'Interior', icon: 'event-seat' },
-  { value: 'dashboard', label: 'Dashboard', icon: 'speed' },
+  { value: 'front', label: 'Front', icon: 'directions-car', clientKey: 'front' },
+  { value: 'back', label: 'Back', icon: 'directions-car', clientKey: 'rear' },
+  { value: 'left_side', label: 'Left Side', icon: 'arrow-back', clientKey: 'left' },
+  { value: 'right_side', label: 'Right Side', icon: 'arrow-forward', clientKey: 'right' },
+  { value: 'interior', label: 'Interior', icon: 'event-seat', clientKey: 'interior' },
+  { value: 'dashboard', label: 'Dashboard', icon: 'speed', clientKey: 'damage' },
 ];
 
 export default function DriverPickupVerificationScreen({ route, navigation }: DriverPickupVerificationScreenProps) {
@@ -56,6 +66,9 @@ export default function DriverPickupVerificationScreen({ route, navigation }: Dr
   const [uploading, setUploading] = useState(false);
   const [decision, setDecision] = useState<'matches' | 'minor_differences' | 'major_issues' | null>(null);
   const [driverNotes, setDriverNotes] = useState('');
+  const [clientPhotos, setClientPhotos] = useState<ClientPhotos | null>(null);
+  const [showClientPhoto, setShowClientPhoto] = useState(false);
+  const [selectedClientPhotoUrl, setSelectedClientPhotoUrl] = useState<string>('');
   const cameraRef = useRef<CameraView>(null);
   const { userProfile } = useAuth();
 
@@ -63,7 +76,50 @@ export default function DriverPickupVerificationScreen({ route, navigation }: Dr
     if (permission === null) {
       requestPermission();
     }
+    fetchClientPhotos();
   }, [permission]);
+
+  const fetchClientPhotos = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('shipments')
+        .select('client_vehicle_photos')
+        .eq('id', shipmentId)
+        .single();
+
+      if (error) throw error;
+
+      if (data && (data as any).client_vehicle_photos) {
+        setClientPhotos((data as any).client_vehicle_photos as ClientPhotos);
+        console.log('✅ Client photos loaded:', Object.keys((data as any).client_vehicle_photos));
+      }
+    } catch (error) {
+      console.error('Error fetching client photos:', error);
+      // Don't alert - not critical if client didn't upload photos
+    }
+  };
+
+  const getClientPhotoForAngle = (angleValue: string): string | null => {
+    if (!clientPhotos) return null;
+    
+    const angle = REQUIRED_ANGLES.find(a => a.value === angleValue);
+    if (!angle) return null;
+    
+    const clientKey = angle.clientKey as keyof ClientPhotos;
+    const photoArray = clientPhotos[clientKey];
+    
+    return photoArray && photoArray.length > 0 ? photoArray[0] : null;
+  };
+
+  const viewClientPhoto = (angleValue: string) => {
+    const photoUrl = getClientPhotoForAngle(angleValue);
+    if (photoUrl) {
+      setSelectedClientPhotoUrl(photoUrl);
+      setShowClientPhoto(true);
+    } else {
+      Alert.alert('No Reference Photo', 'Client did not upload a photo for this angle.');
+    }
+  };
 
   const openCamera = (angle: string) => {
     setSelectedAngle(angle);
@@ -262,8 +318,10 @@ export default function DriverPickupVerificationScreen({ route, navigation }: Dr
 
       console.log('Verification started with ID:', verificationId);
 
-      // Step 2: Upload photos to Supabase Storage, then register with backend
-      for (const photo of photos) {
+      // Step 2: Upload photos in parallel for faster processing
+      console.log('Uploading all photos in parallel...');
+      
+      await Promise.all(photos.map(async (photo) => {
         console.log(`Uploading photo: ${photo.angle}`);
         
         // Upload to Supabase Storage
@@ -331,7 +389,14 @@ export default function DriverPickupVerificationScreen({ route, navigation }: Dr
         }
 
         console.log(`Photo ${photo.angle} registered successfully`);
-      }
+      }));
+      
+      console.log('✅ All photos uploaded successfully');
+
+      // Small delay to ensure database has been updated
+      // (Parallel uploads can cause race conditions with array updates)
+      await new Promise(resolve => setTimeout(resolve, 500));
+      console.log('✅ Proceeding to submit verification');
 
       // Step 3: Submit verification with decision
       const submitResponse = await fetch(
@@ -360,16 +425,17 @@ export default function DriverPickupVerificationScreen({ route, navigation }: Dr
         throw new Error(errorData.message || 'Failed to submit verification');
       }
       
-      Alert.alert(
-        'Success',
-        'Verification submitted successfully!',
-        [
-          {
-            text: 'OK',
-            onPress: () => navigation.goBack(),
-          },
-        ]
-      );
+      // Navigate back immediately with success flag
+      // This will trigger a refresh in the details screen
+      navigation.navigate('ShipmentDetails', { 
+        shipmentId, 
+        refreshTrigger: Date.now() // Force refresh
+      });
+      
+      // Show success message after navigation
+      setTimeout(() => {
+        Alert.alert('Success', 'Verification submitted successfully!');
+      }, 300);
     } catch (error) {
       console.error('Error submitting verification:', error);
       Alert.alert('Error', 'Failed to submit verification. Please try again.');
@@ -471,6 +537,33 @@ export default function DriverPickupVerificationScreen({ route, navigation }: Dr
     <View style={styles.container}>
       <StatusBar style="dark" />
       
+      {/* Client Photo Modal */}
+      <Modal
+        visible={showClientPhoto}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setShowClientPhoto(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Client's Reference Photo</Text>
+              <TouchableOpacity onPress={() => setShowClientPhoto(false)}>
+                <MaterialIcons name="close" size={24} color={Colors.text.primary} />
+              </TouchableOpacity>
+            </View>
+            <Image 
+              source={{ uri: selectedClientPhotoUrl }} 
+              style={styles.modalImage}
+              resizeMode="contain"
+            />
+            <Text style={styles.modalHint}>
+              Compare this with the actual vehicle before taking your photo
+            </Text>
+          </View>
+        </View>
+      </Modal>
+      
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
@@ -536,6 +629,18 @@ export default function DriverPickupVerificationScreen({ route, navigation }: Dr
                     <>
                       <MaterialIcons name={angle.icon as any} size={32} color={Colors.text.secondary} />
                       <Text style={styles.photoLabel}>{angle.label}</Text>
+                      
+                      {/* View Client's Reference Photo Button */}
+                      {getClientPhotoForAngle(angle.value) && (
+                        <TouchableOpacity
+                          style={styles.referenceButton}
+                          onPress={() => viewClientPhoto(angle.value)}
+                        >
+                          <MaterialIcons name="image" size={16} color={Colors.info} />
+                          <Text style={styles.referenceButtonText}>View Reference</Text>
+                        </TouchableOpacity>
+                      )}
+                      
                       <View style={styles.photoActions}>
                         <TouchableOpacity
                           style={styles.actionButton}
@@ -972,5 +1077,60 @@ const styles = StyleSheet.create({
     fontSize: 14,
     marginTop: 12,
     fontWeight: '500',
+  },
+  // Modal styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.9)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContent: {
+    width: width * 0.9,
+    maxHeight: height * 0.8,
+    backgroundColor: '#FFF',
+    borderRadius: 16,
+    padding: 20,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: Colors.text.primary,
+  },
+  modalImage: {
+    width: '100%',
+    height: height * 0.5,
+    borderRadius: 12,
+    backgroundColor: '#F0F0F0',
+  },
+  modalHint: {
+    marginTop: 16,
+    fontSize: 14,
+    color: Colors.text.secondary,
+    textAlign: 'center',
+    fontStyle: 'italic',
+  },
+  // Reference button styles
+  referenceButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.info + '15',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 6,
+    marginTop: 8,
+    marginBottom: 8,
+  },
+  referenceButtonText: {
+    fontSize: 12,
+    color: Colors.info,
+    fontWeight: '600',
+    marginLeft: 4,
   },
 });
