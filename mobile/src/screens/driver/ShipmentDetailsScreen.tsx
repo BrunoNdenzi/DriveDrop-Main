@@ -38,7 +38,7 @@ interface ShipmentDetails {
 }
 
 export default function ShipmentDetailsScreen({ route, navigation }: any) {
-  const { shipmentId } = route.params;
+  const { shipmentId, refreshTrigger } = route.params;
   const [shipment, setShipment] = useState<ShipmentDetails | null>(null);
   const [loading, setLoading] = useState(true);
   const [statusUpdating, setStatusUpdating] = useState(false);
@@ -60,7 +60,7 @@ export default function ShipmentDetailsScreen({ route, navigation }: any) {
         realtimeChannelRef.current = null;
       }
     };
-  }, [shipmentId, userProfile?.id]);
+  }, [shipmentId, userProfile?.id, refreshTrigger]);
 
   const setupRealtimeSubscription = () => {
     // Subscribe to real-time updates for this shipment
@@ -68,21 +68,17 @@ export default function ShipmentDetailsScreen({ route, navigation }: any) {
       shipmentId,
       // Shipment update handler
       (updatedShipment) => {
-        console.log('Received real-time shipment update:', updatedShipment);
+        console.log('✅ Real-time update received:', updatedShipment.status);
         
-        // Transform data to match our expected format
-        if (updatedShipment && shipment) {
-          const transformedShipment: ShipmentDetails = {
-            ...shipment,
+        // Optimistic update - update local state immediately
+        setShipment(prev => {
+          if (!prev) return prev;
+          return {
+            ...prev,
             status: updatedShipment.status,
-            // Update other fields as needed
+            updated_at: updatedShipment.updated_at || new Date().toISOString(),
           };
-          
-          setShipment(transformedShipment);
-        } else {
-          // If we don't have the shipment yet, fetch it
-          fetchShipmentDetails();
-        }
+        });
       },
       // New message handler (not needed in this screen)
       () => {},
@@ -150,6 +146,13 @@ export default function ShipmentDetailsScreen({ route, navigation }: any) {
     if (!shipment) return;
     
     setStatusUpdating(true);
+    
+    // Store previous status for rollback
+    const previousStatus = shipment.status;
+    
+    // Optimistic update - update UI immediately
+    setShipment(prev => prev ? { ...prev, status: newStatus } : null);
+    
     try {
       // Import NetworkUtil on-demand
       const NetworkUtil = (await import('../../utils/NetworkUtil')).default;
@@ -157,6 +160,8 @@ export default function ShipmentDetailsScreen({ route, navigation }: any) {
       // Check for internet connection first
       const isConnected = await NetworkUtil.isConnected();
       if (!isConnected) {
+        // Rollback optimistic update
+        setShipment(prev => prev ? { ...prev, status: previousStatus } : null);
         Alert.alert(
           'No Internet Connection',
           'Please check your internet connection and try again.'
@@ -168,6 +173,8 @@ export default function ShipmentDetailsScreen({ route, navigation }: any) {
       // Validate status against schema
       const validStatuses = ['pending', 'accepted', 'assigned', 'driver_en_route', 'driver_arrived', 'pickup_verification_pending', 'pickup_verified', 'picked_up', 'in_transit', 'in_progress', 'delivered', 'completed', 'cancelled'];
       if (!validStatuses.includes(newStatus)) {
+        // Rollback optimistic update
+        setShipment(prev => prev ? { ...prev, status: previousStatus } : null);
         Alert.alert('Error', `Invalid status: ${newStatus}. Please contact support.`);
         setStatusUpdating(false);
         return;
@@ -182,6 +189,9 @@ export default function ShipmentDetailsScreen({ route, navigation }: any) {
         .eq('id', shipment.id);
 
       if (error) {
+        // Rollback optimistic update
+        setShipment(prev => prev ? { ...prev, status: previousStatus } : null);
+        
         if (error.message.includes('invalid input value for enum')) {
           Alert.alert(
             'Error', 
@@ -208,9 +218,11 @@ export default function ShipmentDetailsScreen({ route, navigation }: any) {
         realtimeService.stopLocationTracking();
       }
       
-      // Local state will be updated via real-time subscription
-      Alert.alert('Success', `Shipment status updated to ${newStatus}`);
+      // Success - UI already updated optimistically
+      console.log('✅ Status updated successfully:', newStatus);
     } catch (error) {
+      // Rollback optimistic update on error
+      setShipment(prev => prev ? { ...prev, status: previousStatus } : null);
       console.error('Error updating shipment status:', error);
       Alert.alert('Error', 'Failed to update shipment status. Please check your connection and try again.');
     } finally {
@@ -235,15 +247,25 @@ export default function ShipmentDetailsScreen({ route, navigation }: any) {
         return;
       }
       
+      setStatusUpdating(true);
+      
+      // Optimistic update
+      const previousStatus = shipment.status;
+      setShipment(prev => prev ? { ...prev, status: 'accepted' } : null);
+      
       try {
         const { data, error } = await supabase.rpc('accept_shipment', { shipment_id: shipment.id });
-        if (error) throw error;
-        Alert.alert('Accepted', 'You have accepted the shipment. You may now Start Trip.');
-        // Refresh shipment details
-        fetchShipmentDetails();
+        if (error) {
+          // Rollback on error
+          setShipment(prev => prev ? { ...prev, status: previousStatus } : null);
+          throw error;
+        }
+        console.log('✅ Shipment accepted successfully');
       } catch (err) {
         console.error('Error accepting shipment:', err);
         Alert.alert('Error', 'Failed to accept shipment. Please try again.');
+      } finally {
+        setStatusUpdating(false);
       }
       return;
     }

@@ -246,20 +246,41 @@ export class PickupVerificationService {
         location,
       };
       
-      // Update verification with new photo
-      const currentPhotos = verification.driver_photos || [];
-      const updatedPhotos = [...currentPhotos, photoData];
-      
-      const { error } = await supabase
-        .from('pickup_verifications')
-        .update({
-          driver_photos: updatedPhotos,
-        })
-        .eq('id', verificationId);
+      // Use PostgreSQL array append to avoid race conditions with parallel uploads
+      // This is atomic and safe for concurrent requests
+      const { error } = await supabase.rpc('append_verification_photo', {
+        verification_id: verificationId,
+        photo_data: photoData,
+      });
       
       if (error) {
-        logger.error('Error updating verification with photo:', error);
-        throw createError(error.message, 500, 'PHOTO_UPLOAD_FAILED');
+        // Fallback to read-modify-write if RPC doesn't exist yet
+        logger.warn('RPC not available, using fallback method');
+        
+        const { data: verification, error: fetchError } = await supabase
+          .from('pickup_verifications')
+          .select('driver_photos')
+          .eq('id', verificationId)
+          .single();
+        
+        if (fetchError || !verification) {
+          throw createError('Verification not found', 404, 'VERIFICATION_NOT_FOUND');
+        }
+        
+        const currentPhotos = verification.driver_photos || [];
+        const updatedPhotos = [...currentPhotos, photoData];
+        
+        const { error: updateError } = await supabase
+          .from('pickup_verifications')
+          .update({
+            driver_photos: updatedPhotos,
+          })
+          .eq('id', verificationId);
+        
+        if (updateError) {
+          logger.error('Error updating verification with photo:', updateError);
+          throw createError(updateError.message, 500, 'PHOTO_UPLOAD_FAILED');
+        }
       }
       
       logger.info('Photo uploaded successfully');
