@@ -32,7 +32,7 @@ import DriverShipmentDetailsScreen from '../screens/driver/ShipmentDetailsScreen
 import RouteMapScreen from '../screens/driver/RouteMapScreen';
 import DriverProfileScreen from '../screens/driver/DriverProfileScreen';
 import TransactionHistoryScreen from '../screens/driver/TransactionHistoryScreen';
-import DriverPickupVerificationScreen from '../screens/driver/DriverPickupVerificationScreen';
+import DriverPickupVerificationScreen from '../screens/driver/DriverPickupVerificationScreenNew';
 
 // Messaging Screens (new clean implementation)
 import ConversationsScreen from '../screens/ConversationsScreen';
