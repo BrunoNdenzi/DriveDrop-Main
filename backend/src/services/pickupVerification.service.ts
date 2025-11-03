@@ -313,10 +313,21 @@ export class PickupVerificationService {
         throw createError('Verification not found', 404, 'VERIFICATION_NOT_FOUND');
       }
       
-      // Check minimum photo requirement
-      if ((verification.driver_photos || []).length < 6) {
-        throw createError('Minimum 6 photos required', 400, 'INSUFFICIENT_PHOTOS');
+      // Check photo requirements based on decision
+      // - 'matches': No photos required (client photos are reference)
+      // - 'minor_differences': Photos recommended but not required
+      // - 'major_issues': Photos required for evidence
+      const photoCount = (verification.driver_photos || []).length;
+      
+      if (request.decision === 'major_issues' && photoCount === 0) {
+        throw createError('Evidence photos required when reporting major issues', 400, 'EVIDENCE_REQUIRED');
       }
+      
+      if (request.decision === 'minor_differences' && photoCount === 0) {
+        logger.warn('Minor differences reported without evidence photos');
+      }
+      
+      // 'matches' decision doesn't require driver photos (client photos are the reference)
       
       // Get shipment for distance calculation
       const { data: shipment } = await supabase
