@@ -37,10 +37,10 @@ class EmailService {
 
   constructor() {
     this.isConfigured = false;
-    // Using authenticated domain sender
+    // Using authenticated domain sender with verified mailbox
     this.defaultSender = {
       name: 'DriveDrop',
-      email: 'noreply@drivedrop.us.com',
+      email: 'support@drivedrop.us.com',
     };
 
     this.initializeBrevo();

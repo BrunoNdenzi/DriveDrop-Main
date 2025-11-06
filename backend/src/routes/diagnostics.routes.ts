@@ -173,6 +173,8 @@ router.get('/email/status', asyncHandler(async (_req: Request, res: Response) =>
       ? 'Email service is configured and ready'
       : 'BREVO_API_KEY not found in environment variables',
     timestamp: new Date().toISOString(),
+    apiKeyLength: process.env['BREVO_API_KEY']?.length || 0,
+    apiKeyPrefix: process.env['BREVO_API_KEY']?.substring(0, 15) || 'none',
   }));
 }));
 
