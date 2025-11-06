@@ -425,9 +425,9 @@ export default function DriverPickupVerificationScreen({ route, navigation }: Dr
         throw new Error(errorData.message || 'Failed to submit verification');
       }
       
-      // Navigate back immediately with success flag
+      // Navigate back immediately to driver details with success flag
       // This will trigger a refresh in the details screen
-      navigation.navigate('ShipmentDetails', { 
+      navigation.navigate('ShipmentDetails_Driver', { 
         shipmentId, 
         refreshTrigger: Date.now() // Force refresh
       });

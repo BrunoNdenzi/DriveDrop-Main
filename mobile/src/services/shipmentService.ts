@@ -28,6 +28,14 @@ export interface CreateShipmentData {
   estimated_distance_km?: number;
   estimated_price: number;
   status?: string; // Optionally allow status to be set
+  client_vehicle_photos?: {
+    front?: string[];
+    rear?: string[];
+    left?: string[];
+    right?: string[];
+    interior?: string[];
+    damage?: string[];
+  };
 }
 
 export class ShipmentService {
@@ -72,13 +80,21 @@ export class ShipmentService {
         is_fragile: data.is_fragile || false,
         estimated_distance_km: data.estimated_distance_km,
         estimated_price: data.estimated_price,
+        client_vehicle_photos: data.client_vehicle_photos || {
+          front: [],
+          rear: [],
+          left: [],
+          right: [],
+          interior: [],
+          damage: []
+        },
       };
       console.log('Insert payload:', JSON.stringify(insertPayload));
       
       // Perform the insert with the verified payload
       const { data: shipment, error } = await supabase
         .from('shipments')
-        .insert([insertPayload])
+        .insert([insertPayload as any]) // Cast to any due to client_vehicle_photos not yet in generated types
         .select()
         .single();
 
@@ -167,7 +183,7 @@ export class ShipmentService {
         .order('created_at', { ascending: false });
 
       if (status && status.length > 0) {
-        query = query.in('status', status);
+        query = query.in('status', status as any); // Cast to any for status array
       }
 
       const { data, error } = await query;
@@ -286,7 +302,7 @@ export class ShipmentService {
 
       console.log('ShipmentService: Application result:', result);
       
-      if (result.message && result.message.includes('already applied')) {
+      if (result && typeof result === 'object' && 'message' in result && (result as any).message?.includes('already applied')) {
         console.log(`ShipmentService: Driver ${driverId} has already applied for shipment ${shipmentId}`);
       } else {
         console.log('ShipmentService: Application submitted successfully');

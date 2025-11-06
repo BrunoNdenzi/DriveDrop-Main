@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { View, StyleSheet, Text, Alert, ScrollView } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { StatusBar } from 'expo-status-bar';
+import * as FileSystem from 'expo-file-system';
 import { Colors, Typography, Spacing } from '../../constants/DesignSystem';
 import { RootStackParamList } from '../../navigation/types';
 import { useBooking } from '../../context/BookingContext';
@@ -25,11 +26,121 @@ export default function BookingPaymentProcessingScreen({ navigation, route }: Bo
   // Get amount and quote from route params
   const amount = route.params?.amount || 0;
   const quote = route.params?.quote || { service: 'Standard', price: 0, days: '7-10' };
+
+  // Helper function to upload photos to Supabase Storage
+  const uploadClientPhotos = async (userId: string) => {
+    const uploadedPhotos: any = {
+      front: [],
+      rear: [],
+      left: [],
+      right: [],
+      interior: [],
+      damage: []
+    };
+
+    const categoryMap: any = {
+      frontView: 'front',
+      rearView: 'rear',
+      leftSide: 'left',
+      rightSide: 'right',
+      interior: 'interior',
+      damagePhotos: 'damage'
+    };
+
+    try {
+      console.log('📤 Uploading client vehicle photos...');
+      console.log('📋 Visual documentation data:', JSON.stringify(state.formData.visualDocumentation, null, 2));
+      
+      let totalPhotosToUpload = 0;
+      let totalPhotosUploaded = 0;
+      
+      for (const [bookingKey, storageKey] of Object.entries(categoryMap)) {
+        const photos: any = state.formData.visualDocumentation[bookingKey as keyof typeof state.formData.visualDocumentation] || [];
+        
+        console.log(`🔍 Checking ${bookingKey}: found ${Array.isArray(photos) ? photos.length : 0} photos`);
+        
+        if (Array.isArray(photos) && photos.length > 0) {
+          totalPhotosToUpload += photos.length;
+          console.log(`📸 Processing ${photos.length} photos for ${bookingKey}`);
+          
+          for (const photo of photos) {
+            try {
+              const photoUri = typeof photo === 'string' ? photo : photo.uri;
+              console.log(`📂 Photo URI:`, photoUri);
+              
+              if (!photoUri) {
+                console.warn(`⚠️ Skipping photo with no URI`);
+                continue;
+              }
+
+              // Generate unique filename
+              const filename = `client-photos/${userId}/${Date.now()}-${storageKey}.jpg`;
+              
+              // Read file as base64
+              const base64 = await FileSystem.readAsStringAsync(photoUri, {
+                encoding: FileSystem.EncodingType.Base64,
+              });
+              
+              // Convert to Uint8Array
+              const byteCharacters = atob(base64);
+              const byteNumbers = new Array(byteCharacters.length);
+              for (let i = 0; i < byteCharacters.length; i++) {
+                byteNumbers[i] = byteCharacters.charCodeAt(i);
+              }
+              const uint8Array = new Uint8Array(byteNumbers);
+
+              // Upload to Supabase Storage
+              const { error: uploadError } = await supabase
+                .storage
+                .from('verification-photos')
+                .upload(filename, uint8Array, {
+                  contentType: 'image/jpeg',
+                  upsert: false,
+                });
+
+              if (uploadError) {
+                console.error(`Upload error for ${storageKey}:`, uploadError);
+                continue;
+              }
+
+              // Get public URL
+              const { data: { publicUrl } } = supabase
+                .storage
+                .from('verification-photos')
+                .getPublicUrl(filename);
+
+              uploadedPhotos[storageKey as string].push(publicUrl);
+              totalPhotosUploaded++;
+              console.log(`✅ Uploaded ${storageKey} photo (${totalPhotosUploaded}/${totalPhotosToUpload}):`, publicUrl);
+            } catch (photoError) {
+              console.error(`❌ Error uploading individual photo:`, photoError);
+            }
+          }
+        }
+      }
+      
+      console.log(`✅ Upload complete: ${totalPhotosUploaded}/${totalPhotosToUpload} photos uploaded`);
+      console.log('📦 Final uploaded photos:', JSON.stringify(uploadedPhotos, null, 2));
+      return uploadedPhotos;
+    } catch (error) {
+      console.error('❌ Error uploading client photos:', error);
+      // Return empty arrays if upload fails
+      return uploadedPhotos;
+    }
+  };
   
   // Create shipment when the screen loads
   useEffect(() => {
+    console.log('🚀 BookingPaymentProcessingScreen mounted');
+    console.log('📋 Booking state:', JSON.stringify({
+      vehicleInfo: state.formData.vehicleInformation,
+      hasVisualDoc: !!state.formData.visualDocumentation,
+      visualDocKeys: Object.keys(state.formData.visualDocumentation || {})
+    }, null, 2));
+    
     const createShipment = async () => {
       try {
+        console.log('🔨 Creating shipment...');
         setIsSubmitting(true);
         
         // Get user profile and log for debugging
@@ -50,6 +161,39 @@ export default function BookingPaymentProcessingScreen({ navigation, route }: Bo
           console.error('Session error:', sessionError);
           throw new Error('No active session. Please log in again.');
         }
+
+        // Check if we have any photos to upload
+        console.log('📸 Checking for photos in visualDocumentation...');
+        console.log('Visual Doc State:', JSON.stringify(state.formData.visualDocumentation, null, 2));
+        
+        const hasPhotos = Object.values(state.formData.visualDocumentation || {}).some((arr: any) => 
+          Array.isArray(arr) && arr.length > 0
+        );
+        
+        console.log(`Has photos: ${hasPhotos}`);
+
+        let uploadedPhotos = {
+          front: [],
+          rear: [],
+          left: [],
+          right: [],
+          interior: [],
+          damage: []
+        };
+
+        // Only upload photos if there are any
+        if (hasPhotos) {
+          console.log('📸 Starting photo upload process...');
+          try {
+            uploadedPhotos = await uploadClientPhotos(user.id);
+            console.log('✅ Photos uploaded successfully:', JSON.stringify(uploadedPhotos));
+          } catch (uploadError) {
+            console.error('❌ Photo upload failed:', uploadError);
+            console.log('⚠️ Continuing without photos...');
+          }
+        } else {
+          console.warn('⚠️ No photos found in visualDocumentation, skipping upload');
+        }
         
         // Format shipment data from booking context
         const shipmentData = {
@@ -61,11 +205,14 @@ export default function BookingPaymentProcessingScreen({ navigation, route }: Bo
           delivery_address: state.formData.deliveryDetails.address || 'No address provided',
           delivery_notes: `Contact: ${state.formData.deliveryDetails.contactPerson}, Phone: ${state.formData.deliveryDetails.contactPhone}, Date: ${state.formData.deliveryDetails.date}`,
           status: 'pending', // Explicitly set status to match RLS policy expectations
-          estimated_price: quote.price
+          estimated_price: quote.price,
+          // Use uploaded photo URLs
+          client_vehicle_photos: uploadedPhotos
         };
         
         // Log the complete shipment data being sent
         console.log('Shipment insert payload:', JSON.stringify(shipmentData));
+        console.log('📸 Client vehicle photos being saved:', JSON.stringify(shipmentData.client_vehicle_photos));
         
         // Create shipment in database - passing the user ID
         console.log('Calling ShipmentService.createShipment with user ID:', user.id);

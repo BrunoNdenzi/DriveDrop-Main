@@ -8,17 +8,17 @@ interface LogoProps {
 }
 
 const LOGO_SIZES = {
-  small: { width: 120, height: 36 },
-  medium: { width: 160, height: 48 },
-  large: { width: 200, height: 60 },
-  xlarge: { width: 280, height: 84 },
+  small: { width: 160, height: 48 },
+  medium: { width: 220, height: 66 },
+  large: { width: 280, height: 84 },
+  xlarge: { width: 340, height: 102 },
 };
 
 const ICON_SIZES = {
-  small: { width: 40, height: 40 },
-  medium: { width: 60, height: 60 },
-  large: { width: 80, height: 80 },
-  xlarge: { width: 120, height: 120 },
+  small: { width: 60, height: 60 },
+  medium: { width: 80, height: 80 },
+  large: { width: 100, height: 100 },
+  xlarge: { width: 140, height: 140 },
 };
 
 export default function Logo({ 

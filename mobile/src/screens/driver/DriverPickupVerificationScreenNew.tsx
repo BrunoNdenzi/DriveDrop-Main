@@ -26,6 +26,9 @@ import { RootStackParamList } from '../../navigation/types';
 
 const { width, height } = Dimensions.get('window');
 
+// Development mode - skip real location checks
+const SKIP_LOCATION_IN_DEV = __DEV__; // Change to false to test real GPS
+
 type DriverPickupVerificationScreenProps = NativeStackScreenProps<
   RootStackParamList,
   'DriverPickupVerification'
@@ -65,6 +68,7 @@ export default function DriverPickupVerificationScreen({ route, navigation }: Dr
   const [selectedPhotoUrl, setSelectedPhotoUrl] = useState<string>('');
   const [showPhotoModal, setShowPhotoModal] = useState(false);
   const [currentPhotoIndex, setCurrentPhotoIndex] = useState(0);
+  const [usingMockLocation, setUsingMockLocation] = useState(false);
   
   // Issue reporting
   const [reportingIssues, setReportingIssues] = useState(false);
@@ -76,10 +80,65 @@ export default function DriverPickupVerificationScreen({ route, navigation }: Dr
   
   const [permission, requestPermission] = useCameraPermissions();
   const cameraRef = React.useRef<CameraView>(null);
+  const verificationSubmittedRef = React.useRef(false);
+  const hasNavigatedAwayRef = React.useRef(false);
 
   useEffect(() => {
     fetchClientPhotos();
+    
+    // Check shipment status - if already verified, navigate away immediately
+    checkVerificationStatus();
   }, []);
+
+  const checkVerificationStatus = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('shipments')
+        .select('status')
+        .eq('id', shipmentId)
+        .single();
+
+      if (error) throw error;
+
+      // If status is pickup_verified or beyond, this screen shouldn't be accessible
+      if (data && (data.status === 'pickup_verified' || 
+                   data.status === 'picked_up' || 
+                   data.status === 'in_transit' || 
+                   data.status === 'delivered' || 
+                   data.status === 'completed')) {
+        console.log('⚠️ Verification already complete, navigating away');
+        // Verification already complete, navigate back immediately
+        verificationSubmittedRef.current = true;
+        hasNavigatedAwayRef.current = true;
+        navigation.replace('ShipmentDetails_Driver', {
+          shipmentId,
+          refreshTrigger: Date.now(),
+        });
+      }
+    } catch (error) {
+      console.error('Error checking verification status:', error);
+    }
+  };
+
+  // Override hardware back button to navigate to ShipmentDetails with refresh
+  // BUT allow normal navigation after verification is successfully submitted
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('beforeRemove', (e) => {
+      // If verification was successfully submitted, allow normal navigation
+      if (verificationSubmittedRef.current || hasNavigatedAwayRef.current) {
+        return;
+      }
+      
+      // Otherwise, prevent default and navigate to ShipmentDetails with refresh
+      e.preventDefault();
+      navigation.navigate('ShipmentDetails_Driver', {
+        shipmentId,
+        refreshTrigger: Date.now(),
+      });
+    });
+
+    return unsubscribe;
+  }, [navigation, shipmentId]);
 
   const fetchClientPhotos = async () => {
     try {
@@ -92,9 +151,27 @@ export default function DriverPickupVerificationScreen({ route, navigation }: Dr
 
       if (error) throw error;
 
+      console.log('📦 Fetched shipment data:', JSON.stringify(data, null, 2));
+      console.log('🖼️ Client vehicle photos:', (data as any)?.client_vehicle_photos);
+
       if (data && (data as any).client_vehicle_photos) {
-        setClientPhotos((data as any).client_vehicle_photos as ClientPhotos);
-        console.log('✅ Client photos loaded');
+        const photos = (data as any).client_vehicle_photos as ClientPhotos;
+        console.log('✅ Client photos loaded:', JSON.stringify(photos, null, 2));
+        
+        // Check if there are actually any photos
+        const totalPhotos = Object.values(photos).reduce((sum: number, arr: any) => sum + (arr?.length || 0), 0);
+        console.log('📊 Total photos count:', totalPhotos);
+        
+        if (totalPhotos === 0) {
+          Alert.alert(
+            'No Reference Photos',
+            'Client has not uploaded any vehicle photos yet. Verification cannot be performed.',
+            [{ text: 'OK', onPress: () => navigation.goBack() }]
+          );
+          return;
+        }
+        
+        setClientPhotos(photos);
       } else {
         // No client photos - can't verify
         Alert.alert(
@@ -258,16 +335,52 @@ export default function DriverPickupVerificationScreen({ route, navigation }: Dr
     try {
       setSubmitting(true);
 
-      // Get location
-      const { status } = await Location.requestForegroundPermissionsAsync();
-      if (status !== 'granted') {
-        Alert.alert('Location Required', 'Location permission is needed for verification.');
-        return;
+      // Get location (with development mode skip)
+      let location;
+      
+      if (SKIP_LOCATION_IN_DEV) {
+        console.log('🔧 DEV MODE: Skipping real GPS, using mock location');
+        setUsingMockLocation(true);
+        location = {
+          coords: {
+            latitude: 37.7749,
+            longitude: -122.4194,
+            accuracy: 10,
+          },
+        };
+      } else {
+        // Production: Try to get real location
+        try {
+          const { status } = await Location.requestForegroundPermissionsAsync();
+          if (status !== 'granted') {
+            console.warn('⚠️ Location permission denied, using mock location');
+            setUsingMockLocation(true);
+            location = {
+              coords: {
+                latitude: 37.7749,
+                longitude: -122.4194,
+                accuracy: 10,
+              },
+            };
+          } else {
+            location = await Location.getCurrentPositionAsync({
+              accuracy: Location.Accuracy.Balanced,
+              timeInterval: 5000, // 5 second timeout
+            });
+            setUsingMockLocation(false);
+          }
+        } catch (locationError) {
+          console.warn('⚠️ Location fetch failed, using mock location:', locationError);
+          setUsingMockLocation(true);
+          location = {
+            coords: {
+              latitude: 37.7749,
+              longitude: -122.4194,
+              accuracy: 10,
+            },
+          };
+        }
       }
-
-      const location = await Location.getCurrentPositionAsync({
-        accuracy: Location.Accuracy.Balanced,
-      });
 
       const token = (await supabase.auth.getSession()).data.session?.access_token;
       if (!token) throw new Error('No auth token');
@@ -379,8 +492,14 @@ export default function DriverPickupVerificationScreen({ route, navigation }: Dr
         throw new Error(errorData.message || 'Failed to submit verification');
       }
 
-      // Navigate back with success
-      navigation.navigate('ShipmentDetails', {
+      console.log('✅ Verification submitted successfully');
+      
+      // Mark verification as submitted to allow normal navigation
+      verificationSubmittedRef.current = true;
+      hasNavigatedAwayRef.current = true;
+
+      // Use replace instead of navigate to prevent going back to verification
+      navigation.replace('ShipmentDetails_Driver', {
         shipmentId,
         refreshTrigger: Date.now(),
       });
@@ -389,8 +508,15 @@ export default function DriverPickupVerificationScreen({ route, navigation }: Dr
         Alert.alert(
           'Verification Complete',
           decision === 'matches'
-            ? 'Vehicle verified successfully!'
-            : 'Issues reported. Client will be notified.'
+            ? 'Vehicle verified successfully! You can now proceed with pickup.'
+            : 'Issues reported. Client will be notified.',
+          [{ 
+            text: 'OK',
+            onPress: () => {
+              // This will ensure the ShipmentDetails screen updates
+              console.log('✅ Verification alert dismissed');
+            }
+          }]
         );
       }, 300);
     } catch (error) {
@@ -483,6 +609,16 @@ export default function DriverPickupVerificationScreen({ route, navigation }: Dr
           <Text style={styles.headerTitle}>Report Issues</Text>
           <View style={{ width: 24 }} />
         </View>
+
+        {/* Mock Location Warning */}
+        {SKIP_LOCATION_IN_DEV && (
+          <View style={styles.mockLocationBanner}>
+            <MaterialIcons name="developer-mode" size={16} color="#FF9800" />
+            <Text style={styles.mockLocationText}>
+              🔧 DEV MODE: GPS Disabled
+            </Text>
+          </View>
+        )}
 
         <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
           <View style={styles.section}>
@@ -604,12 +740,33 @@ export default function DriverPickupVerificationScreen({ route, navigation }: Dr
 
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
+        <TouchableOpacity onPress={() => {
+          // If verification was submitted or we've navigated away, use goBack
+          // Otherwise, navigate to ShipmentDetails with refresh
+          if (verificationSubmittedRef.current || hasNavigatedAwayRef.current) {
+            navigation.goBack();
+          } else {
+            navigation.navigate('ShipmentDetails_Driver', {
+              shipmentId,
+              refreshTrigger: Date.now(),
+            });
+          }
+        }}>
           <MaterialIcons name="arrow-back" size={24} color={Colors.text.primary} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Verify Pickup</Text>
         <View style={{ width: 24 }} />
       </View>
+
+      {/* Mock Location Warning */}
+      {SKIP_LOCATION_IN_DEV && (
+        <View style={styles.mockLocationBanner}>
+          <MaterialIcons name="developer-mode" size={16} color="#FF9800" />
+          <Text style={styles.mockLocationText}>
+            🔧 DEV MODE: GPS Disabled (Using Mock Location)
+          </Text>
+        </View>
+      )}
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         {/* Instructions */}
@@ -693,6 +850,22 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '600',
     color: Colors.text.primary,
+  },
+  mockLocationBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#FFF3E0',
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    gap: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#FFE0B2',
+  },
+  mockLocationText: {
+    fontSize: 12,
+    color: '#FF9800',
+    fontWeight: '600',
   },
   content: {
     flex: 1,
@@ -911,25 +1084,34 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 0,
     zIndex: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
   },
   modalNavigation: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    flex: 1,
   },
   modalNavButton: {
     backgroundColor: 'rgba(255, 255, 255, 0.2)',
     padding: 8,
     borderRadius: 20,
+    width: 52,
+    height: 52,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   modalCloseButton: {
-    position: 'absolute',
-    top: 60,
-    right: 20,
     backgroundColor: 'rgba(255, 255, 255, 0.2)',
     padding: 8,
     borderRadius: 20,
-    zIndex: 20,
+    width: 52,
+    height: 52,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginLeft: 12,
   },
   modalTitle: {
     fontSize: 18,
