@@ -1,9 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { StyleSheet, View, Text, FlatList, TouchableOpacity, RefreshControl, Alert } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
 import { createMaterialTopTabNavigator } from '@react-navigation/material-top-tabs';
+import { useFocusEffect } from '@react-navigation/native';
 import { Colors } from '../../constants/Colors';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../context/AuthContext';
@@ -36,6 +37,14 @@ function ActiveShipmentsTab({ navigation }: any) {
   const formatCurrency = (amount: number) => {
     return `$${amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   };
+
+  // Auto-refresh when screen comes into focus
+  useFocusEffect(
+    useCallback(() => {
+      console.log('🔄 ActiveShipmentsTab focused - refreshing data');
+      fetchActiveShipments();
+    }, [userProfile?.id])
+  );
 
   useEffect(() => {
     fetchActiveShipments();
@@ -314,6 +323,14 @@ function CompletedShipmentsTab({ navigation }: any) {
   const formatCurrency = (amount: number) => {
     return `$${amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   };
+
+  // Auto-refresh when screen comes into focus
+  useFocusEffect(
+    useCallback(() => {
+      console.log('🔄 CompletedShipmentsTab focused - refreshing data');
+      fetchCompletedShipments();
+    }, [userProfile?.id])
+  );
 
   useEffect(() => {
     fetchCompletedShipments();

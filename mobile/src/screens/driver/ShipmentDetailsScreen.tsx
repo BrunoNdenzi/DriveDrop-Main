@@ -1,13 +1,18 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { StyleSheet, View, Text, ScrollView, TouchableOpacity, Alert, ActivityIndicator, Linking } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
 import * as Location from 'expo-location';
+import { useFocusEffect } from '@react-navigation/native';
 import { Colors } from '../../constants/Colors';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../context/AuthContext';
 import { RealtimeChannel } from '@supabase/supabase-js';
 import { realtimeService } from '../../services/RealtimeService';
+import DeliveryConfirmationModal from '../../components/driver/DeliveryConfirmationModal';
+
+// Development mode - skip real location checks
+const SKIP_LOCATION_IN_DEV = __DEV__; // Change to false to test real GPS
 
 interface ShipmentDetails {
   id: string;
@@ -42,8 +47,17 @@ export default function ShipmentDetailsScreen({ route, navigation }: any) {
   const [shipment, setShipment] = useState<ShipmentDetails | null>(null);
   const [loading, setLoading] = useState(true);
   const [statusUpdating, setStatusUpdating] = useState(false);
+  const [showDeliveryModal, setShowDeliveryModal] = useState(false);
   const { userProfile } = useAuth();
   const realtimeChannelRef = useRef<RealtimeChannel | null>(null);
+
+  // Auto-refresh when screen comes into focus
+  useFocusEffect(
+    useCallback(() => {
+      console.log('🔄 ShipmentDetailsScreen focused - refreshing data');
+      fetchShipmentDetails();
+    }, [shipmentId])
+  );
 
   useEffect(() => {
     fetchShipmentDetails();
@@ -142,7 +156,54 @@ export default function ShipmentDetailsScreen({ route, navigation }: any) {
     }
   };
 
-  const updateShipmentStatus = async (newStatus: string) => {
+  // Handle delivery confirmation with optional photos
+  const handleDeliveryConfirmation = async (photoUrls: string[]) => {
+    if (!shipment) return;
+    
+    setShowDeliveryModal(false);
+    setStatusUpdating(true);
+    
+    try {
+      console.log('📦 Confirming delivery with photos:', photoUrls.length);
+      
+      // Update shipment status to delivered and save delivery photos
+      const { error } = await supabase
+        .from('shipments')
+        .update({ 
+          status: 'delivered' as any,
+          delivery_confirmation_photos: photoUrls,
+          actual_delivery_time: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', shipment.id);
+
+      if (error) throw error;
+
+      // Update local state
+      setShipment(prev => prev ? { ...prev, status: 'delivered' } : null);
+
+      Alert.alert(
+        'Delivery Confirmed',
+        photoUrls.length > 0 
+          ? `Shipment marked as delivered with ${photoUrls.length} confirmation photo(s).`
+          : 'Shipment marked as delivered without photos. You may be held responsible in case of disputes.',
+        [{ 
+          text: 'OK',
+          onPress: () => {
+            // Navigate back to My Shipments and it will auto-refresh
+            navigation.navigate('MyShipments');
+          }
+        }]
+      );
+    } catch (error) {
+      console.error('Error confirming delivery:', error);
+      Alert.alert('Error', 'Failed to confirm delivery. Please try again.');
+    } finally {
+      setStatusUpdating(false);
+    }
+  };
+
+  async function updateShipmentStatus(newStatus: string) {
     if (!shipment) return;
     
     setStatusUpdating(true);
@@ -228,7 +289,7 @@ export default function ShipmentDetailsScreen({ route, navigation }: any) {
     } finally {
       setStatusUpdating(false);
     }
-  };
+  }
 
   const handleNextAction = async () => {
     const nextAction = getNextStatusAction();
@@ -237,6 +298,13 @@ export default function ShipmentDetailsScreen({ route, navigation }: any) {
     // If action navigates to a screen
     if (nextAction.navigate) {
       navigation.navigate(nextAction.navigate, { shipmentId: shipment?.id });
+      return;
+    }
+
+    // Special handling for Mark as Delivered - show delivery confirmation modal
+    if (nextAction.status === 'delivered') {
+      console.log('📦 Opening delivery confirmation modal');
+      setShowDeliveryModal(true);
       return;
     }
 
@@ -272,28 +340,47 @@ export default function ShipmentDetailsScreen({ route, navigation }: any) {
     // If action requires GPS
     if (nextAction.requiresGPS) {
       try {
-        const { status } = await Location.requestForegroundPermissionsAsync();
-        if (status !== 'granted') {
-          Alert.alert(
-            'Location Permission Required',
-            'Please enable location services to continue.'
-          );
-          return;
-        }
+        let location;
+        
+        if (SKIP_LOCATION_IN_DEV) {
+          console.log('🔧 DEV MODE: Skipping real GPS in ShipmentDetails, using mock location');
+          location = {
+            coords: {
+              latitude: 37.7749,
+              longitude: -122.4194,
+              accuracy: 10,
+            },
+          };
+        } else {
+          const { status } = await Location.requestForegroundPermissionsAsync();
+          if (status !== 'granted') {
+            Alert.alert(
+              'Location Permission Required',
+              'Please enable location services to continue.'
+            );
+            return;
+          }
 
-        const location = await Location.getCurrentPositionAsync({
-          accuracy: Location.Accuracy.Balanced
-        });
+          location = await Location.getCurrentPositionAsync({
+            accuracy: Location.Accuracy.Balanced
+          });
 
-        // For driver_arrived, verify GPS is close to pickup location
-        if (nextAction.status === 'driver_arrived') {
-          // TODO: Add GPS proximity check here
-          // For now, just proceed
+          // For driver_arrived, verify GPS is close to pickup location
+          if (nextAction.status === 'driver_arrived') {
+            // TODO: Add GPS proximity check here
+            // For now, just proceed
+          }
         }
       } catch (error) {
         console.error('Error getting location:', error);
-        Alert.alert('Error', 'Could not get your current location. Please try again.');
-        return;
+        
+        if (SKIP_LOCATION_IN_DEV) {
+          console.log('🔧 DEV MODE: Location error caught, continuing with mock location');
+          // Continue with mock location
+        } else {
+          Alert.alert('Error', 'Could not get your current location. Please try again.');
+          return;
+        }
       }
     }
 
@@ -629,6 +716,15 @@ export default function ShipmentDetailsScreen({ route, navigation }: any) {
           </TouchableOpacity>
         )}
       </View>
+
+      {/* Delivery Confirmation Modal */}
+      <DeliveryConfirmationModal
+        visible={showDeliveryModal}
+        onClose={() => setShowDeliveryModal(false)}
+        onConfirm={handleDeliveryConfirmation}
+        shipmentId={shipment?.id || ''}
+        driverId={userProfile?.id || ''}
+      />
     </View>
   );
 }

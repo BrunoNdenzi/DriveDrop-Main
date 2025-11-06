@@ -26,6 +26,8 @@ import { useBooking } from '../../context/BookingContext';
 type BookingStepVisualProps = NativeStackScreenProps<RootStackParamList, 'BookingStepVisual'>;
 
 export default function BookingStepVisualScreen({ navigation }: BookingStepVisualProps) {
+  console.log('🎬 BookingStepVisualScreen MOUNTED');
+  
   const { state, updateFormData, setStepValidity, goToNextStep } = useBooking();
   const { visualDocumentation } = state.formData;
   const [capturing, setCapturing] = useState(false);
@@ -36,6 +38,7 @@ export default function BookingStepVisualScreen({ navigation }: BookingStepVisua
 
   // Request permissions on component mount
   useEffect(() => {
+    console.log('🔐 Requesting permissions...');
     requestPermissions();
   }, []);
 
@@ -140,9 +143,15 @@ export default function BookingStepVisualScreen({ navigation }: BookingStepVisua
   };
 
   const capturePhoto = async (category: string, source: 'camera' | 'gallery') => {
-    if (capturing) return;
+    console.log(`📷 capturePhoto called - category: ${category}, source: ${source}`);
+    
+    if (capturing) {
+      console.log('⚠️ Already capturing, returning...');
+      return;
+    }
     
     setCapturing(true);
+    console.log('🔒 Capture started');
     
     try {
       let result: any = null;
@@ -161,8 +170,22 @@ export default function BookingStepVisualScreen({ navigation }: BookingStepVisua
         result = await ImagePicker.launchImageLibraryAsync(imageOptions);
       }
 
+      console.log('🔍 Image picker result:', {
+        hasResult: !!result,
+        cancelled: result?.cancelled,
+        hasAssets: !!result?.assets,
+        assetCount: result?.assets?.length || 0
+      });
+
       if (result && !result.cancelled && result.assets?.[0]) {
         const asset = result.assets[0];
+        
+        console.log('📸 Photo captured successfully:', {
+          uri: asset.uri,
+          width: asset.width,
+          height: asset.height,
+          category: category
+        });
         
         // Create photo info object
         const photoInfo = {
@@ -177,14 +200,23 @@ export default function BookingStepVisualScreen({ navigation }: BookingStepVisua
 
         // Update the form data
         const currentPhotos = visualDocumentation[category as keyof typeof visualDocumentation] || [];
+        console.log(`📂 Current photos in ${category}:`, currentPhotos.length);
+        
         const updatedData = {
           ...visualDocumentation,
           [category]: [...currentPhotos, photoInfo],
         };
         
+        const categoryPhotos = updatedData[category as keyof typeof updatedData];
+        console.log(`💾 Saving photo to BookingContext - ${category} now has ${Array.isArray(categoryPhotos) ? categoryPhotos.length : 0} photos`);
+        console.log('📦 Updated visual documentation:', JSON.stringify(updatedData, null, 2));
+        
         updateFormData('visual', updatedData);
         
+        console.log('✅ Photo saved to context');
         Alert.alert('Success', 'Photo added successfully!');
+      } else {
+        console.warn('⚠️ Photo capture cancelled or no asset returned');
       }
     } catch (error) {
       console.error('Photo capture error:', error);
@@ -208,9 +240,23 @@ export default function BookingStepVisualScreen({ navigation }: BookingStepVisua
   };
 
   const handleNext = () => {
+    console.log('🚀 Moving to next step from Visual Documentation');
+    console.log('📊 Final visual documentation state:', JSON.stringify(visualDocumentation, null, 2));
+    console.log('📈 Photo counts:', {
+      frontView: visualDocumentation.frontView?.length || 0,
+      rearView: visualDocumentation.rearView?.length || 0,
+      leftSide: visualDocumentation.leftSide?.length || 0,
+      rightSide: visualDocumentation.rightSide?.length || 0,
+      interior: visualDocumentation.interior?.length || 0,
+      damagePhotos: visualDocumentation.damagePhotos?.length || 0,
+    });
+    console.log('✅ Step valid:', state.isValid.visual);
+    
     if (state.isValid.visual) {
       goToNextStep();
       navigation.navigate('BookingStepTerms');
+    } else {
+      console.warn('⚠️ Cannot proceed - step is not valid');
     }
   };
 

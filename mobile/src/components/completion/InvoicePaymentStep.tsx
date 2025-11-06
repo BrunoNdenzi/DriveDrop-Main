@@ -10,11 +10,13 @@ import {
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { StripeProvider, CardField, useStripe } from '@stripe/stripe-react-native';
+import * as FileSystem from 'expo-file-system';
 
 import { Colors } from '../../constants/Colors';
 import { useAuth } from '../../context/AuthContext';
 import { getApiUrl } from '../../utils/environment';
 import { paymentService } from '../../services/paymentService';
+import { supabase } from '../../lib/supabase';
 
 interface Props {
   shipmentData: any;
@@ -223,6 +225,91 @@ const InvoicePaymentStep: React.FC<Props> = ({
     return R * c; // Distance in miles
   };
 
+  /**
+   * Upload client vehicle photos to Supabase Storage
+   * Photos are organized: front (0), rear (1), driver side (2), passenger side (3)
+   * Optional: interior front (4), interior rear (5), engine (6), damage (7)
+   */
+  const uploadClientPhotos = async (userId: string, shipmentId: string): Promise<any> => {
+    console.log('📤 Starting client photo upload...', {
+      photoCount: completionData.vehiclePhotos.length,
+      shipmentId,
+      userId
+    });
+
+    if (completionData.vehiclePhotos.length === 0) {
+      console.log('⚠️ No photos to upload');
+      return {};
+    }
+
+    const uploadedPhotos: any = {
+      front: [],
+      rear: [],
+      left: [],
+      right: [],
+      interior: [],
+      damage: []
+    };
+
+    const photoCategories = ['front', 'rear', 'left', 'right', 'interior', 'interior', 'engine', 'damage'];
+    let totalUploaded = 0;
+
+    for (let i = 0; i < completionData.vehiclePhotos.length; i++) {
+      const photoUri = completionData.vehiclePhotos[i];
+      if (!photoUri) continue;
+
+      try {
+        const category = photoCategories[i] || 'damage';
+        const timestamp = Date.now();
+        const filename = `client-photos/${userId}/${shipmentId}/${category}_${i}_${timestamp}.jpg`;
+
+        console.log(`📸 Uploading photo ${i + 1}/${completionData.vehiclePhotos.length}: ${category}`);
+
+        // Read file as base64
+        const base64 = await FileSystem.readAsStringAsync(photoUri, {
+          encoding: FileSystem.EncodingType.Base64,
+        });
+
+        // Convert base64 to Uint8Array
+        const byteCharacters = atob(base64);
+        const byteNumbers = new Array(byteCharacters.length);
+        for (let j = 0; j < byteCharacters.length; j++) {
+          byteNumbers[j] = byteCharacters.charCodeAt(j);
+        }
+        const uint8Array = new Uint8Array(byteNumbers);
+
+        // Upload to Supabase Storage
+        const { data: uploadData, error: uploadError } = await supabase.storage
+          .from('verification-photos')
+          .upload(filename, uint8Array, {
+            contentType: 'image/jpeg',
+            upsert: false,
+          });
+
+        if (uploadError) {
+          console.error(`❌ Upload error for ${category}:`, uploadError);
+          continue;
+        }
+
+        // Get public URL
+        const { data: urlData } = supabase.storage
+          .from('verification-photos')
+          .getPublicUrl(filename);
+
+        const publicUrl = urlData.publicUrl;
+        uploadedPhotos[category].push(publicUrl);
+        totalUploaded++;
+
+        console.log(`✅ Uploaded ${category} photo (${totalUploaded}/${completionData.vehiclePhotos.length})`);
+      } catch (error) {
+        console.error(`❌ Error uploading photo ${i}:`, error);
+      }
+    }
+
+    console.log(`✅ Photo upload complete: ${totalUploaded}/${completionData.vehiclePhotos.length} photos uploaded`);
+    return uploadedPhotos;
+  };
+
   const handlePayment = async () => {
     console.log('Payment button pressed', {
       cardComplete,
@@ -250,6 +337,25 @@ const InvoicePaymentStep: React.FC<Props> = ({
       const createdShipmentId = await createPendingShipment();
       console.log('Pending shipment created:', createdShipmentId);
       setShipmentId(createdShipmentId);
+
+      // Step 1.5: Upload client photos and update shipment
+      console.log('📤 Uploading client vehicle photos...');
+      const uploadedPhotos = await uploadClientPhotos(user.id, createdShipmentId);
+      
+      // Update shipment with photo URLs if photos were uploaded
+      if (Object.values(uploadedPhotos).some((arr: any) => arr.length > 0)) {
+        console.log('💾 Updating shipment with photo URLs directly in database...');
+        const { error: updateError } = await supabase
+          .from('shipments')
+          .update({ client_vehicle_photos: uploadedPhotos } as any) // Cast to any - client_vehicle_photos not yet in generated types
+          .eq('id', createdShipmentId);
+
+        if (updateError) {
+          console.error('⚠️ Failed to update shipment with photos:', updateError);
+        } else {
+          console.log('✅ Shipment updated with photo URLs');
+        }
+      }
 
       // Step 2: Create payment intent
       console.log('Creating payment intent for quote price:', quotePriceDollars);

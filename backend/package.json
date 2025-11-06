@@ -39,6 +39,7 @@
   "license": "ISC",
   "description": "",
   "dependencies": {
+    "@getbrevo/brevo": "^3.0.1",
     "@googlemaps/google-maps-services-js": "^3.4.2",
     "@supabase/supabase-js": "^2.50.5",
     "bcryptjs": "^3.0.2",
@@ -51,8 +52,8 @@
     "morgan": "^1.10.0",
     "stripe": "^18.3.0",
     "supertest": "^7.1.4",
-    "twilio": "^5.7.3",
-    "tsconfig-paths": "^4.2.0"
+    "tsconfig-paths": "^4.2.0",
+    "twilio": "^5.7.3"
   },
   "devDependencies": {
     "@types/bcryptjs": "^2.4.6",

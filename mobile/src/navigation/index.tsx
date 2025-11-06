@@ -3,7 +3,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { NavigationContainer } from '@react-navigation/native';
 import { MaterialIcons } from '@expo/vector-icons';
-import { View, ActivityIndicator, StyleSheet } from 'react-native';
+import { View, ActivityIndicator, StyleSheet, TouchableOpacity } from 'react-native';
 
 import { RootStackParamList, ClientTabParamList, DriverTabParamList } from './types';
 import { useAuth } from '../context/AuthContext';
@@ -247,6 +247,7 @@ export default function Navigation() {
           headerTitleStyle: {
             fontWeight: '600',
           },
+          headerTitleAlign: 'center',
         }}
       >
         {user && userProfile ? (
@@ -313,13 +314,36 @@ export default function Navigation() {
             <Stack.Screen
               name="ShipmentDetails_Driver"
               component={DriverShipmentDetailsScreen}
-              options={{ title: 'Shipment Details' }}
+              options={({ navigation }) => ({
+                title: 'Shipment Details',
+                headerLeft: () => (
+                  <TouchableOpacity
+                    onPress={() => navigation.goBack()}
+                    style={{ marginLeft: 10 }}
+                  >
+                    <MaterialIcons name="arrow-back" size={24} color={Colors.text.primary} />
+                  </TouchableOpacity>
+                ),
+              })}
             />
             
             <Stack.Screen
               name="DriverPickupVerification"
               component={DriverPickupVerificationScreen}
-              options={{ title: 'Pickup Verification' }}
+              options={({ navigation }) => ({
+                title: 'Pickup Verification',
+                headerLeft: () => (
+                  <TouchableOpacity
+                    onPress={() => {
+                      // Navigate back to ShipmentDetails which will auto-refresh
+                      navigation.goBack();
+                    }}
+                    style={{ marginLeft: 10 }}
+                  >
+                    <MaterialIcons name="arrow-back" size={24} color={Colors.text.primary} />
+                  </TouchableOpacity>
+                ),
+              })}
             />
             
             <Stack.Screen
