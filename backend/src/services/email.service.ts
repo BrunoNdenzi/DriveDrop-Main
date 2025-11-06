@@ -37,9 +37,10 @@ class EmailService {
 
   constructor() {
     this.isConfigured = false;
+    // Using authenticated domain sender
     this.defaultSender = {
       name: 'DriveDrop',
-      email: 'noreply@drivedrop.us.com', // Will use Brevo's shared domain initially
+      email: 'noreply@drivedrop.us.com',
     };
 
     this.initializeBrevo();
@@ -77,17 +78,17 @@ class EmailService {
       return false;
     }
 
+    // Prepare sender outside try block so it's accessible in catch
+    const sender = {
+      name: options.senderName || this.defaultSender.name,
+      email: options.senderEmail || this.defaultSender.email,
+    };
+
     try {
       // Prepare recipient list
       const recipients = Array.isArray(options.to)
         ? options.to.map(email => ({ email }))
         : [{ email: options.to }];
-
-      // Prepare sender
-      const sender = {
-        name: options.senderName || this.defaultSender.name,
-        email: options.senderEmail || this.defaultSender.email,
-      };
 
       // Prepare email data
       const sendSmtpEmail = new brevo.SendSmtpEmail();
@@ -111,14 +112,18 @@ class EmailService {
         messageId: (response as any).body?.messageId || 'unknown',
         to: options.to,
         subject: options.subject,
+        sender: sender.email,
       });
 
       return true;
     } catch (error: any) {
       logger.error('❌ Failed to send email:', {
         error: error.message,
+        errorBody: error.response?.body || error.body || 'No error body',
+        statusCode: error.response?.statusCode || error.statusCode,
         to: options.to,
         subject: options.subject,
+        sender: sender.email,
       });
       return false;
     }
