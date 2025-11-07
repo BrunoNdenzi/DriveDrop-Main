@@ -1,4 +1,5 @@
 import * as brevo from '@getbrevo/brevo';
+import nodemailer from 'nodemailer';
 import { logger } from '../utils/logger';
 
 interface EmailOptions {
@@ -32,11 +33,14 @@ interface ShipmentNotificationData {
 
 class EmailService {
   private apiInstance!: brevo.TransactionalEmailsApi;
+  private gmailTransporter: nodemailer.Transporter | null = null;
   private defaultSender: { name: string; email: string };
   private isConfigured: boolean;
+  private gmailConfigured: boolean;
 
   constructor() {
     this.isConfigured = false;
+    this.gmailConfigured = false;
     // Using authenticated domain sender with verified mailbox
     this.defaultSender = {
       name: 'DriveDrop',
@@ -44,6 +48,7 @@ class EmailService {
     };
 
     this.initializeBrevo();
+    this.initializeGmailSMTP();
   }
 
   private initializeBrevo(): void {
@@ -51,7 +56,7 @@ class EmailService {
       const apiKey = process.env['BREVO_API_KEY'];
 
       if (!apiKey) {
-        logger.warn('⚠️ BREVO_API_KEY not found in environment variables. Email service disabled.');
+        logger.warn('⚠️ BREVO_API_KEY not found in environment variables. Brevo email service disabled.');
         return;
       }
 
@@ -69,20 +74,102 @@ class EmailService {
     }
   }
 
+  private initializeGmailSMTP(): void {
+    try {
+      const gmailUser = process.env['GMAIL_USER'];
+      const gmailAppPassword = process.env['GMAIL_APP_PASSWORD'];
+
+      if (!gmailUser || !gmailAppPassword) {
+        logger.warn('⚠️ Gmail SMTP not configured. Gmail delivery will use Brevo.');
+        return;
+      }
+
+      // Initialize Gmail SMTP transporter
+      this.gmailTransporter = nodemailer.createTransport({
+        service: 'gmail',
+        auth: {
+          user: gmailUser,
+          pass: gmailAppPassword,
+        },
+      });
+
+      this.gmailConfigured = true;
+      logger.info('✅ Gmail SMTP initialized successfully');
+    } catch (error) {
+      logger.error('❌ Failed to initialize Gmail SMTP:', { error });
+    }
+  }
+
+  /**
+   * Check if recipient is Gmail and route accordingly
+   */
+  private isGmailAddress(email: string): boolean {
+    return email.toLowerCase().endsWith('@gmail.com');
+  }
+
+  /**
+   * Send email via Gmail SMTP
+   */
+  private async sendViaGmail(options: EmailOptions, sender: { name: string; email: string }): Promise<boolean> {
+    if (!this.gmailTransporter) {
+      return false;
+    }
+
+    try {
+      const recipientEmail = Array.isArray(options.to) ? options.to[0] : options.to;
+
+      const mailOptions = {
+        from: `${sender.name} <${process.env['GMAIL_USER']}>`,
+        to: recipientEmail,
+        subject: options.subject,
+        html: options.htmlContent,
+        text: options.textContent,
+        replyTo: options.replyTo,
+      };
+
+      const info = await this.gmailTransporter.sendMail(mailOptions);
+
+      logger.info('✅ Email sent via Gmail SMTP', {
+        messageId: info.messageId,
+        to: recipientEmail,
+        subject: options.subject,
+        sender: 'Gmail SMTP',
+      });
+
+      return true;
+    } catch (error: any) {
+      logger.error('❌ Failed to send email via Gmail SMTP:', {
+        error: error.message,
+        to: options.to,
+      });
+      return false;
+    }
+  }
+
   /**
    * Send a generic email
    */
   async sendEmail(options: EmailOptions): Promise<boolean> {
-    if (!this.isConfigured) {
-      logger.warn('⚠️ Email service not configured. Skipping email send.');
-      return false;
-    }
-
-    // Prepare sender outside try block so it's accessible in catch
+    // Prepare sender
     const sender = {
       name: options.senderName || this.defaultSender.name,
       email: options.senderEmail || this.defaultSender.email,
     };
+
+    // Check if recipient is Gmail and we have Gmail SMTP configured
+    const recipientEmail = Array.isArray(options.to) ? options.to[0] : options.to;
+    const useGmailSMTP = this.gmailConfigured && recipientEmail && this.isGmailAddress(recipientEmail);
+
+    if (useGmailSMTP) {
+      logger.info('📧 Routing to Gmail SMTP for Gmail recipient:', { to: recipientEmail });
+      return this.sendViaGmail(options, sender);
+    }
+
+    // Use Brevo for non-Gmail recipients
+    if (!this.isConfigured) {
+      logger.warn('⚠️ Email service not configured. Skipping email send.');
+      return false;
+    }
 
     try {
       // Prepare recipient list
@@ -105,10 +192,10 @@ class EmailService {
         sendSmtpEmail.replyTo = { email: options.replyTo };
       }
 
-      // Send email
+      // Send email via Brevo
       const response = await this.apiInstance.sendTransacEmail(sendSmtpEmail);
       
-      logger.info('✅ Email sent successfully', {
+      logger.info('✅ Email sent via Brevo', {
         messageId: (response as any).body?.messageId || 'unknown',
         to: options.to,
         subject: options.subject,
@@ -117,7 +204,7 @@ class EmailService {
 
       return true;
     } catch (error: any) {
-      logger.error('❌ Failed to send email:', {
+      logger.error('❌ Failed to send email via Brevo:', {
         error: error.message,
         errorBody: error.response?.body || error.body || 'No error body',
         statusCode: error.response?.statusCode || error.statusCode,
