@@ -130,4 +130,33 @@ router.post('/driver-application', asyncHandler(async (req: Request, res: Respon
   }));
 }));
 
+/**
+ * @route POST /api/v1/notifications/email-verification
+ * @desc Send email verification link
+ * @access Public (called from Supabase trigger or mobile app)
+ */
+router.post('/email-verification', asyncHandler(async (req: Request, res: Response) => {
+  const { email, firstName, verificationLink } = req.body;
+
+  if (!email || !firstName || !verificationLink) {
+    throw createError('Email, firstName, and verificationLink are required', 400, 'MISSING_FIELDS');
+  }
+
+  logger.info('Sending email verification', { email });
+
+  const success = await emailService.sendEmailVerification({
+    email,
+    firstName,
+    verificationLink,
+  });
+
+  if (!success) {
+    throw createError('Failed to send email verification', 500, 'EMAIL_SEND_FAILED');
+  }
+
+  res.status(200).json(successResponse({
+    message: 'Email verification sent successfully',
+  }));
+}));
+
 export const notificationsRoutes = router;

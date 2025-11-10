@@ -31,6 +31,12 @@ interface ShipmentNotificationData {
   email: string;
 }
 
+interface EmailVerificationData {
+  firstName: string;
+  verificationLink: string;
+  email: string;
+}
+
 class EmailService {
   private apiInstance!: brevo.TransactionalEmailsApi;
   private gmailTransporter: nodemailer.Transporter | null = null;
@@ -533,6 +539,96 @@ class EmailService {
       to: email,
       subject,
       htmlContent,
+    });
+  }
+
+  /**
+   * Send email verification link
+   */
+  async sendEmailVerification(data: EmailVerificationData): Promise<boolean> {
+    const htmlContent = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <meta charset="utf-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <title>Verify Your Email</title>
+        </head>
+        <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+          <div style="background: linear-gradient(135deg, #00B8A9 0%, #008B80 100%); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
+            <h1 style="color: white; margin: 0; font-size: 28px;">Verify Your Email 📧</h1>
+          </div>
+          
+          <div style="background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px;">
+            <p style="font-size: 16px; margin-bottom: 20px;">Hi ${data.firstName},</p>
+            
+            <p style="font-size: 16px; margin-bottom: 20px;">
+              Welcome to DriveDrop! To complete your registration and start using our platform, 
+              please verify your email address by clicking the button below:
+            </p>
+            
+            <div style="text-align: center; margin: 30px 0;">
+              <a href="${data.verificationLink}" 
+                 style="background: linear-gradient(135deg, #00B8A9 0%, #008B80 100%); 
+                        color: white; 
+                        padding: 15px 40px; 
+                        text-decoration: none; 
+                        border-radius: 8px; 
+                        font-weight: bold; 
+                        font-size: 16px;
+                        display: inline-block;">
+                Verify Email Address
+              </a>
+            </div>
+            
+            <p style="font-size: 14px; color: #666; margin-top: 30px;">
+              Or copy and paste this link into your browser:
+            </p>
+            <p style="font-size: 14px; color: #00B8A9; word-break: break-all;">
+              ${data.verificationLink}
+            </p>
+            
+            <div style="background: #fff3cd; border-left: 4px solid #ffc107; padding: 15px; margin-top: 30px; border-radius: 4px;">
+              <p style="margin: 0; font-size: 14px; color: #856404;">
+                ⚠️ <strong>Security Notice:</strong> This verification link will expire in 24 hours. 
+                If you didn't create a DriveDrop account, please ignore this email.
+              </p>
+            </div>
+            
+            <p style="font-size: 16px; margin-top: 30px; margin-bottom: 5px;">Best regards,</p>
+            <p style="font-size: 16px; margin-top: 0; font-weight: bold; color: #00B8A9;">The DriveDrop Team</p>
+          </div>
+          
+          <div style="text-align: center; padding: 20px; color: #666; font-size: 12px;">
+            <p>© ${new Date().getFullYear()} DriveDrop. All rights reserved.</p>
+            <p>This is an automated message, please do not reply to this email.</p>
+          </div>
+        </body>
+      </html>
+    `;
+
+    const textContent = `
+      Verify Your Email
+      
+      Hi ${data.firstName},
+      
+      Welcome to DriveDrop! To complete your registration, please verify your email address by clicking the link below:
+      
+      ${data.verificationLink}
+      
+      Security Notice: This verification link will expire in 24 hours. If you didn't create a DriveDrop account, please ignore this email.
+      
+      Best regards,
+      The DriveDrop Team
+      
+      © ${new Date().getFullYear()} DriveDrop. All rights reserved.
+    `;
+
+    return this.sendEmail({
+      to: data.email,
+      subject: '📧 Verify Your DriveDrop Email Address',
+      htmlContent,
+      textContent,
     });
   }
 }
