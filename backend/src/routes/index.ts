@@ -16,6 +16,7 @@ import pricingRoutes from './pricing.routes';
 import adminRoutes from './admin.routes';
 
 import pickupVerificationRoutes from './pickupVerification.routes';
+import { notificationsRoutes}  from './notifications.routes';
 
 const router = Router();
 
@@ -36,6 +37,7 @@ router.get('/', (_req, res) => {
       drivers: '/api/v1/drivers',
       messages: '/api/v1/messages',
       admin: '/api/v1/admin',
+      notifications: '/api/v1/notifications',
       pickupVerification: '/api/v1/shipments (pickup verification endpoints)',
     },
   });
@@ -55,5 +57,6 @@ router.use('/messages', messagesRoutes);
 router.use('/diagnostics', diagnosticsRoutes);
 router.use('/pricing', pricingRoutes);
 router.use('/admin', adminRoutes);
+router.use('/notifications', notificationsRoutes);
 
 export default router;
