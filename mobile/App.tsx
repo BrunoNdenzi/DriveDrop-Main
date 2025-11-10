@@ -5,6 +5,8 @@ import { View, Text, ActivityIndicator } from 'react-native';
 import 'react-native-url-polyfill/auto';
 import Constants from 'expo-constants';
 import { initSentry } from './src/lib/sentry';
+import * as Linking from 'expo-linking';
+import { supabase } from './src/lib/supabase';
 
 import Navigation from './src/navigation';
 import { AuthProvider } from './src/context/AuthContext';
@@ -30,6 +32,52 @@ export default function App() {
     
     setHasEnvVars(!!supabaseUrl && !!supabaseAnonKey && !!apiUrl);
     setIsLoading(false);
+
+    // Handle deep links for email verification
+    const handleDeepLink = async (event: { url: string }) => {
+      const url = event.url;
+      console.log('Deep link received:', url);
+      
+      // Handle Supabase auth callbacks
+      if (url.includes('auth/callback') || url.includes('#access_token')) {
+        try {
+          // Extract URL parameters
+          const urlParams = new URL(url);
+          const accessToken = urlParams.searchParams.get('access_token') || 
+                             urlParams.hash.split('access_token=')[1]?.split('&')[0];
+          
+          if (accessToken) {
+            const { data, error } = await supabase.auth.setSession({
+              access_token: accessToken,
+              refresh_token: urlParams.searchParams.get('refresh_token') || 
+                           urlParams.hash.split('refresh_token=')[1]?.split('&')[0] || '',
+            });
+            
+            if (error) {
+              console.error('Error handling auth callback:', error);
+            } else if (data?.session) {
+              console.log('Email verified successfully!');
+            }
+          }
+        } catch (err) {
+          console.error('Error processing deep link:', err);
+        }
+      }
+    };
+
+    // Listen for deep links
+    const subscription = Linking.addEventListener('url', handleDeepLink);
+
+    // Check if app was opened from a deep link
+    Linking.getInitialURL().then((url) => {
+      if (url) {
+        handleDeepLink({ url });
+      }
+    });
+
+    return () => {
+      subscription.remove();
+    };
   }, []);
   
   if (isLoading) {

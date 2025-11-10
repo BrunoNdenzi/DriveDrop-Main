@@ -34,7 +34,8 @@ export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey, {
     storage: ExpoSecureStoreAdapter,
     autoRefreshToken: true,
     persistSession: true,
-    detectSessionInUrl: false,
+    detectSessionInUrl: true, // Enable deep link detection
+    flowType: 'pkce', // Use PKCE flow for better security on mobile
   },
 });
 
