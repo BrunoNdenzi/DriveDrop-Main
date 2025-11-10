@@ -160,11 +160,17 @@ Navigate to: **Authentication** → **Email Templates**
 Navigate to: **Authentication** → **URL Configuration**
 
 ```
-Site URL: https://drivedrop.us.com
-Redirect URLs: 
-  - https://drivedrop.us.com/**
-  - drivedrop://** (for mobile deep linking)
+Site URL: drivedrop://auth/callback
+
+Redirect URLs (Add all of these): 
+  - drivedrop://auth/callback
+  - drivedrop://**
+  - exp://127.0.0.1:8081/--/** (for Expo Go development)
+  - exp://localhost:8081/--/** (for Expo Go development)
+  - https://drivedrop.us.com/** (for web, if applicable)
 ```
+
+**Important:** The `drivedrop://auth/callback` URL is what Supabase will redirect to after email verification.
 
 ---
 

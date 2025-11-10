@@ -102,7 +102,8 @@ export default function SignUpScreen({ navigation }: SignUpScreenProps) {
             first_name: firstName,
             last_name: lastName,
             role: role
-          }
+          },
+          emailRedirectTo: 'drivedrop://auth/callback'
         }
       });
 
