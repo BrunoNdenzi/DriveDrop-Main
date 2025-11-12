@@ -264,11 +264,72 @@ function PaymentForm({ shipmentData, completionData, onPaymentComplete, onFinalS
               </span>
             </div>
           </div>
+          <div className="border-t border-teal-300 pt-3">
+            <div className="flex justify-between items-center text-gray-600">
+              <div>
+                <p className="font-medium">Remaining Balance (80%)</p>
+                <p className="text-xs">Captured on delivery</p>
+              </div>
+              <span className="font-semibold">
+                ${((totalAmount - upfrontAmount) / 100).toFixed(2)}
+              </span>
+            </div>
+          </div>
         </div>
       </div>
 
-      {/* Remaining Payment Info */}
-      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+      {/* Authorization Hold Info */}
+      <div className="bg-blue-50 border border-blue-200 rounded-lg p-5">
+        <div className="flex items-start gap-3">
+          <div className="p-2 bg-blue-100 rounded-lg flex-shrink-0">
+            <Lock className="h-5 w-5 text-blue-600" />
+          </div>
+          <div className="flex-1">
+            <h4 className="font-semibold text-blue-900 mb-2">How Payment Works</h4>
+            <div className="text-sm text-blue-800 space-y-2">
+              <div className="flex items-start gap-2">
+                <span className="font-bold mt-0.5">1.</span>
+                <p>
+                  We'll <strong>authorize the full ${shipmentData.estimatedPrice.toFixed(2)}</strong> on your card 
+                  (this temporarily reserves the funds but doesn't charge them yet)
+                </p>
+              </div>
+              <div className="flex items-start gap-2">
+                <span className="font-bold mt-0.5">2.</span>
+                <p>
+                  We immediately <strong>charge ${(upfrontAmount / 100).toFixed(2)} (20%)</strong> as your initial payment
+                </p>
+              </div>
+              <div className="flex items-start gap-2">
+                <span className="font-bold mt-0.5">3.</span>
+                <p>
+                  The remaining <strong>${((totalAmount - upfrontAmount) / 100).toFixed(2)} (80%)</strong> stays 
+                  "on hold" on your card - you'll see it as pending
+                </p>
+              </div>
+              <div className="flex items-start gap-2">
+                <span className="font-bold mt-0.5">4.</span>
+                <p>
+                  Upon successful delivery, we automatically capture the remaining 80% - 
+                  <strong className="text-blue-900"> no cash needed!</strong>
+                </p>
+              </div>
+            </div>
+            <div className="mt-3 pt-3 border-t border-blue-300">
+              <p className="text-xs text-blue-700 flex items-start gap-2">
+                <Lock className="h-3 w-3 mt-0.5 flex-shrink-0" />
+                <span>
+                  This is the same secure payment method used by hotels and rental car companies. 
+                  If delivery cannot be completed, the hold will be released within 7 days.
+                </span>
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Remaining Payment Info - OLD VERSION - REMOVE THIS */}
+      <div className="hidden bg-blue-50 border border-blue-200 rounded-lg p-4">
         <div className="flex items-start gap-3">
           <AlertCircle className="h-5 w-5 text-blue-600 mt-0.5 flex-shrink-0" />
           <div className="text-sm text-blue-900">

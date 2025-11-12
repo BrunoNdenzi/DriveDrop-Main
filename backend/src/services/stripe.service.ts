@@ -271,6 +271,14 @@ export const stripeService = {
         case 'payment_intent.succeeded':
           await this.handlePaymentSucceeded(event.data.object as Stripe.PaymentIntent);
           break;
+        case 'payment_intent.amount_capturable_updated':
+          // Handle when authorization succeeds and amount is capturable
+          await this.handleAmountCapturableUpdated(event.data.object as Stripe.PaymentIntent);
+          break;
+        case 'payment_intent.partially_funded':
+          // Handle partial capture (20% upfront captured)
+          await this.handlePartialCapture(event.data.object as Stripe.PaymentIntent);
+          break;
         case 'payment_intent.payment_failed':
           await this.handlePaymentFailed(event.data.object as Stripe.PaymentIntent);
           break;
@@ -520,6 +528,148 @@ export const stripeService = {
       }
     } catch (error) {
       logger.error('Error handling payment cancellation', { error, paymentIntentId: paymentIntent.id });
+      throw error;
+    }
+  },
+
+  /**
+   * Handle amount capturable updated (authorization succeeded)
+   * This fires when the full amount is authorized on the customer's card
+   */
+  async handleAmountCapturableUpdated(paymentIntent: Stripe.PaymentIntent): Promise<void> {
+    try {
+      const { clientId, shipmentId } = paymentIntent.metadata;
+
+      logger.info('Amount capturable updated - authorization succeeded', {
+        paymentIntentId: paymentIntent.id,
+        clientId,
+        shipmentId,
+        amountCapturable: paymentIntent.amount_capturable,
+        totalAmount: paymentIntent.amount,
+      });
+
+      if (shipmentId) {
+        // Update payment record to reflect authorization
+        const { error: paymentError } = await supabase
+          .from('payments')
+          .update({
+            status: 'processing',
+            payment_intent_id: paymentIntent.id,
+            metadata: {
+              amountCapturable: paymentIntent.amount_capturable,
+              captureStatus: 'authorized',
+            },
+            updated_at: new Date().toISOString(),
+          })
+          .eq('shipment_id', shipmentId);
+
+        if (paymentError) {
+          logger.error('Error updating payment record for authorization', {
+            error: paymentError,
+            shipmentId,
+            paymentIntentId: paymentIntent.id,
+          });
+        }
+
+        // Update shipment status
+        const { error: shipmentError } = await supabase
+          .from('shipments')
+          .update({
+            payment_status: 'authorized',
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', shipmentId);
+
+        if (shipmentError) {
+          logger.error('Error updating shipment for authorization', {
+            error: shipmentError,
+            shipmentId,
+          });
+        }
+      }
+    } catch (error) {
+      logger.error('Error handling amount capturable update', {
+        error,
+        paymentIntentId: paymentIntent.id,
+      });
+      throw error;
+    }
+  },
+
+  /**
+   * Handle partial capture (20% upfront captured)
+   * This fires after the upfront 20% is captured
+   */
+  async handlePartialCapture(paymentIntent: Stripe.PaymentIntent): Promise<void> {
+    try {
+      const { clientId, shipmentId, upfrontAmount, remainingAmount } = paymentIntent.metadata;
+
+      logger.info('Partial capture completed (upfront 20%)', {
+        paymentIntentId: paymentIntent.id,
+        clientId,
+        shipmentId,
+        amountCaptured: upfrontAmount,
+        amountRemaining: remainingAmount,
+      });
+
+      if (shipmentId) {
+        // Update payment record
+        const { error: paymentError } = await supabase
+          .from('payments')
+          .update({
+            status: 'processing',
+            payment_intent_id: paymentIntent.id,
+            metadata: {
+              upfrontCaptured: true,
+              upfrontAmount: parseInt(upfrontAmount || '0'),
+              remainingAmount: parseInt(remainingAmount || '0'),
+              captureStatus: 'upfront_captured',
+            },
+            updated_at: new Date().toISOString(),
+          })
+          .eq('shipment_id', shipmentId)
+          .eq('payment_type', 'initial');
+
+        if (paymentError) {
+          logger.error('Error updating payment for partial capture', {
+            error: paymentError,
+            shipmentId,
+            paymentIntentId: paymentIntent.id,
+          });
+        }
+
+        // Update shipment status
+        const { error: shipmentError } = await supabase
+          .from('shipments')
+          .update({
+            payment_status: 'partial_paid',
+            status: 'pending',
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', shipmentId);
+
+        if (shipmentError) {
+          logger.error('Error updating shipment for partial capture', {
+            error: shipmentError,
+            shipmentId,
+          });
+        }
+
+        // Create notification for client
+        if (clientId) {
+          await this.createPaymentNotification(
+            clientId,
+            shipmentId,
+            'success',
+            parseInt(upfrontAmount || '0')
+          );
+        }
+      }
+    } catch (error) {
+      logger.error('Error handling partial capture', {
+        error,
+        paymentIntentId: paymentIntent.id,
+      });
       throw error;
     }
   },
