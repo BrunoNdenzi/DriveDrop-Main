@@ -283,6 +283,34 @@ export default function DeliveryCompletePage({ params }: { params: { id: string 
       // Update payment status to completed
       if (shipment.payment && shipment.payment.length > 0) {
         const payment = shipment.payment[0]
+        
+        // First, capture the remaining 80% payment
+        try {
+          const captureResponse = await fetch('/api/stripe/capture-remaining', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              paymentIntentId: payment.payment_intent_id,
+              shipmentId: params.id,
+              driverId: profile?.id,
+            }),
+          })
+
+          const captureResult = await captureResponse.json()
+
+          if (!captureResponse.ok) {
+            throw new Error(captureResult.error || 'Failed to capture remaining payment')
+          }
+
+          console.log('✅ Remaining payment (80%) captured:', captureResult)
+          toast('Final payment captured successfully! 💰', 'success')
+        } catch (captureError: any) {
+          console.error('❌ Error capturing remaining payment:', captureError)
+          toast(`Warning: ${captureError.message}. Please contact support.`, 'error')
+          // Don't fail delivery completion if payment capture fails
+        }
+
+        // Update payment record
         await supabase
           .from('payments')
           .update({ 
@@ -403,6 +431,46 @@ export default function DeliveryCompletePage({ params }: { params: { id: string 
             )}
           </div>
         </div>
+
+        {/* Payment Info */}
+        {shipment.payment && shipment.payment.length > 0 && (
+          <div className="bg-gradient-to-r from-green-50 to-teal-50 rounded-lg border border-green-200 p-6">
+            <div className="flex items-start space-x-3">
+              <div className="p-2 bg-green-100 rounded-lg">
+                <DollarSign className="w-6 h-6 text-green-600" />
+              </div>
+              <div className="flex-1">
+                <h3 className="font-semibold text-gray-900 mb-2">Final Payment Capture</h3>
+                <p className="text-sm text-gray-700 mb-3">
+                  When you complete this delivery, the remaining 80% payment will be automatically captured from the client's card. 
+                  This ensures instant payment with no cash handling required.
+                </p>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="bg-white rounded-lg p-3 border border-green-200">
+                    <p className="text-xs text-gray-600 mb-1">Already Paid (20%)</p>
+                    <p className="text-lg font-bold text-gray-900">
+                      ${((shipment.payment[0].amount * 0.2) / 100).toFixed(2)}
+                    </p>
+                  </div>
+                  <div className="bg-white rounded-lg p-3 border border-green-200">
+                    <p className="text-xs text-gray-600 mb-1">Will be Captured (80%)</p>
+                    <p className="text-lg font-bold text-green-600">
+                      ${((shipment.payment[0].amount * 0.8) / 100).toFixed(2)}
+                    </p>
+                  </div>
+                </div>
+                <div className="mt-3 pt-3 border-t border-green-200">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium text-gray-700">Your Earnings (80% of total)</span>
+                    <span className="text-xl font-bold text-green-600">
+                      ${shipment.payment[0].driver_payout.toFixed(2)}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Delivery Photos */}
         <div className="bg-white rounded-lg border p-6">

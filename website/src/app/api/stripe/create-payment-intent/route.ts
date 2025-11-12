@@ -16,31 +16,46 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Create payment intent for 20% upfront with enhanced payment methods
+    if (!totalAmount || totalAmount < amount) {
+      return NextResponse.json(
+        { error: 'Invalid total amount.' },
+        { status: 400 }
+      )
+    }
+
+    const remainingAmount = totalAmount - amount
+
+    // STEP 1: Create payment intent for FULL AMOUNT with manual capture
+    // This will authorize (hold) the full amount on the customer's card
     const paymentIntent = await stripe.paymentIntents.create({
-      amount: amount,
+      amount: totalAmount, // 🔑 Authorize FULL amount (100%)
       currency: 'usd',
+      capture_method: 'manual', // 🔑 Don't auto-capture - we'll capture in steps
       description: `DriveDrop Shipment - ${metadata.vehicle}`,
       metadata: {
         ...metadata,
         totalAmount: totalAmount.toString(),
+        upfrontAmount: amount.toString(), // 20% to capture now
         upfrontPercentage: '20',
+        remainingAmount: remainingAmount.toString(), // 80% to capture on delivery
         remainingPercentage: '80',
-        remainingAmount: (totalAmount - amount).toString(),
         customerEmail: customerEmail || '',
         customerName: customerName || '',
+        captureStatus: 'upfront_pending', // Track capture status
       },
       automatic_payment_methods: {
         enabled: true,
-        allow_redirects: 'always', // Enable bank redirects and other methods
+        allow_redirects: 'always',
       },
-      // Add receipt email if provided
       ...(customerEmail && { receipt_email: customerEmail }),
     })
 
     return NextResponse.json({
       clientSecret: paymentIntent.client_secret,
       paymentIntentId: paymentIntent.id,
+      totalAmount: totalAmount,
+      upfrontAmount: amount,
+      remainingAmount: remainingAmount,
     })
   } catch (error: any) {
     console.error('Stripe payment intent creation error:', error)
