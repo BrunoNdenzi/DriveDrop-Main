@@ -489,6 +489,8 @@ CREATE TABLE public.shipments (
   delivery_verified boolean DEFAULT false,
   delivery_photos jsonb DEFAULT '[]'::jsonb,
   cancellation_record_id uuid,
+  client_vehicle_photos jsonb DEFAULT '{"left": [], "rear": [], "front": [], "right": [], "damage": [], "interior": []}'::jsonb,
+  delivery_confirmation_photos jsonb DEFAULT '[]'::jsonb,
   CONSTRAINT shipments_pkey PRIMARY KEY (id),
   CONSTRAINT shipments_client_id_fkey FOREIGN KEY (client_id) REFERENCES public.profiles(id),
   CONSTRAINT shipments_driver_id_fkey FOREIGN KEY (driver_id) REFERENCES public.profiles(id),
