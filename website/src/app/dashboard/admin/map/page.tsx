@@ -75,7 +75,7 @@ interface MapFilters {
 }
 
 export default function AdminMapPage() {
-  const { profile, loading } = useAuth()
+  const { profile, loading: authLoading } = useAuth()
   const [map, setMap] = useState<google.maps.Map | null>(null)
   const [drivers, setDrivers] = useState<Driver[]>([])
   const [shipments, setShipments] = useState<Shipment[]>([])
@@ -359,7 +359,7 @@ export default function AdminMapPage() {
     focusOnDriver(driver)
   }
 
-  if (loading) {
+  if (authLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-teal-500"></div>
