@@ -82,6 +82,7 @@ export default function AdminMapPage() {
   const [selectedShipment, setSelectedShipment] = useState<Shipment | null>(null)
   const [selectedDriver, setSelectedDriver] = useState<Driver | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
+  const [mapContainerReady, setMapContainerReady] = useState(false)
 
   // Debug logging
   useEffect(() => {
@@ -122,15 +123,15 @@ export default function AdminMapPage() {
   useEffect(() => {
     console.log('[Map] Effect running - MapRef:', !!mapRef.current, 'Map:', !!map)
     
-    // Must have mapRef available
-    if (!mapRef.current) {
-      console.log('[Map] MapRef not ready yet')
-      return
-    }
-
     // Don't recreate if map already exists
     if (map) {
       console.log('[Map] Map already initialized')
+      return
+    }
+    
+    // Must have mapRef available
+    if (!mapRef.current) {
+      console.log('[Map] MapRef not ready yet')
       return
     }
     
@@ -197,11 +198,9 @@ export default function AdminMapPage() {
       document.head.appendChild(script)
     }
 
-    // Small delay to ensure DOM is ready
-    const timer = setTimeout(loadGoogleMaps, 100)
-
-    return () => clearTimeout(timer)
-  }, []) // Empty deps - run once when component mounts
+    // Run immediately - mapRef is now guaranteed to be ready
+    loadGoogleMaps()
+  }, [map, mapContainerReady]) // Re-run when container becomes ready
 
   // Load data
   const loadData = useCallback(async () => {
@@ -699,7 +698,16 @@ export default function AdminMapPage() {
 
         {/* Map Container */}
         <div className="flex-1 relative">
-          <div ref={mapRef} className="w-full h-full" />
+          <div 
+            ref={(el) => {
+              mapRef.current = el
+              if (el && !mapContainerReady) {
+                console.log('[Map] Container mounted, triggering ready state')
+                setMapContainerReady(true)
+              }
+            }} 
+            className="w-full h-full" 
+          />
 
           {/* Selected Shipment Info Panel */}
           {selectedShipment && (
