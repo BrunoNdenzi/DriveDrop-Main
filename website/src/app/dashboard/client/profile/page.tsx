@@ -25,10 +25,6 @@ export default function ClientProfilePage() {
     last_name: '',
     email: '',
     phone: '',
-    address: '',
-    city: '',
-    state: '',
-    zip_code: '',
   })
 
   const supabase = getSupabaseBrowserClient()
@@ -40,10 +36,6 @@ export default function ClientProfilePage() {
         last_name: profile.last_name || '',
         email: profile.email || '',
         phone: profile.phone || '',
-        address: profile.address || '',
-        city: profile.city || '',
-        state: profile.state || '',
-        zip_code: profile.zip_code || '',
       })
     }
   }, [profile])
@@ -206,64 +198,6 @@ export default function ClientProfilePage() {
                     onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                     className="pl-10"
                     placeholder="(555) 123-4567"
-                  />
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-            <h3 className="text-lg font-bold text-gray-900 mb-6">Address</h3>
-            
-            <div className="space-y-4">
-              {/* Street Address */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Street Address
-                </label>
-                <div className="relative">
-                  <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
-                  <Input
-                    value={formData.address}
-                    onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                    className="pl-10"
-                    placeholder="123 Main St"
-                  />
-                </div>
-              </div>
-
-              {/* City, State, ZIP */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="md:col-span-1">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    City
-                  </label>
-                  <Input
-                    value={formData.city}
-                    onChange={(e) => setFormData({ ...formData, city: e.target.value })}
-                    placeholder="Dallas"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    State
-                  </label>
-                  <Input
-                    value={formData.state}
-                    onChange={(e) => setFormData({ ...formData, state: e.target.value })}
-                    placeholder="TX"
-                    maxLength={2}
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    ZIP Code
-                  </label>
-                  <Input
-                    value={formData.zip_code}
-                    onChange={(e) => setFormData({ ...formData, zip_code: e.target.value })}
-                    placeholder="75001"
-                    maxLength={10}
                   />
                 </div>
               </div>
