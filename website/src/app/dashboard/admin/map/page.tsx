@@ -82,7 +82,6 @@ export default function AdminMapPage() {
   const [selectedShipment, setSelectedShipment] = useState<Shipment | null>(null)
   const [selectedDriver, setSelectedDriver] = useState<Driver | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
-  const [mapContainerReady, setMapContainerReady] = useState(false)
 
   // Debug logging
   useEffect(() => {
@@ -121,17 +120,8 @@ export default function AdminMapPage() {
 
   // Load Google Maps Script and Initialize Map
   useEffect(() => {
-    console.log('[Map] Effect running - MapRef:', !!mapRef.current, 'Map:', !!map)
-    
-    // Don't recreate if map already exists
     if (map) {
       console.log('[Map] Map already initialized')
-      return
-    }
-    
-    // Must have mapRef available
-    if (!mapRef.current) {
-      console.log('[Map] MapRef not ready yet')
       return
     }
     
@@ -141,11 +131,16 @@ export default function AdminMapPage() {
     }
 
     const loadGoogleMaps = () => {
+      if (!mapRef.current) {
+        console.log('[Map] MapRef not ready yet, retrying in 100ms...')
+        return
+      }
+
       // Check if already loaded
       if (window.google?.maps) {
         console.log('[Map] ✅ Google Maps API available, creating map...')
         try {
-          const initMap = new google.maps.Map(mapRef.current!, {
+          const initMap = new google.maps.Map(mapRef.current, {
             center: { lat: 39.8283, lng: -98.5795 },
             zoom: 5,
             styles: [{ featureType: 'poi', elementType: 'labels', stylers: [{ visibility: 'off' }] }],
@@ -156,6 +151,7 @@ export default function AdminMapPage() {
           })
           console.log('[Map] ✅ Map instance created successfully!')
           setMap(initMap)
+          clearInterval(checkInterval)
         } catch (error) {
           console.error('[Map] ❌ Error creating map:', error)
         }
@@ -185,6 +181,7 @@ export default function AdminMapPage() {
             })
             console.log('[Map] ✅ Map created after script load!')
             setMap(initMap)
+            clearInterval(checkInterval)
           } catch (error) {
             console.error('[Map] ❌ Error creating map:', error)
           }
@@ -196,11 +193,15 @@ export default function AdminMapPage() {
       }
       
       document.head.appendChild(script)
+      clearInterval(checkInterval)
     }
 
-    // Run immediately - mapRef is now guaranteed to be ready
-    loadGoogleMaps()
-  }, [map, mapContainerReady]) // Re-run when container becomes ready
+    // Poll for mapRef readiness
+    const checkInterval = setInterval(loadGoogleMaps, 100)
+    loadGoogleMaps() // Try immediately too
+
+    return () => clearInterval(checkInterval)
+  }, [map])
 
   // Load data
   const loadData = useCallback(async () => {
@@ -698,16 +699,7 @@ export default function AdminMapPage() {
 
         {/* Map Container */}
         <div className="flex-1 relative">
-          <div 
-            ref={(el) => {
-              mapRef.current = el
-              if (el && !mapContainerReady) {
-                console.log('[Map] Container mounted, triggering ready state')
-                setMapContainerReady(true)
-              }
-            }} 
-            className="w-full h-full" 
-          />
+          <div ref={mapRef} className="w-full h-full" />
 
           {/* Selected Shipment Info Panel */}
           {selectedShipment && (
