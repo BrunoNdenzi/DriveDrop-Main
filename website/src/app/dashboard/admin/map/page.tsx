@@ -32,8 +32,7 @@ interface Driver {
   location?: {
     latitude: number
     longitude: number
-  }
-  status: 'available' | 'busy' | 'offline'
+  } | null
   active_shipment?: string
 }
 
@@ -83,14 +82,19 @@ export default function AdminMapPage() {
   const [selectedShipment, setSelectedShipment] = useState<Shipment | null>(null)
   const [selectedDriver, setSelectedDriver] = useState<Driver | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
+
+  // Debug logging
+  useEffect(() => {
+    console.log('[AdminMap] Auth state:', { profile, authLoading })
+  }, [profile, authLoading])
   const [filters, setFilters] = useState<MapFilters>({
     showDrivers: true,
     showShipments: true,
     showPickups: true,
     showDeliveries: true,
     showRoutes: true,
-    shipmentStatus: ['pending', 'assigned', 'in_transit'],
-    driverStatus: ['available', 'busy']
+    shipmentStatus: ['pending', 'assigned', 'in_transit', 'delivered'],
+    driverStatus: ['available', 'busy', 'offline']
   })
   const [stats, setStats] = useState({
     totalDrivers: 0,
@@ -114,37 +118,104 @@ export default function AdminMapPage() {
   const routesRef = useRef<Map<string, google.maps.Polyline>>(new Map())
   const supabase = getSupabaseBrowserClient()
 
-  // Initialize Google Map
+  // Load Google Maps Script and Initialize Map
   useEffect(() => {
-    if (!mapRef.current || map) return
+    console.log('[Map] Effect running - MapRef:', !!mapRef.current, 'Map:', !!map)
+    
+    // Must have mapRef available
+    if (!mapRef.current) {
+      console.log('[Map] MapRef not ready yet')
+      return
+    }
 
-    const initMap = new google.maps.Map(mapRef.current, {
-      center: { lat: 39.8283, lng: -98.5795 }, // Center of USA
-      zoom: 5,
-      styles: [
-        {
-          featureType: 'poi',
-          elementType: 'labels',
-          stylers: [{ visibility: 'off' }]
+    // Don't recreate if map already exists
+    if (map) {
+      console.log('[Map] Map already initialized')
+      return
+    }
+    
+    if (typeof window === 'undefined') {
+      console.log('[Map] Window is undefined, skipping')
+      return
+    }
+
+    const loadGoogleMaps = () => {
+      // Check if already loaded
+      if (window.google?.maps) {
+        console.log('[Map] ✅ Google Maps API available, creating map...')
+        try {
+          const initMap = new google.maps.Map(mapRef.current!, {
+            center: { lat: 39.8283, lng: -98.5795 },
+            zoom: 5,
+            styles: [{ featureType: 'poi', elementType: 'labels', stylers: [{ visibility: 'off' }] }],
+            mapTypeControl: true,
+            streetViewControl: false,
+            fullscreenControl: true,
+            zoomControl: true
+          })
+          console.log('[Map] ✅ Map instance created successfully!')
+          setMap(initMap)
+        } catch (error) {
+          console.error('[Map] ❌ Error creating map:', error)
         }
-      ],
-      mapTypeControl: true,
-      streetViewControl: false,
-      fullscreenControl: true,
-      zoomControl: true
-    })
+        return
+      }
 
-    setMap(initMap)
-  }, [])
+      console.log('[Map] Loading Google Maps script...')
+      
+      // Load script
+      const script = document.createElement('script')
+      script.src = `https://maps.googleapis.com/maps/api/js?key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}&libraries=places`
+      script.async = true
+      script.defer = true
+      
+      script.onload = () => {
+        console.log('[Map] ✅ Script loaded, creating map...')
+        if (mapRef.current) {
+          try {
+            const initMap = new google.maps.Map(mapRef.current, {
+              center: { lat: 39.8283, lng: -98.5795 },
+              zoom: 5,
+              styles: [{ featureType: 'poi', elementType: 'labels', stylers: [{ visibility: 'off' }] }],
+              mapTypeControl: true,
+              streetViewControl: false,
+              fullscreenControl: true,
+              zoomControl: true
+            })
+            console.log('[Map] ✅ Map created after script load!')
+            setMap(initMap)
+          } catch (error) {
+            console.error('[Map] ❌ Error creating map:', error)
+          }
+        }
+      }
+      
+      script.onerror = (error) => {
+        console.error('[Map] ❌ Script load failed:', error)
+      }
+      
+      document.head.appendChild(script)
+    }
+
+    // Small delay to ensure DOM is ready
+    const timer = setTimeout(loadGoogleMaps, 100)
+
+    return () => clearTimeout(timer)
+  }, []) // Empty deps - run once when component mounts
 
   // Load data
   const loadData = useCallback(async () => {
-    if (!profile) return
+    if (!profile) {
+      console.log('[Map] No profile, skipping data load')
+      return
+    }
 
     try {
+      console.log('[Map] Starting data load...')
       setLoading(true)
 
       // Load shipments with details
+      console.log('[Map] Loading shipments...')
       const { data: shipmentsData, error: shipmentsError } = await supabase
         .from('shipments')
         .select(`
@@ -155,18 +226,27 @@ export default function AdminMapPage() {
         .in('status', filters.shipmentStatus)
         .order('created_at', { ascending: false })
 
-      if (shipmentsError) throw shipmentsError
+      if (shipmentsError) {
+        console.error('[Map] Shipments error:', shipmentsError)
+        throw shipmentsError
+      }
+      console.log('[Map] Shipments loaded:', shipmentsData?.length || 0, 'shipments')
 
-      // Load drivers with their current locations
+      // Load drivers with their current locations (remove status filter - column doesn't exist)
+      console.log('[Map] Loading drivers...')
       const { data: driversData, error: driversError } = await supabase
         .from('profiles')
         .select('*')
         .eq('role', 'driver')
-        .in('status', filters.driverStatus)
 
-      if (driversError) throw driversError
+      if (driversError) {
+        console.error('[Map] Drivers error:', driversError)
+        throw driversError
+      }
+      console.log('[Map] Drivers loaded:', driversData?.length || 0, 'drivers')
 
       // Get latest driver locations
+      console.log('[Map] Loading driver locations...')
       const driverLocations = await Promise.all(
         (driversData || []).map(async (driver) => {
           const { data: location } = await supabase
@@ -186,23 +266,33 @@ export default function AdminMapPage() {
           }
         })
       )
+      console.log('[Map] Driver locations loaded')
 
       setShipments(shipmentsData || [])
       setDrivers(driverLocations)
 
-      // Calculate stats
+      console.log('[Map] Data loaded summary:', {
+        shipments: shipmentsData?.length || 0,
+        drivers: driverLocations.length,
+        filters: filters.shipmentStatus
+      })
+
+      console.log('[Map] Calculating stats...')
+      // Calculate stats (without status filtering since column doesn't exist)
       const stats = {
         totalDrivers: driversData?.length || 0,
-        activeDrivers: driversData?.filter(d => d.status === 'busy').length || 0,
+        activeDrivers: driverLocations.filter(d => d.location !== null).length,
         totalShipments: shipmentsData?.length || 0,
         inTransit: shipmentsData?.filter(s => s.status === 'in_transit').length || 0,
         pendingPickup: shipmentsData?.filter(s => s.status === 'assigned').length || 0,
         delivered: shipmentsData?.filter(s => s.status === 'delivered').length || 0
       }
       setStats(stats)
+      console.log('[Map] Stats calculated:', stats)
+      console.log('[Map] Data load complete')
 
     } catch (error) {
-      console.error('Error loading map data:', error)
+      console.error('[Map] Error loading map data:', error)
     } finally {
       setLoading(false)
     }
@@ -217,9 +307,17 @@ export default function AdminMapPage() {
 
   // Update markers when data changes
   useEffect(() => {
-    if (!map) return
+    if (!map) {
+      console.log('[Map] No map instance, skipping marker update')
+      return
+    }
+
+    console.log('[Map] Starting marker update...')
+    console.log('[Map] Drivers:', drivers.length, 'Shipments:', shipments.length)
+    console.log('[Map] Filters:', filters)
 
     // Clear existing markers
+    console.log('[Map] Clearing existing markers...')
     markersRef.current.drivers.forEach(marker => marker.setMap(null))
     markersRef.current.pickups.forEach(marker => marker.setMap(null))
     markersRef.current.deliveries.forEach(marker => marker.setMap(null))
@@ -229,9 +327,12 @@ export default function AdminMapPage() {
     markersRef.current.pickups.clear()
     markersRef.current.deliveries.clear()
     routesRef.current.clear()
+    console.log('[Map] Markers cleared')
 
     // Add driver markers
     if (filters.showDrivers) {
+      console.log('[Map] Adding driver markers...')
+      let count = 0
       drivers.forEach(driver => {
         if (driver.location) {
           const marker = new google.maps.Marker({
@@ -243,7 +344,7 @@ export default function AdminMapPage() {
             icon: {
               path: google.maps.SymbolPath.CIRCLE,
               scale: 12,
-              fillColor: driver.status === 'busy' ? '#F59E0B' : '#10B981',
+              fillColor: '#3B82F6', // Blue for all drivers
               fillOpacity: 1,
               strokeColor: '#ffffff',
               strokeWeight: 3
@@ -253,11 +354,15 @@ export default function AdminMapPage() {
 
           marker.addListener('click', () => setSelectedDriver(driver))
           markersRef.current.drivers.set(driver.id, marker)
+          count++
         }
       })
+      console.log('[Map] Driver markers added:', count)
     }
 
     // Add shipment markers and routes
+    console.log('[Map] Adding shipment markers and routes...')
+    let pickupCount = 0, deliveryCount = 0, routeCount = 0
     shipments.forEach(shipment => {
       // Pickup marker
       if (filters.showPickups && shipment.pickup_lat && shipment.pickup_lng) {
@@ -281,6 +386,7 @@ export default function AdminMapPage() {
 
         pickupMarker.addListener('click', () => setSelectedShipment(shipment))
         markersRef.current.pickups.set(`${shipment.id}-pickup`, pickupMarker)
+        pickupCount++
       }
 
       // Delivery marker
@@ -305,6 +411,7 @@ export default function AdminMapPage() {
 
         deliveryMarker.addListener('click', () => setSelectedShipment(shipment))
         markersRef.current.deliveries.set(`${shipment.id}-delivery`, deliveryMarker)
+        deliveryCount++
       }
 
       // Route line
@@ -323,8 +430,11 @@ export default function AdminMapPage() {
         })
 
         routesRef.current.set(shipment.id, route)
+        routeCount++
       }
     })
+    console.log('[Map] Markers added - Pickups:', pickupCount, 'Deliveries:', deliveryCount, 'Routes:', routeCount)
+    console.log('[Map] Marker update complete')
   }, [map, drivers, shipments, filters])
 
   const getStatusColor = (status: string) => {
@@ -367,10 +477,24 @@ export default function AdminMapPage() {
     )
   }
 
-  if (!profile || profile.role !== 'admin') {
+  if (!profile) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <p className="text-red-600">Access denied. Admin only.</p>
+        <div className="text-center">
+          <p className="text-red-600 mb-2">Unable to load profile</p>
+          <p className="text-sm text-gray-600">Please refresh the page or try logging in again</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (profile.role !== 'admin') {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <p className="text-red-600 mb-2">Access denied. Admin only.</p>
+          <p className="text-sm text-gray-600">Your role: {profile.role}</p>
+        </div>
       </div>
     )
   }
@@ -663,18 +787,18 @@ export default function AdminMapPage() {
                 </div>
 
                 <div>
-                  <p className="text-sm font-medium text-gray-700">Status</p>
-                  <span className={`inline-block text-xs px-2 py-1 rounded-full ${
-                    selectedDriver.status === 'busy' ? 'bg-orange-100 text-orange-800' : 'bg-green-100 text-green-800'
-                  }`}>
-                    {selectedDriver.status}
-                  </span>
-                </div>
-
-                <div>
                   <p className="text-sm font-medium text-gray-700">Phone</p>
                   <p className="text-sm text-gray-900">{selectedDriver.phone}</p>
                 </div>
+
+                {selectedDriver.location && (
+                  <div>
+                    <p className="text-sm font-medium text-gray-700">Last Location</p>
+                    <p className="text-xs text-gray-600">
+                      {selectedDriver.location.latitude.toFixed(4)}, {selectedDriver.location.longitude.toFixed(4)}
+                    </p>
+                  </div>
+                )}
               </div>
             </div>
           )}
@@ -684,12 +808,8 @@ export default function AdminMapPage() {
             <h4 className="text-xs font-semibold text-gray-700 mb-2">Legend</h4>
             <div className="space-y-1 text-xs">
               <div className="flex items-center gap-2">
-                <div className="w-3 h-3 rounded-full bg-green-500"></div>
-                <span>Available Driver</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="w-3 h-3 rounded-full bg-orange-500"></div>
-                <span>Busy Driver</span>
+                <div className="w-3 h-3 rounded-full bg-blue-500"></div>
+                <span>Driver Location</span>
               </div>
               <div className="flex items-center gap-2">
                 <div className="w-3 h-3 rounded-full bg-blue-500 border-2 border-white"></div>

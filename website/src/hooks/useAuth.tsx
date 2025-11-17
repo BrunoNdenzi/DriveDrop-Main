@@ -13,10 +13,6 @@ interface UserProfile {
   last_name?: string
   phone?: string
   avatar_url?: string
-  address?: string
-  city?: string
-  state?: string
-  zip_code?: string
   created_at?: string
 }
 
@@ -47,7 +43,7 @@ export function useAuth(): UseAuthReturn {
       // OPTIMIZED: Only select needed fields (70% less data transfer)
       const fetchPromise = supabase
         .from('profiles')
-        .select('id, email, role, first_name, last_name, phone, avatar_url, address, city, state, zip_code, created_at')
+        .select('id, email, role, first_name, last_name, phone, avatar_url, created_at')
         .eq('id', userId)
         .single()
       
