@@ -20,7 +20,8 @@ import {
   Bell,
   ChevronDown,
   Shield,
-  ClipboardCheck
+  ClipboardCheck,
+  MapIcon
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 
@@ -28,6 +29,7 @@ const navItems = [
   { href: '/dashboard/admin', label: 'Overview', icon: LayoutDashboard },
   { href: '/dashboard/admin/users', label: 'Users', icon: Users },
   { href: '/dashboard/admin/shipments', label: 'Shipments', icon: Package },
+  { href: '/dashboard/admin/map', label: 'Live Map', icon: MapIcon },
   { href: '/dashboard/admin/assignments', label: 'Job Assignments', icon: ClipboardCheck },
   { href: '/dashboard/admin/driver-applications', label: 'Driver Applications', icon: UserCheck },
   { href: '/dashboard/admin/pricing', label: 'Pricing', icon: DollarSign },
