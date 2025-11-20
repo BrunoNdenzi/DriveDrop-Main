@@ -117,14 +117,15 @@ export default function SignUpScreen({ navigation }: SignUpScreenProps) {
       }
 
       Alert.alert(
-        'Verification Email Sent',
-        'Please check your email for a verification link to complete your registration.',
+        'Account Created Successfully! 🎉',
+        'A verification email has been sent to your email address. Please check your inbox and click the verification link to activate your account.\n\nNote: Check your spam folder if you don\'t see it.',
         [
           {
             text: 'OK',
             onPress: () => navigation.navigate('Login')
           }
-        ]
+        ],
+        { cancelable: false } // Prevents dismissing by tapping outside
       );
     } catch (error: any) {
       console.error('Sign up error:', error);

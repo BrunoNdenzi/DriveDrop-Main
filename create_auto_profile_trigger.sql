@@ -11,7 +11,7 @@ BEGIN
     NEW.email,
     COALESCE(NEW.raw_user_meta_data->>'first_name', ''),
     COALESCE(NEW.raw_user_meta_data->>'last_name', ''),
-    COALESCE((NEW.raw_user_meta_data->>'role')::user_role, 'client'::user_role),
+    COALESCE((NEW.raw_user_meta_data->>'role')::public.user_role, 'client'::public.user_role),
     NEW.raw_user_meta_data->>'phone',
     NOW(),
     NOW()
