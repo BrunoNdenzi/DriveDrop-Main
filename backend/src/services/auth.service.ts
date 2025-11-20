@@ -94,28 +94,20 @@ export const authService = {
         throw createError(error?.message || 'Registration failed', 400, 'REGISTRATION_FAILED');
       }
 
-      // Create profile entry in the profiles table
-      const { error: profileError } = await supabase
-        .from('profiles')
-        .insert({
-          id: data.user.id,
-          first_name: firstName,
-          last_name: lastName,
-          email: email,
-          role: role,
-          phone: phone || null,
-          avatar_url: null,
-          is_verified: false,
-          rating: null,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        });
+      // Profile is automatically created by database trigger
+      // Wait a moment for the trigger to complete
+      await new Promise(resolve => setTimeout(resolve, 500));
 
-      if (profileError) {
-        logger.error('Profile creation error', { error: profileError, userId: data.user.id });
-        // If profile creation fails, we should clean up the auth user
-        // But for now, we'll just log the error and continue
-        throw createError('Database error creating user profile', 500, 'PROFILE_CREATION_FAILED');
+      // Verify profile was created
+      const { data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', data.user.id)
+        .single();
+
+      if (profileError || !profile) {
+        logger.error('Profile not found after registration', { error: profileError, userId: data.user.id });
+        throw createError('Profile creation failed', 500, 'PROFILE_CREATION_FAILED');
       }
 
       // Return Supabase auth tokens directly
