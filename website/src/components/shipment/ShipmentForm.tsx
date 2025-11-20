@@ -63,10 +63,17 @@ const CollapsibleSection: React.FC<CollapsibleSectionProps> = ({
   isValid,
   summary
 }) => {
+  const handleToggle = (e: React.MouseEvent) => {
+    e.preventDefault() // Prevent form submission
+    e.stopPropagation() // Stop event bubbling
+    onToggle()
+  }
+
   return (
     <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
       <button
-        onClick={onToggle}
+        type="button" // Explicitly set type to button to prevent form submission
+        onClick={handleToggle}
         className={`w-full px-6 py-4 flex items-center justify-between hover:bg-gray-50 transition-colors ${
           isExpanded ? 'border-b border-gray-200 bg-teal-50' : ''
         }`}
@@ -168,6 +175,7 @@ export default function ShipmentForm({ onSubmit, isSubmitting }: ShipmentFormPro
   }, [formData])
 
   const toggleSection = (section: keyof typeof expandedSections) => {
+    // Only toggle the clicked section, don't auto-expand others
     setExpandedSections(prev => ({
       ...prev,
       [section]: !prev[section],
@@ -243,7 +251,15 @@ export default function ShipmentForm({ onSubmit, isSubmitting }: ShipmentFormPro
     // Validate all sections
     const allValid = Object.values(sectionValidity).every(valid => valid)
     if (!allValid) {
-      alert('Please complete all required sections')
+      // Show which sections are incomplete
+      const incomplete = []
+      if (!sectionValidity.customer) incomplete.push('Customer Information')
+      if (!sectionValidity.locations) incomplete.push('Pickup & Delivery Locations')
+      if (!sectionValidity.vehicle) incomplete.push('Vehicle Details')
+      if (!sectionValidity.details) incomplete.push('Shipment Details')
+      if (!sectionValidity.pricing) incomplete.push('Pricing (complete locations first)')
+      
+      alert(`Please complete the following sections:\n\n• ${incomplete.join('\n• ')}`)
       return
     }
     
