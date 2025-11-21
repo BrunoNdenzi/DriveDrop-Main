@@ -21,13 +21,16 @@ interface PaymentStepProps {
   onFinalSubmit: () => void
 }
 
-function PaymentForm({ shipmentData, completionData, onPaymentComplete, onFinalSubmit }: PaymentStepProps) {
+interface PaymentFormProps extends PaymentStepProps {
+  clientSecret: string
+}
+
+function PaymentForm({ shipmentData, completionData, onPaymentComplete, onFinalSubmit, clientSecret }: PaymentFormProps) {
   const stripe = useStripe()
   const elements = useElements()
   const { profile, user } = useAuth()
   const [processing, setProcessing] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [clientSecret, setClientSecret] = useState<string | null>(null)
   const [paymentIntentId, setPaymentIntentId] = useState<string | null>(null)
   const [paymentSuccessful, setPaymentSuccessful] = useState(false)
 
@@ -36,58 +39,14 @@ function PaymentForm({ shipmentData, completionData, onPaymentComplete, onFinalS
   const upfrontAmount = Math.round(shipmentData.estimatedPrice * 0.20 * 100) // Convert to cents
   const totalAmount = Math.round(shipmentData.estimatedPrice * 100) // Convert to cents
 
-  // Create payment intent when component mounts
+  // Extract payment intent ID from clientSecret
   useEffect(() => {
-    createPaymentIntent()
-  }, [])
-
-  const createPaymentIntent = async () => {
-    try {
-      console.log('[PaymentStep] Creating payment intent with amounts:', {
-        upfrontAmount,
-        totalAmount,
-        estimatedPrice: shipmentData.estimatedPrice
-      })
-
-      const response = await fetch('/api/stripe/create-payment-intent', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          amount: upfrontAmount,
-          totalAmount: totalAmount,
-          customerEmail: profile?.email || shipmentData.customerEmail,
-          customerName: shipmentData.customerName,
-          metadata: {
-            customerId: profile?.id,
-            customerEmail: profile?.email || shipmentData.customerEmail,
-            customerName: shipmentData.customerName,
-            vehicle: `${shipmentData.vehicleYear} ${shipmentData.vehicleMake} ${shipmentData.vehicleModel}`,
-            route: `${shipmentData.pickupAddress} → ${shipmentData.deliveryAddress}`,
-          },
-        }),
-      })
-
-      console.log('[PaymentStep] API response status:', response.status)
-
-      if (!response.ok) {
-        const errorData = await response.json()
-        console.error('[PaymentStep] API error response:', errorData)
-        throw new Error(errorData.error || 'Failed to create payment intent')
-      }
-
-      const data = await response.json()
-      console.log('[PaymentStep] Payment intent created successfully:', {
-        hasClientSecret: !!data.clientSecret,
-        paymentIntentId: data.paymentIntentId
-      })
-
-      setClientSecret(data.clientSecret)
-      setPaymentIntentId(data.paymentIntentId)
-    } catch (err: any) {
-      console.error('[PaymentStep] Payment intent creation error:', err)
-      setError(err.message || 'Failed to initialize payment')
+    if (clientSecret) {
+      const piId = clientSecret.split('_secret_')[0]
+      setPaymentIntentId(piId)
+      console.log('[PaymentForm] Payment Intent ID extracted:', piId)
     }
-  }
+  }, [clientSecret])
 
   const createShipmentInDatabase = async (paymentIntentId: string) => {
     try {
@@ -193,27 +152,29 @@ function PaymentForm({ shipmentData, completionData, onPaymentComplete, onFinalS
     setError(null)
 
     try {
+      console.log('[PaymentForm] Starting payment confirmation...')
+      
       // Confirm payment with Stripe (supports all payment methods)
+      // Note: Don't pass payment_method_data here - let Elements handle it
       const { error: confirmError, paymentIntent } = await stripe.confirmPayment({
         elements,
         confirmParams: {
-          return_url: `${window.location.origin}/payment-processing`,
-          payment_method_data: {
-            billing_details: {
-              name: shipmentData.customerName,
-              email: profile?.email || shipmentData.customerEmail,
-              phone: shipmentData.customerPhone,
-            },
-          },
+          return_url: `${window.location.origin}/dashboard/client`,
         },
         redirect: 'if_required', // Only redirect if payment method requires it
       })
 
+      console.log('[PaymentForm] Confirmation result:', { confirmError, paymentIntent })
+
       if (confirmError) {
+        console.error('[PaymentForm] Confirmation error:', confirmError)
         throw new Error(confirmError.message)
       }
 
-      if (paymentIntent?.status === 'succeeded') {
+      // For manual capture, the status will be 'requires_capture' not 'succeeded'
+      if (paymentIntent?.status === 'requires_capture' || paymentIntent?.status === 'succeeded') {
+        console.log('[PaymentForm] Payment confirmed! Status:', paymentIntent.status)
+        
         // Create shipment in database
         const shipmentId = await createShipmentInDatabase(paymentIntentId)
         
@@ -225,6 +186,9 @@ function PaymentForm({ shipmentData, completionData, onPaymentComplete, onFinalS
         setTimeout(() => {
           onFinalSubmit()
         }, 2000)
+      } else {
+        console.error('[PaymentForm] Unexpected payment status:', paymentIntent?.status)
+        throw new Error('Payment confirmation did not complete successfully')
       }
     } catch (err: any) {
       console.error('Payment error:', err)
@@ -251,6 +215,29 @@ function PaymentForm({ shipmentData, completionData, onPaymentComplete, onFinalS
             You'll receive a confirmation email shortly. We'll notify you when a driver is assigned to your shipment.
           </p>
         </div>
+      </div>
+    )
+  }
+
+  // Wait for clientSecret before rendering Stripe Elements
+  if (!clientSecret) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">Payment</h2>
+          <p className="text-gray-600">Complete your payment to confirm the shipment</p>
+        </div>
+
+        {error ? (
+          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
+            {error}
+          </div>
+        ) : (
+          <div className="flex items-center justify-center py-8">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+            <span className="ml-3 text-gray-600">Initializing payment...</span>
+          </div>
+        )}
       </div>
     )
   }
@@ -375,6 +362,23 @@ function PaymentForm({ shipmentData, completionData, onPaymentComplete, onFinalS
                 terms: {
                   card: 'never',
                 },
+                // Pre-fill billing details from shipment data
+                defaultValues: {
+                  billingDetails: {
+                    name: shipmentData.customerName || '',
+                    email: profile?.email || shipmentData.customerEmail || '',
+                    phone: shipmentData.customerPhone || '',
+                  }
+                },
+                // Enable billing details collection
+                fields: {
+                  billingDetails: {
+                    name: 'auto',
+                    email: 'auto',
+                    phone: 'auto',
+                    address: 'auto',
+                  }
+                }
               }}
             />
           </div>
@@ -455,9 +459,78 @@ function PaymentForm({ shipmentData, completionData, onPaymentComplete, onFinalS
 }
 
 export default function PaymentStep(props: PaymentStepProps) {
+  const { profile } = useAuth()
+  const [clientSecret, setClientSecret] = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  
+  const upfrontAmount = Math.round(props.shipmentData.estimatedPrice * 0.20 * 100)
+  const totalAmount = Math.round(props.shipmentData.estimatedPrice * 100)
+
+  // Create payment intent when component mounts
+  useEffect(() => {
+    const createPaymentIntent = async () => {
+      try {
+        const response = await fetch('/api/stripe/create-payment-intent', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            amount: upfrontAmount,
+            totalAmount: totalAmount,
+            customerEmail: profile?.email || props.shipmentData.customerEmail,
+            customerName: props.shipmentData.customerName,
+            metadata: {
+              userId: profile?.id || props.shipmentData.customerId,
+              vehicle: `${props.shipmentData.vehicleYear} ${props.shipmentData.vehicleMake} ${props.shipmentData.vehicleModel}`,
+              pickupLocation: `${props.shipmentData.pickupCity}, ${props.shipmentData.pickupState}`,
+              deliveryLocation: `${props.shipmentData.deliveryCity}, ${props.shipmentData.deliveryState}`,
+            },
+          }),
+        })
+
+        if (!response.ok) {
+          const errorData = await response.json()
+          throw new Error(errorData.error || 'Failed to create payment intent')
+        }
+
+        const data = await response.json()
+        setClientSecret(data.clientSecret)
+      } catch (err: any) {
+        console.error('[PaymentStep] Payment intent creation error:', err)
+        setError(err.message || 'Failed to initialize payment')
+      }
+    }
+
+    if (props.shipmentData?.estimatedPrice && upfrontAmount > 0 && !clientSecret) {
+      createPaymentIntent()
+    }
+  }, [])
+
+  // Show loading state while waiting for clientSecret
+  if (!clientSecret) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">Payment</h2>
+          <p className="text-gray-600">Complete your payment to confirm the shipment</p>
+        </div>
+
+        {error ? (
+          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
+            {error}
+          </div>
+        ) : (
+          <div className="flex items-center justify-center py-8">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+            <span className="ml-3 text-gray-600">Initializing payment...</span>
+          </div>
+        )}
+      </div>
+    )
+  }
+
   return (
-    <Elements stripe={stripePromise}>
-      <PaymentForm {...props} />
+    <Elements stripe={stripePromise} options={{ clientSecret }}>
+      <PaymentForm {...props} clientSecret={clientSecret} />
     </Elements>
   )
 }
