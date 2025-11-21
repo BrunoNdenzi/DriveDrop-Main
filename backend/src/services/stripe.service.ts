@@ -145,6 +145,39 @@ export const stripeService = {
   },
 
   /**
+   * Update payment intent metadata
+   */
+  async updatePaymentIntentMetadata(
+    paymentIntentId: string,
+    metadata: { shipmentId?: string; clientId?: string }
+  ): Promise<Stripe.PaymentIntent> {
+    try {
+      const paymentIntent = await stripe.paymentIntents.update(paymentIntentId, {
+        metadata: {
+          ...metadata,
+          shipmentId: metadata.shipmentId || '',
+          clientId: metadata.clientId || '',
+        }
+      });
+
+      logger.info('Payment intent metadata updated', {
+        paymentIntentId,
+        shipmentId: metadata.shipmentId,
+        clientId: metadata.clientId
+      });
+
+      return paymentIntent;
+    } catch (error) {
+      logger.error('Error updating payment intent metadata', { error, paymentIntentId });
+      throw createError(
+        error instanceof Error ? error.message : 'Failed to update payment intent metadata',
+        500,
+        'METADATA_UPDATE_FAILED'
+      );
+    }
+  },
+
+  /**
    * Confirm a payment intent
    */
   async confirmPaymentIntent(

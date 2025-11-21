@@ -201,6 +201,50 @@ export const confirmPaymentIntent = asyncHandler(async (req: Request, res: Respo
 });
 
 /**
+ * Update payment intent metadata
+ * @route POST /api/v1/payments/update-metadata
+ * @access Public
+ */
+export const updatePaymentMetadata = asyncHandler(async (req: Request, res: Response) => {
+  const { paymentIntentId, shipmentId, clientId } = req.body;
+
+  logger.info('Updating payment intent metadata', {
+    paymentIntentId,
+    shipmentId,
+    clientId
+  });
+
+  if (!paymentIntentId) {
+    throw createError('Payment intent ID is required', 400, 'MISSING_PAYMENT_INTENT');
+  }
+
+  try {
+    // Update the payment intent metadata with shipment and client IDs
+    await stripeService.updatePaymentIntentMetadata(paymentIntentId, {
+      shipmentId,
+      clientId
+    });
+
+    logger.info('Payment intent metadata updated successfully', {
+      paymentIntentId,
+      shipmentId,
+      clientId
+    });
+
+    res.status(200).json(successResponse({
+      success: true,
+      message: 'Metadata updated'
+    }));
+  } catch (error) {
+    logger.error('Error updating payment intent metadata', {
+      error,
+      paymentIntentId
+    });
+    throw createError('Failed to update payment metadata', 500, 'METADATA_UPDATE_FAILED');
+  }
+});
+
+/**
  * Notify payment success and trigger email
  * @route POST /api/v1/payments/notify-payment-success
  * @access Public (no auth needed - payment already verified by Stripe)
@@ -851,6 +895,7 @@ export const paymentsController = {
   createPaymentIntent,
   getPaymentIntent,
   confirmPaymentIntent,
+  updatePaymentMetadata,
   notifyPaymentSuccess,
   createCustomer,
   addPaymentMethod,

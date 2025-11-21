@@ -26,6 +26,12 @@ router.post(
   paymentsController.confirmPaymentIntent
 );
 
+// Update payment metadata (no auth - called right after shipment creation)
+router.post(
+  '/update-metadata',
+  paymentsController.updatePaymentMetadata
+);
+
 // Notify payment success (trigger emails) - no auth required since payment already succeeded
 router.post(
   '/notify-payment-success',

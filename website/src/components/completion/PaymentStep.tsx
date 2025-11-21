@@ -180,6 +180,24 @@ function PaymentForm({ shipmentData, completionData, onPaymentComplete, onFinalS
         const shipmentId = await createShipmentInDatabase(paymentIntentId)
         console.log('[PaymentForm] Shipment created, ID:', shipmentId)
         
+        // Update payment intent metadata with shipment and client IDs
+        console.log('[PaymentForm] Updating payment intent metadata...')
+        try {
+          await fetch(`${process.env.NEXT_PUBLIC_API_URL}/payments/update-metadata`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ 
+              paymentIntentId: paymentIntent.id,
+              shipmentId,
+              clientId: profile?.id
+            })
+          })
+        } catch (metadataError) {
+          console.error('[PaymentForm] Failed to update metadata:', metadataError)
+        }
+        
         // Trigger backend email notification
         console.log('[PaymentForm] Starting email notification process...')
         try {
