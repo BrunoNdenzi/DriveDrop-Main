@@ -189,13 +189,6 @@ class EmailService {
   }
 
   /**
-   * Check if recipient is Gmail and route accordingly
-   */
-  private isGmailAddress(email: string): boolean {
-    return email.toLowerCase().endsWith('@gmail.com');
-  }
-
-  /**
    * Send email via Gmail SMTP
    */
   private async sendViaGmail(options: EmailOptions, sender: { name: string; email: string }): Promise<boolean> {
@@ -244,16 +237,19 @@ class EmailService {
       email: options.senderEmail || this.defaultSender.email,
     };
 
-    // Check if recipient is Gmail and we have Gmail SMTP configured
     const recipientEmail = Array.isArray(options.to) ? options.to[0] : options.to;
-    const useGmailSMTP = this.gmailConfigured && recipientEmail && this.isGmailAddress(recipientEmail);
 
-    if (useGmailSMTP) {
-      logger.info('📧 Routing to Gmail SMTP for Gmail recipient:', { to: recipientEmail });
-      return this.sendViaGmail(options, sender);
+    // Try Gmail SMTP first if configured (works for all recipients, not just Gmail)
+    if (this.gmailConfigured) {
+      logger.info('📧 Attempting to send via Gmail SMTP:', { to: recipientEmail });
+      const gmailResult = await this.sendViaGmail(options, sender);
+      if (gmailResult) {
+        return true;
+      }
+      logger.warn('⚠️ Gmail SMTP failed, falling back to Brevo...');
     }
 
-    // Use Brevo for non-Gmail recipients
+    // Fallback to Brevo if Gmail SMTP not configured or failed
     if (!this.isConfigured) {
       logger.warn('⚠️ Email service not configured. Skipping email send.');
       return false;
