@@ -43,6 +43,12 @@ function PaymentForm({ shipmentData, completionData, onPaymentComplete, onFinalS
 
   const createPaymentIntent = async () => {
     try {
+      console.log('[PaymentStep] Creating payment intent with amounts:', {
+        upfrontAmount,
+        totalAmount,
+        estimatedPrice: shipmentData.estimatedPrice
+      })
+
       const response = await fetch('/api/stripe/create-payment-intent', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -61,16 +67,24 @@ function PaymentForm({ shipmentData, completionData, onPaymentComplete, onFinalS
         }),
       })
 
+      console.log('[PaymentStep] API response status:', response.status)
+
       if (!response.ok) {
         const errorData = await response.json()
+        console.error('[PaymentStep] API error response:', errorData)
         throw new Error(errorData.error || 'Failed to create payment intent')
       }
 
-      const { clientSecret: secret, paymentIntentId: intentId } = await response.json()
-      setClientSecret(secret)
-      setPaymentIntentId(intentId)
+      const data = await response.json()
+      console.log('[PaymentStep] Payment intent created successfully:', {
+        hasClientSecret: !!data.clientSecret,
+        paymentIntentId: data.paymentIntentId
+      })
+
+      setClientSecret(data.clientSecret)
+      setPaymentIntentId(data.paymentIntentId)
     } catch (err: any) {
-      console.error('Payment intent creation error:', err)
+      console.error('[PaymentStep] Payment intent creation error:', err)
       setError(err.message || 'Failed to initialize payment')
     }
   }
