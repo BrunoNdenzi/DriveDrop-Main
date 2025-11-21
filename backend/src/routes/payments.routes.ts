@@ -26,6 +26,13 @@ router.post(
   paymentsController.confirmPaymentIntent
 );
 
+// Notify payment success (trigger emails)
+router.post(
+  '/notify-payment-success',
+  authenticate,
+  paymentsController.notifyPaymentSuccess
+);
+
 // Customer routes
 router.post(
   '/customer',
