@@ -1,0 +1,30 @@
+{
+  "name": "@drivedrop/frontend-skeleton",
+  "version": "1.0.0",
+  "description": "DriveDrop frontend skeleton with TypeScript and React Native",
+  "main": "src/index.ts",
+  "scripts": {
+    "lint": "eslint src --ext .ts,.tsx --max-warnings 0",
+    "type-check": "tsc --noEmit",
+    "test": "echo \"Tests not implemented yet - see TODO in implementation plan\" && exit 0",
+    "start": "echo \"Start script not implemented - this is a skeleton for future development\"",
+    "build": "echo \"Build script not implemented - this is a skeleton for future development\""
+  },
+  "keywords": ["react-native", "typescript", "mobile", "drivedrop"],
+  "author": "DriveDrop Team",
+  "license": "MIT",
+  "dependencies": {
+    "react": "^19.0.0",
+    "react-native": "^0.79.5"
+  },
+  "devDependencies": {
+    "@typescript-eslint/eslint-plugin": "^8.36.0",
+    "@typescript-eslint/parser": "^8.36.0",
+    "eslint": "^9.30.1",
+    "eslint-plugin-react": "^7.37.5",
+    "eslint-plugin-react-native": "^5.0.0",
+    "typescript": "^5.8.3"
+  },
+  "private": true,
+  "workspaces": false
+}
