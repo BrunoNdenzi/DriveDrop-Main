@@ -178,6 +178,26 @@ function PaymentForm({ shipmentData, completionData, onPaymentComplete, onFinalS
         // Create shipment in database
         const shipmentId = await createShipmentInDatabase(paymentIntentId)
         
+        // Trigger backend email notification
+        try {
+          console.log('[PaymentForm] Triggering email notification...')
+          await fetch(`${process.env.NEXT_PUBLIC_API_URL}/payments/notify-payment-success`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${localStorage.getItem('token')}`
+            },
+            body: JSON.stringify({ 
+              paymentIntentId: paymentIntent.id,
+              shipmentId 
+            })
+          })
+          console.log('[PaymentForm] Email notification triggered')
+        } catch (emailError) {
+          console.error('[PaymentForm] Failed to trigger email notification:', emailError)
+          // Don't fail the payment flow if email fails
+        }
+        
         // Mark as successful
         setPaymentSuccessful(true)
         onPaymentComplete(paymentIntentId, shipmentId)

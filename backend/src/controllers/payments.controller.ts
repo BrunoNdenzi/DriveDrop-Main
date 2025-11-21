@@ -201,6 +201,54 @@ export const confirmPaymentIntent = asyncHandler(async (req: Request, res: Respo
 });
 
 /**
+ * Notify payment success and trigger email
+ * @route POST /api/v1/payments/notify-payment-success
+ * @access Private
+ */
+export const notifyPaymentSuccess = asyncHandler(async (req: Request, res: Response) => {
+  const { paymentIntentId, shipmentId } = req.body;
+
+  logger.info('Payment success notification received', {
+    paymentIntentId,
+    shipmentId,
+    userId: req.user?.id
+  });
+
+  if (!paymentIntentId) {
+    throw createError('Payment intent ID is required', 400, 'MISSING_PAYMENT_INTENT');
+  }
+
+  try {
+    // Retrieve the payment intent from Stripe
+    const paymentIntent = await stripeService.getPaymentIntent(paymentIntentId);
+    
+    // Trigger email notification
+    await stripeService.handlePaymentSucceeded(paymentIntent);
+    
+    logger.info('Payment success notification processed successfully', {
+      paymentIntentId,
+      shipmentId
+    });
+
+    res.status(200).json(successResponse({
+      success: true,
+      message: 'Email notification sent'
+    }));
+  } catch (error) {
+    logger.error('Error processing payment success notification', {
+      error,
+      paymentIntentId,
+      shipmentId
+    });
+    // Don't throw error - we don't want to fail the frontend flow
+    res.status(200).json(successResponse({
+      success: false,
+      message: 'Email notification failed but payment succeeded'
+    }));
+  }
+});
+
+/**
  * Create Stripe customer
  * @route POST /api/v1/payments/customer
  * @access Private
@@ -791,6 +839,7 @@ export const paymentsController = {
   createPaymentIntent,
   getPaymentIntent,
   confirmPaymentIntent,
+  notifyPaymentSuccess,
   createCustomer,
   addPaymentMethod,
   removePaymentMethod,
