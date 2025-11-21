@@ -26,10 +26,9 @@ router.post(
   paymentsController.confirmPaymentIntent
 );
 
-// Notify payment success (trigger emails)
+// Notify payment success (trigger emails) - no auth required since payment already succeeded
 router.post(
   '/notify-payment-success',
-  authenticate,
   paymentsController.notifyPaymentSuccess
 );
 
