@@ -174,11 +174,14 @@ function PaymentForm({ shipmentData, completionData, onPaymentComplete, onFinalS
       // For manual capture, the status will be 'requires_capture' not 'succeeded'
       if (paymentIntent?.status === 'requires_capture' || paymentIntent?.status === 'succeeded') {
         console.log('[PaymentForm] Payment confirmed! Status:', paymentIntent.status)
+        console.log('[PaymentForm] About to create shipment in database...')
         
         // Create shipment in database
         const shipmentId = await createShipmentInDatabase(paymentIntentId)
+        console.log('[PaymentForm] Shipment created, ID:', shipmentId)
         
         // Trigger backend email notification
+        console.log('[PaymentForm] Starting email notification process...')
         try {
           console.log('[PaymentForm] Triggering email notification...', {
             url: `${process.env.NEXT_PUBLIC_API_URL}/payments/notify-payment-success`,

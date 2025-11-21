@@ -203,15 +203,14 @@ export const confirmPaymentIntent = asyncHandler(async (req: Request, res: Respo
 /**
  * Notify payment success and trigger email
  * @route POST /api/v1/payments/notify-payment-success
- * @access Private
+ * @access Public (no auth needed - payment already verified by Stripe)
  */
 export const notifyPaymentSuccess = asyncHandler(async (req: Request, res: Response) => {
   const { paymentIntentId, shipmentId } = req.body;
 
   logger.info('Payment success notification received', {
     paymentIntentId,
-    shipmentId,
-    userId: req.user?.id
+    shipmentId
   });
 
   if (!paymentIntentId) {
@@ -219,21 +218,34 @@ export const notifyPaymentSuccess = asyncHandler(async (req: Request, res: Respo
   }
 
   try {
-    // Retrieve the payment intent from Stripe
+    // Retrieve the payment intent from Stripe to verify it's real
     const paymentIntent = await stripeService.getPaymentIntent(paymentIntentId);
     
-    // Trigger email notification
-    await stripeService.handlePaymentSucceeded(paymentIntent);
-    
-    logger.info('Payment success notification processed successfully', {
-      paymentIntentId,
-      shipmentId
-    });
+    // Only process if payment actually succeeded or requires_capture
+    if (paymentIntent.status === 'succeeded' || paymentIntent.status === 'requires_capture') {
+      // Trigger email notification
+      await stripeService.handlePaymentSucceeded(paymentIntent);
+      
+      logger.info('Payment success notification processed successfully', {
+        paymentIntentId,
+        shipmentId,
+        status: paymentIntent.status
+      });
 
-    res.status(200).json(successResponse({
-      success: true,
-      message: 'Email notification sent'
-    }));
+      res.status(200).json(successResponse({
+        success: true,
+        message: 'Email notification sent'
+      }));
+    } else {
+      logger.warn('Payment intent status not valid for email notification', {
+        paymentIntentId,
+        status: paymentIntent.status
+      });
+      res.status(200).json(successResponse({
+        success: false,
+        message: 'Payment not completed yet'
+      }));
+    }
   } catch (error) {
     logger.error('Error processing payment success notification', {
       error,
