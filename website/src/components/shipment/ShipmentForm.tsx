@@ -175,6 +175,13 @@ export default function ShipmentForm({ onSubmit, isSubmitting }: ShipmentFormPro
     })
   }, [formData])
 
+  // Recalculate price when vehicle type, dates, or distance changes
+  useEffect(() => {
+    if (formData.distance > 0 && formData.vehicleType) {
+      calculatePrice(formData.distance)
+    }
+  }, [formData.vehicleType, formData.pickupDate, formData.deliveryDate, formData.distance])
+
   const toggleSection = (section: keyof typeof expandedSections) => {
     // Only toggle the clicked section, don't auto-expand others
     setExpandedSections(prev => ({
@@ -213,9 +220,15 @@ export default function ShipmentForm({ onSubmit, isSubmitting }: ShipmentFormPro
   }
 
   const calculatePrice = (distance: number) => {
+    // Don't calculate if no vehicle type selected
+    if (!formData.vehicleType) {
+      console.log('No vehicle type selected, skipping price calculation')
+      return
+    }
+
     // Use proper pricing service that matches mobile app exactly
     const quote = pricingService.calculateQuote({
-      vehicleType: formData.vehicleType || 'sedan',
+      vehicleType: formData.vehicleType,
       distanceMiles: distance,
       isAccidentRecovery: false,
       vehicleCount: 1,
@@ -224,10 +237,17 @@ export default function ShipmentForm({ onSubmit, isSubmitting }: ShipmentFormPro
       fuelPricePerGallon: 3.70, // Default current fuel price
     })
     
-    updateFormData('estimatedPrice', quote.total)
+    // Only update if price changed to prevent infinite loop
+    if (formData.estimatedPrice !== quote.total) {
+      updateFormData('estimatedPrice', quote.total)
+    }
     
     // Log breakdown for debugging
-    console.log('Pricing Breakdown:', quote.breakdown)
+    console.log('Pricing Breakdown:', {
+      vehicleType: formData.vehicleType,
+      distance,
+      breakdown: quote.breakdown
+    })
   }
 
   const getSummary = (section: keyof typeof expandedSections) => {
