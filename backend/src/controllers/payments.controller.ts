@@ -172,6 +172,26 @@ export const confirmPaymentIntent = asyncHandler(async (req: Request, res: Respo
     userId: req.user?.id
   });
 
+  // If payment succeeded, trigger email immediately (backup to webhook)
+  if (paymentIntent.status === 'succeeded') {
+    logger.info('Payment succeeded, triggering email notification', {
+      paymentIntentId: id,
+      shipmentId: paymentIntent.metadata['shipmentId']
+    });
+    
+    // Trigger the webhook handler manually to ensure emails are sent
+    try {
+      await stripeService.handlePaymentSucceeded(paymentIntent);
+    } catch (emailError) {
+      // Log error but don't fail the payment confirmation
+      logger.error('Error sending payment confirmation email', {
+        error: emailError,
+        paymentIntentId: id,
+        shipmentId: paymentIntent.metadata['shipmentId']
+      });
+    }
+  }
+
   res.status(200).json(successResponse({
     id: paymentIntent.id,
     status: paymentIntent.status,
