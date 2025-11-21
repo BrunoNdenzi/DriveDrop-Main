@@ -38,6 +38,16 @@ interface ShipmentData {
   // Pricing
   estimatedPrice: number
   distance: number
+  pricingBreakdown?: {
+    baseRatePerMile: number
+    distanceBand: string
+    rawBasePrice: number
+    deliveryType: string
+    deliveryTypeMultiplier: number
+    fuelAdjustmentPercent: number
+    minimumApplied: boolean
+    total: number
+  }
 }
 
 interface ShipmentFormProps {
@@ -240,6 +250,16 @@ export default function ShipmentForm({ onSubmit, isSubmitting }: ShipmentFormPro
     // Only update if price changed to prevent infinite loop
     if (formData.estimatedPrice !== quote.total) {
       updateFormData('estimatedPrice', quote.total)
+      updateFormData('pricingBreakdown', {
+        baseRatePerMile: quote.breakdown.baseRatePerMile,
+        distanceBand: quote.breakdown.distanceBand,
+        rawBasePrice: quote.breakdown.rawBasePrice,
+        deliveryType: quote.breakdown.deliveryType,
+        deliveryTypeMultiplier: quote.breakdown.deliveryTypeMultiplier,
+        fuelAdjustmentPercent: quote.breakdown.fuelAdjustmentPercent,
+        minimumApplied: quote.breakdown.minimumApplied,
+        total: quote.breakdown.total
+      })
     }
     
     // Log breakdown for debugging
@@ -541,28 +561,73 @@ export default function ShipmentForm({ onSubmit, isSubmitting }: ShipmentFormPro
         summary={getSummary('pricing')}
       >
         <div className="space-y-4">
-          {formData.estimatedPrice > 0 ? (
+          {formData.estimatedPrice > 0 && formData.pricingBreakdown ? (
             <>
               <div className="bg-teal-50 border border-teal-200 rounded-lg p-6">
-                <div className="flex justify-between items-center mb-4">
-                  <span className="text-gray-700">Base Rate:</span>
-                  <span className="text-gray-900 font-semibold">
-                    ${(formData.estimatedPrice * 0.6).toFixed(2)}
-                  </span>
-                </div>
-                <div className="flex justify-between items-center mb-4">
-                  <span className="text-gray-700">Distance Charge ({formData.distance} miles):</span>
-                  <span className="text-gray-900 font-semibold">
-                    ${(formData.estimatedPrice * 0.4).toFixed(2)}
-                  </span>
-                </div>
-                {formData.shipmentType === 'expedited' && (
-                  <div className="flex justify-between items-center mb-4">
-                    <span className="text-gray-700">Expedited Service:</span>
-                    <span className="text-orange-600 font-semibold">+25%</span>
+                <div className="space-y-3">
+                  {/* Distance Band Info */}
+                  <div className="flex justify-between items-center text-sm">
+                    <span className="text-gray-600">Distance Band:</span>
+                    <span className="font-medium text-gray-900 capitalize">
+                      {formData.pricingBreakdown.distanceBand} ({formData.distance} miles)
+                    </span>
                   </div>
-                )}
-                <div className="border-t border-teal-300 pt-4">
+
+                  {/* Base Rate */}
+                  <div className="flex justify-between items-center text-sm">
+                    <span className="text-gray-600">Base Rate:</span>
+                    <span className="font-medium text-gray-900">
+                      ${formData.pricingBreakdown.baseRatePerMile}/mile
+                    </span>
+                  </div>
+
+                  {/* Base Price */}
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-700">Base Price:</span>
+                    <span className="text-gray-900 font-semibold">
+                      ${formData.pricingBreakdown.rawBasePrice.toFixed(2)}
+                    </span>
+                  </div>
+
+                  {/* Delivery Type Multiplier */}
+                  {formData.pricingBreakdown.deliveryTypeMultiplier !== 1.0 && (
+                    <div className="flex justify-between items-center">
+                      <span className="text-gray-700 capitalize">
+                        {formData.pricingBreakdown.deliveryType} Delivery:
+                      </span>
+                      <span className={`font-semibold ${
+                        formData.pricingBreakdown.deliveryTypeMultiplier > 1 ? 'text-orange-600' : 'text-green-600'
+                      }`}>
+                        {formData.pricingBreakdown.deliveryTypeMultiplier > 1 ? '+' : ''}
+                        {((formData.pricingBreakdown.deliveryTypeMultiplier - 1) * 100).toFixed(0)}%
+                      </span>
+                    </div>
+                  )}
+
+                  {/* Fuel Adjustment */}
+                  {formData.pricingBreakdown.fuelAdjustmentPercent !== 0 && (
+                    <div className="flex justify-between items-center text-sm">
+                      <span className="text-gray-600">Fuel Adjustment:</span>
+                      <span className={`font-medium ${
+                        formData.pricingBreakdown.fuelAdjustmentPercent > 0 ? 'text-orange-600' : 'text-green-600'
+                      }`}>
+                        {formData.pricingBreakdown.fuelAdjustmentPercent > 0 ? '+' : ''}
+                        {formData.pricingBreakdown.fuelAdjustmentPercent.toFixed(1)}%
+                      </span>
+                    </div>
+                  )}
+
+                  {/* Minimum Applied */}
+                  {formData.pricingBreakdown.minimumApplied && (
+                    <div className="flex items-center gap-2 text-sm text-blue-600 bg-blue-50 p-2 rounded">
+                      <Info className="h-4 w-4" />
+                      <span>Minimum quote applied</span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Total */}
+                <div className="border-t border-teal-300 pt-4 mt-4">
                   <div className="flex justify-between items-center">
                     <span className="text-lg font-bold text-gray-900">Total Quote:</span>
                     <span className="text-2xl font-bold text-teal-600">
@@ -571,6 +636,8 @@ export default function ShipmentForm({ onSubmit, isSubmitting }: ShipmentFormPro
                   </div>
                 </div>
               </div>
+
+              {/* Payment Structure */}
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
                 <h4 className="font-semibold text-blue-900 mb-2">Payment Structure:</h4>
                 <ul className="space-y-2 text-sm text-blue-800">
