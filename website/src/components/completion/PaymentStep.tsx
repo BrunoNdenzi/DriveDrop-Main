@@ -180,8 +180,13 @@ function PaymentForm({ shipmentData, completionData, onPaymentComplete, onFinalS
         
         // Trigger backend email notification
         try {
-          console.log('[PaymentForm] Triggering email notification...')
-          await fetch(`${process.env.NEXT_PUBLIC_API_URL}/payments/notify-payment-success`, {
+          console.log('[PaymentForm] Triggering email notification...', {
+            url: `${process.env.NEXT_PUBLIC_API_URL}/payments/notify-payment-success`,
+            paymentIntentId: paymentIntent.id,
+            shipmentId
+          })
+          
+          const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/payments/notify-payment-success`, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
@@ -192,7 +197,13 @@ function PaymentForm({ shipmentData, completionData, onPaymentComplete, onFinalS
               shipmentId 
             })
           })
-          console.log('[PaymentForm] Email notification triggered')
+          
+          const data = await response.json()
+          console.log('[PaymentForm] Email notification response:', { status: response.status, data })
+          
+          if (!response.ok) {
+            console.error('[PaymentForm] Email notification failed:', data)
+          }
         } catch (emailError) {
           console.error('[PaymentForm] Failed to trigger email notification:', emailError)
           // Don't fail the payment flow if email fails
