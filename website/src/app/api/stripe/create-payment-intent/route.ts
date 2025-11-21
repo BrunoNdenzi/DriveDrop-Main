@@ -1,12 +1,24 @@
 import { NextRequest, NextResponse } from 'next/server'
 import Stripe from 'stripe'
 
+// Validate Stripe secret key
+if (!process.env.STRIPE_SECRET_KEY) {
+  throw new Error('STRIPE_SECRET_KEY is not configured in environment variables')
+}
+
 // Initialize Stripe with default API version from SDK
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!)
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY)
 
 export async function POST(request: NextRequest) {
   try {
     const { amount, totalAmount, metadata, customerEmail, customerName } = await request.json()
+    
+    console.log('[Payment Intent] Creating payment intent:', {
+      amount,
+      totalAmount,
+      customerEmail,
+      metadata: metadata?.vehicle,
+    })
 
     if (!amount || amount < 50) {
       return NextResponse.json(
@@ -49,6 +61,13 @@ export async function POST(request: NextRequest) {
       ...(customerEmail && { receipt_email: customerEmail }),
     })
 
+    console.log('[Payment Intent] Successfully created:', {
+      paymentIntentId: paymentIntent.id,
+      totalAmount,
+      upfrontAmount: amount,
+      status: paymentIntent.status,
+    })
+
     return NextResponse.json({
       clientSecret: paymentIntent.client_secret,
       paymentIntentId: paymentIntent.id,
@@ -57,9 +76,18 @@ export async function POST(request: NextRequest) {
       remainingAmount: remainingAmount,
     })
   } catch (error: any) {
-    console.error('Stripe payment intent creation error:', error)
+    console.error('[Payment Intent] Error creating payment intent:', {
+      message: error.message,
+      type: error.type,
+      code: error.code,
+      stack: error.stack,
+    })
+    
     return NextResponse.json(
-      { error: error.message || 'Failed to create payment intent' },
+      { 
+        error: error.message || 'Failed to create payment intent',
+        details: process.env.NODE_ENV === 'development' ? error.stack : undefined
+      },
       { status: 500 }
     )
   }
