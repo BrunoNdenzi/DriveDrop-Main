@@ -161,6 +161,70 @@ export default function ShipmentDetailPage() {
     })
   }
 
+  const handleDownloadReceipt = async () => {
+    if (!shipment) return
+
+    try {
+      // Create receipt content
+      const receiptContent = `
+DRIVEDROP RECEIPT
+${'='.repeat(50)}
+
+Receipt Number: DD-${shipment.id}-${shipment.payment_status === 'paid' ? '02' : '01'}
+Date: ${new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
+
+SHIPMENT DETAILS
+${'-'.repeat(50)}
+Shipment ID: ${shipment.id}
+Vehicle: ${shipment.vehicle_year} ${shipment.vehicle_make} ${shipment.vehicle_model}
+Type: ${shipment.vehicle_type}
+
+ROUTE
+${'-'.repeat(50)}
+From: ${shipment.pickup_address}
+To: ${shipment.delivery_address}
+Distance: ${shipment.distance.toFixed(0)} miles
+
+PRICING
+${'-'.repeat(50)}
+Total Amount: $${shipment.estimated_price.toFixed(2)}
+${shipment.payment_status === 'paid' ? `
+Upfront Payment (20%): $${(shipment.estimated_price * 0.20).toFixed(2)}
+Final Payment (80%): $${(shipment.estimated_price * 0.80).toFixed(2)}
+
+Payment Status: PAID IN FULL ✓` : `
+Upfront Payment (20%): $${(shipment.estimated_price * 0.20).toFixed(2)} ✓
+Remaining (80%): $${(shipment.estimated_price * 0.80).toFixed(2)} (Due on delivery)`}
+
+STATUS
+${'-'.repeat(50)}
+Shipment Status: ${shipment.status.toUpperCase().replace('_', ' ')}
+Payment Status: ${shipment.payment_status.toUpperCase().replace('_', ' ')}
+
+${'='.repeat(50)}
+
+Thank you for choosing DriveDrop!
+For support: support@drivedrop.us.com
+
+© ${new Date().getFullYear()} DriveDrop. All rights reserved.
+      `
+
+      // Create blob and download
+      const blob = new Blob([receiptContent], { type: 'text/plain' })
+      const url = URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = `DriveDrop-Receipt-${shipment.id}.txt`
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      URL.revokeObjectURL(url)
+    } catch (error) {
+      console.error('Error downloading receipt:', error)
+      alert('Failed to download receipt. Please try again.')
+    }
+  }
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -220,7 +284,11 @@ export default function ShipmentDetailPage() {
                 <Share2 className="h-4 w-4 mr-2" />
                 Share
               </Button>
-              <Button variant="outline" size="sm">
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={handleDownloadReceipt}
+              >
                 <Download className="h-4 w-4 mr-2" />
                 Receipt
               </Button>

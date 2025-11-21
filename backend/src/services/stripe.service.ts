@@ -6,6 +6,7 @@ import config from '@config';
 import { createError } from '@utils/error';
 import { logger } from '@utils/logger';
 import { supabase } from '@lib/supabase';
+import { emailService } from './email.service';
 // import { Database } from '../lib/database.types';
 
 // Initialize Stripe with API key and validate it's configured
@@ -324,6 +325,21 @@ export const stripeService = {
       });
 
       if (shipmentId) {
+        // Get shipment details
+        const { data: shipment, error: shipmentFetchError } = await supabase
+          .from('shipments')
+          .select('*, client:profiles!client_id(first_name, last_name, email), driver:profiles!driver_id(first_name, last_name, email)')
+          .eq('id', shipmentId)
+          .single();
+
+        if (shipmentFetchError || !shipment) {
+          logger.error('Error fetching shipment for email', { error: shipmentFetchError, shipmentId });
+        }
+
+        // Check if this is upfront (20%) or final (80%) payment
+        const isUpfrontPayment = !shipment?.upfront_payment_sent;
+        const isFinalPayment = shipment?.upfront_payment_sent && !shipment?.final_receipt_sent;
+
         // Update the payment record in the database
         const { error: paymentError } = await supabase
           .from('payments')
@@ -346,12 +362,20 @@ export const stripeService = {
         }
 
         // Update the shipment status
+        const updateData: any = {
+          payment_status: isFinalPayment ? 'paid' : 'partial_paid',
+          updated_at: new Date().toISOString(),
+        };
+
+        if (isUpfrontPayment) {
+          updateData.upfront_payment_sent = true;
+        } else if (isFinalPayment) {
+          updateData.final_receipt_sent = true;
+        }
+
         const { error: shipmentError } = await supabase
           .from('shipments')
-          .update({
-            payment_status: 'paid',
-            updated_at: new Date().toISOString(),
-          })
+          .update(updateData)
           .eq('id', shipmentId);
 
         if (shipmentError) {
@@ -360,6 +384,181 @@ export const stripeService = {
             shipmentId 
           });
           throw createError('Failed to update shipment status', 500, 'SHIPMENT_UPDATE_FAILED');
+        }
+
+        // Send appropriate email
+        if (shipment && shipment.client) {
+          const client = Array.isArray(shipment.client) ? shipment.client[0] : shipment.client;
+          
+          if (isUpfrontPayment) {
+            // Send booking confirmation email (20% payment)
+            logger.info('Sending booking confirmation email', { shipmentId, clientEmail: client.email });
+            
+            // Calculate pricing breakdown
+            const totalPrice = shipment.estimated_price || shipment.final_price || 0;
+            const upfrontAmount = totalPrice * 0.20;
+            const remainingAmount = totalPrice * 0.80;
+
+            // Get payment method details
+            const paymentMethod = await stripe.paymentMethods.retrieve(
+              paymentIntent.payment_method as string
+            );
+            const last4 = paymentMethod.card?.last4 || '****';
+
+            try {
+              await emailService.sendBookingConfirmationEmail({
+                firstName: client.first_name,
+                email: client.email,
+                shipmentId: shipment.id,
+                trackingUrl: `${process.env['FRONTEND_URL'] || 'https://drivedrop.us.com'}/dashboard/shipments/${shipment.id}`,
+                
+                pickupAddress: shipment.pickup_address,
+                deliveryAddress: shipment.delivery_address,
+                vehicleYear: shipment.vehicle_year?.toString() || '',
+                vehicleMake: shipment.vehicle_make || '',
+                vehicleModel: shipment.vehicle_model || '',
+                vehicleType: shipment.vehicle_type || 'sedan',
+                estimatedDeliveryDate: shipment.delivery_date 
+                  ? new Date(shipment.delivery_date).toLocaleDateString('en-US', { 
+                      weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' 
+                    })
+                  : '',
+                
+                distanceMiles: Math.round(shipment.distance || 0),
+                distanceBand: shipment.distance <= 500 ? 'short' : shipment.distance <= 1500 ? 'mid' : 'long',
+                baseRate: shipment.vehicle_type === 'truck' ? 2.20 : shipment.vehicle_type === 'suv' ? 2.00 : 1.80,
+                rawPrice: totalPrice,
+                deliverySpeedMultiplier: 1.0,
+                deliverySpeedType: 'standard',
+                fuelAdjustmentPercent: 0,
+                fuelPricePerGallon: 3.70,
+                bulkDiscountPercent: 0,
+                subtotal: totalPrice,
+                totalPrice: totalPrice,
+                
+                upfrontAmount,
+                remainingAmount,
+                paymentMethod: last4,
+                chargedDate: new Date().toLocaleDateString('en-US', { 
+                  year: 'numeric', month: 'long', day: 'numeric' 
+                }),
+                receiptNumber: `DD-${shipmentId}-01`,
+              });
+
+              // Insert receipt record
+              await supabase.rpc('insert_payment_receipt', {
+                p_shipment_id: shipmentId,
+                p_receipt_type: 'upfront',
+                p_amount: upfrontAmount,
+                p_sent_to_email: client.email,
+                p_metadata: {
+                  payment_method: last4,
+                  charged_date: new Date().toISOString(),
+                  vehicle: `${shipment.vehicle_year} ${shipment.vehicle_make} ${shipment.vehicle_model}`,
+                },
+              });
+
+              logger.info('Booking confirmation email sent successfully', { shipmentId });
+            } catch (emailError) {
+              logger.error('Error sending booking confirmation email', { error: emailError, shipmentId });
+            }
+          } else if (isFinalPayment) {
+            // Send delivery receipt email (80% payment)
+            logger.info('Sending delivery receipt email', { shipmentId, clientEmail: client.email });
+            
+            const totalPrice = shipment.estimated_price || shipment.final_price || 0;
+            const upfrontAmount = totalPrice * 0.20;
+            const finalAmount = totalPrice * 0.80;
+
+            const paymentMethod = await stripe.paymentMethods.retrieve(
+              paymentIntent.payment_method as string
+            );
+            const last4 = paymentMethod.card?.last4 || '****';
+
+            const driver = Array.isArray(shipment.driver) ? shipment.driver[0] : shipment.driver;
+
+            try {
+              // Send client receipt
+              await emailService.sendDeliveryReceiptEmail({
+                firstName: client.first_name,
+                email: client.email,
+                
+                shipmentId: shipment.id,
+                trackingUrl: `${process.env['FRONTEND_URL'] || 'https://drivedrop.us.com'}/dashboard/shipments/${shipment.id}`,
+                pickupAddress: shipment.pickup_address,
+                deliveryAddress: shipment.delivery_address,
+                vehicleYear: shipment.vehicle_year?.toString() || '',
+                vehicleMake: shipment.vehicle_make || '',
+                vehicleModel: shipment.vehicle_model || '',
+                
+                totalPrice,
+                upfrontAmount,
+                upfrontDate: new Date(shipment.created_at).toLocaleDateString('en-US', { 
+                  month: 'short', day: 'numeric', year: 'numeric' 
+                }),
+                finalAmount,
+                finalDate: new Date().toLocaleDateString('en-US', { 
+                  month: 'short', day: 'numeric', year: 'numeric' 
+                }),
+                paymentMethod: last4,
+                
+                deliveredDate: new Date().toLocaleDateString('en-US', { 
+                  weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' 
+                }),
+                deliveredTime: new Date().toLocaleTimeString('en-US', { 
+                  hour: 'numeric', minute: '2-digit', hour12: true 
+                }),
+                driverName: driver ? `${driver.first_name} ${driver.last_name.charAt(0)}.` : 'Driver',
+                deliveryPhotoUrls: [],
+                
+                receiptNumber: `DD-${shipmentId}-02`,
+              });
+
+              // Insert receipt record
+              await supabase.rpc('insert_payment_receipt', {
+                p_shipment_id: shipmentId,
+                p_receipt_type: 'final',
+                p_amount: finalAmount,
+                p_sent_to_email: client.email,
+                p_metadata: {
+                  payment_method: last4,
+                  charged_date: new Date().toISOString(),
+                  delivery_date: new Date().toISOString(),
+                },
+              });
+
+              // Send driver payout notification
+              if (driver && driver.email) {
+                const platformFee = totalPrice * 0.20;
+                const driverEarnings = totalPrice * 0.80;
+
+                await emailService.sendDriverPayoutNotification({
+                  firstName: driver.first_name,
+                  email: driver.email,
+                  shipmentId: shipment.id,
+                  totalPrice,
+                  platformFee,
+                  driverEarnings,
+                  payoutMethod: 'Stripe Connect',
+                  expectedPayoutDays: '2-5 business days',
+                  deliveredDate: new Date().toLocaleDateString('en-US', { 
+                    weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' 
+                  }),
+                });
+
+                await supabase
+                  .from('shipments')
+                  .update({ driver_payout_notified: true })
+                  .eq('id', shipmentId);
+
+                logger.info('Driver payout notification sent', { shipmentId, driverEmail: driver.email });
+              }
+
+              logger.info('Delivery receipt emails sent successfully', { shipmentId });
+            } catch (emailError) {
+              logger.error('Error sending delivery receipt emails', { error: emailError, shipmentId });
+            }
+          }
         }
 
         // Create a payment notification
