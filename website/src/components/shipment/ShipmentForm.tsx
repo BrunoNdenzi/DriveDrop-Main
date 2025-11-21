@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { useAuth } from '@/hooks/useAuth'
 import AddressAutocomplete from './AddressAutocomplete'
+import { pricingService } from '@/services/pricingService'
 
 interface ShipmentData {
   // Customer Info
@@ -202,16 +203,8 @@ export default function ShipmentForm({ onSubmit, isSubmitting }: ShipmentFormPro
   }
 
   const calculateDistance = (from: { lat: number; lng: number }, to: { lat: number; lng: number }) => {
-    // Haversine formula for distance calculation
-    const R = 3959 // Earth's radius in miles
-    const dLat = (to.lat - from.lat) * Math.PI / 180
-    const dLon = (to.lng - from.lng) * Math.PI / 180
-    const a = 
-      Math.sin(dLat/2) * Math.sin(dLat/2) +
-      Math.cos(from.lat * Math.PI / 180) * Math.cos(to.lat * Math.PI / 180) *
-      Math.sin(dLon/2) * Math.sin(dLon/2)
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a))
-    const distance = R * c
+    // Use pricing service haversine formula with road multiplier
+    const distance = pricingService.calculateDistance(from.lat, from.lng, to.lat, to.lng)
     
     updateFormData('distance', Math.round(distance))
     
@@ -220,12 +213,21 @@ export default function ShipmentForm({ onSubmit, isSubmitting }: ShipmentFormPro
   }
 
   const calculatePrice = (distance: number) => {
-    // Simple pricing formula - you should replace this with your actual pricing logic
-    const basePrice = 150
-    const pricePerMile = distance > 500 ? 0.50 : 0.75
-    const estimatedPrice = basePrice + (distance * pricePerMile)
+    // Use proper pricing service that matches mobile app exactly
+    const quote = pricingService.calculateQuote({
+      vehicleType: formData.vehicleType || 'sedan',
+      distanceMiles: distance,
+      isAccidentRecovery: false,
+      vehicleCount: 1,
+      pickupDate: formData.pickupDate,
+      deliveryDate: formData.deliveryDate,
+      fuelPricePerGallon: 3.70, // Default current fuel price
+    })
     
-    updateFormData('estimatedPrice', Math.round(estimatedPrice * 100) / 100)
+    updateFormData('estimatedPrice', quote.total)
+    
+    // Log breakdown for debugging
+    console.log('Pricing Breakdown:', quote.breakdown)
   }
 
   const getSummary = (section: keyof typeof expandedSections) => {
