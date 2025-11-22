@@ -9,6 +9,8 @@ import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../context/AuthContext';
 import { RealtimeChannel } from '@supabase/supabase-js';
 import { realtimeService } from '../../services/RealtimeService';
+import { locationTrackingService } from '../../services/LocationTrackingService';
+import { ShipmentStatus } from '../../types/shipment';
 import DeliveryConfirmationModal from '../../components/driver/DeliveryConfirmationModal';
 
 // Development mode - skip real location checks
@@ -265,18 +267,13 @@ export default function ShipmentDetailsScreen({ route, navigation }: any) {
         return;
       }
 
-      // Start location tracking if status is driver_en_route or in_transit
-      if ((newStatus === 'driver_en_route' || newStatus === 'in_transit') && userProfile) {
-        realtimeService.startLocationTracking(
+      // Automatically handle location tracking based on status (privacy-aware)
+      if (userProfile) {
+        await locationTrackingService.handleStatusChange(
+          newStatus as ShipmentStatus,
           shipment.id,
-          userProfile.id,
-          () => Alert.alert('Location Permission', 'Location permission is required to track delivery progress.')
+          userProfile.id
         );
-      }
-      
-      // Stop location tracking if delivered
-      if (newStatus === 'delivered' || newStatus === 'completed' || newStatus === 'cancelled') {
-        realtimeService.stopLocationTracking();
       }
       
       // Success - UI already updated optimistically

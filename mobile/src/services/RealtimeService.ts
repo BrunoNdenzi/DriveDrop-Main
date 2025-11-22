@@ -4,6 +4,8 @@ import { RealtimeChannel } from '@supabase/supabase-js';
 import { notificationService } from './NotificationService';
 import { Database } from '../lib/database.types';
 import * as Location from 'expo-location';
+import { locationTrackingService, isTrackingAllowed } from './LocationTrackingService';
+import { ShipmentStatus } from '../types/shipment';
 
 type ShipmentData = Database['public']['Tables']['shipments']['Row'];
 type MessageData = Database['public']['Tables']['messages']['Row'];
@@ -228,60 +230,34 @@ export class RealtimeService {
   
   /**
    * Start tracking driver location for a specific shipment
+   * Uses the new LocationTrackingService with privacy controls
+   * 
    * @param shipmentId The ID of the shipment being delivered
    * @param driverId The ID of the driver
+   * @param shipmentStatus Current shipment status (must be trackable)
    * @param onPermissionDenied Callback when location permissions are denied
    */
   async startLocationTracking(
     shipmentId: string, 
     driverId: string,
+    shipmentStatus: ShipmentStatus,
     onPermissionDenied?: () => void
   ): Promise<boolean> {
     try {
-      // Save the current shipment ID
-      this.currentShipmentId = shipmentId;
+      // Use the new LocationTrackingService with privacy controls
+      const started = await locationTrackingService.startTracking(
+        shipmentId,
+        driverId,
+        shipmentStatus
+      );
       
-      // Request location permissions
-      const { status } = await Location.requestForegroundPermissionsAsync();
-      
-      if (status !== 'granted') {
-        console.log('Location permission denied');
-        if (onPermissionDenied) {
-          onPermissionDenied();
-        }
-        return false;
+      if (!started && onPermissionDenied) {
+        onPermissionDenied();
       }
       
-      // Start watching position
-      this.locationUpdateInterval = setInterval(async () => {
-        try {
-          // Skip if no current shipment
-          if (!this.currentShipmentId) return;
-          
-          // Get current location
-          const location = await Location.getCurrentPositionAsync({
-            accuracy: Location.Accuracy.High
-          });
-          
-          // Send to Supabase
-          await supabase.from('driver_locations').insert({
-            shipment_id: this.currentShipmentId,
-            driver_id: driverId,
-            latitude: location.coords.latitude,
-            longitude: location.coords.longitude,
-            heading: location.coords.heading || null,
-            speed: location.coords.speed || null,
-            accuracy: location.coords.accuracy || null,
-            location_timestamp: new Date().toISOString()
-          });
-        } catch (error) {
-          console.error('Error updating location:', error);
-        }
-      }, 30000); // Update every 30 seconds
-      
-      return true;
+      return started;
     } catch (error) {
-      console.error('Error setting up location tracking:', error);
+      console.error('Error starting location tracking:', error);
       return false;
     }
   }
@@ -289,12 +265,23 @@ export class RealtimeService {
   /**
    * Stop tracking driver location
    */
-  stopLocationTracking(): void {
-    if (this.locationUpdateInterval) {
-      clearInterval(this.locationUpdateInterval);
-      this.locationUpdateInterval = null;
-    }
-    this.currentShipmentId = null;
+  async stopLocationTracking(): Promise<void> {
+    await locationTrackingService.stopTracking();
+  }
+  
+  /**
+   * Handle shipment status change and update tracking accordingly
+   * 
+   * @param newStatus New shipment status
+   * @param shipmentId Shipment ID
+   * @param driverId Driver ID
+   */
+  async handleShipmentStatusChange(
+    newStatus: ShipmentStatus,
+    shipmentId: string,
+    driverId: string
+  ): Promise<void> {
+    await locationTrackingService.handleStatusChange(newStatus, shipmentId, driverId);
   }
   
   /**
