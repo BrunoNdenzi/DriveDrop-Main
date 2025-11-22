@@ -1,477 +1,562 @@
-'use client'
+'use client';
 
-import { useEffect, useState, useRef } from 'react'
-import { useAuth } from '@/hooks/useAuth'
-import { getSupabaseBrowserClient } from '@/lib/supabase-client'
-import { OptimizedLink } from '@/components/ui/optimized-link'
+import { useEffect, useState, useRef } from 'react';
+import { useRouter } from 'next/navigation';
+import { getSupabaseBrowserClient } from '@/lib/supabase-client';
 import { 
   MapPin, 
   Navigation, 
+  Clock, 
   Truck, 
-  Clock,
-  Phone,
+  Phone, 
   MessageCircle,
   ChevronLeft,
-  Loader2,
-  CheckCircle2
-} from 'lucide-react'
+  User
+} from 'lucide-react';
 
-interface DriverLocation {
-  latitude: number
-  longitude: number
-  accuracy: number
-  speed: number | null
-  heading: number | null
-  location_timestamp: string
+interface Shipment {
+  id: string;
+  status: string;
+  pickup_address: string;
+  delivery_address: string;
+  pickup_lat: number;
+  pickup_lng: number;
+  delivery_lat: number;
+  delivery_lng: number;
+  vehicle_make?: string;
+  vehicle_model?: string;
+  vehicle_year?: number;
+  driver_id?: string;
+  created_at: string;
 }
 
+interface Driver {
+  id: string;
+  first_name: string;
+  last_name: string;
+  phone?: string;
+  avatar_url?: string;
+}
+
+interface DriverLocation {
+  latitude: number;
+  longitude: number;
+  accuracy?: number;
+  speed?: number;
+  heading?: number;
+  location_timestamp: string;
+}
+
+const TRACKABLE_STATUSES = ['pickup_verified', 'picked_up', 'in_transit'];
+
+const STATUS_LABELS: Record<string, string> = {
+  pending: 'Shipment Created',
+  assigned: 'Driver Assigned',
+  accepted: 'Driver Accepted',
+  driver_en_route: 'Driver En Route to Pickup',
+  driver_arrived: 'Driver Arrived at Pickup',
+  pickup_verification_pending: 'Verifying Vehicle',
+  pickup_verified: 'Vehicle Verified',
+  picked_up: 'Vehicle Picked Up',
+  in_transit: 'In Transit',
+  delivered: 'Delivered',
+  completed: 'Completed'
+};
+
 export default function TrackShipmentPage({ params }: { params: { id: string } }) {
-  const { profile } = useAuth()
-  const [loading, setLoading] = useState(true)
-  const [shipment, setShipment] = useState<any>(null)
-  const [driverLocation, setDriverLocation] = useState<DriverLocation | null>(null)
-  const [eta, setEta] = useState<string | null>(null)
-  const mapRef = useRef<HTMLDivElement>(null)
-  const googleMapRef = useRef<any>(null)
-  const driverMarkerRef = useRef<any>(null)
-  const supabase = getSupabaseBrowserClient()
+  const router = useRouter();
+  const supabase = getSupabaseBrowserClient();
+  
+  const [shipment, setShipment] = useState<Shipment | null>(null);
+  const [driver, setDriver] = useState<Driver | null>(null);
+  const [driverLocation, setDriverLocation] = useState<DriverLocation | null>(null);
+  const [eta, setEta] = useState<string | null>(null);
+  const [distance, setDistance] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  
+  const mapRef = useRef<google.maps.Map | null>(null);
+  const mapContainerRef = useRef<HTMLDivElement>(null);
+  const driverMarkerRef = useRef<google.maps.Marker | null>(null);
+  const pickupMarkerRef = useRef<google.maps.Marker | null>(null);
+  const deliveryMarkerRef = useRef<google.maps.Marker | null>(null);
+  const routePolylineRef = useRef<google.maps.Polyline | null>(null);
 
+  // Load Google Maps script
   useEffect(() => {
-    fetchShipment()
-  }, [params.id])
+    const loadGoogleMaps = () => {
+      if (window.google) return Promise.resolve();
 
+      return new Promise<void>((resolve) => {
+        const script = document.createElement('script');
+        script.src = `https://maps.googleapis.com/maps/api/js?key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}&libraries=geometry,places`;
+        script.async = true;
+        script.onload = () => resolve();
+        document.head.appendChild(script);
+      });
+    };
+
+    loadGoogleMaps();
+  }, []);
+
+  // Fetch shipment data
   useEffect(() => {
-    if (shipment) {
-      subscribeToLocationUpdates()
-      loadGoogleMaps()
+    fetchShipmentData();
+  }, [params.id]);
+
+  // Subscribe to location updates
+  useEffect(() => {
+    if (!shipment || !TRACKABLE_STATUSES.includes(shipment.status)) {
+      return;
     }
 
-    return () => {
-      // Cleanup subscription
-    }
-  }, [shipment])
-
-  const fetchShipment = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('shipments')
-        .select(`
-          *,
-          driver:profiles!shipments_driver_id_fkey (
-            id,
-            first_name,
-            last_name,
-            phone,
-            avatar_url
-          )
-        `)
-        .eq('id', params.id)
-        .single()
-
-      if (error) throw error
-      setShipment(data)
-
-      // Fetch latest driver location if driver assigned
-      if (data?.driver_id) {
-        fetchLatestLocation(data.driver_id)
-      }
-    } catch (error) {
-      console.error('Error fetching shipment:', error)
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const fetchLatestLocation = async (driverId: string) => {
-    try {
-      const { data, error } = await supabase
-        .from('driver_locations')
-        .select('*')
-        .eq('driver_id', driverId)
-        .eq('shipment_id', params.id)
-        .order('location_timestamp', { ascending: false })
-        .limit(1)
-        .maybeSingle()
-
-      if (error) {
-        console.error('Error fetching location:', error)
-        return
-      }
-
-      if (data) {
-        setDriverLocation(data)
-        updateMapMarker(data)
-      }
-    } catch (error) {
-      console.error('Error fetching location:', error)
-    }
-  }
-
-  const subscribeToLocationUpdates = () => {
     const channel = supabase
-      .channel(`location-updates-${params.id}`)
+      .channel(`driver-location-${params.id}`)
       .on(
         'postgres_changes',
         {
-          event: 'INSERT',
+          event: '*',
           schema: 'public',
           table: 'driver_locations',
-          filter: `shipment_id=eq.${params.id}`
+          filter: `shipment_id=eq.${params.id}`,
         },
-        (payload) => {
-          const newLocation = payload.new as DriverLocation
-          setDriverLocation(newLocation)
-          updateMapMarker(newLocation)
+        (payload: any) => {
+          if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
+            const newLocation = payload.new as DriverLocation;
+            setDriverLocation(newLocation);
+            updateDriverMarker(newLocation);
+            calculateETA(newLocation);
+          }
         }
       )
-      .subscribe()
+      .subscribe();
+
+    // Fetch initial location
+    fetchLatestLocation();
 
     return () => {
-      channel.unsubscribe()
+      supabase.removeChannel(channel);
+    };
+  }, [shipment, params.id]);
+
+  // Initialize map when data is ready
+  useEffect(() => {
+    if (shipment && window.google && mapContainerRef.current) {
+      initializeMap();
+    }
+  }, [shipment]);
+
+  async function fetchShipmentData() {
+    try {
+      setLoading(true);
+      
+      const { data: shipmentData, error: shipmentError } = await supabase
+        .from('shipments')
+        .select('*')
+        .eq('id', params.id)
+        .single();
+
+      if (shipmentError) throw shipmentError;
+      
+      setShipment(shipmentData);
+
+      // Fetch driver if assigned
+      if (shipmentData.driver_id) {
+        const { data: driverData } = await supabase
+          .from('profiles')
+          .select('id, first_name, last_name, phone, avatar_url')
+          .eq('id', shipmentData.driver_id)
+          .single();
+
+        if (driverData) {
+          setDriver(driverData);
+        }
+      }
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
     }
   }
 
-  const loadGoogleMaps = () => {
-    if (typeof window === 'undefined') return
+  async function fetchLatestLocation() {
+    if (!shipment?.driver_id) return;
 
-    // Check if Google Maps is already loaded
-    if ((window as any).google && (window as any).google.maps) {
-      initializeMap()
-      return
+    const { data } = await supabase
+      .from('driver_locations')
+      .select('*')
+      .eq('shipment_id', params.id)
+      .order('location_timestamp', { ascending: false })
+      .limit(1)
+      .single();
+
+    if (data) {
+      setDriverLocation(data);
+      updateDriverMarker(data);
+      calculateETA(data);
     }
-
-    // Load Google Maps script
-    const script = document.createElement('script')
-    script.src = `https://maps.googleapis.com/maps/api/js?key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || ''}`
-    script.async = true
-    script.defer = true
-    script.onload = () => initializeMap()
-    document.head.appendChild(script)
   }
 
-  const initializeMap = () => {
-    if (!mapRef.current || !shipment) return
+  function initializeMap() {
+    if (!shipment || !mapContainerRef.current) return;
 
-    const google = (window as any).google
+    const center = {
+      lat: shipment.pickup_lat,
+      lng: shipment.pickup_lng,
+    };
 
-    // Default to pickup location
-    const center = driverLocation
-      ? { lat: driverLocation.latitude, lng: driverLocation.longitude }
-      : { lat: parseFloat(shipment.pickup_latitude) || 0, lng: parseFloat(shipment.pickup_longitude) || 0 }
-
-    googleMapRef.current = new google.maps.Map(mapRef.current, {
+    mapRef.current = new google.maps.Map(mapContainerRef.current, {
       center,
-      zoom: 13,
+      zoom: 12,
       styles: [
         {
           featureType: 'poi',
-          stylers: [{ visibility: 'off' }]
-        }
-      ]
-    })
+          elementType: 'labels',
+          stylers: [{ visibility: 'off' }],
+        },
+      ],
+    });
 
     // Add pickup marker
-    new google.maps.Marker({
-      position: { lat: parseFloat(shipment.pickup_latitude), lng: parseFloat(shipment.pickup_longitude) },
-      map: googleMapRef.current,
+    pickupMarkerRef.current = new google.maps.Marker({
+      position: { lat: shipment.pickup_lat, lng: shipment.pickup_lng },
+      map: mapRef.current,
       title: 'Pickup Location',
       icon: {
         path: google.maps.SymbolPath.CIRCLE,
-        fillColor: '#3B82F6',
+        scale: 10,
+        fillColor: '#3b82f6',
         fillOpacity: 1,
-        strokeColor: '#1E40AF',
+        strokeColor: '#ffffff',
         strokeWeight: 2,
-        scale: 8
-      }
-    })
+      },
+    });
 
     // Add delivery marker
-    new google.maps.Marker({
-      position: { lat: parseFloat(shipment.delivery_latitude), lng: parseFloat(shipment.delivery_longitude) },
-      map: googleMapRef.current,
+    deliveryMarkerRef.current = new google.maps.Marker({
+      position: { lat: shipment.delivery_lat, lng: shipment.delivery_lng },
+      map: mapRef.current,
       title: 'Delivery Location',
       icon: {
         path: google.maps.SymbolPath.CIRCLE,
-        fillColor: '#EF4444',
+        scale: 10,
+        fillColor: '#10b981',
         fillOpacity: 1,
-        strokeColor: '#991B1B',
+        strokeColor: '#ffffff',
         strokeWeight: 2,
-        scale: 8
-      }
-    })
+      },
+    });
 
-    // Add driver marker if location available
+    // If tracking is active and we have location, add driver marker
+    if (TRACKABLE_STATUSES.includes(shipment.status) && driverLocation) {
+      addDriverMarker(driverLocation);
+    }
+
+    // Fit bounds to show all markers
+    const bounds = new google.maps.LatLngBounds();
+    bounds.extend({ lat: shipment.pickup_lat, lng: shipment.pickup_lng });
+    bounds.extend({ lat: shipment.delivery_lat, lng: shipment.delivery_lng });
     if (driverLocation) {
-      updateMapMarker(driverLocation)
+      bounds.extend({ lat: driverLocation.latitude, lng: driverLocation.longitude });
+    }
+    mapRef.current.fitBounds(bounds);
+  }
+
+  function addDriverMarker(location: DriverLocation) {
+    if (!mapRef.current) return;
+
+    const position = {
+      lat: location.latitude,
+      lng: location.longitude,
+    };
+
+    driverMarkerRef.current = new google.maps.Marker({
+      position,
+      map: mapRef.current,
+      title: 'Driver Location',
+      icon: {
+        path: google.maps.SymbolPath.FORWARD_CLOSED_ARROW,
+        scale: 6,
+        fillColor: '#14b8a6',
+        fillOpacity: 1,
+        strokeColor: '#ffffff',
+        strokeWeight: 2,
+        rotation: location.heading || 0,
+      },
+    });
+  }
+
+  function updateDriverMarker(location: DriverLocation) {
+    if (!driverMarkerRef.current || !mapRef.current) {
+      if (mapRef.current && TRACKABLE_STATUSES.includes(shipment?.status || '')) {
+        addDriverMarker(location);
+      }
+      return;
+    }
+
+    const position = {
+      lat: location.latitude,
+      lng: location.longitude,
+    };
+
+    // Smooth animation
+    driverMarkerRef.current.setPosition(position);
+    
+    // Update rotation if heading available
+    if (location.heading) {
+      const icon = driverMarkerRef.current.getIcon() as google.maps.Symbol;
+      driverMarkerRef.current.setIcon({
+        ...icon,
+        rotation: location.heading,
+      });
+    }
+
+    // Pan map to new position
+    mapRef.current.panTo(position);
+  }
+
+  async function calculateETA(location: DriverLocation) {
+    if (!shipment || !window.google) return;
+
+    const service = new google.maps.DistanceMatrixService();
+    
+    service.getDistanceMatrix(
+      {
+        origins: [{ lat: location.latitude, lng: location.longitude }],
+        destinations: [{ lat: shipment.delivery_lat, lng: shipment.delivery_lng }],
+        travelMode: google.maps.TravelMode.DRIVING,
+        drivingOptions: {
+          departureTime: new Date(),
+          trafficModel: google.maps.TrafficModel.BEST_GUESS,
+        },
+      },
+      (response, status) => {
+        if (status === 'OK' && response?.rows[0]?.elements[0]) {
+          const element = response.rows[0].elements[0];
+          if (element.status === 'OK') {
+            setEta(element.duration.text);
+            setDistance(element.distance.text);
+          }
+        }
+      }
+    );
+  }
+
+  function getStatusIndex(status: string): number {
+    const statuses = Object.keys(STATUS_LABELS);
+    return statuses.indexOf(status);
+  }
+
+  function getProgress(): number {
+    if (!shipment) return 0;
+    const currentIndex = getStatusIndex(shipment.status);
+    const totalSteps = Object.keys(STATUS_LABELS).length - 1;
+    return (currentIndex / totalSteps) * 100;
+  }
+
+  function handleMessageDriver() {
+    if (driver) {
+      router.push(`/dashboard/client/messages?conversation=${shipment?.driver_id}`);
     }
   }
 
-  const updateMapMarker = (location: DriverLocation) => {
-    if (!googleMapRef.current) return
-
-    const google = (window as any).google
-    const position = { lat: location.latitude, lng: location.longitude }
-
-    if (driverMarkerRef.current) {
-      // Update existing marker
-      driverMarkerRef.current.setPosition(position)
-    } else {
-      // Create new marker
-      driverMarkerRef.current = new google.maps.Marker({
-        position,
-        map: googleMapRef.current,
-        title: 'Driver Location',
-        icon: {
-          path: google.maps.SymbolPath.FORWARD_CLOSED_ARROW,
-          fillColor: '#10B981',
-          fillOpacity: 1,
-          strokeColor: '#059669',
-          strokeWeight: 2,
-          scale: 6,
-          rotation: location.heading || 0
-        }
-      })
+  function handleCallDriver() {
+    if (driver?.phone) {
+      window.location.href = `tel:${driver.phone}`;
     }
-
-    // Center map on driver
-    googleMapRef.current.panTo(position)
   }
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
+      <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
-          <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4 text-blue-600" />
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-teal-600 mx-auto mb-4"></div>
           <p className="text-gray-600">Loading tracking information...</p>
         </div>
       </div>
-    )
+    );
   }
 
-  if (!shipment) {
+  if (error || !shipment) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <p className="text-gray-600">Shipment not found</p>
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-red-600 mb-4">{error || 'Shipment not found'}</p>
+          <button
+            onClick={() => router.push('/dashboard/client/shipments')}
+            className="text-teal-600 hover:text-teal-700"
+          >
+            Back to Shipments
+          </button>
+        </div>
       </div>
-    )
+    );
   }
 
-  const isEnRoute = ['en_route', 'arrived', 'picked_up', 'in_transit'].includes(shipment.status)
+  const isTrackingActive = TRACKABLE_STATUSES.includes(shipment.status);
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="h-screen flex flex-col">
       {/* Header */}
-      <div className="bg-white border-b sticky top-0 z-10">
-        <div className="max-w-6xl mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-4">
-              <OptimizedLink 
-                href="/dashboard/client/shipments"
-                className="text-gray-600 hover:text-gray-900"
-              >
-                <ChevronLeft className="w-6 h-6" />
-              </OptimizedLink>
-              <div>
-                <h1 className="text-xl font-bold text-gray-900">Track Your Shipment</h1>
-                <p className="text-sm text-gray-600">
-                  {shipment.vehicle_year} {shipment.vehicle_make} {shipment.vehicle_model}
-                </p>
-              </div>
-            </div>
-            <div className="flex items-center space-x-2">
-              <div className={`px-3 py-1 rounded-full text-sm font-medium ${
-                shipment.status === 'delivered' 
-                  ? 'bg-green-100 text-green-700'
-                  : 'bg-blue-100 text-blue-700'
-              }`}>
-                {shipment.status.replace('_', ' ').toUpperCase()}
-              </div>
+      <div className="bg-white border-b px-6 py-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <button
+              onClick={() => router.push(`/dashboard/client/shipments/${params.id}`)}
+              className="text-gray-600 hover:text-gray-900"
+            >
+              <ChevronLeft className="h-6 w-6" />
+            </button>
+            <div>
+              <h1 className="text-xl font-semibold text-gray-900">
+                Track Shipment
+              </h1>
+              <p className="text-sm text-gray-600">
+                {shipment.vehicle_year} {shipment.vehicle_make} {shipment.vehicle_model}
+              </p>
             </div>
           </div>
+          
+          {driver && (
+            <div className="flex gap-3">
+              <button
+                onClick={handleMessageDriver}
+                className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
+              >
+                <MessageCircle className="h-4 w-4" />
+                Message
+              </button>
+              {driver.phone && (
+                <button
+                  onClick={handleCallDriver}
+                  className="flex items-center gap-2 px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700"
+                >
+                  <Phone className="h-4 w-4" />
+                  Call Driver
+                </button>
+              )}
+            </div>
+          )}
         </div>
       </div>
 
-      <div className="max-w-6xl mx-auto px-4 py-6 space-y-6">
-        {/* Map */}
-        <div className="bg-white rounded-lg border overflow-hidden">
-          <div 
-            ref={mapRef} 
-            className="w-full h-[400px] bg-gray-200"
-          >
-            {!driverLocation && (
-              <div className="flex items-center justify-center h-full">
-                <div className="text-center">
-                  <MapPin className="w-12 h-12 text-gray-400 mx-auto mb-2" />
-                  <p className="text-gray-600">Waiting for driver location...</p>
+      {/* Map Container */}
+      <div className="flex-1 relative">
+        {isTrackingActive ? (
+          <div ref={mapContainerRef} className="w-full h-full" />
+        ) : (
+          <div className="w-full h-full flex items-center justify-center bg-gray-100">
+            <div className="text-center p-8">
+              <MapPin className="h-16 w-16 text-gray-400 mx-auto mb-4" />
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                Live Tracking Not Available Yet
+              </h3>
+              <p className="text-gray-600 max-w-md">
+                Real-time GPS tracking will be available once your vehicle has been picked up.
+                This protects driver privacy during the pickup phase.
+              </p>
+              <div className="mt-6 p-4 bg-white rounded-lg border border-gray-200 inline-block">
+                <p className="text-sm font-medium text-gray-700 mb-2">Current Status:</p>
+                <p className="text-lg font-semibold text-teal-600">
+                  {STATUS_LABELS[shipment.status] || shipment.status}
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Info Panel */}
+        <div className="absolute bottom-0 left-0 right-0 bg-white shadow-lg border-t">
+          <div className="p-6">
+            {/* Driver Info */}
+            {driver && (
+              <div className="flex items-center gap-4 mb-6 pb-6 border-b">
+                <div className="h-12 w-12 rounded-full bg-gray-200 flex items-center justify-center">
+                  {driver.avatar_url ? (
+                    <img
+                      src={driver.avatar_url}
+                      alt={`${driver.first_name} ${driver.last_name}`}
+                      className="h-12 w-12 rounded-full object-cover"
+                    />
+                  ) : (
+                    <User className="h-6 w-6 text-gray-400" />
+                  )}
+                </div>
+                <div>
+                  <h3 className="font-semibold text-gray-900">
+                    {driver.first_name} {driver.last_name}
+                  </h3>
+                  <p className="text-sm text-gray-600">Your Driver</p>
                 </div>
               </div>
             )}
-          </div>
-        </div>
 
-        {/* Location Info */}
-        {driverLocation && (
-          <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-            <div className="flex items-start space-x-3">
-              <Navigation className="w-5 h-5 text-green-600 mt-0.5" />
-              <div className="flex-1">
-                <h3 className="font-semibold text-green-900">Driver En Route</h3>
-                <p className="text-sm text-green-700 mt-1">
-                  Last updated: {new Date(driverLocation.location_timestamp).toLocaleTimeString()}
-                </p>
-                {driverLocation.speed && (
-                  <p className="text-sm text-green-700">
-                    Speed: {Math.round(driverLocation.speed * 2.237)} mph
-                  </p>
-                )}
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Driver Info */}
-        {shipment.driver && (
-          <div className="bg-white rounded-lg border p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">Your Driver</h2>
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-4">
-                {shipment.driver.profile_image ? (
-                  <img 
-                    src={shipment.driver.profile_image} 
-                    alt={`${shipment.driver.first_name} ${shipment.driver.last_name}`}
-                    className="w-16 h-16 rounded-full object-cover"
-                  />
-                ) : (
-                  <div className="w-16 h-16 rounded-full bg-blue-100 flex items-center justify-center">
-                    <span className="text-2xl font-bold text-blue-600">
-                      {shipment.driver.first_name[0]}{shipment.driver.last_name[0]}
-                    </span>
+            {/* Stats */}
+            {isTrackingActive && driverLocation && (
+              <div className="grid grid-cols-3 gap-4 mb-6">
+                <div className="text-center">
+                  <div className="flex items-center justify-center mb-2">
+                    <Clock className="h-5 w-5 text-teal-600" />
                   </div>
-                )}
-                <div>
+                  <p className="text-sm text-gray-600">ETA</p>
                   <p className="font-semibold text-gray-900">
-                    {shipment.driver.first_name} {shipment.driver.last_name}
+                    {eta || 'Calculating...'}
                   </p>
-                  <p className="text-sm text-gray-600">Professional Driver</p>
+                </div>
+                
+                <div className="text-center">
+                  <div className="flex items-center justify-center mb-2">
+                    <Navigation className="h-5 w-5 text-teal-600" />
+                  </div>
+                  <p className="text-sm text-gray-600">Distance</p>
+                  <p className="font-semibold text-gray-900">
+                    {distance || 'Calculating...'}
+                  </p>
+                </div>
+                
+                <div className="text-center">
+                  <div className="flex items-center justify-center mb-2">
+                    <Truck className="h-5 w-5 text-teal-600" />
+                  </div>
+                  <p className="text-sm text-gray-600">Speed</p>
+                  <p className="font-semibold text-gray-900">
+                    {driverLocation.speed 
+                      ? `${Math.round(driverLocation.speed * 2.237)} mph`
+                      : '--'}
+                  </p>
                 </div>
               </div>
-              <div className="flex items-center space-x-2">
-                <OptimizedLink
-                  href={`/dashboard/client/messages?shipment=${params.id}`}
-                  className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 flex items-center space-x-2"
-                >
-                  <MessageCircle className="w-4 h-4" />
-                  <span>Message</span>
-                </OptimizedLink>
-                <a
-                  href={`tel:${shipment.driver.phone}`}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center space-x-2"
-                >
-                  <Phone className="w-4 h-4" />
-                  <span>Call</span>
-                </a>
+            )}
+
+            {/* Progress Bar */}
+            <div>
+              <div className="flex justify-between text-xs text-gray-600 mb-2">
+                <span>Pickup</span>
+                <span>{STATUS_LABELS[shipment.status]}</span>
+                <span>Delivery</span>
+              </div>
+              <div className="w-full bg-gray-200 rounded-full h-2">
+                <div
+                  className="bg-teal-600 h-2 rounded-full transition-all duration-500"
+                  style={{ width: `${getProgress()}%` }}
+                />
               </div>
             </div>
-          </div>
-        )}
 
-        {/* Route Info */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="bg-white rounded-lg border p-6">
-            <div className="flex items-start space-x-3">
-              <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0">
-                <MapPin className="w-5 h-5 text-blue-600" />
+            {/* Addresses */}
+            <div className="grid grid-cols-2 gap-4 mt-6 pt-6 border-t">
+              <div>
+                <p className="text-xs font-medium text-gray-500 mb-1">PICKUP</p>
+                <p className="text-sm text-gray-900">{shipment.pickup_address}</p>
               </div>
-              <div className="flex-1">
-                <p className="font-semibold text-gray-900">Pickup Location</p>
-                <p className="text-gray-600 mt-1">{shipment.pickup_address}</p>
-                <p className="text-sm text-gray-500">
-                  {shipment.pickup_city}, {shipment.pickup_state} {shipment.pickup_zip}
-                </p>
-                {shipment.actual_pickup_time && (
-                  <div className="flex items-center space-x-1 mt-2">
-                    <CheckCircle2 className="w-4 h-4 text-green-600" />
-                    <span className="text-sm text-green-600">
-                      Picked up {new Date(shipment.actual_pickup_time).toLocaleString()}
-                    </span>
-                  </div>
-                )}
+              <div>
+                <p className="text-xs font-medium text-gray-500 mb-1">DELIVERY</p>
+                <p className="text-sm text-gray-900">{shipment.delivery_address}</p>
               </div>
             </div>
-          </div>
-
-          <div className="bg-white rounded-lg border p-6">
-            <div className="flex items-start space-x-3">
-              <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center flex-shrink-0">
-                <MapPin className="w-5 h-5 text-red-600" />
-              </div>
-              <div className="flex-1">
-                <p className="font-semibold text-gray-900">Delivery Location</p>
-                <p className="text-gray-600 mt-1">{shipment.delivery_address}</p>
-                <p className="text-sm text-gray-500">
-                  {shipment.delivery_city}, {shipment.delivery_state} {shipment.delivery_zip}
-                </p>
-                {shipment.actual_delivery_time && (
-                  <div className="flex items-center space-x-1 mt-2">
-                    <CheckCircle2 className="w-4 h-4 text-green-600" />
-                    <span className="text-sm text-green-600">
-                      Delivered {new Date(shipment.actual_delivery_time).toLocaleString()}
-                    </span>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Timeline */}
-        <div className="bg-white rounded-lg border p-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">Delivery Timeline</h2>
-          <div className="space-y-4">
-            {[
-              { status: 'accepted', label: 'Job Accepted', time: shipment.driver_accepted_at },
-              { status: 'en_route', label: 'Driver En Route to Pickup', time: shipment.driver_enroute_time },
-              { status: 'arrived', label: 'Driver Arrived at Pickup', time: shipment.driver_arrival_time },
-              { status: 'picked_up', label: 'Vehicle Picked Up', time: shipment.actual_pickup_time },
-              { status: 'in_transit', label: 'In Transit to Delivery', time: shipment.in_transit_time },
-              { status: 'delivered', label: 'Delivered', time: shipment.actual_delivery_time }
-            ].map((step, index) => {
-              const isCompleted = step.time !== null
-              const isCurrent = shipment.status === step.status && !isCompleted
-              
-              return (
-                <div key={step.status} className="flex items-start space-x-3">
-                  <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${
-                    isCompleted 
-                      ? 'bg-green-100 text-green-600' 
-                      : isCurrent
-                      ? 'bg-blue-100 text-blue-600'
-                      : 'bg-gray-100 text-gray-400'
-                  }`}>
-                    {isCompleted ? (
-                      <CheckCircle2 className="w-5 h-5" />
-                    ) : (
-                      <span className="text-sm font-semibold">{index + 1}</span>
-                    )}
-                  </div>
-                  <div className="flex-1">
-                    <p className={`font-medium ${
-                      isCompleted || isCurrent ? 'text-gray-900' : 'text-gray-400'
-                    }`}>
-                      {step.label}
-                    </p>
-                    {step.time && (
-                      <p className="text-sm text-gray-600 mt-0.5">
-                        {new Date(step.time).toLocaleString()}
-                      </p>
-                    )}
-                  </div>
-                </div>
-              )
-            })}
           </div>
         </div>
       </div>
     </div>
-  )
+  );
 }
