@@ -89,8 +89,9 @@ export default function TrackShipmentPage({ params }: { params: { id: string } }
 
       return new Promise<void>((resolve) => {
         const script = document.createElement('script');
-        script.src = `https://maps.googleapis.com/maps/api/js?key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}&libraries=geometry,places`;
+        script.src = `https://maps.googleapis.com/maps/api/js?key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}&libraries=geometry,places&loading=async`;
         script.async = true;
+        script.defer = true;
         script.onload = () => resolve();
         document.head.appendChild(script);
       });
@@ -318,12 +319,23 @@ export default function TrackShipmentPage({ params }: { params: { id: string } }
   async function calculateETA(location: DriverLocation) {
     if (!shipment || !window.google) return;
 
+    // Ensure coordinates are valid numbers
+    const originLat = Number(location.latitude);
+    const originLng = Number(location.longitude);
+    const destLat = Number(shipment.delivery_lat);
+    const destLng = Number(shipment.delivery_lng);
+
+    if (isNaN(originLat) || isNaN(originLng) || isNaN(destLat) || isNaN(destLng)) {
+      console.error('Invalid coordinates for ETA calculation');
+      return;
+    }
+
     const service = new google.maps.DistanceMatrixService();
     
     service.getDistanceMatrix(
       {
-        origins: [{ lat: location.latitude, lng: location.longitude }],
-        destinations: [{ lat: shipment.delivery_lat, lng: shipment.delivery_lng }],
+        origins: [{ lat: originLat, lng: originLng }],
+        destinations: [{ lat: destLat, lng: destLng }],
         travelMode: google.maps.TravelMode.DRIVING,
         drivingOptions: {
           departureTime: new Date(),
