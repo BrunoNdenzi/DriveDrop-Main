@@ -97,31 +97,23 @@ function PaymentForm({ shipmentData, completionData, onPaymentComplete, onFinalS
 
       console.log('Shipment created successfully:', shipment.id)
 
-      // Create payment record
-      const { error: paymentError } = await supabase
+      // Update payment record with shipment_id
+      // (Payment record was created by Next.js API, but without shipment_id)
+      const { error: paymentUpdateError } = await supabase
         .from('payments')
-        .insert({
+        .update({ 
           shipment_id: shipment.id,
-          client_id: profile?.id,
-          amount: shipmentData.estimatedPrice,
-          initial_amount: upfrontAmount,
-          remaining_amount: totalAmount - upfrontAmount,
-          status: 'completed',
-          payment_method: 'card',
-          payment_intent_id: paymentIntentId,
-          metadata: {
-            vehicle: `${shipmentData.vehicleYear} ${shipmentData.vehicleMake} ${shipmentData.vehicleModel}`,
-            upfront_percentage: 20,
-            delivery_percentage: 80,
-          },
+          status: 'completed' 
         })
+        .eq('payment_intent_id', paymentIntentId)
 
-      if (paymentError) {
-        console.error('Payment record error:', paymentError)
-        throw paymentError
+      if (paymentUpdateError) {
+        console.error('Payment record update error:', paymentUpdateError)
+        // Non-fatal - shipment is already created
+      } else {
+        console.log('Payment record updated with shipment_id')
       }
 
-      console.log('Payment record created successfully')
       return shipment.id
     } catch (error: any) {
       console.error('Error creating shipment:', error)

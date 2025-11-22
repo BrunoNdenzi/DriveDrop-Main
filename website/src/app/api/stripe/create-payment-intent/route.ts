@@ -1,5 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import Stripe from 'stripe'
+import { createClient } from '@supabase/supabase-js'
+
+// Initialize Supabase client
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!
+)
 
 export async function POST(request: NextRequest) {
   try {
@@ -71,6 +78,39 @@ export async function POST(request: NextRequest) {
       upfrontAmount: amount,
       status: paymentIntent.status,
     })
+
+    // Create payment record in database (without shipment_id initially)
+    // The shipment_id will be added later when shipment is created
+    try {
+      const { error: dbError } = await supabase
+        .from('payments')
+        .insert({
+          client_id: metadata.userId,
+          amount: totalAmount,
+          initial_amount: amount,
+          remaining_amount: remainingAmount,
+          payment_intent_id: paymentIntent.id,
+          status: 'pending',
+          payment_method: 'card',
+          booking_timestamp: new Date().toISOString(),
+          refund_deadline: new Date(Date.now() + 60 * 60 * 1000).toISOString(), // 1 hour from now
+          metadata: {
+            ...metadata,
+            upfront_percentage: 20,
+            delivery_percentage: 80,
+          }
+        })
+
+      if (dbError) {
+        console.error('[Payment Intent] Failed to create payment record:', dbError)
+        // Don't fail the payment intent - record can be created later
+      } else {
+        console.log('[Payment Intent] Payment record created successfully')
+      }
+    } catch (dbError) {
+      console.error('[Payment Intent] Database error:', dbError)
+      // Continue - don't fail payment intent creation
+    }
 
     return NextResponse.json({
       clientSecret: paymentIntent.client_secret,
