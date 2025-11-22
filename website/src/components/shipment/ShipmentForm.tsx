@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { useAuth } from '@/hooks/useAuth'
 import AddressAutocomplete from './AddressAutocomplete'
+import { VehicleSelect } from '@/components/ui/VehicleSelect'
 import { pricingService } from '@/services/pricingService'
 
 interface ShipmentData {
@@ -463,23 +464,35 @@ export default function ShipmentForm({ onSubmit, isSubmitting }: ShipmentFormPro
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <Label htmlFor="vehicleMake">Make *</Label>
-              <Input
-                id="vehicleMake"
+              <VehicleSelect
+                type="make"
                 value={formData.vehicleMake}
-                onChange={(e) => updateFormData('vehicleMake', e.target.value)}
-                placeholder="Toyota"
-                required
+                onChange={(value) => {
+                  updateFormData('vehicleMake', value)
+                  // Clear model when make changes
+                  if (formData.vehicleModel) {
+                    updateFormData('vehicleModel', '')
+                  }
+                }}
+                placeholder="Select vehicle make"
+                className="w-full"
               />
+              <p className="text-xs text-gray-500 mt-1">Select the manufacturer</p>
             </div>
             <div>
               <Label htmlFor="vehicleModel">Model *</Label>
-              <Input
-                id="vehicleModel"
+              <VehicleSelect
+                type="model"
                 value={formData.vehicleModel}
-                onChange={(e) => updateFormData('vehicleModel', e.target.value)}
-                placeholder="Camry"
-                required
+                onChange={(value) => updateFormData('vehicleModel', value)}
+                selectedMake={formData.vehicleMake}
+                placeholder={formData.vehicleMake ? "Select vehicle model" : "Select make first"}
+                disabled={!formData.vehicleMake}
+                className="w-full"
               />
+              <p className="text-xs text-gray-500 mt-1">
+                {formData.vehicleMake ? "Select the model" : "Please select a make first"}
+              </p>
             </div>
           </div>
           <div>

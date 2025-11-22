@@ -49,23 +49,41 @@ const STATUS_CONFIG = {
     color: 'bg-yellow-100 text-yellow-800 border-yellow-200',
     dotColor: 'bg-yellow-500',
   },
+  assigned: {
+    label: 'Driver Assigned',
+    icon: Truck,
+    color: 'bg-blue-100 text-blue-800 border-blue-200',
+    dotColor: 'bg-blue-500',
+  },
   accepted: {
     label: 'Accepted',
     icon: CheckCircle,
     color: 'bg-blue-100 text-blue-800 border-blue-200',
     dotColor: 'bg-blue-500',
   },
-  en_route: {
+  driver_en_route: {
     label: 'En Route to Pickup',
     icon: Truck,
     color: 'bg-purple-100 text-purple-800 border-purple-200',
     dotColor: 'bg-purple-500',
   },
-  arrived: {
+  driver_arrived: {
     label: 'Driver Arrived',
     icon: MapPin,
     color: 'bg-indigo-100 text-indigo-800 border-indigo-200',
     dotColor: 'bg-indigo-500',
+  },
+  pickup_verification_pending: {
+    label: 'Verifying Pickup',
+    icon: Clock,
+    color: 'bg-orange-100 text-orange-800 border-orange-200',
+    dotColor: 'bg-orange-500',
+  },
+  pickup_verified: {
+    label: 'Pickup Verified',
+    icon: CheckCircle,
+    color: 'bg-teal-100 text-teal-800 border-teal-200',
+    dotColor: 'bg-teal-500',
   },
   picked_up: {
     label: 'Picked Up',
@@ -79,8 +97,20 @@ const STATUS_CONFIG = {
     color: 'bg-orange-100 text-orange-800 border-orange-200',
     dotColor: 'bg-orange-500',
   },
+  in_progress: {
+    label: 'In Progress',
+    icon: Truck,
+    color: 'bg-blue-100 text-blue-800 border-blue-200',
+    dotColor: 'bg-blue-500',
+  },
   delivered: {
     label: 'Delivered',
+    icon: CheckCircle,
+    color: 'bg-green-100 text-green-800 border-green-200',
+    dotColor: 'bg-green-500',
+  },
+  completed: {
+    label: 'Completed',
     icon: CheckCircle,
     color: 'bg-green-100 text-green-800 border-green-200',
     dotColor: 'bg-green-500',
