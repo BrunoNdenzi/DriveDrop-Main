@@ -193,11 +193,19 @@ class EmailService {
    */
   private async sendViaGmail(options: EmailOptions, sender: { name: string; email: string }): Promise<boolean> {
     if (!this.gmailTransporter) {
+      logger.warn('⚠️ Gmail transporter not initialized');
       return false;
     }
 
     try {
       const recipientEmail = Array.isArray(options.to) ? options.to[0] : options.to;
+
+      logger.info('📤 SENDING EMAIL VIA GMAIL:', {
+        to: recipientEmail,
+        subject: options.subject,
+        from: process.env['GMAIL_USER'],
+        timestamp: new Date().toISOString()
+      });
 
       const mailOptions = {
         from: `${sender.name} <${process.env['GMAIL_USER']}>`,
@@ -210,18 +218,26 @@ class EmailService {
 
       const info = await this.gmailTransporter.sendMail(mailOptions);
 
-      logger.info('✅ Email sent via Gmail SMTP', {
+      logger.info('✅ EMAIL SENT VIA GMAIL SMTP - SUCCESS!', {
         messageId: info.messageId,
         to: recipientEmail,
         subject: options.subject,
         sender: 'Gmail SMTP',
+        response: info.response,
+        timestamp: new Date().toISOString()
       });
 
       return true;
     } catch (error: any) {
-      logger.error('❌ Failed to send email via Gmail SMTP:', {
+      logger.error('❌ FAILED TO SEND EMAIL VIA GMAIL SMTP:', {
         error: error.message,
+        code: error.code,
+        command: error.command,
+        responseCode: error.responseCode,
+        response: error.response,
+        stack: error.stack,
         to: options.to,
+        subject: options.subject
       });
       return false;
     }
@@ -239,19 +255,44 @@ class EmailService {
 
     const recipientEmail = Array.isArray(options.to) ? options.to[0] : options.to;
 
+    logger.info('📨 SEND EMAIL CALLED', {
+      to: recipientEmail,
+      subject: options.subject,
+      gmailConfigured: this.gmailConfigured,
+      brevoConfigured: this.isConfigured,
+      timestamp: new Date().toISOString()
+    });
+
     // Try Gmail SMTP first if configured (works for all recipients, not just Gmail)
     if (this.gmailConfigured) {
       logger.info('📧 Attempting to send via Gmail SMTP:', { to: recipientEmail });
-      const gmailResult = await this.sendViaGmail(options, sender);
-      if (gmailResult) {
-        return true;
+      try {
+        const gmailResult = await this.sendViaGmail(options, sender);
+        if (gmailResult) {
+          logger.info('✅ EMAIL SENT SUCCESSFULLY VIA GMAIL', { to: recipientEmail });
+          return true;
+        }
+        logger.warn('⚠️ Gmail SMTP returned false, falling back to Brevo...');
+      } catch (gmailError: any) {
+        logger.error('❌ Gmail SMTP threw an error:', {
+          error: gmailError.message,
+          stack: gmailError.stack,
+          to: recipientEmail
+        });
       }
-      logger.warn('⚠️ Gmail SMTP failed, falling back to Brevo...');
+    } else {
+      logger.warn('⚠️ Gmail SMTP NOT CONFIGURED - skipping Gmail attempt', {
+        gmailUser: process.env['GMAIL_USER'] ? 'SET' : 'NOT SET',
+        gmailPassword: process.env['GMAIL_APP_PASSWORD'] ? 'SET' : 'NOT SET'
+      });
     }
 
     // Fallback to Brevo if Gmail SMTP not configured or failed
     if (!this.isConfigured) {
-      logger.warn('⚠️ Email service not configured. Skipping email send.');
+      logger.error('❌ BREVO NOT CONFIGURED - Cannot send email!', {
+        to: recipientEmail,
+        subject: options.subject
+      });
       return false;
     }
 
@@ -714,6 +755,14 @@ class EmailService {
    * Send booking confirmation with receipt (after 20% payment capture)
    */
   async sendBookingConfirmationEmail(data: BookingConfirmationData): Promise<boolean> {
+    logger.info('📧 BOOKING CONFIRMATION EMAIL - Building email content', {
+      email: data.email,
+      shipmentId: data.shipmentId,
+      firstName: data.firstName,
+      totalPrice: data.totalPrice,
+      upfrontAmount: data.upfrontAmount
+    });
+    
     const htmlContent = `
       <!DOCTYPE html>
       <html>
@@ -914,12 +963,27 @@ class EmailService {
       © ${new Date().getFullYear()} DriveDrop. All rights reserved.
     `;
 
-    return this.sendEmail({
+    logger.info('📧 BOOKING CONFIRMATION EMAIL - Calling sendEmail', {
+      to: data.email,
+      subject: `✅ Booking Confirmed - Shipment #${data.shipmentId} | DriveDrop`,
+      contentLength: htmlContent.length,
+      textContentLength: textContent.length
+    });
+
+    const result = await this.sendEmail({
       to: data.email,
       subject: `✅ Booking Confirmed - Shipment #${data.shipmentId} | DriveDrop`,
       htmlContent,
       textContent,
     });
+    
+    logger.info('📧 BOOKING CONFIRMATION EMAIL - sendEmail returned', {
+      result,
+      email: data.email,
+      shipmentId: data.shipmentId
+    });
+    
+    return result;
   }
 
   /**
