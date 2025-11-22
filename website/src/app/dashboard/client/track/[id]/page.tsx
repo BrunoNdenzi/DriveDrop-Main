@@ -124,6 +124,13 @@ export default function TrackShipmentPage({ params }: { params: { id: string } }
         (payload: any) => {
           if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
             const newLocation = payload.new as DriverLocation;
+            // Convert coordinates to numbers
+            newLocation.latitude = Number(newLocation.latitude);
+            newLocation.longitude = Number(newLocation.longitude);
+            if (newLocation.speed) newLocation.speed = Number(newLocation.speed);
+            if (newLocation.heading) newLocation.heading = Number(newLocation.heading);
+            if (newLocation.accuracy) newLocation.accuracy = Number(newLocation.accuracy);
+            
             setDriverLocation(newLocation);
             updateDriverMarker(newLocation);
             calculateETA(newLocation);
@@ -159,6 +166,14 @@ export default function TrackShipmentPage({ params }: { params: { id: string } }
 
       if (shipmentError) throw shipmentError;
       
+      // Convert coordinates to numbers
+      if (shipmentData) {
+        shipmentData.pickup_lat = Number(shipmentData.pickup_lat);
+        shipmentData.pickup_lng = Number(shipmentData.pickup_lng);
+        shipmentData.delivery_lat = Number(shipmentData.delivery_lat);
+        shipmentData.delivery_lng = Number(shipmentData.delivery_lng);
+      }
+      
       setShipment(shipmentData);
 
       // Fetch driver if assigned
@@ -192,6 +207,13 @@ export default function TrackShipmentPage({ params }: { params: { id: string } }
       .single();
 
     if (data) {
+      // Convert coordinates to numbers
+      data.latitude = Number(data.latitude);
+      data.longitude = Number(data.longitude);
+      if (data.speed) data.speed = Number(data.speed);
+      if (data.heading) data.heading = Number(data.heading);
+      if (data.accuracy) data.accuracy = Number(data.accuracy);
+      
       setDriverLocation(data);
       updateDriverMarker(data);
       calculateETA(data);
@@ -202,8 +224,8 @@ export default function TrackShipmentPage({ params }: { params: { id: string } }
     if (!shipment || !mapContainerRef.current) return;
 
     const center = {
-      lat: shipment.pickup_lat,
-      lng: shipment.pickup_lng,
+      lat: Number(shipment.pickup_lat),
+      lng: Number(shipment.pickup_lng),
     };
 
     mapRef.current = new google.maps.Map(mapContainerRef.current, {
@@ -220,7 +242,7 @@ export default function TrackShipmentPage({ params }: { params: { id: string } }
 
     // Add pickup marker
     pickupMarkerRef.current = new google.maps.Marker({
-      position: { lat: shipment.pickup_lat, lng: shipment.pickup_lng },
+      position: { lat: Number(shipment.pickup_lat), lng: Number(shipment.pickup_lng) },
       map: mapRef.current,
       title: 'Pickup Location',
       icon: {
@@ -235,7 +257,7 @@ export default function TrackShipmentPage({ params }: { params: { id: string } }
 
     // Add delivery marker
     deliveryMarkerRef.current = new google.maps.Marker({
-      position: { lat: shipment.delivery_lat, lng: shipment.delivery_lng },
+      position: { lat: Number(shipment.delivery_lat), lng: Number(shipment.delivery_lng) },
       map: mapRef.current,
       title: 'Delivery Location',
       icon: {
@@ -255,10 +277,10 @@ export default function TrackShipmentPage({ params }: { params: { id: string } }
 
     // Fit bounds to show all markers
     const bounds = new google.maps.LatLngBounds();
-    bounds.extend({ lat: shipment.pickup_lat, lng: shipment.pickup_lng });
-    bounds.extend({ lat: shipment.delivery_lat, lng: shipment.delivery_lng });
+    bounds.extend({ lat: Number(shipment.pickup_lat), lng: Number(shipment.pickup_lng) });
+    bounds.extend({ lat: Number(shipment.delivery_lat), lng: Number(shipment.delivery_lng) });
     if (driverLocation) {
-      bounds.extend({ lat: driverLocation.latitude, lng: driverLocation.longitude });
+      bounds.extend({ lat: Number(driverLocation.latitude), lng: Number(driverLocation.longitude) });
     }
     mapRef.current.fitBounds(bounds);
   }
@@ -267,8 +289,8 @@ export default function TrackShipmentPage({ params }: { params: { id: string } }
     if (!mapRef.current) return;
 
     const position = {
-      lat: location.latitude,
-      lng: location.longitude,
+      lat: Number(location.latitude),
+      lng: Number(location.longitude),
     };
 
     driverMarkerRef.current = new google.maps.Marker({
@@ -296,8 +318,8 @@ export default function TrackShipmentPage({ params }: { params: { id: string } }
     }
 
     const position = {
-      lat: location.latitude,
-      lng: location.longitude,
+      lat: Number(location.latitude),
+      lng: Number(location.longitude),
     };
 
     // Smooth animation
