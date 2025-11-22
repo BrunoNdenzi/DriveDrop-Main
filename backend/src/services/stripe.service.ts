@@ -374,25 +374,59 @@ export const stripeService = {
         const isUpfrontPayment = !shipment.upfront_payment_sent;
         const isFinalPayment = shipment.upfront_payment_sent && !shipment.final_receipt_sent;
 
-        // Update the payment record in the database
-        const { error: paymentError } = await supabase
-          .from('payments')
-          .update({
-            status: 'completed',
-            payment_intent_id: paymentIntent.id,
-            updated_at: new Date().toISOString(),
-          })
-          .eq('shipment_id', shipmentId)
-          .select()
-          .single();
+        // First check if payment record exists
+        logger.info('🔍 Looking up payment record', {
+          shipmentId,
+          paymentIntentId: paymentIntent.id
+        });
 
-        if (paymentError) {
-          logger.error('Error updating payment record', { 
-            error: paymentError, 
-            shipmentId, 
+        const { data: existingPayment, error: lookupError } = await supabase
+          .from('payments')
+          .select('id, status, payment_intent_id, shipment_id, client_id')
+          .eq('shipment_id', shipmentId)
+          .maybeSingle();
+
+        if (lookupError) {
+          logger.error('❌ Error looking up payment record', {
+            error: lookupError,
+            shipmentId
+          });
+        }
+
+        logger.info('🔍 Payment record lookup result', {
+          found: !!existingPayment,
+          existingPayment,
+          shipmentId
+        });
+
+        if (existingPayment) {
+          // Update existing payment record
+          const { error: paymentError } = await supabase
+            .from('payments')
+            .update({
+              status: 'completed',
+              payment_intent_id: paymentIntent.id,
+              updated_at: new Date().toISOString(),
+            })
+            .eq('shipment_id', shipmentId);
+
+          if (paymentError) {
+            logger.error('⚠️ Error updating payment record (non-fatal)', { 
+              error: paymentError, 
+              shipmentId, 
+              paymentIntentId: paymentIntent.id 
+            });
+            // Don't throw - continue with email sending
+          } else {
+            logger.info('✅ Payment record updated successfully', { shipmentId });
+          }
+        } else {
+          logger.warn('⚠️ No payment record found for shipment - skipping payment update', { 
+            shipmentId,
             paymentIntentId: paymentIntent.id 
           });
-          throw createError('Failed to update payment record', 500, 'PAYMENT_UPDATE_FAILED');
+          // Don't create payment record here - it should have been created during createPaymentIntent
+          // But don't fail the email sending because of this
         }
 
         // Update the shipment status

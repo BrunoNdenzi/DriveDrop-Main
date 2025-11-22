@@ -59,7 +59,15 @@ export const createPaymentIntent = asyncHandler(async (req: Request, res: Respon
     });
 
     // Create payment record in database
-    const { error: paymentError } = await supabase
+    logger.info('💳 Creating payment record in database', {
+      shipmentId,
+      clientId: req.user.id,
+      paymentIntentId: paymentIntent.id,
+      totalAmount: Math.round(amount * 100),
+      initialAmount: Math.round(amount * 0.20 * 100)
+    });
+
+    const { data: paymentRecord, error: paymentError } = await supabase
       .from('payments')
       .insert({
         shipment_id: shipmentId,
@@ -71,12 +79,23 @@ export const createPaymentIntent = asyncHandler(async (req: Request, res: Respon
         status: 'pending',
         booking_timestamp: new Date().toISOString(),
         refund_deadline: new Date(Date.now() + 60 * 60 * 1000).toISOString(), // 1 hour from now
-      });
+      })
+      .select();
 
     if (paymentError) {
-      logger.error('Failed to create payment record', { error: paymentError, shipmentId });
+      logger.error('❌ Failed to create payment record', { 
+        error: paymentError, 
+        shipmentId,
+        paymentIntentId: paymentIntent.id 
+      });
       throw createError('Failed to record payment', 500, 'PAYMENT_RECORD_FAILED');
     }
+
+    logger.info('✅ Payment record created successfully', {
+      paymentRecord,
+      shipmentId,
+      paymentIntentId: paymentIntent.id
+    });
 
     logger.info('Successfully created payment intent', {
       paymentIntentId: paymentIntent.id,
