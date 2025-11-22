@@ -367,11 +367,12 @@ export const stripeService = {
 
         if (shipmentFetchError || !shipment) {
           logger.error('Error fetching shipment for email', { error: shipmentFetchError, shipmentId });
+          throw createError('Failed to fetch shipment details', 500, 'SHIPMENT_FETCH_FAILED');
         }
 
         // Check if this is upfront (20%) or final (80%) payment
-        const isUpfrontPayment = !shipment?.upfront_payment_sent;
-        const isFinalPayment = shipment?.upfront_payment_sent && !shipment?.final_receipt_sent;
+        const isUpfrontPayment = !shipment.upfront_payment_sent;
+        const isFinalPayment = shipment.upfront_payment_sent && !shipment.final_receipt_sent;
 
         // Update the payment record in the database
         const { error: paymentError } = await supabase
@@ -423,9 +424,27 @@ export const stripeService = {
         if (shipment && shipment.client) {
           const client = Array.isArray(shipment.client) ? shipment.client[0] : shipment.client;
           
+          logger.info('Preparing to send email', {
+            shipmentId,
+            clientEmail: client?.email,
+            clientFirstName: client?.first_name,
+            isUpfrontPayment,
+            isFinalPayment,
+            hasClient: !!client
+          });
+          
+          if (!client || !client.email) {
+            logger.error('Client or client email missing', { shipmentId, client });
+            throw createError('Client email not found', 500, 'CLIENT_EMAIL_MISSING');
+          }
+          
           if (isUpfrontPayment) {
             // Send booking confirmation email (20% payment)
-            logger.info('Sending booking confirmation email', { shipmentId, clientEmail: client.email });
+            logger.info('🔔 UPFRONT PAYMENT DETECTED - Preparing booking confirmation email', { 
+              shipmentId, 
+              clientEmail: client.email,
+              timestamp: new Date().toISOString()
+            });
             
             // Calculate pricing breakdown
             const totalPrice = shipment.estimated_price || shipment.final_price || 0;
@@ -439,7 +458,17 @@ export const stripeService = {
             const last4 = paymentMethod.card?.last4 || '****';
 
             try {
-              await emailService.sendBookingConfirmationEmail({
+              logger.info('📧 Calling sendBookingConfirmationEmail with data:', {
+                clientEmail: client.email,
+                clientFirstName: client.first_name,
+                shipmentId: shipment.id,
+                totalPrice,
+                upfrontAmount,
+                gmailConfigured: process.env['GMAIL_USER'] ? 'YES' : 'NO',
+                gmailUser: process.env['GMAIL_USER'] || 'NOT SET'
+              });
+              
+              const emailResult = await emailService.sendBookingConfirmationEmail({
                 firstName: client.first_name,
                 email: client.email,
                 shipmentId: shipment.id,
@@ -477,6 +506,21 @@ export const stripeService = {
                 }),
                 receiptNumber: `DD-${shipmentId}-01`,
               });
+              
+              logger.info('✅ EMAIL SERVICE RETURNED RESULT:', { 
+                shipmentId, 
+                emailResult, 
+                success: emailResult === true,
+                resultType: typeof emailResult,
+                timestamp: new Date().toISOString()
+              });
+
+              if (!emailResult) {
+                logger.error('❌ EMAIL SERVICE RETURNED FALSE - Email not sent!', {
+                  shipmentId,
+                  clientEmail: client.email
+                });
+              }
 
               // Insert receipt record
               await supabase.rpc('insert_payment_receipt', {
@@ -488,12 +532,41 @@ export const stripeService = {
                   payment_method: last4,
                   charged_date: new Date().toISOString(),
                   vehicle: `${shipment.vehicle_year} ${shipment.vehicle_make} ${shipment.vehicle_model}`,
+                  email_sent: emailResult,
                 },
               });
 
-              logger.info('Booking confirmation email sent successfully', { shipmentId });
-            } catch (emailError) {
-              logger.error('Error sending booking confirmation email', { error: emailError, shipmentId });
+              logger.info('✅ BOOKING CONFIRMATION PROCESS COMPLETED', { 
+                shipmentId,
+                emailSent: emailResult 
+              });
+            } catch (emailError: any) {
+              logger.error('❌ ERROR IN EMAIL SENDING PROCESS:', { 
+                error: emailError.message,
+                stack: emailError.stack,
+                shipmentId,
+                clientEmail: client.email,
+                errorType: emailError.constructor.name
+              });
+              
+              // Still insert receipt record even if email fails
+              try {
+                await supabase.rpc('insert_payment_receipt', {
+                  p_shipment_id: shipmentId,
+                  p_receipt_type: 'upfront',
+                  p_amount: upfrontAmount,
+                  p_sent_to_email: client.email,
+                  p_metadata: {
+                    payment_method: last4,
+                    charged_date: new Date().toISOString(),
+                    vehicle: `${shipment.vehicle_year} ${shipment.vehicle_make} ${shipment.vehicle_model}`,
+                    email_sent: false,
+                    email_error: emailError.message,
+                  },
+                });
+              } catch (dbError) {
+                logger.error('Failed to insert receipt record after email error', { dbError });
+              }
             }
           } else if (isFinalPayment) {
             // Send delivery receipt email (80% payment)
