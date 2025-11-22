@@ -282,6 +282,20 @@ CREATE TABLE public.notification_preferences (
   CONSTRAINT notification_preferences_pkey PRIMARY KEY (id),
   CONSTRAINT notification_preferences_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
 );
+CREATE TABLE public.payment_receipts (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  shipment_id uuid NOT NULL,
+  receipt_number character varying NOT NULL UNIQUE,
+  receipt_type character varying NOT NULL CHECK (receipt_type::text = ANY (ARRAY['upfront'::character varying, 'final'::character varying, 'refund'::character varying]::text[])),
+  amount numeric NOT NULL,
+  sent_to_email character varying NOT NULL,
+  email_status character varying DEFAULT 'sent'::character varying CHECK (email_status::text = ANY (ARRAY['sent'::character varying, 'delivered'::character varying, 'failed'::character varying, 'bounced'::character varying]::text[])),
+  sent_at timestamp with time zone DEFAULT now(),
+  created_at timestamp with time zone DEFAULT now(),
+  metadata jsonb,
+  CONSTRAINT payment_receipts_pkey PRIMARY KEY (id),
+  CONSTRAINT payment_receipts_shipment_id_fkey FOREIGN KEY (shipment_id) REFERENCES public.shipments(id)
+);
 CREATE TABLE public.payments (
   id uuid NOT NULL DEFAULT uuid_generate_v4(),
   shipment_id uuid NOT NULL,
@@ -491,6 +505,9 @@ CREATE TABLE public.shipments (
   cancellation_record_id uuid,
   client_vehicle_photos jsonb DEFAULT '{"left": [], "rear": [], "front": [], "right": [], "damage": [], "interior": []}'::jsonb,
   delivery_confirmation_photos jsonb DEFAULT '[]'::jsonb,
+  upfront_payment_sent boolean DEFAULT false,
+  final_receipt_sent boolean DEFAULT false,
+  driver_payout_notified boolean DEFAULT false,
   CONSTRAINT shipments_pkey PRIMARY KEY (id),
   CONSTRAINT shipments_client_id_fkey FOREIGN KEY (client_id) REFERENCES public.profiles(id),
   CONSTRAINT shipments_driver_id_fkey FOREIGN KEY (driver_id) REFERENCES public.profiles(id),
