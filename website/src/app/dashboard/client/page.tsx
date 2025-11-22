@@ -48,7 +48,31 @@ export default function ClientDashboardPage() {
       }
 
       try {
-        // Fetch recent shipments (limit to 5 for faster loading)
+        // Fetch ALL shipments for stats calculation
+        const { data: allShipmentsData, error: statsError } = await supabase
+          .from('shipments')
+          .select('status, estimated_price')
+          .eq('client_id', profile.id)
+
+        if (statsError) {
+          console.error('[CLIENT DASHBOARD] Error fetching stats:', statsError)
+        } else if (allShipmentsData) {
+          // Calculate accurate stats from ALL shipments
+          const total = allShipmentsData.length
+          const active = allShipmentsData.filter(s => 
+            ['assigned', 'accepted', 'driver_en_route', 'driver_arrived', 
+             'pickup_verification_pending', 'pickup_verified', 'picked_up', 
+             'in_transit', 'in_progress'].includes(s.status)
+          ).length
+          const completed = allShipmentsData.filter(s => 
+            ['delivered', 'completed'].includes(s.status)
+          ).length
+          const totalSpent = allShipmentsData.reduce((sum, s) => sum + (s.estimated_price || 0), 0)
+
+          setStats({ total, active, completed, totalSpent })
+        }
+
+        // Fetch recent 5 shipments for display
         const { data: shipmentsData, error } = await supabase
           .from('shipments')
           .select('id, pickup_address, delivery_address, status, created_at, estimated_price, title')
@@ -64,20 +88,6 @@ export default function ClientDashboardPage() {
 
         if (shipmentsData) {
           setShipments(shipmentsData)
-
-          // Calculate stats from fetched data
-          const total = shipmentsData.length
-          const active = shipmentsData.filter(s => 
-            ['assigned', 'accepted', 'driver_en_route', 'driver_arrived', 
-             'pickup_verification_pending', 'pickup_verified', 'picked_up', 
-             'in_transit', 'in_progress'].includes(s.status)
-          ).length
-          const completed = shipmentsData.filter(s => 
-            ['delivered', 'completed'].includes(s.status)
-          ).length
-          const totalSpent = shipmentsData.reduce((sum, s) => sum + (s.estimated_price || 0), 0)
-
-          setStats({ total, active, completed, totalSpent })
         }
       } catch (error) {
         console.error('[CLIENT DASHBOARD] Error:', error)
@@ -279,7 +289,7 @@ export default function ClientDashboardPage() {
       {/* Quick Actions */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <Link
-          href="/dashboard/client/new"
+          href="/dashboard/client/new-shipment"
           className="bg-white rounded-xl p-6 border-2 border-dashed border-gray-300 hover:border-primary hover:bg-primary/5 transition-all group"
         >
           <div className="flex items-center gap-4">
@@ -294,7 +304,7 @@ export default function ClientDashboardPage() {
         </Link>
 
         <Link
-          href="/dashboard/client/tracking"
+          href="/dashboard/client/track"
           className="bg-white rounded-xl p-6 border-2 border-dashed border-gray-300 hover:border-secondary hover:bg-secondary/5 transition-all group"
         >
           <div className="flex items-center gap-4">

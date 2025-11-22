@@ -71,12 +71,16 @@ interface TrackingEvent {
 
 const STATUS_TIMELINE = [
   { key: 'pending', label: 'Pending', description: 'Waiting for driver assignment' },
-  { key: 'accepted', label: 'Accepted', description: 'Driver assigned and confirmed' },
-  { key: 'en_route', label: 'En Route', description: 'Driver heading to pickup location' },
-  { key: 'arrived', label: 'Arrived', description: 'Driver at pickup location' },
+  { key: 'assigned', label: 'Assigned', description: 'Driver has been assigned' },
+  { key: 'accepted', label: 'Accepted', description: 'Driver accepted and confirmed' },
+  { key: 'driver_en_route', label: 'En Route', description: 'Driver heading to pickup location' },
+  { key: 'driver_arrived', label: 'Arrived', description: 'Driver at pickup location' },
+  { key: 'pickup_verification_pending', label: 'Verifying', description: 'Verifying vehicle condition' },
+  { key: 'pickup_verified', label: 'Verified', description: 'Pickup verification complete' },
   { key: 'picked_up', label: 'Picked Up', description: 'Vehicle loaded and secured' },
   { key: 'in_transit', label: 'In Transit', description: 'On the way to delivery' },
   { key: 'delivered', label: 'Delivered', description: 'Vehicle delivered successfully' },
+  { key: 'completed', label: 'Completed', description: 'Delivery completed' },
 ]
 
 export default function ShipmentDetailPage() {

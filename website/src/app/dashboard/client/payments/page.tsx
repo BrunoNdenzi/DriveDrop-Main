@@ -97,6 +97,7 @@ export default function ClientPaymentsPage() {
       ) || []
       const refundedPayments = paymentsData?.filter(p => p.status === 'refunded') || []
 
+      // Note: amounts are stored in dollars (not cents) in the database
       const totalPaid = succeededPayments.reduce((sum, p) => sum + p.amount, 0)
       const totalRefunded = refundedPayments.reduce((sum, p) => sum + (p.refund_amount || p.amount), 0)
 
@@ -247,7 +248,7 @@ export default function ClientPaymentsPage() {
               <CheckCircle className="h-5 w-5" />
             </div>
             <h3 className="text-3xl font-bold mb-1">
-              ${(stats.totalPaid / 100).toFixed(2)}
+              ${stats.totalPaid.toFixed(2)}
             </h3>
             <p className="text-teal-100 text-sm">Total Paid</p>
           </div>
@@ -286,7 +287,7 @@ export default function ClientPaymentsPage() {
               </div>
             </div>
             <h3 className="text-3xl font-bold text-gray-900 mb-1">
-              ${(stats.totalRefunded / 100).toFixed(2)}
+              ${stats.totalRefunded.toFixed(2)}
             </h3>
             <p className="text-gray-600 text-sm">Total Refunded</p>
           </div>
@@ -374,7 +375,7 @@ export default function ClientPaymentsPage() {
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-1">
                         <h3 className="text-lg font-semibold text-gray-900">
-                          ${(payment.amount / 100).toFixed(2)}
+                          ${payment.amount.toFixed(2)}
                         </h3>
                         <span
                           className={`text-xs px-2 py-1 rounded-full font-medium ${getStatusColor(
@@ -418,7 +419,7 @@ export default function ClientPaymentsPage() {
                       {payment.status === 'refunded' && payment.refunded_at && (
                         <div className="mt-2 flex items-center gap-2 text-sm text-purple-600">
                           <RefreshCw className="h-4 w-4" />
-                          Refunded ${((payment.refund_amount || payment.amount) / 100).toFixed(2)} on{' '}
+                          Refunded ${(payment.refund_amount || payment.amount).toFixed(2)} on{' '}
                           {formatDate(payment.refunded_at)}
                         </div>
                       )}
