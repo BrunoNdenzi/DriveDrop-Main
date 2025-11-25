@@ -214,16 +214,16 @@ export default function AdminMapPage() {
       console.log('[Map] Starting data load...')
       setLoading(true)
 
-      // Load shipments with details
+      // Load shipments with details - ONLY active shipments for map
       console.log('[Map] Loading shipments...')
-      const { data: shipmentsData, error: shipmentsError } = await supabase
+      const { data: shipmentsData, error: shipmentsError} = await supabase
         .from('shipments')
         .select(`
           *,
           client:profiles!shipments_client_id_fkey(first_name, last_name),
           driver:profiles!shipments_driver_id_fkey(first_name, last_name, phone)
         `)
-        .in('status', filters.shipmentStatus)
+        .in('status', ['assigned', 'accepted', 'driver_en_route', 'driver_arrived', 'pickup_verified', 'picked_up', 'in_transit', 'in_progress'])
         .order('created_at', { ascending: false })
 
       if (shipmentsError) {
@@ -501,326 +501,285 @@ export default function AdminMapPage() {
 
   return (
     <div className="h-screen flex flex-col bg-gray-50">
-      {/* Top Bar */}
+      {/* Compact Top Bar */}
       <div className="bg-white border-b shadow-sm">
-        <div className="px-6 py-4">
+        <div className="px-6 py-3">
           <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900">Live Map Dashboard</h1>
-              <p className="text-sm text-gray-600">Real-time tracking and monitoring</p>
-            </div>
+            <div className="flex items-center gap-6">
+              <div>
+                <h1 className="text-xl font-bold text-gray-900">Live Map</h1>
+                <p className="text-xs text-gray-600">Real-time tracking</p>
+              </div>
 
-            <div className="flex items-center gap-4">
-              <Button
-                onClick={loadData}
-                variant="outline"
-                size="sm"
-                disabled={loading}
-              >
-                <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
-                Refresh
-              </Button>
-            </div>
-          </div>
-
-          {/* Stats Bar */}
-          <div className="grid grid-cols-2 md:grid-cols-6 gap-4 mt-4">
-            <div className="bg-blue-50 rounded-lg p-3">
-              <div className="flex items-center gap-2">
-                <Truck className="h-5 w-5 text-blue-600" />
-                <div>
-                  <p className="text-xs text-blue-600">Total Drivers</p>
-                  <p className="text-xl font-bold text-blue-900">{stats.totalDrivers}</p>
+              {/* Compact Stats */}
+              <div className="flex items-center gap-4">
+                <div className="flex items-center gap-2 bg-blue-50 px-3 py-1.5 rounded-lg">
+                  <Truck className="h-4 w-4 text-blue-600" />
+                  <span className="text-sm font-semibold text-blue-900">{stats.totalDrivers}</span>
+                  <span className="text-xs text-blue-600">drivers</span>
+                </div>
+                <div className="flex items-center gap-2 bg-green-50 px-3 py-1.5 rounded-lg">
+                  <TrendingUp className="h-4 w-4 text-green-600" />
+                  <span className="text-sm font-semibold text-green-900">{stats.activeDrivers}</span>
+                  <span className="text-xs text-green-600">active</span>
+                </div>
+                <div className="flex items-center gap-2 bg-purple-50 px-3 py-1.5 rounded-lg">
+                  <Package className="h-4 w-4 text-purple-600" />
+                  <span className="text-sm font-semibold text-purple-900">{stats.totalShipments}</span>
+                  <span className="text-xs text-purple-600">shipments</span>
+                </div>
+                <div className="flex items-center gap-2 bg-orange-50 px-3 py-1.5 rounded-lg">
+                  <Navigation className="h-4 w-4 text-orange-600" />
+                  <span className="text-sm font-semibold text-orange-900">{stats.inTransit}</span>
+                  <span className="text-xs text-orange-600">in transit</span>
                 </div>
               </div>
             </div>
 
-            <div className="bg-green-50 rounded-lg p-3">
-              <div className="flex items-center gap-2">
-                <TrendingUp className="h-5 w-5 text-green-600" />
-                <div>
-                  <p className="text-xs text-green-600">Active Now</p>
-                  <p className="text-xl font-bold text-green-900">{stats.activeDrivers}</p>
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-purple-50 rounded-lg p-3">
-              <div className="flex items-center gap-2">
-                <Package className="h-5 w-5 text-purple-600" />
-                <div>
-                  <p className="text-xs text-purple-600">Total Shipments</p>
-                  <p className="text-xl font-bold text-purple-900">{stats.totalShipments}</p>
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-orange-50 rounded-lg p-3">
-              <div className="flex items-center gap-2">
-                <Navigation className="h-5 w-5 text-orange-600" />
-                <div>
-                  <p className="text-xs text-orange-600">In Transit</p>
-                  <p className="text-xl font-bold text-orange-900">{stats.inTransit}</p>
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-yellow-50 rounded-lg p-3">
-              <div className="flex items-center gap-2">
-                <Clock className="h-5 w-5 text-yellow-600" />
-                <div>
-                  <p className="text-xs text-yellow-600">Pending Pickup</p>
-                  <p className="text-xl font-bold text-yellow-900">{stats.pendingPickup}</p>
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-teal-50 rounded-lg p-3">
-              <div className="flex items-center gap-2">
-                <CheckCircle className="h-5 w-5 text-teal-600" />
-                <div>
-                  <p className="text-xs text-teal-600">Delivered</p>
-                  <p className="text-xl font-bold text-teal-900">{stats.delivered}</p>
-                </div>
-              </div>
-            </div>
+            <Button
+              onClick={loadData}
+              variant="outline"
+              size="sm"
+              disabled={loading}
+            >
+              <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
+              Refresh
+            </Button>
           </div>
         </div>
       </div>
 
       {/* Main Content */}
-      <div className="flex-1 flex overflow-hidden">
-        {/* Left Sidebar - Filters & List */}
-        <div className="w-96 bg-white border-r flex flex-col overflow-hidden">
-          {/* Search */}
-          <div className="p-4 border-b">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-              <input
-                type="text"
-                placeholder="Search shipments, drivers..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500"
-              />
-            </div>
-          </div>
+      <div className="flex-1 flex overflow-hidden relative">
+        {/* Map Container - Full Width */}
+        <div className="flex-1 relative">
+          <div ref={mapRef} className="w-full h-full" />
 
-          {/* Filter Toggles */}
-          <div className="p-4 border-b bg-gray-50">
+          {/* Floating Controls Panel - Top Left */}
+          <div className="absolute top-4 left-4 bg-white rounded-lg shadow-lg border p-4 max-w-xs">
             <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
-              <Filter className="h-4 w-4" />
+              <Layers className="h-4 w-4" />
               Map Layers
             </h3>
             <div className="space-y-2">
-              <label className="flex items-center gap-2 cursor-pointer">
+              <label className="flex items-center gap-2 cursor-pointer hover:bg-gray-50 p-1 rounded">
                 <input
                   type="checkbox"
                   checked={filters.showDrivers}
                   onChange={(e) => setFilters({ ...filters, showDrivers: e.target.checked })}
-                  className="rounded"
+                  className="rounded text-blue-600"
                 />
-                <span className="text-sm">Show Drivers</span>
+                <Truck className="h-4 w-4 text-blue-600" />
+                <span className="text-sm flex-1">Drivers</span>
+                <span className="text-xs font-semibold text-gray-600">{drivers.length}</span>
               </label>
-              <label className="flex items-center gap-2 cursor-pointer">
+              <label className="flex items-center gap-2 cursor-pointer hover:bg-gray-50 p-1 rounded">
                 <input
                   type="checkbox"
                   checked={filters.showPickups}
                   onChange={(e) => setFilters({ ...filters, showPickups: e.target.checked })}
-                  className="rounded"
+                  className="rounded text-green-600"
                 />
-                <span className="text-sm">Show Pickups</span>
+                <MapPin className="h-4 w-4 text-green-600" />
+                <span className="text-sm flex-1">Pickups</span>
               </label>
-              <label className="flex items-center gap-2 cursor-pointer">
+              <label className="flex items-center gap-2 cursor-pointer hover:bg-gray-50 p-1 rounded">
                 <input
                   type="checkbox"
                   checked={filters.showDeliveries}
                   onChange={(e) => setFilters({ ...filters, showDeliveries: e.target.checked })}
-                  className="rounded"
+                  className="rounded text-purple-600"
                 />
-                <span className="text-sm">Show Deliveries</span>
+                <MapPin className="h-4 w-4 text-purple-600" />
+                <span className="text-sm flex-1">Deliveries</span>
               </label>
-              <label className="flex items-center gap-2 cursor-pointer">
+              <label className="flex items-center gap-2 cursor-pointer hover:bg-gray-50 p-1 rounded">
                 <input
                   type="checkbox"
                   checked={filters.showRoutes}
                   onChange={(e) => setFilters({ ...filters, showRoutes: e.target.checked })}
-                  className="rounded"
+                  className="rounded text-cyan-600"
                 />
-                <span className="text-sm">Show Routes</span>
+                <Navigation className="h-4 w-4 text-cyan-600" />
+                <span className="text-sm flex-1">Routes</span>
               </label>
             </div>
           </div>
 
-          {/* Shipments List */}
-          <div className="flex-1 overflow-y-auto">
-            <div className="p-4">
-              <h3 className="text-sm font-semibold text-gray-700 mb-3">
+          {/* Active Shipments List - Bottom Left */}
+          <div className="absolute bottom-4 left-4 bg-white rounded-lg shadow-lg border max-w-sm max-h-96 overflow-hidden flex flex-col">
+            <div className="p-3 border-b bg-gray-50">
+              <h3 className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                <Package className="h-4 w-4" />
                 Active Shipments ({shipments.length})
               </h3>
+            </div>
+            <div className="flex-1 overflow-y-auto p-2">
               <div className="space-y-2">
-                {shipments.map((shipment) => (
+                {shipments.slice(0, 10).map((shipment) => (
                   <button
                     key={shipment.id}
                     onClick={() => focusOnShipment(shipment)}
-                    className={`w-full text-left p-3 rounded-lg border transition-colors ${
+                    className={`w-full text-left p-2 rounded-lg border transition-colors ${
                       selectedShipment?.id === shipment.id
-                        ? 'bg-teal-50 border-teal-300'
-                        : 'bg-white border-gray-200 hover:border-gray-300'
+                        ? 'bg-teal-50 border-teal-300 shadow-sm'
+                        : 'bg-white border-gray-200 hover:border-gray-300 hover:shadow-sm'
                     }`}
                   >
-                    <div className="flex items-start justify-between mb-2">
+                    <div className="flex items-start justify-between mb-1">
                       <div className="flex-1 min-w-0">
-                        <p className="font-medium text-gray-900 truncate">
+                        <p className="font-medium text-sm text-gray-900 truncate">
                           {shipment.vehicle_year} {shipment.vehicle_make} {shipment.vehicle_model}
                         </p>
-                        <p className="text-xs text-gray-600 truncate">{shipment.title}</p>
                       </div>
-                      <span className={`text-xs px-2 py-1 rounded-full ${getStatusColor(shipment.status)}`}>
-                        {shipment.status}
+                      <span className={`text-xs px-2 py-0.5 rounded-full ml-2 ${getStatusColor(shipment.status)}`}>
+                        {shipment.status.replace(/_/g, ' ')}
                       </span>
                     </div>
                     <div className="space-y-1 text-xs text-gray-600">
                       <div className="flex items-center gap-1">
-                        <MapPin className="h-3 w-3 text-blue-500" />
+                        <MapPin className="h-3 w-3 text-green-500" />
                         <span className="truncate">{shipment.pickup_city}, {shipment.pickup_state}</span>
                       </div>
                       <div className="flex items-center gap-1">
-                        <MapPin className="h-3 w-3 text-green-500" />
+                        <Navigation className="h-3 w-3 text-blue-500" />
                         <span className="truncate">{shipment.delivery_city}, {shipment.delivery_state}</span>
                       </div>
                     </div>
                   </button>
                 ))}
+                {shipments.length === 0 && (
+                  <div className="text-center py-8 text-gray-500">
+                    <Package className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                    <p className="text-sm">No active shipments</p>
+                  </div>
+                )}
               </div>
             </div>
           </div>
-        </div>
 
-        {/* Map Container */}
-        <div className="flex-1 relative">
-          <div ref={mapRef} className="w-full h-full" />
-
-          {/* Selected Shipment Info Panel */}
+          {/* Selected Shipment Detail Panel - Top Right */}
           {selectedShipment && (
-            <div className="absolute top-4 right-4 w-96 bg-white rounded-lg shadow-lg border p-4">
-              <div className="flex items-start justify-between mb-3">
-                <h3 className="font-semibold text-gray-900">Shipment Details</h3>
-                <button
-                  onClick={() => setSelectedShipment(null)}
-                  className="text-gray-400 hover:text-gray-600"
-                >
-                  <XCircle className="h-5 w-5" />
-                </button>
-              </div>
-              
-              <div className="space-y-3">
-                <div>
-                  <p className="text-sm font-medium text-gray-700">Vehicle</p>
-                  <p className="text-sm text-gray-900">
-                    {selectedShipment.vehicle_year} {selectedShipment.vehicle_make} {selectedShipment.vehicle_model}
-                  </p>
+            <div className="absolute top-4 right-4 w-96 bg-white rounded-lg shadow-xl border">
+              <div className="p-4">
+                <div className="flex items-start justify-between mb-3">
+                  <h3 className="font-semibold text-gray-900 text-lg">Shipment Details</h3>
+                  <button
+                    onClick={() => setSelectedShipment(null)}
+                    className="text-gray-400 hover:text-gray-600 p-1"
+                  >
+                    <XCircle className="h-5 w-5" />
+                  </button>
                 </div>
+                
+                <div className="space-y-4">
+                  <div>
+                    <p className="text-sm font-medium text-gray-700 mb-1">Vehicle</p>
+                    <p className="text-base font-semibold text-gray-900">
+                      {selectedShipment.vehicle_year} {selectedShipment.vehicle_make} {selectedShipment.vehicle_model}
+                    </p>
+                  </div>
 
-                <div>
-                  <p className="text-sm font-medium text-gray-700 mb-1">Route</p>
-                  <div className="space-y-2">
+                  <div className="space-y-3 bg-gray-50 rounded-lg p-3">
                     <div className="flex items-start gap-2">
-                      <MapPin className="h-4 w-4 text-blue-500 mt-0.5" />
-                      <div className="flex-1">
-                        <p className="text-xs text-gray-600">Pickup</p>
-                        <p className="text-sm text-gray-900">{selectedShipment.pickup_address}</p>
+                      <MapPin className="h-4 w-4 text-green-500 mt-1 flex-shrink-0" />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs text-gray-600 mb-0.5">Pickup</p>
+                        <p className="text-sm font-medium text-gray-900">{selectedShipment.pickup_address}</p>
                         <p className="text-xs text-gray-600">
                           {selectedShipment.pickup_city}, {selectedShipment.pickup_state}
                         </p>
                       </div>
                     </div>
                     <div className="flex items-start gap-2">
-                      <MapPin className="h-4 w-4 text-green-500 mt-0.5" />
-                      <div className="flex-1">
-                        <p className="text-xs text-gray-600">Delivery</p>
-                        <p className="text-sm text-gray-900">{selectedShipment.delivery_address}</p>
+                      <Navigation className="h-4 w-4 text-blue-500 mt-1 flex-shrink-0" />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs text-gray-600 mb-0.5">Delivery</p>
+                        <p className="text-sm font-medium text-gray-900">{selectedShipment.delivery_address}</p>
                         <p className="text-xs text-gray-600">
                           {selectedShipment.delivery_city}, {selectedShipment.delivery_state}
                         </p>
                       </div>
                     </div>
                   </div>
-                </div>
 
-                <div>
-                  <p className="text-sm font-medium text-gray-700">Status</p>
-                  <span className={`inline-block text-xs px-2 py-1 rounded-full ${getStatusColor(selectedShipment.status)}`}>
-                    {selectedShipment.status}
-                  </span>
-                </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-gray-600">Status</span>
+                    <span className={`text-xs px-3 py-1 rounded-full font-medium ${getStatusColor(selectedShipment.status)}`}>
+                      {selectedShipment.status.replace(/_/g, ' ').toUpperCase()}
+                    </span>
+                  </div>
 
-                <Button
-                  onClick={() => window.open(`/dashboard/admin/shipments/${selectedShipment.id}`, '_blank')}
-                  className="w-full"
-                >
-                  View Full Details
-                </Button>
+                  <Button
+                    onClick={() => window.open(`/dashboard/admin/shipments/${selectedShipment.id}`, '_blank')}
+                    className="w-full"
+                    size="sm"
+                  >
+                    <Eye className="h-4 w-4 mr-2" />
+                    View Full Details
+                  </Button>
+                </div>
               </div>
             </div>
           )}
 
-          {/* Selected Driver Info Panel */}
+          {/* Selected Driver Panel - Bottom Right */}
           {selectedDriver && (
-            <div className="absolute bottom-4 right-4 w-80 bg-white rounded-lg shadow-lg border p-4">
-              <div className="flex items-start justify-between mb-3">
-                <h3 className="font-semibold text-gray-900">Driver Info</h3>
-                <button
-                  onClick={() => setSelectedDriver(null)}
-                  className="text-gray-400 hover:text-gray-600"
-                >
-                  <XCircle className="h-5 w-5" />
-                </button>
-              </div>
-              
-              <div className="space-y-3">
-                <div>
-                  <p className="text-sm font-medium text-gray-700">Name</p>
-                  <p className="text-sm text-gray-900">
-                    {selectedDriver.first_name} {selectedDriver.last_name}
-                  </p>
+            <div className="absolute bottom-4 right-4 w-80 bg-white rounded-lg shadow-xl border">
+              <div className="p-4">
+                <div className="flex items-start justify-between mb-3">
+                  <h3 className="font-semibold text-gray-900">Driver Info</h3>
+                  <button
+                    onClick={() => setSelectedDriver(null)}
+                    className="text-gray-400 hover:text-gray-600 p-1"
+                  >
+                    <XCircle className="h-5 w-5" />
+                  </button>
                 </div>
-
-                <div>
-                  <p className="text-sm font-medium text-gray-700">Phone</p>
-                  <p className="text-sm text-gray-900">{selectedDriver.phone}</p>
-                </div>
-
-                {selectedDriver.location && (
+                
+                <div className="space-y-3">
                   <div>
-                    <p className="text-sm font-medium text-gray-700">Last Location</p>
-                    <p className="text-xs text-gray-600">
-                      {selectedDriver.location.latitude.toFixed(4)}, {selectedDriver.location.longitude.toFixed(4)}
+                    <p className="text-sm text-gray-600 mb-1">Name</p>
+                    <p className="font-medium text-gray-900">
+                      {selectedDriver.first_name} {selectedDriver.last_name}
                     </p>
                   </div>
-                )}
+
+                  <div>
+                    <p className="text-sm text-gray-600 mb-1">Phone</p>
+                    <p className="text-sm text-gray-900">{selectedDriver.phone || 'N/A'}</p>
+                  </div>
+
+                  {selectedDriver.location && (
+                    <div>
+                      <p className="text-sm text-gray-600 mb-1">Last Location</p>
+                      <p className="text-xs text-gray-600 font-mono">
+                        {selectedDriver.location.latitude.toFixed(6)}, {selectedDriver.location.longitude.toFixed(6)}
+                      </p>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           )}
 
-          {/* Legend */}
-          <div className="absolute bottom-4 left-4 bg-white rounded-lg shadow-lg border p-3">
-            <h4 className="text-xs font-semibold text-gray-700 mb-2">Legend</h4>
-            <div className="space-y-1 text-xs">
+          {/* Legend - Bottom Center */}
+          <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 bg-white rounded-lg shadow-lg border px-4 py-2">
+            <div className="flex items-center gap-6 text-xs">
               <div className="flex items-center gap-2">
-                <div className="w-3 h-3 rounded-full bg-blue-500"></div>
-                <span>Driver Location</span>
+                <div className="w-3 h-3 rounded-full bg-blue-500 border-2 border-white shadow"></div>
+                <span>Driver</span>
               </div>
               <div className="flex items-center gap-2">
-                <div className="w-3 h-3 rounded-full bg-blue-500 border-2 border-white"></div>
-                <span>Pickup Location</span>
+                <div className="w-3 h-3 rounded-full bg-green-500 border-2 border-white shadow"></div>
+                <span>Pickup</span>
               </div>
               <div className="flex items-center gap-2">
-                <div className="w-3 h-3 rounded-full bg-green-500 border-2 border-white"></div>
-                <span>Delivery Location</span>
+                <div className="w-3 h-3 rounded-full bg-purple-500 border-2 border-white shadow"></div>
+                <span>Delivery</span>
               </div>
               <div className="flex items-center gap-2">
-                <div className="w-8 h-0.5 bg-blue-500"></div>
+                <div className="w-6 h-0.5 bg-blue-500"></div>
                 <span>Active Route</span>
               </div>
             </div>
