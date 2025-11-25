@@ -282,6 +282,20 @@ CREATE TABLE public.notification_preferences (
   CONSTRAINT notification_preferences_pkey PRIMARY KEY (id),
   CONSTRAINT notification_preferences_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
 );
+CREATE TABLE public.notifications (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  user_id uuid NOT NULL,
+  type text NOT NULL CHECK (type = ANY (ARRAY['payment'::text, 'payment_success'::text, 'payment_failed'::text, 'shipment_created'::text, 'shipment_updated'::text, 'driver_assigned'::text, 'delivery_completed'::text, 'message_received'::text, 'system'::text])),
+  title text NOT NULL,
+  message text NOT NULL,
+  data jsonb DEFAULT '{}'::jsonb,
+  is_read boolean NOT NULL DEFAULT false,
+  read_at timestamp with time zone,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  updated_at timestamp with time zone NOT NULL DEFAULT now(),
+  CONSTRAINT notifications_pkey PRIMARY KEY (id),
+  CONSTRAINT notifications_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.profiles(id)
+);
 CREATE TABLE public.payment_receipts (
   id uuid NOT NULL DEFAULT uuid_generate_v4(),
   shipment_id uuid NOT NULL,

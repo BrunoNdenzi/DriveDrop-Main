@@ -19,10 +19,12 @@ interface Shipment {
   status: string;
   pickup_address: string;
   delivery_address: string;
-  pickup_lat: number;
-  pickup_lng: number;
-  delivery_lat: number;
-  delivery_lng: number;
+  pickup_lat?: number;
+  pickup_lng?: number;
+  delivery_lat?: number;
+  delivery_lng?: number;
+  pickup_location?: any;
+  delivery_location?: any;
   vehicle_make?: string;
   vehicle_model?: string;
   vehicle_year?: number;
@@ -82,24 +84,6 @@ export default function TrackShipmentPage({ params }: { params: { id: string } }
   const deliveryMarkerRef = useRef<google.maps.Marker | null>(null);
   const routePolylineRef = useRef<google.maps.Polyline | null>(null);
 
-  // Load Google Maps script
-  useEffect(() => {
-    const loadGoogleMaps = () => {
-      if (window.google) return Promise.resolve();
-
-      return new Promise<void>((resolve) => {
-        const script = document.createElement('script');
-        script.src = `https://maps.googleapis.com/maps/api/js?key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}&libraries=geometry,places&loading=async`;
-        script.async = true;
-        script.defer = true;
-        script.onload = () => resolve();
-        document.head.appendChild(script);
-      });
-    };
-
-    loadGoogleMaps();
-  }, []);
-
   // Fetch shipment data
   useEffect(() => {
     fetchShipmentData();
@@ -133,7 +117,11 @@ export default function TrackShipmentPage({ params }: { params: { id: string } }
             
             setDriverLocation(newLocation);
             updateDriverMarker(newLocation);
-            calculateETA(newLocation);
+            
+            // Only calculate ETA if coordinates are valid
+            if (!isNaN(newLocation.latitude) && !isNaN(newLocation.longitude)) {
+              calculateETA(newLocation);
+            }
           }
         }
       )
@@ -158,6 +146,7 @@ export default function TrackShipmentPage({ params }: { params: { id: string } }
     try {
       setLoading(true);
       
+      // Fetch shipment data
       const { data: shipmentData, error: shipmentError } = await supabase
         .from('shipments')
         .select('*')
@@ -166,12 +155,22 @@ export default function TrackShipmentPage({ params }: { params: { id: string } }
 
       if (shipmentError) throw shipmentError;
       
-      // Convert coordinates to numbers
-      if (shipmentData) {
-        shipmentData.pickup_lat = Number(shipmentData.pickup_lat);
-        shipmentData.pickup_lng = Number(shipmentData.pickup_lng);
-        shipmentData.delivery_lat = Number(shipmentData.delivery_lat);
-        shipmentData.delivery_lng = Number(shipmentData.delivery_lng);
+      // Try to extract coordinates from PostGIS geometry using RPC
+      const { data: coords, error: coordsError } = await supabase.rpc('get_shipment_coordinates', {
+        shipment_id: params.id
+      });
+      
+      if (!coordsError && coords && coords.length > 0) {
+        const coordData = coords[0];
+        // Only set if coordinates are valid (not NULL)
+        if (coordData.pickup_lat != null && coordData.pickup_lng != null) {
+          shipmentData.pickup_lat = Number(coordData.pickup_lat);
+          shipmentData.pickup_lng = Number(coordData.pickup_lng);
+        }
+        if (coordData.delivery_lat != null && coordData.delivery_lng != null) {
+          shipmentData.delivery_lat = Number(coordData.delivery_lat);
+          shipmentData.delivery_lng = Number(coordData.delivery_lng);
+        }
       }
       
       setShipment(shipmentData);
@@ -216,12 +215,23 @@ export default function TrackShipmentPage({ params }: { params: { id: string } }
       
       setDriverLocation(data);
       updateDriverMarker(data);
-      calculateETA(data);
+      
+      // Only calculate ETA if coordinates are valid
+      if (!isNaN(data.latitude) && !isNaN(data.longitude)) {
+        calculateETA(data);
+      }
     }
   }
 
   function initializeMap() {
     if (!shipment || !mapContainerRef.current) return;
+    
+    // Validate coordinates exist
+    if (!shipment.pickup_lat || !shipment.pickup_lng || !shipment.delivery_lat || !shipment.delivery_lng) {
+      console.error('Missing shipment coordinates');
+      setError('Unable to load map: location data is incomplete');
+      return;
+    }
 
     const center = {
       lat: Number(shipment.pickup_lat),
