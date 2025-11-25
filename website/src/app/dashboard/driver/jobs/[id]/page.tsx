@@ -133,8 +133,8 @@ export default function JobDetailPage() {
       }
 
       console.log('✅ [Job Details] Job application submitted successfully!')
-      alert('SUCCESS! Application submitted. Client will review it.')
-      toast('Application submitted! Waiting for client approval...', 'success')
+      alert('SUCCESS! Application submitted. Admin will review it.')
+      toast('Application submitted! Waiting for admin approval...', 'success')
       
       setTimeout(() => {
         router.push('/dashboard/driver/jobs')

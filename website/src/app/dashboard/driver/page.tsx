@@ -60,15 +60,21 @@ export default function DriverDashboardPage() {
     setLoading(true)
     try {
       // PARALLEL FETCHING: Execute all queries simultaneously for 50% faster load
-      const [jobsResult, activeResult, statsResult] = await Promise.all([
-        // Fetch available jobs (limit to 5)
+      const [appliedJobsResult, jobsResult, activeResult, statsResult] = await Promise.all([
+        // Fetch job IDs this driver has already applied to
+        supabase
+          .from('job_applications')
+          .select('shipment_id')
+          .eq('driver_id', profile.id),
+        
+        // Fetch available jobs (limit to 10, will filter after)
         supabase
           .from('shipments')
           .select('id, pickup_address, delivery_address, estimated_price, distance, status, created_at, title')
           .is('driver_id', null)
           .eq('status', 'pending')
           .order('created_at', { ascending: false })
-          .limit(5),
+          .limit(10),
         
         // Fetch active deliveries
         supabase
@@ -86,9 +92,15 @@ export default function DriverDashboardPage() {
           .eq('status', 'delivered')
       ])
 
-      // Update state with results
+      // Get list of applied job IDs
+      const appliedJobIds = appliedJobsResult.data?.map(app => app.shipment_id) || []
+      console.log('[Dashboard] Driver has applied to:', appliedJobIds)
+
+      // Update state with results - filter out applied jobs
       if (!jobsResult.error && jobsResult.data) {
-        setAvailableJobs(jobsResult.data)
+        const availableJobsFiltered = jobsResult.data.filter(job => !appliedJobIds.includes(job.id)).slice(0, 5)
+        console.log('[Dashboard] Available jobs after filtering:', availableJobsFiltered.length)
+        setAvailableJobs(availableJobsFiltered)
       }
 
       if (!activeResult.error && activeResult.data) {
@@ -151,7 +163,7 @@ export default function DriverDashboardPage() {
       
       console.log('✅ [Dashboard] Job application submitted successfully!')
       alert('SUCCESS! Application submitted. Client will review it.')
-      toast('Application submitted! Waiting for client approval...', 'success')
+      toast('Application submitted! Waiting for admin approval...', 'success')
       
       // Refresh jobs list
       fetchData()

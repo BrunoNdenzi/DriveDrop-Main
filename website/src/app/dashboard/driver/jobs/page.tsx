@@ -87,7 +87,20 @@ export default function DriverJobsPage() {
 
     setLoading(true)
     try {
-      // Fetch available jobs (no driver assigned and status is pending)
+      // First, get all job IDs this driver has already applied to
+      const { data: appliedJobs, error: appliedError } = await supabase
+        .from('job_applications')
+        .select('shipment_id')
+        .eq('driver_id', profile.id)
+
+      if (appliedError) {
+        console.error('Error fetching applied jobs:', appliedError)
+      }
+
+      const appliedJobIds = appliedJobs?.map(app => app.shipment_id) || []
+      console.log('[Jobs Page] Driver has applied to:', appliedJobIds)
+
+      // Fetch available jobs (no driver assigned, status is pending, and not already applied)
       const { data, error } = await supabase
         .from('shipments')
         .select('*')
@@ -96,7 +109,12 @@ export default function DriverJobsPage() {
         .order('created_at', { ascending: false })
 
       if (error) throw error
-      setJobs(data || [])
+      
+      // Filter out jobs the driver has already applied to
+      const availableJobs = (data || []).filter(job => !appliedJobIds.includes(job.id))
+      console.log('[Jobs Page] Available jobs after filtering:', availableJobs.length)
+      
+      setJobs(availableJobs)
     } catch (error) {
       console.error('Error fetching jobs:', error)
     } finally {
@@ -188,7 +206,7 @@ export default function DriverJobsPage() {
       // Success! Show toast
       console.log('✅ [Jobs Page] Job application submitted successfully!')
       alert('SUCCESS! Application submitted. Client will review it.')
-      toast('Application submitted! Waiting for client approval...', 'success')
+      toast('Application submitted! Waiting for admin approval...', 'success')
       
       // Refresh jobs list
       fetchJobs()
