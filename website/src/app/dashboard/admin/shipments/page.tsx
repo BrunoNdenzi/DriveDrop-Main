@@ -451,8 +451,8 @@ export default function AdminShipmentsPage() {
                       </>
                     )}
 
-                    <Link href={`/dashboard/client/shipments/${shipment.id}`} className="w-full">
-                      <Button variant="outline" size="sm" className="w-full">
+                    <Link href={`/dashboard/admin/shipments/${shipment.id}`} className="w-full">
+                      <Button variant="outline" className="w-full">
                         View Details
                       </Button>
                     </Link>

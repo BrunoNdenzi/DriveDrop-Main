@@ -152,6 +152,11 @@ export default function AdminReportsPage() {
       setRevenueByMonth(Object.values(monthlyData))
 
       const routesData = shipments?.reduce((acc: any, shipment) => {
+        // Skip shipments with missing location data
+        if (!shipment.pickup_city || !shipment.pickup_state || !shipment.delivery_city || !shipment.delivery_state) {
+          return acc
+        }
+        
         const route = `${shipment.pickup_city}, ${shipment.pickup_state} → ${shipment.delivery_city}, ${shipment.delivery_state}`
         if (!acc[route]) {
           acc[route] = {
@@ -162,7 +167,7 @@ export default function AdminReportsPage() {
           }
         }
         acc[route].count += 1
-        acc[route].totalRevenue += shipment.total_price || 0
+        acc[route].totalRevenue += shipment.total_price || shipment.estimated_price || 0
         return acc
       }, {}) || {}
 

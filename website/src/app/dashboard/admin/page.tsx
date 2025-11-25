@@ -87,8 +87,9 @@ export default function AdminDashboardPage() {
 
         const shipments = shipmentsResult.data || []
         const totalShipments = shipments.length
+        // Active deliveries = shipments actually being worked on (not pending, not completed)
         const activeShipments = shipments.filter(s => 
-          ['pending', 'accepted', 'in_transit', 'picked_up'].includes(s.status)
+          ['assigned', 'accepted', 'driver_en_route', 'driver_arrived', 'pickup_verification_pending', 'pickup_verified', 'picked_up', 'in_transit', 'in_progress'].includes(s.status)
         ).length
         const completedShipments = shipments.filter(s => s.status === 'delivered').length
         const totalRevenue = shipments.reduce((sum, s) => sum + (s.estimated_price || 0), 0)

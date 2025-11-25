@@ -69,6 +69,8 @@ export default function AdminDriverApplicationsPage() {
   const fetchApplications = async () => {
     setLoading(true)
     try {
+      console.log('[DriverApplications] Fetching with filter:', filter)
+      
       let query = supabase
         .from('driver_applications')
         .select('*')
@@ -79,6 +81,8 @@ export default function AdminDriverApplicationsPage() {
       }
 
       const { data, error } = await query
+
+      console.log('[DriverApplications] Query result:', { data, error, count: data?.length })
 
       if (error) throw error
 
