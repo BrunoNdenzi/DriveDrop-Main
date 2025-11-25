@@ -62,7 +62,7 @@ export default function AdminDashboardPage() {
           clientsResult,
           driversResult,
           shipmentsResult,
-          applicationsResult
+          jobApplicationsResult
         ] = await Promise.all([
           supabase
             .from('profiles')
@@ -76,7 +76,7 @@ export default function AdminDashboardPage() {
             .from('shipments')
             .select('status, estimated_price'),
           supabase
-            .from('driver_applications')
+            .from('job_applications')
             .select('*', { count: 'exact', head: true })
             .eq('status', 'pending')
         ])
@@ -93,7 +93,7 @@ export default function AdminDashboardPage() {
         const completedShipments = shipments.filter(s => s.status === 'delivered').length
         const totalRevenue = shipments.reduce((sum, s) => sum + (s.estimated_price || 0), 0)
 
-        const pendingApplications = applicationsResult.count || 0
+        const pendingApplications = jobApplicationsResult.count || 0
 
         setStats({
           totalUsers,
