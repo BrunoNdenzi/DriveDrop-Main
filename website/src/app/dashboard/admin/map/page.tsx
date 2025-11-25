@@ -82,6 +82,9 @@ export default function AdminMapPage() {
   const [selectedShipment, setSelectedShipment] = useState<Shipment | null>(null)
   const [selectedDriver, setSelectedDriver] = useState<Driver | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
+  const [mapType, setMapType] = useState<'roadmap' | 'satellite' | 'hybrid' | 'terrain'>('roadmap')
+  const [showTraffic, setShowTraffic] = useState(false)
+  const [showHeatmap, setShowHeatmap] = useState(false)
 
   // Debug logging
   useEffect(() => {
@@ -143,13 +146,22 @@ export default function AdminMapPage() {
           const initMap = new google.maps.Map(mapRef.current, {
             center: { lat: 39.8283, lng: -98.5795 },
             zoom: 5,
+            mapTypeId: mapType,
             styles: [{ featureType: 'poi', elementType: 'labels', stylers: [{ visibility: 'off' }] }],
-            mapTypeControl: true,
+            mapTypeControl: false,
             streetViewControl: false,
             fullscreenControl: true,
             zoomControl: true
           })
           console.log('[Map] ✅ Map instance created successfully!')
+          
+          // Initialize traffic layer
+          const trafficLayer = new google.maps.TrafficLayer()
+          ;(initMap as any).trafficLayer = trafficLayer
+          if (showTraffic) {
+            trafficLayer.setMap(initMap)
+          }
+          
           setMap(initMap)
           clearInterval(checkInterval)
         } catch (error) {
@@ -173,13 +185,22 @@ export default function AdminMapPage() {
             const initMap = new google.maps.Map(mapRef.current, {
               center: { lat: 39.8283, lng: -98.5795 },
               zoom: 5,
+              mapTypeId: mapType,
               styles: [{ featureType: 'poi', elementType: 'labels', stylers: [{ visibility: 'off' }] }],
-              mapTypeControl: true,
+              mapTypeControl: false,
               streetViewControl: false,
               fullscreenControl: true,
               zoomControl: true
             })
             console.log('[Map] ✅ Map created after script load!')
+            
+            // Initialize traffic layer
+            const trafficLayer = new google.maps.TrafficLayer()
+            ;(initMap as any).trafficLayer = trafficLayer
+            if (showTraffic) {
+              trafficLayer.setMap(initMap)
+            }
+            
             setMap(initMap)
             clearInterval(checkInterval)
           } catch (error) {
@@ -536,15 +557,37 @@ export default function AdminMapPage() {
               </div>
             </div>
 
-            <Button
-              onClick={loadData}
-              variant="outline"
-              size="sm"
-              disabled={loading}
-            >
-              <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
-              Refresh
-            </Button>
+            <div className="flex items-center gap-2">
+              {/* Export Data */}
+              <Button
+                onClick={() => {
+                  const data = JSON.stringify({ shipments, drivers, stats }, null, 2)
+                  const blob = new Blob([data], { type: 'application/json' })
+                  const url = URL.createObjectURL(blob)
+                  const a = document.createElement('a')
+                  a.href = url
+                  a.download = `map-data-${new Date().toISOString()}.json`
+                  a.click()
+                }}
+                variant="outline"
+                size="sm"
+              >
+                <svg className="h-4 w-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                </svg>
+                Export
+              </Button>
+              
+              <Button
+                onClick={loadData}
+                variant="outline"
+                size="sm"
+                disabled={loading}
+              >
+                <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
+                Refresh
+              </Button>
+            </div>
           </div>
         </div>
       </div>
@@ -556,11 +599,56 @@ export default function AdminMapPage() {
           <div ref={mapRef} className="w-full h-full" />
 
           {/* Floating Controls Panel - Top Left */}
-          <div className="absolute top-4 left-4 bg-white rounded-lg shadow-lg border p-4 max-w-xs">
+          <div className="absolute top-4 left-4 bg-white rounded-lg shadow-xl border p-4 max-w-xs z-10">
             <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
               <Layers className="h-4 w-4" />
-              Map Layers
+              Map Controls
             </h3>
+            
+            {/* Map Type Selector */}
+            <div className="mb-4 pb-4 border-b">
+              <p className="text-xs font-medium text-gray-600 mb-2">Map View</p>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  onClick={() => {
+                    setMapType('roadmap')
+                    if (map) map.setMapTypeId('roadmap')
+                  }}
+                  className={`text-xs py-1.5 px-2 rounded ${mapType === 'roadmap' ? 'bg-blue-100 text-blue-700 font-semibold' : 'bg-gray-100 text-gray-700'}`}
+                >
+                  Road
+                </button>
+                <button
+                  onClick={() => {
+                    setMapType('satellite')
+                    if (map) map.setMapTypeId('satellite')
+                  }}
+                  className={`text-xs py-1.5 px-2 rounded ${mapType === 'satellite' ? 'bg-blue-100 text-blue-700 font-semibold' : 'bg-gray-100 text-gray-700'}`}
+                >
+                  Satellite
+                </button>
+                <button
+                  onClick={() => {
+                    setMapType('hybrid')
+                    if (map) map.setMapTypeId('hybrid')
+                  }}
+                  className={`text-xs py-1.5 px-2 rounded ${mapType === 'hybrid' ? 'bg-blue-100 text-blue-700 font-semibold' : 'bg-gray-100 text-gray-700'}`}
+                >
+                  Hybrid
+                </button>
+                <button
+                  onClick={() => {
+                    setMapType('terrain')
+                    if (map) map.setMapTypeId('terrain')
+                  }}
+                  className={`text-xs py-1.5 px-2 rounded ${mapType === 'terrain' ? 'bg-blue-100 text-blue-700 font-semibold' : 'bg-gray-100 text-gray-700'}`}
+                >
+                  Terrain
+                </button>
+              </div>
+            </div>
+
+            {/* Layer Toggles */}
             <div className="space-y-2">
               <label className="flex items-center gap-2 cursor-pointer hover:bg-gray-50 p-1 rounded">
                 <input
@@ -603,64 +691,82 @@ export default function AdminMapPage() {
                 <Navigation className="h-4 w-4 text-cyan-600" />
                 <span className="text-sm flex-1">Routes</span>
               </label>
+              <label className="flex items-center gap-2 cursor-pointer hover:bg-gray-50 p-1 rounded border-t pt-2">
+                <input
+                  type="checkbox"
+                  checked={showTraffic}
+                  onChange={(e) => {
+                    setShowTraffic(e.target.checked)
+                    if (map && (map as any).trafficLayer) {
+                      (map as any).trafficLayer.setMap(e.target.checked ? map : null)
+                    }
+                  }}
+                  className="rounded text-red-600"
+                />
+                <svg className="h-4 w-4 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
+                </svg>
+                <span className="text-sm flex-1">Traffic Layer</span>
+              </label>
             </div>
           </div>
 
-          {/* Active Shipments List - Bottom Left */}
-          <div className="absolute bottom-4 left-4 bg-white rounded-lg shadow-lg border max-w-sm max-h-96 overflow-hidden flex flex-col">
-            <div className="p-3 border-b bg-gray-50">
-              <h3 className="text-sm font-semibold text-gray-700 flex items-center gap-2">
-                <Package className="h-4 w-4" />
-                Active Shipments ({shipments.length})
-              </h3>
-            </div>
-            <div className="flex-1 overflow-y-auto p-2">
-              <div className="space-y-2">
-                {shipments.slice(0, 10).map((shipment) => (
+          {/* Search Box - Top Center */}
+          <div className="absolute top-4 left-1/2 transform -translate-x-1/2 w-96 z-10">
+            <div className="bg-white rounded-lg shadow-xl border p-2">
+              <div className="flex items-center gap-2">
+                <Search className="h-5 w-5 text-gray-400" />
+                <input
+                  type="text"
+                  placeholder="Search shipments by location, vehicle, or ID..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="flex-1 border-none focus:outline-none text-sm"
+                />
+                {searchQuery && (
                   <button
-                    key={shipment.id}
-                    onClick={() => focusOnShipment(shipment)}
-                    className={`w-full text-left p-2 rounded-lg border transition-colors ${
-                      selectedShipment?.id === shipment.id
-                        ? 'bg-teal-50 border-teal-300 shadow-sm'
-                        : 'bg-white border-gray-200 hover:border-gray-300 hover:shadow-sm'
-                    }`}
+                    onClick={() => setSearchQuery('')}
+                    className="text-gray-400 hover:text-gray-600"
                   >
-                    <div className="flex items-start justify-between mb-1">
-                      <div className="flex-1 min-w-0">
-                        <p className="font-medium text-sm text-gray-900 truncate">
-                          {shipment.vehicle_year} {shipment.vehicle_make} {shipment.vehicle_model}
-                        </p>
-                      </div>
-                      <span className={`text-xs px-2 py-0.5 rounded-full ml-2 ${getStatusColor(shipment.status)}`}>
-                        {shipment.status.replace(/_/g, ' ')}
-                      </span>
-                    </div>
-                    <div className="space-y-1 text-xs text-gray-600">
-                      <div className="flex items-center gap-1">
-                        <MapPin className="h-3 w-3 text-green-500" />
-                        <span className="truncate">{shipment.pickup_city}, {shipment.pickup_state}</span>
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <Navigation className="h-3 w-3 text-blue-500" />
-                        <span className="truncate">{shipment.delivery_city}, {shipment.delivery_state}</span>
-                      </div>
-                    </div>
+                    <XCircle className="h-4 w-4" />
                   </button>
-                ))}
-                {shipments.length === 0 && (
-                  <div className="text-center py-8 text-gray-500">
-                    <Package className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                    <p className="text-sm">No active shipments</p>
-                  </div>
                 )}
               </div>
+              
+              {/* Search Results Dropdown */}
+              {searchQuery && (
+                <div className="mt-2 pt-2 border-t max-h-64 overflow-y-auto">
+                  {shipments
+                    .filter(s => 
+                      s.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                      s.pickup_city?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                      s.delivery_city?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                      s.id?.includes(searchQuery)
+                    )
+                    .slice(0, 5)
+                    .map(shipment => (
+                      <button
+                        key={shipment.id}
+                        onClick={() => {
+                          focusOnShipment(shipment)
+                          setSearchQuery('')
+                        }}
+                        className="w-full text-left p-2 hover:bg-gray-50 rounded text-sm"
+                      >
+                        <p className="font-medium text-gray-900">{shipment.title}</p>
+                        <p className="text-xs text-gray-600">
+                          {shipment.pickup_city} → {shipment.delivery_city}
+                        </p>
+                      </button>
+                    ))}
+                </div>
+              )}
             </div>
           </div>
 
           {/* Selected Shipment Detail Panel - Top Right */}
           {selectedShipment && (
-            <div className="absolute top-4 right-4 w-96 bg-white rounded-lg shadow-xl border">
+            <div className="absolute top-4 right-4 w-96 bg-white rounded-lg shadow-xl border z-10">
               <div className="p-4">
                 <div className="flex items-start justify-between mb-3">
                   <h3 className="font-semibold text-gray-900 text-lg">Shipment Details</h3>
@@ -725,7 +831,7 @@ export default function AdminMapPage() {
 
           {/* Selected Driver Panel - Bottom Right */}
           {selectedDriver && (
-            <div className="absolute bottom-4 right-4 w-80 bg-white rounded-lg shadow-xl border">
+            <div className="absolute bottom-4 right-4 w-80 bg-white rounded-lg shadow-xl border z-10">
               <div className="p-4">
                 <div className="flex items-start justify-between mb-3">
                   <h3 className="font-semibold text-gray-900">Driver Info</h3>
@@ -764,7 +870,7 @@ export default function AdminMapPage() {
           )}
 
           {/* Legend - Bottom Center */}
-          <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 bg-white rounded-lg shadow-lg border px-4 py-2">
+          <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 bg-white rounded-lg shadow-lg border px-4 py-2 z-10">
             <div className="flex items-center gap-6 text-xs">
               <div className="flex items-center gap-2">
                 <div className="w-3 h-3 rounded-full bg-blue-500 border-2 border-white shadow"></div>
@@ -780,7 +886,7 @@ export default function AdminMapPage() {
               </div>
               <div className="flex items-center gap-2">
                 <div className="w-6 h-0.5 bg-blue-500"></div>
-                <span>Active Route</span>
+                <span>Route</span>
               </div>
             </div>
           </div>
