@@ -1,13 +1,13 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-
-export const dynamic = 'force-dynamic';
-export const revalidate = 0;
 import { useRouter } from 'next/navigation';
 import { getSupabaseBrowserClient } from '@/lib/supabase-client';
 import { brokerCarrierService, brokerProfileService } from '@/services/brokerService';
 import type { BrokerCarrier, BrokerProfile } from '@/types/broker';
+
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
 
 export default function CarriersPage() {
   const router = useRouter();
