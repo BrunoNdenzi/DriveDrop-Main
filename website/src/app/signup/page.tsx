@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { User, Mail, Lock, Phone, ArrowRight, AlertCircle, CheckCircle, Sparkles } from 'lucide-react'
+import { User, Mail, Lock, Phone, ArrowRight, AlertCircle, CheckCircle, Sparkles, Truck } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import Header from '@/components/layout/Header'
 import Footer from '@/components/layout/Footer'
@@ -288,17 +288,31 @@ export default function SignUpPage() {
               </div>
             </div>
 
-            {/* Driver Application Link */}
-            <div className="mt-8 text-center glass rounded-2xl p-6 animate-slide-up" style={{ animationDelay: '0.2s' }}>
-              <p className="text-sm text-muted-foreground mb-3">
-                Want to become a driver and earn money?
-              </p>
-              <Button asChild variant="outline" className="border-primary text-primary hover:bg-primary hover:text-white">
-                <Link href="/drivers/register">
-                  <Sparkles className="w-4 h-4 mr-2" />
-                  Apply as a Driver
-                </Link>
-              </Button>
+            {/* Driver & Broker Application Links */}
+            <div className="mt-8 space-y-4">
+              <div className="text-center glass rounded-2xl p-6 animate-slide-up" style={{ animationDelay: '0.2s' }}>
+                <p className="text-sm text-muted-foreground mb-3">
+                  Want to become a driver and earn money?
+                </p>
+                <Button asChild variant="outline" className="border-primary text-primary hover:bg-primary hover:text-white">
+                  <Link href="/drivers/register">
+                    <Truck className="w-4 h-4 mr-2" />
+                    Apply as a Driver
+                  </Link>
+                </Button>
+              </div>
+              
+              <div className="text-center glass rounded-2xl p-6 animate-slide-up" style={{ animationDelay: '0.25s' }}>
+                <p className="text-sm text-muted-foreground mb-3">
+                  Are you a licensed auto transport broker?
+                </p>
+                <Button asChild variant="outline" className="border-blue-600 text-blue-600 hover:bg-blue-600 hover:text-white">
+                  <Link href="/auth/broker-signup">
+                    <User className="w-4 h-4 mr-2" />
+                    Register as a Broker
+                  </Link>
+                </Button>
+              </div>
             </div>
           </div>
         </div>
