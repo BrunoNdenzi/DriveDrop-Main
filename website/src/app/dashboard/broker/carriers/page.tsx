@@ -6,9 +6,6 @@ import { getSupabaseBrowserClient } from '@/lib/supabase-client';
 import { brokerCarrierService, brokerProfileService } from '@/services/brokerService';
 import type { BrokerCarrier, BrokerProfile } from '@/types/broker';
 
-export const dynamic = 'force-dynamic';
-export const revalidate = 0;
-
 export default function CarriersPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);

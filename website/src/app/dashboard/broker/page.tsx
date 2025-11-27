@@ -11,9 +11,6 @@ import {
   calculateVerificationProgress 
 } from '@/utils/brokerVerification';
 
-export const dynamic = 'force-dynamic';
-export const revalidate = 0;
-
 export default function BrokerDashboard() {
   const router = useRouter();
   const searchParams = useSearchParams();
