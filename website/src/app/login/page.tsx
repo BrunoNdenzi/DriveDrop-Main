@@ -12,7 +12,7 @@ import { supabase } from '@/lib/supabase'
 import Header from '@/components/layout/Header'
 import Footer from '@/components/layout/Footer'
 
-type UserRole = 'client' | 'driver' | 'admin'
+type UserRole = 'client' | 'driver' | 'broker' | 'admin'
 
 export default function LoginPage() {
   const router = useRouter()
@@ -74,6 +74,13 @@ export default function LoginPage() {
       title: 'Driver Login',
       description: 'Manage your deliveries and earnings',
     },
+    broker: {
+      icon: User,
+      color: 'text-blue-600',
+      gradient: 'from-blue-600 to-blue-800',
+      title: 'Broker Login',
+      description: 'Manage your carrier network and loads',
+    },
     admin: {
       icon: Shield,
       color: 'text-accent',
@@ -112,7 +119,7 @@ export default function LoginPage() {
             <div className="glass rounded-3xl p-8 shadow-2xl animate-slide-up" style={{ animationDelay: '0.1s' }}>
               <Tabs value={activeRole} onValueChange={(v) => setActiveRole(v as UserRole)} className="w-full">
                 {/* Role Tabs */}
-                <TabsList className="grid w-full grid-cols-3 mb-8 bg-muted/50 p-1 rounded-xl">
+                <TabsList className="grid w-full grid-cols-4 mb-8 bg-muted/50 p-1 rounded-xl">
                   <TabsTrigger 
                     value="client" 
                     className="rounded-lg data-[state=active]:bg-primary data-[state=active]:text-white transition-all"
@@ -126,6 +133,13 @@ export default function LoginPage() {
                   >
                     <Truck className="w-4 h-4 mr-2" />
                     Driver
+                  </TabsTrigger>
+                  <TabsTrigger 
+                    value="broker"
+                    className="rounded-lg data-[state=active]:bg-blue-600 data-[state=active]:text-white transition-all"
+                  >
+                    <User className="w-4 h-4 mr-2" />
+                    Broker
                   </TabsTrigger>
                   <TabsTrigger 
                     value="admin"
@@ -218,10 +232,10 @@ export default function LoginPage() {
                     <p className="text-sm text-muted-foreground">
                       Don't have an account?{' '}
                       <Link
-                        href={activeRole === 'driver' ? '/drivers/register' : '/signup'}
+                        href={activeRole === 'driver' ? '/drivers/register' : activeRole === 'broker' ? '/auth/broker-signup' : '/signup'}
                         className="font-semibold text-primary hover:underline"
                       >
-                        {activeRole === 'driver' ? 'Apply to become a driver' : 'Sign up'}
+                        {activeRole === 'driver' ? 'Apply to become a driver' : activeRole === 'broker' ? 'Register as a broker' : 'Sign up'}
                       </Link>
                     </p>
                   </div>
