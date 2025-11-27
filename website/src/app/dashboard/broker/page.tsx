@@ -2,9 +2,6 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-
-export const dynamic = 'force-dynamic';
-export const revalidate = 0;
 import { getSupabaseBrowserClient } from '@/lib/supabase-client';
 import { brokerProfileService } from '@/services/brokerService';
 import type { BrokerProfile, BrokerStatsResponse } from '@/types/broker';
@@ -13,6 +10,9 @@ import {
   getVerificationStatusColor,
   calculateVerificationProgress 
 } from '@/utils/brokerVerification';
+
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
 
 export default function BrokerDashboard() {
   const router = useRouter();
