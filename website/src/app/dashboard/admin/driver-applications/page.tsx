@@ -21,35 +21,40 @@ import { Button } from '@/components/ui/button'
 
 interface DriverApplication {
   id: string
-  user_id: string
-  first_name: string
-  last_name: string
+  full_name: string
   email: string
   phone: string
   date_of_birth: string
-  address: string
-  city: string
-  state: string
-  zip_code: string
-  drivers_license_number: string
-  license_expiry_date: string
+  address: any // JSONB - {street, city, state, zipCode}
+  
+  // License Info
+  license_number: string
+  license_expiration: string
   license_state: string
+  license_front_url: string | null
+  license_back_url: string | null
+  proof_of_address_url: string | null
+  
+  // Insurance Info
   insurance_provider: string
   insurance_policy_number: string
-  insurance_expiry_date: string
-  vehicle_make: string
-  vehicle_model: string
-  vehicle_year: number
-  vehicle_color: string
-  vehicle_plate: string
-  license_photo_url: string | null
-  insurance_photo_url: string | null
-  proof_of_address_url: string | null
-  vehicle_registration_url: string | null
+  insurance_expiration: string
+  insurance_proof_url: string | null
+  coverage_amount: string
+  
+  // Driving History
+  has_suspensions: boolean
+  has_criminal_record: boolean
+  incident_description: string | null
+  
+  // Background Check
   background_check_status: string
+  
+  // Status
   status: 'pending' | 'approved' | 'rejected'
   submitted_at: string
   reviewed_at: string | null
+  reviewed_by: string | null
   rejection_reason: string | null
 }
 
@@ -95,8 +100,8 @@ export default function AdminDriverApplicationsPage() {
     }
   }
 
-  const handleApprove = async (applicationId: string, userId: string) => {
-    if (!confirm('Approve this driver application? This will grant them driver access.')) {
+  const handleApprove = async (applicationId: string, email: string, fullName: string) => {
+    if (!confirm('Approve this driver application? This will create a driver account and send them login credentials.')) {
       return
     }
 
@@ -113,15 +118,15 @@ export default function AdminDriverApplicationsPage() {
 
       if (appError) throw appError
 
-      // Update user profile role to driver
-      const { error: profileError } = await supabase
-        .from('profiles')
-        .update({ role: 'driver' })
-        .eq('id', userId)
+      // TODO: Call an API endpoint to create auth user and profile
+      // For now, just mark as approved
+      // The API should:
+      // 1. Create auth.users entry with email
+      // 2. Generate temporary password
+      // 3. Create profile with role='driver'
+      // 4. Send welcome email with login credentials
 
-      if (profileError) throw profileError
-
-      toast('Driver application approved successfully!', 'success')
+      toast('Driver application approved! TODO: Set up user account creation API', 'success')
       fetchApplications()
     } catch (error) {
       console.error('Error approving application:', error)
@@ -284,7 +289,7 @@ export default function AdminDriverApplicationsPage() {
                 <div className="flex-1">
                   <div className="flex items-center gap-3 mb-2">
                     <h3 className="text-xl font-bold text-gray-900">
-                      {app.first_name} {app.last_name}
+                      {app.full_name}
                     </h3>
                     {getStatusBadge(app.status)}
                   </div>
@@ -299,7 +304,11 @@ export default function AdminDriverApplicationsPage() {
                     </div>
                     <div className="flex items-center gap-2 text-gray-600">
                       <MapPin className="h-4 w-4" />
-                      <span>{app.address}, {app.city}, {app.state} {app.zip_code}</span>
+                      <span>
+                        {app.address && typeof app.address === 'object' 
+                          ? `${app.address.street}, ${app.address.city}, ${app.address.state} ${app.address.zipCode}`
+                          : 'N/A'}
+                      </span>
                     </div>
                     <div className="flex items-center gap-2 text-gray-600">
                       <Calendar className="h-4 w-4" />
@@ -323,35 +332,16 @@ export default function AdminDriverApplicationsPage() {
                 </div>
               </div>
 
-              {/* Vehicle Info */}
-              <div className="bg-gray-50 rounded-lg p-4 mb-4">
-                <h4 className="font-semibold text-gray-900 mb-2">Vehicle Information</h4>
-                <div className="grid grid-cols-2 gap-4 text-sm">
-                  <div>
-                    <span className="text-gray-600">Vehicle:</span>{' '}
-                    <span className="font-medium">{app.vehicle_year} {app.vehicle_make} {app.vehicle_model}</span>
-                  </div>
-                  <div>
-                    <span className="text-gray-600">Color:</span>{' '}
-                    <span className="font-medium">{app.vehicle_color}</span>
-                  </div>
-                  <div>
-                    <span className="text-gray-600">License Plate:</span>{' '}
-                    <span className="font-medium">{app.vehicle_plate}</span>
-                  </div>
-                </div>
-              </div>
-
               {/* License & Insurance */}
               <div className="bg-gray-50 rounded-lg p-4 mb-4">
                 <h4 className="font-semibold text-gray-900 mb-2">License & Insurance</h4>
                 <div className="grid grid-cols-2 gap-4 text-sm">
                   <div>
                     <span className="text-gray-600">Driver's License:</span>{' '}
-                    <span className="font-medium">{app.drivers_license_number} ({app.license_state})</span>
+                    <span className="font-medium">{app.license_number} ({app.license_state})</span>
                     <br />
                     <span className="text-gray-600">Expires:</span>{' '}
-                    <span className="font-medium">{new Date(app.license_expiry_date).toLocaleDateString()}</span>
+                    <span className="font-medium">{new Date(app.license_expiration).toLocaleDateString()}</span>
                   </div>
                   <div>
                     <span className="text-gray-600">Insurance Provider:</span>{' '}
@@ -361,7 +351,10 @@ export default function AdminDriverApplicationsPage() {
                     <span className="font-medium">{app.insurance_policy_number}</span>
                     <br />
                     <span className="text-gray-600">Expires:</span>{' '}
-                    <span className="font-medium">{new Date(app.insurance_expiry_date).toLocaleDateString()}</span>
+                    <span className="font-medium">{new Date(app.insurance_expiration).toLocaleDateString()}</span>
+                    <br />
+                    <span className="text-gray-600">Coverage:</span>{' '}
+                    <span className="font-medium">${app.coverage_amount}</span>
                   </div>
                 </div>
               </div>
@@ -375,11 +368,11 @@ export default function AdminDriverApplicationsPage() {
                 <div className="grid grid-cols-2 gap-3">
                   <div className="flex items-center justify-between">
                     <span className="text-sm">
-                      {app.license_photo_url ? '✓' : '✗'} Driver's License
+                      {app.license_front_url ? '✓' : '✗'} License Front
                     </span>
-                    {app.license_photo_url && (
+                    {app.license_front_url && (
                       <a
-                        href={app.license_photo_url}
+                        href={app.license_front_url}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="text-blue-600 hover:text-blue-700"
@@ -390,11 +383,26 @@ export default function AdminDriverApplicationsPage() {
                   </div>
                   <div className="flex items-center justify-between">
                     <span className="text-sm">
-                      {app.insurance_photo_url ? '✓' : '✗'} Insurance Card
+                      {app.license_back_url ? '✓' : '✗'} License Back
                     </span>
-                    {app.insurance_photo_url && (
+                    {app.license_back_url && (
                       <a
-                        href={app.insurance_photo_url}
+                        href={app.license_back_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-blue-600 hover:text-blue-700"
+                      >
+                        <Eye className="h-4 w-4" />
+                      </a>
+                    )}
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm">
+                      {app.insurance_proof_url ? '✓' : '✗'} Insurance Proof
+                    </span>
+                    {app.insurance_proof_url && (
+                      <a
+                        href={app.insurance_proof_url}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="text-blue-600 hover:text-blue-700"
@@ -410,21 +418,6 @@ export default function AdminDriverApplicationsPage() {
                     {app.proof_of_address_url && (
                       <a
                         href={app.proof_of_address_url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-blue-600 hover:text-blue-700"
-                      >
-                        <Eye className="h-4 w-4" />
-                      </a>
-                    )}
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm">
-                      {app.vehicle_registration_url ? '✓' : '✗'} Vehicle Registration
-                    </span>
-                    {app.vehicle_registration_url && (
-                      <a
-                        href={app.vehicle_registration_url}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="text-blue-600 hover:text-blue-700"
@@ -486,7 +479,7 @@ export default function AdminDriverApplicationsPage() {
                   ) : (
                     <div className="flex items-center gap-3">
                       <Button
-                        onClick={() => handleApprove(app.id, app.user_id)}
+                        onClick={() => handleApprove(app.id, app.email, app.full_name)}
                         disabled={processing === app.id}
                         className="bg-green-600 hover:bg-green-700 gap-2"
                       >
