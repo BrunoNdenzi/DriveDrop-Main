@@ -187,13 +187,14 @@ export default function LoadBoardPage() {
           </Button>
         </div>
       </div>
-        {error && (
-          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl">
-            {error}
-          </div>
-        )}
 
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+      {error && (
+        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl">
+          {error}
+        </div>
+      )}
+
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
           {/* Filters Sidebar */}
           <div className="lg:col-span-1">
             <div className="bg-white rounded-xl border border-gray-200 p-6 sticky top-6">
@@ -484,7 +485,6 @@ export default function LoadBoardPage() {
             )}
           </div>
         </div>
-      </div>
     </div>
   );
 }
