@@ -31,7 +31,9 @@ export default function ForgotPasswordScreen({ navigation }: ForgotPasswordScree
 
     try {
       setLoading(true);
-      const { error } = await auth.resetPasswordForEmail(email);
+      const { error } = await auth.resetPasswordForEmail(email, {
+        redirectTo: 'drivedrop://reset-password',
+      });
 
       if (error) throw error;
 
