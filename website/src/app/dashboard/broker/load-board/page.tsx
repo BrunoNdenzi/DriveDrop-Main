@@ -5,6 +5,18 @@ import { useRouter } from 'next/navigation';
 import { getSupabaseBrowserClient } from '@/lib/supabase-client';
 import { loadBoardService, brokerProfileService } from '@/services/brokerService';
 import type { LoadBoard, LoadBoardFilters, BrokerProfile } from '@/types/broker';
+import { 
+  Package, 
+  MapPin, 
+  DollarSign, 
+  Calendar, 
+  Truck,
+  Search,
+  Filter,
+  X,
+  ArrowRight
+} from 'lucide-react';
+import { Button } from '@/components/ui/button';
 
 export default function LoadBoardPage() {
   const router = useRouter();
@@ -146,7 +158,7 @@ export default function LoadBoardPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="flex items-center justify-center min-h-[400px]">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
           <p className="mt-4 text-gray-600">Loading available loads...</p>
@@ -156,32 +168,27 @@ export default function LoadBoardPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="space-y-6">
       {/* Header */}
-      <div className="bg-white shadow">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          <div className="md:flex md:items-center md:justify-between">
-            <div className="flex-1 min-w-0">
-              <h1 className="text-2xl font-bold text-gray-900">Load Board</h1>
-              <p className="mt-1 text-sm text-gray-500">
-                {filteredLoads.length} available shipment{filteredLoads.length !== 1 ? 's' : ''}
-              </p>
-            </div>
-            <div className="mt-4 flex md:mt-0 md:ml-4">
-              <button
-                onClick={() => router.push('/dashboard/broker')}
-                className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
-              >
-                ← Back to Dashboard
-              </button>
-            </div>
+      <div className="bg-gradient-to-r from-blue-600 to-blue-700 rounded-2xl p-8 text-white">
+        <div className="flex items-center justify-between flex-wrap gap-4">
+          <div>
+            <h1 className="text-3xl font-bold mb-2">Load Board</h1>
+            <p className="text-blue-100">
+              {filteredLoads.length} available shipment{filteredLoads.length !== 1 ? 's' : ''} • Find profitable loads for your carrier network
+            </p>
           </div>
+          <Button
+            variant="outline"
+            onClick={() => router.push('/dashboard/broker')}
+            className="bg-white/10 border-white/30 text-white hover:bg-white/20"
+          >
+            ← Back to Dashboard
+          </Button>
         </div>
       </div>
-
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {error && (
-          <div className="mb-6 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
+          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl">
             {error}
           </div>
         )}
@@ -189,12 +196,15 @@ export default function LoadBoardPage() {
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
           {/* Filters Sidebar */}
           <div className="lg:col-span-1">
-            <div className="bg-white rounded-lg shadow p-6 sticky top-6">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-medium text-gray-900">Filters</h3>
+            <div className="bg-white rounded-xl border border-gray-200 p-6 sticky top-6">
+              <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center gap-2">
+                  <Filter className="h-5 w-5 text-blue-600" />
+                  <h3 className="text-lg font-semibold text-gray-900">Filters</h3>
+                </div>
                 <button
                   onClick={clearFilters}
-                  className="text-sm text-blue-600 hover:text-blue-500"
+                  className="text-sm text-blue-600 hover:text-blue-700 font-medium"
                 >
                   Clear All
                 </button>
@@ -205,13 +215,16 @@ export default function LoadBoardPage() {
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Search
                 </label>
-                <input
-                  type="text"
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  placeholder="City, vehicle..."
-                  className="w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                />
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                  <input
+                    type="text"
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    placeholder="City, vehicle..."
+                    className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                </div>
               </div>
 
               {/* Sort By */}
@@ -222,7 +235,7 @@ export default function LoadBoardPage() {
                 <select
                   value={sortBy}
                   onChange={(e) => setSortBy(e.target.value as any)}
-                  className="w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full border border-gray-300 rounded-lg py-2 px-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 >
                   <option value="date">Newest First</option>
                   <option value="price">Highest Price</option>
@@ -230,7 +243,7 @@ export default function LoadBoardPage() {
                 </select>
               </div>
 
-              <hr className="my-4" />
+              <hr className="my-4 border-gray-200" />
 
               {/* Pickup State */}
               <div className="mb-4">
@@ -243,7 +256,7 @@ export default function LoadBoardPage() {
                   onChange={(e) => setFilters(prev => ({ ...prev, pickup_state: e.target.value }))}
                   placeholder="CA"
                   maxLength={2}
-                  className="w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full border border-gray-300 rounded-lg py-2 px-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent uppercase"
                 />
               </div>
 
