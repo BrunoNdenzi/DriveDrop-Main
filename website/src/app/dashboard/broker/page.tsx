@@ -2,6 +2,7 @@
 
 import { useEffect, useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
+import Link from 'next/link';
 import { getSupabaseBrowserClient } from '@/lib/supabase-client';
 import { brokerProfileService } from '@/services/brokerService';
 import type { BrokerProfile, BrokerStatsResponse } from '@/types/broker';
@@ -10,6 +11,23 @@ import {
   getVerificationStatusColor,
   calculateVerificationProgress 
 } from '@/utils/brokerVerification';
+import {
+  Package,
+  DollarSign,
+  Users,
+  Star,
+  TrendingUp,
+  Briefcase,
+  FileText,
+  ArrowRight,
+  Building2,
+  Phone,
+  Mail,
+  MapPin,
+  CheckCircle,
+  Clock
+} from 'lucide-react';
+import { Button } from '@/components/ui/button';
 
 function BrokerDashboardContent() {
   const router = useRouter();
@@ -53,7 +71,7 @@ function BrokerDashboardContent() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="flex items-center justify-center min-h-[400px]">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
           <p className="mt-4 text-gray-600">Loading dashboard...</p>
@@ -64,15 +82,14 @@ function BrokerDashboardContent() {
 
   if (error || !broker) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="flex items-center justify-center min-h-[400px]">
         <div className="text-center">
-          <p className="text-red-600">{error || 'Broker profile not found'}</p>
-          <button
+          <p className="text-red-600 mb-4">{error || 'Broker profile not found'}</p>
+          <Button
             onClick={() => router.push('/auth/broker-signup')}
-            className="mt-4 text-blue-600 hover:text-blue-500"
           >
             Complete Registration
-          </button>
+          </Button>
         </div>
       </div>
     );
@@ -82,347 +99,367 @@ function BrokerDashboardContent() {
   const statusColors = getVerificationStatusColor(broker.verification_status);
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="space-y-6">
       {/* Welcome Banner */}
       {showWelcome && (
-        <div className="bg-blue-600 text-white">
-          <div className="max-w-7xl mx-auto py-3 px-4 sm:px-6 lg:px-8">
-            <div className="flex items-center justify-between flex-wrap">
-              <div className="flex items-center">
-                <span className="text-lg">🎉</span>
-                <p className="ml-3 font-medium">
-                  Welcome to DriveDrop Broker Network! Your account is pending verification.
+        <div className="bg-gradient-to-r from-blue-600 to-blue-700 rounded-2xl p-6 text-white">
+          <div className="flex items-center justify-between flex-wrap gap-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-white/20 rounded-lg">
+                <CheckCircle className="h-6 w-6" />
+              </div>
+              <div>
+                <p className="font-semibold text-lg">
+                  Welcome to DriveDrop Broker Network!
+                </p>
+                <p className="text-blue-100 text-sm">
+                  Your account is pending verification. Upload documents to get started.
                 </p>
               </div>
-              <button
-                onClick={() => router.push('/dashboard/broker')}
-                className="flex-shrink-0 text-white hover:text-gray-200"
-              >
-                ✕
-              </button>
             </div>
+            <button
+              onClick={() => router.push('/dashboard/broker')}
+              className="text-white hover:text-blue-100 transition-colors"
+            >
+              <span className="text-xl">✕</span>
+            </button>
           </div>
         </div>
       )}
 
       {/* Header */}
-      <div className="bg-white shadow">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          <div className="md:flex md:items-center md:justify-between">
-            <div className="flex-1 min-w-0">
-              <h1 className="text-2xl font-bold text-gray-900">
-                {broker.company_name}
-              </h1>
-              <div className="mt-2 flex items-center space-x-4">
-                <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${statusColors.bg} ${statusColors.text} border ${statusColors.border}`}>
-                  {formatVerificationStatus(broker.verification_status)}
-                </span>
-                <span className="text-sm text-gray-500">
-                  {broker.dba_name && `DBA: ${broker.dba_name}`}
-                </span>
+      <div className="bg-gradient-to-r from-blue-600 to-blue-700 rounded-2xl p-8 text-white">
+        <div className="flex items-start justify-between flex-wrap gap-4">
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="p-3 bg-white/20 backdrop-blur-sm rounded-xl">
+                <Building2 className="h-8 w-8" />
+              </div>
+              <div>
+                <h1 className="text-3xl font-bold">
+                  {broker.company_name}
+                </h1>
+                {broker.dba_name && (
+                  <p className="text-blue-100 text-sm mt-1">
+                    DBA: {broker.dba_name}
+                  </p>
+                )}
               </div>
             </div>
-            <div className="mt-4 flex md:mt-0 md:ml-4 space-x-3">
-              <button
-                onClick={() => router.push('/dashboard/broker/profile')}
-                className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
-              >
-                Edit Profile
-              </button>
-              <button
-                onClick={() => router.push('/dashboard/broker/load-board')}
-                className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700"
-              >
-                View Load Board
-              </button>
+            <div className="flex items-center gap-3">
+              <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-white/90 ${statusColors.text} border ${statusColors.border}`}>
+                {formatVerificationStatus(broker.verification_status)}
+              </span>
+              {broker.mc_number && (
+                <span className="text-blue-100 text-sm">
+                  MC#{broker.mc_number}
+                </span>
+              )}
             </div>
+          </div>
+          <div className="flex gap-3">
+            <Button
+              variant="outline"
+              onClick={() => router.push('/dashboard/broker/profile')}
+              className="bg-white/10 border-white/30 text-white hover:bg-white/20"
+            >
+              <FileText className="h-4 w-4 mr-2" />
+              Edit Profile
+            </Button>
+            <Button
+              onClick={() => router.push('/dashboard/broker/load-board')}
+              className="bg-white text-blue-600 hover:bg-blue-50"
+            >
+              <Package className="h-4 w-4 mr-2" />
+              Load Board
+            </Button>
           </div>
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="space-y-6">
         {/* Verification Progress */}
         {broker.verification_status !== 'verified' && (
-          <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-6">
-            <div className="flex">
+          <div className="bg-gradient-to-r from-yellow-50 to-orange-50 rounded-xl p-6 border border-yellow-200">
+            <div className="flex items-start gap-4">
+              <div className="p-2 bg-yellow-100 rounded-lg">
+                <Clock className="h-6 w-6 text-yellow-600" />
+              </div>
               <div className="flex-1">
-                <h3 className="text-sm font-medium text-yellow-800">
-                  Account Verification: {verificationProgress}% Complete
-                </h3>
-                <div className="mt-2 w-full bg-yellow-200 rounded-full h-2">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="text-lg font-semibold text-gray-900">
+                    Account Verification: {verificationProgress}% Complete
+                  </h3>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => router.push('/dashboard/broker/documents')}
+                    className="border-yellow-600 text-yellow-600 hover:bg-yellow-600 hover:text-white"
+                  >
+                    <FileText className="h-4 w-4 mr-2" />
+                    Upload Documents
+                  </Button>
+                </div>
+                <div className="w-full bg-yellow-200 rounded-full h-3 mb-3">
                   <div
-                    className="bg-yellow-600 h-2 rounded-full transition-all duration-300"
+                    className="bg-gradient-to-r from-yellow-500 to-yellow-600 h-3 rounded-full transition-all duration-300"
                     style={{ width: `${verificationProgress}%` }}
                   />
                 </div>
-                <p className="mt-2 text-sm text-yellow-700">
+                <p className="text-sm text-gray-700">
                   {broker.verification_status === 'pending' && (
-                    <>Upload required documents to complete verification.</>
+                    <>Upload required documents to complete verification and start accepting loads.</>
                   )}
                   {broker.verification_status === 'documents_submitted' && (
                     <>Your documents are under review. We'll notify you once verified.</>
                   )}
                   {broker.verification_status === 'under_review' && (
-                    <>Your account is being reviewed by our team.</>
+                    <>Your account is being reviewed by our team. This usually takes 1-2 business days.</>
                   )}
                 </p>
               </div>
-              <button
-                onClick={() => router.push('/dashboard/broker/documents')}
-                className="ml-4 text-sm font-medium text-yellow-800 hover:text-yellow-600"
-              >
-                Upload Documents →
-              </button>
             </div>
           </div>
         )}
 
         {/* Stats Grid */}
-        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           {/* Total Shipments */}
-          <div className="bg-white overflow-hidden shadow rounded-lg">
-            <div className="p-5">
-              <div className="flex items-center">
-                <div className="flex-shrink-0">
-                  <div className="bg-blue-500 rounded-md p-3">
-                    <svg className="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
-                    </svg>
-                  </div>
-                </div>
-                <div className="ml-5 w-0 flex-1">
-                  <dl>
-                    <dt className="text-sm font-medium text-gray-500 truncate">
-                      Total Shipments
-                    </dt>
-                    <dd className="text-2xl font-semibold text-gray-900">
-                      {stats?.total_shipments || 0}
-                    </dd>
-                  </dl>
-                </div>
+          <div className="bg-white rounded-xl p-6 border border-gray-200">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="p-3 bg-blue-50 rounded-lg">
+                <Package className="h-6 w-6 text-blue-600" />
+              </div>
+              <div>
+                <p className="text-sm text-gray-600">Total Shipments</p>
+                <p className="text-2xl font-bold text-gray-900">
+                  {stats?.total_shipments || 0}
+                </p>
               </div>
             </div>
-            <div className="bg-gray-50 px-5 py-3">
-              <div className="text-sm">
-                <span className="font-medium text-blue-600">{stats?.active_shipments || 0}</span>
-                <span className="text-gray-500"> active</span>
-              </div>
+            <div className="flex items-center gap-2 text-sm">
+              <div className="w-2 h-2 rounded-full bg-blue-600"></div>
+              <span className="font-medium text-blue-600">{stats?.active_shipments || 0}</span>
+              <span className="text-gray-500">active</span>
             </div>
           </div>
 
           {/* Total Revenue */}
-          <div className="bg-white overflow-hidden shadow rounded-lg">
-            <div className="p-5">
-              <div className="flex items-center">
-                <div className="flex-shrink-0">
-                  <div className="bg-green-500 rounded-md p-3">
-                    <svg className="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                  </div>
-                </div>
-                <div className="ml-5 w-0 flex-1">
-                  <dl>
-                    <dt className="text-sm font-medium text-gray-500 truncate">
-                      Total Revenue
-                    </dt>
-                    <dd className="text-2xl font-semibold text-gray-900">
-                      ${stats?.total_revenue?.toLocaleString() || '0'}
-                    </dd>
-                  </dl>
-                </div>
+          <div className="bg-white rounded-xl p-6 border border-gray-200">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="p-3 bg-green-50 rounded-lg">
+                <DollarSign className="h-6 w-6 text-green-600" />
+              </div>
+              <div>
+                <p className="text-sm text-gray-600">Total Revenue</p>
+                <p className="text-2xl font-bold text-gray-900">
+                  ${stats?.total_revenue?.toLocaleString() || '0'}
+                </p>
               </div>
             </div>
-            <div className="bg-gray-50 px-5 py-3">
-              <div className="text-sm">
-                <span className="font-medium text-green-600">
-                  ${stats?.pending_payouts?.toLocaleString() || '0'}
-                </span>
-                <span className="text-gray-500"> pending</span>
-              </div>
+            <div className="flex items-center gap-2 text-sm">
+              <div className="w-2 h-2 rounded-full bg-green-600"></div>
+              <span className="font-medium text-green-600">
+                ${stats?.pending_payouts?.toLocaleString() || '0'}
+              </span>
+              <span className="text-gray-500">pending</span>
             </div>
           </div>
 
           {/* Carrier Network */}
-          <div className="bg-white overflow-hidden shadow rounded-lg">
-            <div className="p-5">
-              <div className="flex items-center">
-                <div className="flex-shrink-0">
-                  <div className="bg-purple-500 rounded-md p-3">
-                    <svg className="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-                    </svg>
-                  </div>
-                </div>
-                <div className="ml-5 w-0 flex-1">
-                  <dl>
-                    <dt className="text-sm font-medium text-gray-500 truncate">
-                      Carrier Network
-                    </dt>
-                    <dd className="text-2xl font-semibold text-gray-900">
-                      {stats?.total_carriers || 0}
-                    </dd>
-                  </dl>
-                </div>
+          <div className="bg-white rounded-xl p-6 border border-gray-200">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="p-3 bg-purple-50 rounded-lg">
+                <Users className="h-6 w-6 text-purple-600" />
+              </div>
+              <div>
+                <p className="text-sm text-gray-600">Carrier Network</p>
+                <p className="text-2xl font-bold text-gray-900">
+                  {stats?.total_carriers || 0}
+                </p>
               </div>
             </div>
-            <div className="bg-gray-50 px-5 py-3">
-              <div className="text-sm">
-                <span className="font-medium text-purple-600">{stats?.active_carriers || 0}</span>
-                <span className="text-gray-500"> active</span>
-              </div>
+            <div className="flex items-center gap-2 text-sm">
+              <div className="w-2 h-2 rounded-full bg-purple-600"></div>
+              <span className="font-medium text-purple-600">{stats?.active_carriers || 0}</span>
+              <span className="text-gray-500">active</span>
             </div>
           </div>
 
           {/* Performance */}
-          <div className="bg-white overflow-hidden shadow rounded-lg">
-            <div className="p-5">
-              <div className="flex items-center">
-                <div className="flex-shrink-0">
-                  <div className="bg-yellow-500 rounded-md p-3">
-                    <svg className="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
-                    </svg>
-                  </div>
-                </div>
-                <div className="ml-5 w-0 flex-1">
-                  <dl>
-                    <dt className="text-sm font-medium text-gray-500 truncate">
-                      Rating
-                    </dt>
-                    <dd className="text-2xl font-semibold text-gray-900">
-                      {stats?.average_rating?.toFixed(1) || '0.0'}
-                    </dd>
-                  </dl>
-                </div>
+          <div className="bg-white rounded-xl p-6 border border-gray-200">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="p-3 bg-yellow-50 rounded-lg">
+                <Star className="h-6 w-6 text-yellow-600" />
+              </div>
+              <div>
+                <p className="text-sm text-gray-600">Rating</p>
+                <p className="text-2xl font-bold text-gray-900">
+                  {stats?.average_rating?.toFixed(1) || '0.0'}
+                </p>
               </div>
             </div>
-            <div className="bg-gray-50 px-5 py-3">
-              <div className="text-sm">
-                <span className="font-medium text-yellow-600">{stats?.on_time_rate?.toFixed(0) || 0}%</span>
-                <span className="text-gray-500"> on-time</span>
-              </div>
+            <div className="flex items-center gap-2 text-sm">
+              <div className="w-2 h-2 rounded-full bg-yellow-600"></div>
+              <span className="font-medium text-yellow-600">{stats?.on_time_rate?.toFixed(0) || 0}%</span>
+              <span className="text-gray-500">on-time</span>
             </div>
           </div>
         </div>
 
         {/* Quick Actions */}
-        <div className="bg-white shadow rounded-lg mb-8">
+        <div className="bg-white rounded-xl border border-gray-200">
           <div className="px-6 py-5 border-b border-gray-200">
-            <h3 className="text-lg font-medium text-gray-900">Quick Actions</h3>
+            <h3 className="text-lg font-semibold text-gray-900">Quick Actions</h3>
+            <p className="text-sm text-gray-600 mt-1">Manage your brokerage operations</p>
           </div>
-          <div className="px-6 py-5">
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-              <button
-                onClick={() => router.push('/dashboard/broker/load-board')}
-                className="flex items-center p-4 border border-gray-200 rounded-lg hover:border-blue-500 hover:shadow-md transition-all"
-              >
-                <div className="flex-shrink-0">
-                  <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-                    <svg className="w-6 h-6 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-                    </svg>
+          <div className="p-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              <Link href="/dashboard/broker/load-board">
+                <div className="group p-5 border border-gray-200 rounded-xl hover:border-blue-500 hover:shadow-lg transition-all cursor-pointer">
+                  <div className="flex items-center gap-4">
+                    <div className="p-3 bg-blue-50 rounded-lg group-hover:bg-blue-100 transition-colors">
+                      <Package className="h-6 w-6 text-blue-600" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-semibold text-gray-900 mb-1">Load Board</p>
+                      <p className="text-xs text-gray-500">Browse shipments</p>
+                    </div>
+                    <ArrowRight className="h-5 w-5 text-gray-400 group-hover:text-blue-600 transition-colors" />
                   </div>
                 </div>
-                <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-900">View Load Board</p>
-                  <p className="text-xs text-gray-500">Browse available shipments</p>
-                </div>
-              </button>
+              </Link>
 
-              <button
-                onClick={() => router.push('/dashboard/broker/carriers')}
-                className="flex items-center p-4 border border-gray-200 rounded-lg hover:border-purple-500 hover:shadow-md transition-all"
-              >
-                <div className="flex-shrink-0">
-                  <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
-                    <svg className="w-6 h-6 text-purple-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
-                    </svg>
+              <Link href="/dashboard/broker/carriers">
+                <div className="group p-5 border border-gray-200 rounded-xl hover:border-purple-500 hover:shadow-lg transition-all cursor-pointer">
+                  <div className="flex items-center gap-4">
+                    <div className="p-3 bg-purple-50 rounded-lg group-hover:bg-purple-100 transition-colors">
+                      <Users className="h-6 w-6 text-purple-600" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-semibold text-gray-900 mb-1">Carriers</p>
+                      <p className="text-xs text-gray-500">Manage network</p>
+                    </div>
+                    <ArrowRight className="h-5 w-5 text-gray-400 group-hover:text-purple-600 transition-colors" />
                   </div>
                 </div>
-                <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-900">Manage Carriers</p>
-                  <p className="text-xs text-gray-500">Your driver network</p>
-                </div>
-              </button>
+              </Link>
 
-              <button
-                onClick={() => router.push('/dashboard/broker/assignments')}
-                className="flex items-center p-4 border border-gray-200 rounded-lg hover:border-green-500 hover:shadow-md transition-all"
-              >
-                <div className="flex-shrink-0">
-                  <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
-                    <svg className="w-6 h-6 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
-                    </svg>
+              <Link href="/dashboard/broker/assignments">
+                <div className="group p-5 border border-gray-200 rounded-xl hover:border-green-500 hover:shadow-lg transition-all cursor-pointer">
+                  <div className="flex items-center gap-4">
+                    <div className="p-3 bg-green-50 rounded-lg group-hover:bg-green-100 transition-colors">
+                      <Briefcase className="h-6 w-6 text-green-600" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-semibold text-gray-900 mb-1">Assignments</p>
+                      <p className="text-xs text-gray-500">Active & completed</p>
+                    </div>
+                    <ArrowRight className="h-5 w-5 text-gray-400 group-hover:text-green-600 transition-colors" />
                   </div>
                 </div>
-                <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-900">My Assignments</p>
-                  <p className="text-xs text-gray-500">Active & completed</p>
-                </div>
-              </button>
+              </Link>
 
-              <button
-                onClick={() => router.push('/dashboard/broker/payouts')}
-                className="flex items-center p-4 border border-gray-200 rounded-lg hover:border-yellow-500 hover:shadow-md transition-all"
-              >
-                <div className="flex-shrink-0">
-                  <div className="w-10 h-10 bg-yellow-100 rounded-lg flex items-center justify-center">
-                    <svg className="w-6 h-6 text-yellow-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
-                    </svg>
+              <Link href="/dashboard/broker/payouts">
+                <div className="group p-5 border border-gray-200 rounded-xl hover:border-yellow-500 hover:shadow-lg transition-all cursor-pointer">
+                  <div className="flex items-center gap-4">
+                    <div className="p-3 bg-yellow-50 rounded-lg group-hover:bg-yellow-100 transition-colors">
+                      <DollarSign className="h-6 w-6 text-yellow-600" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-semibold text-gray-900 mb-1">Payouts</p>
+                      <p className="text-xs text-gray-500">Commissions</p>
+                    </div>
+                    <ArrowRight className="h-5 w-5 text-gray-400 group-hover:text-yellow-600 transition-colors" />
                   </div>
                 </div>
-                <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-900">Payouts</p>
-                  <p className="text-xs text-gray-500">Commission payments</p>
-                </div>
-              </button>
+              </Link>
             </div>
           </div>
         </div>
 
         {/* Company Info */}
-        <div className="bg-white shadow rounded-lg">
+        <div className="bg-white rounded-xl border border-gray-200">
           <div className="px-6 py-5 border-b border-gray-200">
-            <h3 className="text-lg font-medium text-gray-900">Company Information</h3>
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-blue-50 rounded-lg">
+                <Building2 className="h-5 w-5 text-blue-600" />
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900">Company Information</h3>
+                <p className="text-sm text-gray-600">Your broker profile details</p>
+              </div>
+            </div>
           </div>
-          <div className="px-6 py-5">
-            <dl className="grid grid-cols-1 gap-x-4 gap-y-6 sm:grid-cols-2">
-              <div>
-                <dt className="text-sm font-medium text-gray-500">Company Email</dt>
-                <dd className="mt-1 text-sm text-gray-900">{broker.company_email}</dd>
+          <div className="p-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="flex items-start gap-3">
+                <div className="p-2 bg-gray-100 rounded-lg">
+                  <Mail className="h-4 w-4 text-gray-600" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-gray-500">Company Email</p>
+                  <p className="text-sm text-gray-900 mt-1">{broker.company_email}</p>
+                </div>
               </div>
-              <div>
-                <dt className="text-sm font-medium text-gray-500">Company Phone</dt>
-                <dd className="mt-1 text-sm text-gray-900">{broker.company_phone}</dd>
+
+              <div className="flex items-start gap-3">
+                <div className="p-2 bg-gray-100 rounded-lg">
+                  <Phone className="h-4 w-4 text-gray-600" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-gray-500">Company Phone</p>
+                  <p className="text-sm text-gray-900 mt-1">{broker.company_phone}</p>
+                </div>
               </div>
+
               {broker.dot_number && (
-                <div>
-                  <dt className="text-sm font-medium text-gray-500">DOT Number</dt>
-                  <dd className="mt-1 text-sm text-gray-900">{broker.dot_number}</dd>
+                <div className="flex items-start gap-3">
+                  <div className="p-2 bg-gray-100 rounded-lg">
+                    <FileText className="h-4 w-4 text-gray-600" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-gray-500">DOT Number</p>
+                    <p className="text-sm text-gray-900 mt-1">{broker.dot_number}</p>
+                  </div>
                 </div>
               )}
+
               {broker.mc_number && (
-                <div>
-                  <dt className="text-sm font-medium text-gray-500">MC Number</dt>
-                  <dd className="mt-1 text-sm text-gray-900">{broker.mc_number}</dd>
+                <div className="flex items-start gap-3">
+                  <div className="p-2 bg-gray-100 rounded-lg">
+                    <FileText className="h-4 w-4 text-gray-600" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-gray-500">MC Number</p>
+                    <p className="text-sm text-gray-900 mt-1">{broker.mc_number}</p>
+                  </div>
                 </div>
               )}
-              <div>
-                <dt className="text-sm font-medium text-gray-500">Business Address</dt>
-                <dd className="mt-1 text-sm text-gray-900">
-                  {broker.business_address}<br />
-                  {broker.business_city}, {broker.business_state} {broker.business_zip}
-                </dd>
+
+              <div className="flex items-start gap-3">
+                <div className="p-2 bg-gray-100 rounded-lg">
+                  <MapPin className="h-4 w-4 text-gray-600" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-gray-500">Business Address</p>
+                  <p className="text-sm text-gray-900 mt-1">
+                    {broker.business_address}<br />
+                    {broker.business_city}, {broker.business_state} {broker.business_zip}
+                  </p>
+                </div>
               </div>
-              <div>
-                <dt className="text-sm font-medium text-gray-500">Commission Rate</dt>
-                <dd className="mt-1 text-sm text-gray-900">{broker.default_commission_rate}%</dd>
+
+              <div className="flex items-start gap-3">
+                <div className="p-2 bg-gray-100 rounded-lg">
+                  <TrendingUp className="h-4 w-4 text-gray-600" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-gray-500">Commission Rate</p>
+                  <p className="text-sm text-gray-900 mt-1">{broker.default_commission_rate}%</p>
+                </div>
               </div>
-            </dl>
+            </div>
           </div>
         </div>
       </div>
@@ -433,7 +470,7 @@ function BrokerDashboardContent() {
 export default function BrokerDashboard() {
   return (
     <Suspense fallback={
-      <div className="flex items-center justify-center min-h-screen">
+      <div className="flex items-center justify-center min-h-[400px]">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
           <p className="text-gray-600">Loading dashboard...</p>
