@@ -274,13 +274,6 @@ export default function SignUpPage() {
                     </button>
                   </div>
                 </div>
-                      value={formData.confirmPassword}
-                      onChange={handleChange}
-                      required
-                      className="pl-10 h-12 rounded-xl"
-                    />
-                  </div>
-                </div>
 
                 {/* Submit Button */}
                 <Button
