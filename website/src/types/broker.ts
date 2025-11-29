@@ -522,11 +522,28 @@ export interface BrokerAssignmentWithDetails extends BrokerAssignment {
     id: string;
     email: string;
     full_name?: string;
+    phone?: string;
   };
+  load_board?: LoadBoardWithDetails;
 }
 
 export interface LoadBoardWithDetails extends LoadBoard {
-  shipment?: any; // Reference to Shipment type
+  shipment?: {
+    id: string;
+    pickup_city?: string;
+    pickup_state?: string;
+    pickup_zip?: string;
+    delivery_city?: string;
+    delivery_state?: string;
+    delivery_zip?: string;
+    vehicle_type?: string;
+    vehicle_year?: string;
+    vehicle_make?: string;
+    vehicle_model?: string;
+    distance?: number;
+    pickup_date?: string;
+    delivery_date?: string;
+  };
   posted_by_user?: {
     id: string;
     email: string;
@@ -536,13 +553,29 @@ export interface LoadBoardWithDetails extends LoadBoard {
 }
 
 export interface LoadBoardBidWithDetails extends LoadBoardBid {
-  load_board?: LoadBoard;
+  load_board?: LoadBoardWithDetails;
   broker?: BrokerProfile;
   carrier?: {
     id: string;
     email: string;
     full_name?: string;
   };
+}
+
+// Extended BrokerPayout with relationships
+export interface BrokerPayoutWithDetails extends BrokerPayout {
+  broker?: BrokerProfile;
+  shipment?: {
+    id: string;
+    carrier?: {
+      id: string;
+      email: string;
+      full_name?: string;
+      phone?: string;
+    };
+  };
+  assignment?: BrokerAssignmentWithDetails;
+  load_board?: LoadBoardWithDetails;
 }
 
 // =====================================================
