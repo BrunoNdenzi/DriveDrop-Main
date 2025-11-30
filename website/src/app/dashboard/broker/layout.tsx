@@ -25,7 +25,8 @@ import { Button } from '@/components/ui/button'
 
 const navItems = [
   { href: '/dashboard/broker', label: 'Dashboard', icon: LayoutDashboard },
-  { href: '/dashboard/broker/load-board', label: 'Load Board', icon: Package },
+  { href: '/dashboard/broker/shipments', label: 'My Shipments', icon: Package },
+  { href: '/dashboard/broker/load-board', label: 'Load Board', icon: FileText },
   { href: '/dashboard/broker/assignments', label: 'My Assignments', icon: Briefcase },
   { href: '/dashboard/broker/tracking', label: 'Live Tracking', icon: TrendingUp },
   { href: '/dashboard/broker/carriers', label: 'Carrier Network', icon: Users },

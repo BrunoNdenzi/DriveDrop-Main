@@ -12,10 +12,15 @@ import { VehicleSelect } from '@/components/ui/VehicleSelect'
 import { pricingService } from '@/services/pricingService'
 
 interface ShipmentData {
-  // Customer Info
+  // Customer Info (for regular users)
   customerName: string
   customerEmail: string
   customerPhone: string
+  
+  // Client Info (for broker creating on behalf of client)
+  clientName?: string
+  clientEmail?: string
+  clientPhone?: string
   
   // Locations
   pickupAddress: string
@@ -52,8 +57,9 @@ interface ShipmentData {
 }
 
 interface ShipmentFormProps {
-  onSubmit: (data: ShipmentData) => void
+  onSubmit: (data: any) => void
   isSubmitting: boolean
+  showClientFields?: boolean  // New prop for broker shipments
 }
 
 interface CollapsibleSectionProps {
@@ -120,12 +126,13 @@ const CollapsibleSection: React.FC<CollapsibleSectionProps> = ({
   )
 }
 
-export default function ShipmentForm({ onSubmit, isSubmitting }: ShipmentFormProps) {
+export default function ShipmentForm({ onSubmit, isSubmitting, showClientFields = false }: ShipmentFormProps) {
   const { profile } = useAuth()
   
   // Expanded sections state
   const [expandedSections, setExpandedSections] = useState({
-    customer: true,
+    client: showClientFields, // Start expanded if broker creating for client
+    customer: !showClientFields, // Regular client info
     locations: false,
     vehicle: false,
     details: false,
@@ -137,6 +144,9 @@ export default function ShipmentForm({ onSubmit, isSubmitting }: ShipmentFormPro
     customerName: '',
     customerEmail: '',
     customerPhone: '',
+    clientName: '', // For broker shipments
+    clientEmail: '',
+    clientPhone: '',
     pickupAddress: '',
     deliveryAddress: '',
     pickupDate: '',
