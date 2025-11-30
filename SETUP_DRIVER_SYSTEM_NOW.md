@@ -1,5 +1,12 @@
 # 🚀 Quick Setup Guide for Driver Application System
 
+## ⚠️ CRITICAL: Complete Step 1 FIRST!
+
+**The driver application system WILL NOT WORK without completing Step 1.**  
+Storage buckets must be created before any applications can be submitted.
+
+---
+
 ## Step 1: Run Storage Bucket Migration
 
 You need to create the storage buckets for document uploads. Choose one of these methods:

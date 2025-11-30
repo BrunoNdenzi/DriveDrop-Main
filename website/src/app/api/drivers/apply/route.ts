@@ -1,15 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { supabase } from '@/lib/supabase'
+import { getServiceSupabase } from '@/lib/supabase'
 import { encrypt } from '@/lib/encryption'
 import { sendEmail } from '@/lib/email'
 
 // Helper function to upload file to Supabase Storage
+// Uses service role key for elevated permissions
 async function uploadFile(
   file: File,
   bucket: string,
   folder: string
 ): Promise<string | null> {
   try {
+    const supabase = getServiceSupabase()
+    
     const fileExt = file.name.split('.').pop()
     const fileName = `${folder}/${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`
     
@@ -29,7 +32,7 @@ async function uploadFile(
       return null
     }
 
-    // Get public URL
+    // Get public URL (even though buckets are private, we need the path)
     const { data: urlData } = supabase.storage
       .from(bucket)
       .getPublicUrl(data.path)
@@ -173,8 +176,9 @@ export async function POST(request: NextRequest) {
       insuranceProofUrl
     })
 
-    // Insert application into database
+    // Insert application into database using service role for elevated permissions
     console.log('Inserting application into database...')
+    const supabase = getServiceSupabase()
     const { data: application, error } = await supabase
       .from('driver_applications')
       .insert({
