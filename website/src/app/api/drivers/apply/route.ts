@@ -1,54 +1,178 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabase } from '@/lib/supabase'
+import { encrypt } from '@/lib/encryption'
+import { sendEmail } from '@/lib/email'
+
+// Helper function to upload file to Supabase Storage
+async function uploadFile(
+  file: File,
+  bucket: string,
+  folder: string
+): Promise<string | null> {
+  try {
+    const fileExt = file.name.split('.').pop()
+    const fileName = `${folder}/${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`
+    
+    // Convert File to ArrayBuffer
+    const arrayBuffer = await file.arrayBuffer()
+    const buffer = Buffer.from(arrayBuffer)
+    
+    const { data, error } = await supabase.storage
+      .from(bucket)
+      .upload(fileName, buffer, {
+        contentType: file.type,
+        upsert: false,
+      })
+
+    if (error) {
+      console.error(`Error uploading file to ${bucket}:`, error)
+      return null
+    }
+
+    // Get public URL
+    const { data: urlData } = supabase.storage
+      .from(bucket)
+      .getPublicUrl(data.path)
+
+    return urlData.publicUrl
+  } catch (error) {
+    console.error('Error in uploadFile:', error)
+    return null
+  }
+}
 
 export async function POST(request: NextRequest) {
   try {
-    const data = await request.json()
+    // Parse form data (multipart/form-data for file uploads)
+    const formData = await request.formData()
+
+    // Extract form fields
+    const fullName = formData.get('fullName') as string
+    const dateOfBirth = formData.get('dateOfBirth') as string
+    const email = formData.get('email') as string
+    const phone = formData.get('phone') as string
+    const address = formData.get('address') as string
+    const ssn = formData.get('ssn') as string
+    
+    const licenseNumber = formData.get('licenseNumber') as string
+    const licenseState = formData.get('licenseState') as string
+    const licenseExpiration = formData.get('licenseExpiration') as string
+    const licenseFront = formData.get('licenseFront') as File | null
+    const licenseBack = formData.get('licenseBack') as File | null
+    const proofOfAddress = formData.get('proofOfAddress') as File | null
+    
+    const insuranceProvider = formData.get('insuranceProvider') as string
+    const policyNumber = formData.get('policyNumber') as string
+    const policyExpiration = formData.get('policyExpiration') as string
+    const coverageAmount = formData.get('coverageAmount') as string
+    const insuranceProof = formData.get('insuranceProof') as File | null
+    
+    const hasSuspensions = formData.get('hasSuspensions') === 'true'
+    const hasCriminalRecord = formData.get('hasCriminalRecord') === 'true'
+    const incidentDescription = formData.get('incidentDescription') as string | null
+    
+    const backgroundCheckConsent = formData.get('backgroundCheckConsent') === 'true'
+    const dataUseConsent = formData.get('dataUseConsent') === 'true'
+    const insuranceConsent = formData.get('insuranceConsent') === 'true'
+    const termsAccepted = formData.get('termsAccepted') === 'true'
 
     // Validate required fields
-    const requiredFields = ['fullName', 'dateOfBirth', 'email', 'phone', 'address', 'ssn']
-    for (const field of requiredFields) {
-      if (!data[field]) {
-        return NextResponse.json(
-          { error: `Missing required field: ${field}` },
-          { status: 400 }
-        )
-      }
+    const requiredFields = [
+      { name: 'fullName', value: fullName },
+      { name: 'dateOfBirth', value: dateOfBirth },
+      { name: 'email', value: email },
+      { name: 'phone', value: phone },
+      { name: 'address', value: address },
+      { name: 'ssn', value: ssn },
+      { name: 'licenseNumber', value: licenseNumber },
+      { name: 'licenseState', value: licenseState },
+      { name: 'licenseExpiration', value: licenseExpiration },
+      { name: 'insuranceProvider', value: insuranceProvider },
+      { name: 'policyNumber', value: policyNumber },
+      { name: 'policyExpiration', value: policyExpiration },
+      { name: 'coverageAmount', value: coverageAmount },
+    ]
+
+    const missingFields = requiredFields.filter(field => !field.value)
+    if (missingFields.length > 0) {
+      return NextResponse.json(
+        { error: `Missing required fields: ${missingFields.map(f => f.name).join(', ')}` },
+        { status: 400 }
+      )
     }
 
-    // TODO: Encrypt SSN before storing
-    // For now, we'll store it as-is (YOU SHOULD IMPLEMENT ENCRYPTION)
-    
-    // Insert into driver_applications table
+    // Encrypt SSN before storing (AES-256-GCM encryption)
+    let ssnEncrypted: string
+    try {
+      ssnEncrypted = encrypt(ssn)
+    } catch (error) {
+      console.error('Error encrypting SSN:', error)
+      return NextResponse.json(
+        { error: 'Failed to process sensitive data securely' },
+        { status: 500 }
+      )
+    }
+
+    // Create a temporary folder ID for file uploads
+    const applicationFolderId = `temp-${Date.now()}-${Math.random().toString(36).substring(7)}`
+
+    // Upload documents to Supabase Storage
+    let licenseFrontUrl: string | null = null
+    let licenseBackUrl: string | null = null
+    let proofOfAddressUrl: string | null = null
+    let insuranceProofUrl: string | null = null
+
+    if (licenseFront && licenseFront.size > 0) {
+      licenseFrontUrl = await uploadFile(licenseFront, 'driver-licenses', applicationFolderId)
+    }
+
+    if (licenseBack && licenseBack.size > 0) {
+      licenseBackUrl = await uploadFile(licenseBack, 'driver-licenses', applicationFolderId)
+    }
+
+    if (proofOfAddress && proofOfAddress.size > 0) {
+      proofOfAddressUrl = await uploadFile(proofOfAddress, 'proof-of-address', applicationFolderId)
+    }
+
+    if (insuranceProof && insuranceProof.size > 0) {
+      insuranceProofUrl = await uploadFile(insuranceProof, 'insurance-documents', applicationFolderId)
+    }
+
+    // Insert application into database
     const { data: application, error } = await supabase
       .from('driver_applications')
       .insert({
-        full_name: data.fullName,
-        date_of_birth: data.dateOfBirth,
-        email: data.email,
-        phone: data.phone,
-        address: data.address,
-        ssn_encrypted: data.ssn, // TODO: Encrypt this!
+        full_name: fullName,
+        date_of_birth: dateOfBirth,
+        email: email,
+        phone: phone,
+        address: address,
+        ssn_encrypted: ssnEncrypted, // ✅ Now encrypted!
         
-        license_number: data.licenseNumber,
-        license_state: data.licenseState,
-        license_expiration: data.licenseExpiration,
+        license_number: licenseNumber,
+        license_state: licenseState,
+        license_expiration: licenseExpiration,
+        license_front_url: licenseFrontUrl,
+        license_back_url: licenseBackUrl,
+        proof_of_address_url: proofOfAddressUrl,
         
-        has_suspensions: data.hasSuspensions || false,
-        has_criminal_record: data.hasCriminalRecord || false,
-        incident_description: data.incidentDescription,
+        has_suspensions: hasSuspensions,
+        has_criminal_record: hasCriminalRecord,
+        incident_description: incidentDescription,
         
-        insurance_provider: data.insuranceProvider,
-        insurance_policy_number: data.policyNumber,
-        insurance_expiration: data.policyExpiration,
-        coverage_amount: data.coverageAmount,
+        insurance_provider: insuranceProvider,
+        insurance_policy_number: policyNumber,
+        insurance_expiration: policyExpiration,
+        coverage_amount: coverageAmount,
+        insurance_proof_url: insuranceProofUrl,
         
-        background_check_consent: data.backgroundCheckConsent,
-        data_use_consent: data.dataUseConsent,
-        insurance_consent: data.insuranceConsent,
-        terms_accepted: data.termsAccepted,
+        background_check_consent: backgroundCheckConsent,
+        data_use_consent: dataUseConsent,
+        insurance_consent: insuranceConsent,
+        terms_accepted: termsAccepted,
         
         status: 'pending',
+        background_check_status: 'not_started',
         submitted_at: new Date().toISOString(),
       })
       .select()
@@ -56,20 +180,86 @@ export async function POST(request: NextRequest) {
 
     if (error) {
       console.error('Supabase error:', error)
+      
+      // Check for duplicate email
+      if (error.code === '23505' && error.message.includes('email')) {
+        return NextResponse.json(
+          { error: 'An application with this email already exists and is pending review.' },
+          { status: 409 }
+        )
+      }
+      
       return NextResponse.json(
-        { error: 'Failed to submit application' },
+        { error: 'Failed to submit application. Please try again.' },
         { status: 500 }
       )
     }
 
-    // TODO: Send confirmation email to applicant
-    // TODO: Send notification email to admin
-    // TODO: Initiate background check process (if using Checkr API)
+    // Send confirmation email to applicant
+    try {
+      const firstName = fullName.split(' ')[0]
+      await sendEmail({
+        to: email,
+        subject: '✅ Driver Application Received - DriveDrop',
+        html: `
+          <!DOCTYPE html>
+          <html>
+            <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+              <div style="background: linear-gradient(135deg, #00B8A9 0%, #008B80 100%); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
+                <h1 style="color: white; margin: 0; font-size: 28px;">Application Received! ✅</h1>
+              </div>
+              
+              <div style="background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px;">
+                <p style="font-size: 16px; margin-bottom: 20px;">Hi ${firstName},</p>
+                
+                <p style="font-size: 16px; margin-bottom: 20px;">
+                  Thank you for applying to become a DriveDrop driver! We have received your application and will review it shortly.
+                </p>
+                
+                <div style="background: white; padding: 20px; border-radius: 8px; margin: 30px 0; border-left: 4px solid #00B8A9;">
+                  <h2 style="margin: 0 0 15px 0; color: #00B8A9; font-size: 18px;">📋 What's Next?</h2>
+                  <ol style="margin: 0; padding-left: 20px; font-size: 14px; line-height: 1.8;">
+                    <li>We'll review your application and documents</li>
+                    <li>Background check will be initiated</li>
+                    <li>You'll receive an email once we make a decision (typically within 3-5 business days)</li>
+                    <li>If approved, you'll receive login credentials to start driving</li>
+                  </ol>
+                </div>
+                
+                <div style="background: #e8f5f4; padding: 15px; border-radius: 4px; margin-top: 20px;">
+                  <p style="margin: 0; font-size: 14px; color: #00695c;">
+                    💡 <strong>Application ID:</strong> ${application.id.substring(0, 8).toUpperCase()}<br>
+                    Keep this ID for your records.
+                  </p>
+                </div>
+                
+                <p style="font-size: 14px; color: #666; margin-top: 30px;">
+                  Questions? Contact us at <a href="mailto:support@drivedrop.us.com" style="color: #00B8A9;">support@drivedrop.us.com</a>
+                </p>
+                
+                <p style="font-size: 16px; margin-top: 30px; margin-bottom: 5px;">Best regards,</p>
+                <p style="font-size: 16px; margin-top: 0; font-weight: bold; color: #00B8A9;">The DriveDrop Team</p>
+              </div>
+              
+              <div style="text-align: center; padding: 20px; color: #666; font-size: 12px;">
+                <p>© ${new Date().getFullYear()} DriveDrop. All rights reserved.</p>
+              </div>
+            </body>
+          </html>
+        `,
+      })
+    } catch (emailError) {
+      console.error('Error sending confirmation email:', emailError)
+      // Don't fail the request if email fails - application is already submitted
+    }
+
+    // TODO: Initiate background check via Checkr API or similar service
+    // This would typically be done asynchronously after initial review
 
     return NextResponse.json({
       success: true,
       applicationId: application.id,
-      message: 'Application submitted successfully',
+      message: 'Application submitted successfully! Check your email for confirmation.',
     })
   } catch (error) {
     console.error('Application submission error:', error)
