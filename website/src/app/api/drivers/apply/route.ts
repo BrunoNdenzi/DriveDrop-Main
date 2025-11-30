@@ -43,8 +43,11 @@ async function uploadFile(
 
 export async function POST(request: NextRequest) {
   try {
+    console.log('=== Driver Application Submission Started ===')
+    
     // Parse form data (multipart/form-data for file uploads)
     const formData = await request.formData()
+    console.log('FormData parsed successfully')
 
     // Extract form fields
     const fullName = formData.get('fullName') as string
@@ -95,16 +98,21 @@ export async function POST(request: NextRequest) {
 
     const missingFields = requiredFields.filter(field => !field.value)
     if (missingFields.length > 0) {
+      console.error('Missing required fields:', missingFields.map(f => f.name))
       return NextResponse.json(
         { error: `Missing required fields: ${missingFields.map(f => f.name).join(', ')}` },
         { status: 400 }
       )
     }
 
+    console.log('All required fields present')
+
     // Encrypt SSN before storing (AES-256-GCM encryption)
     let ssnEncrypted: string
     try {
+      console.log('Encrypting SSN...')
       ssnEncrypted = encrypt(ssn)
+      console.log('SSN encrypted successfully')
     } catch (error) {
       console.error('Error encrypting SSN:', error)
       return NextResponse.json(
@@ -115,6 +123,7 @@ export async function POST(request: NextRequest) {
 
     // Create a temporary folder ID for file uploads
     const applicationFolderId = `temp-${Date.now()}-${Math.random().toString(36).substring(7)}`
+    console.log('Application folder ID:', applicationFolderId)
 
     // Upload documents to Supabase Storage
     let licenseFrontUrl: string | null = null
@@ -122,23 +131,50 @@ export async function POST(request: NextRequest) {
     let proofOfAddressUrl: string | null = null
     let insuranceProofUrl: string | null = null
 
-    if (licenseFront && licenseFront.size > 0) {
-      licenseFrontUrl = await uploadFile(licenseFront, 'driver-licenses', applicationFolderId)
+    try {
+      if (licenseFront && licenseFront.size > 0) {
+        licenseFrontUrl = await uploadFile(licenseFront, 'driver-licenses', applicationFolderId)
+        if (!licenseFrontUrl) {
+          console.error('Failed to upload license front - bucket may not exist')
+        }
+      }
+
+      if (licenseBack && licenseBack.size > 0) {
+        licenseBackUrl = await uploadFile(licenseBack, 'driver-licenses', applicationFolderId)
+        if (!licenseBackUrl) {
+          console.error('Failed to upload license back - bucket may not exist')
+        }
+      }
+
+      if (proofOfAddress && proofOfAddress.size > 0) {
+        proofOfAddressUrl = await uploadFile(proofOfAddress, 'proof-of-address', applicationFolderId)
+        if (!proofOfAddressUrl) {
+          console.error('Failed to upload proof of address - bucket may not exist')
+        }
+      }
+
+      if (insuranceProof && insuranceProof.size > 0) {
+        insuranceProofUrl = await uploadFile(insuranceProof, 'insurance-documents', applicationFolderId)
+        if (!insuranceProofUrl) {
+          console.error('Failed to upload insurance proof - bucket may not exist')
+        }
+      }
+    } catch (uploadError) {
+      console.error('Error during file uploads:', uploadError)
+      // Continue with application submission even if uploads fail
+      // Admin can request documents via email later
     }
 
-    if (licenseBack && licenseBack.size > 0) {
-      licenseBackUrl = await uploadFile(licenseBack, 'driver-licenses', applicationFolderId)
-    }
-
-    if (proofOfAddress && proofOfAddress.size > 0) {
-      proofOfAddressUrl = await uploadFile(proofOfAddress, 'proof-of-address', applicationFolderId)
-    }
-
-    if (insuranceProof && insuranceProof.size > 0) {
-      insuranceProofUrl = await uploadFile(insuranceProof, 'insurance-documents', applicationFolderId)
-    }
+    console.log('File uploads completed (or skipped)')
+    console.log('Document URLs:', {
+      licenseFrontUrl,
+      licenseBackUrl,
+      proofOfAddressUrl,
+      insuranceProofUrl
+    })
 
     // Insert application into database
+    console.log('Inserting application into database...')
     const { data: application, error } = await supabase
       .from('driver_applications')
       .insert({
@@ -179,7 +215,8 @@ export async function POST(request: NextRequest) {
       .single()
 
     if (error) {
-      console.error('Supabase error:', error)
+      console.error('Supabase insert error:', error)
+      console.error('Error details:', JSON.stringify(error, null, 2))
       
       // Check for duplicate email
       if (error.code === '23505' && error.message.includes('email')) {
@@ -194,6 +231,8 @@ export async function POST(request: NextRequest) {
         { status: 500 }
       )
     }
+
+    console.log('Application inserted successfully:', application.id)
 
     // Send confirmation email to applicant
     try {

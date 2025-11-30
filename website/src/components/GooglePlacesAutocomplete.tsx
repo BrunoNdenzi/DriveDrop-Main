@@ -21,30 +21,6 @@ export function GooglePlacesAutocomplete({
   useEffect(() => {
     if (!inputRef.current) return
 
-    // Load Google Maps Places API
-    const loadGoogleMaps = () => {
-      const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY
-
-      if (!apiKey) {
-        console.error('Google Maps API key not found')
-        return
-      }
-
-      // Check if already loaded
-      if (window.google?.maps?.places) {
-        initAutocomplete()
-        return
-      }
-
-      // Load script
-      const script = document.createElement('script')
-      script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=places`
-      script.async = true
-      script.defer = true
-      script.onload = initAutocomplete
-      document.head.appendChild(script)
-    }
-
     const initAutocomplete = () => {
       if (!inputRef.current || !window.google?.maps?.places) return
 
@@ -63,7 +39,20 @@ export function GooglePlacesAutocomplete({
       })
     }
 
-    loadGoogleMaps()
+    // Wait for Google Maps to be loaded (from layout.tsx)
+    if (window.google?.maps?.places) {
+      initAutocomplete()
+    } else {
+      // Retry after a short delay if not loaded yet
+      const checkInterval = setInterval(() => {
+        if (window.google?.maps?.places) {
+          initAutocomplete()
+          clearInterval(checkInterval)
+        }
+      }, 100)
+
+      return () => clearInterval(checkInterval)
+    }
 
     return () => {
       if (autocompleteRef.current) {
