@@ -90,18 +90,42 @@ export default function DriverRegistrationPage() {
     const completeData = { ...formData, ...data }
 
     try {
-      const response = await fetch('/api/drivers/apply', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(completeData),
+      // Create FormData object for file uploads
+      const formDataObj = new window.FormData()
+      
+      // Add all fields to FormData
+      Object.entries(completeData).forEach(([key, value]) => {
+        if (value !== null && value !== undefined) {
+          // Handle file inputs
+          if (value instanceof FileList && value.length > 0) {
+            formDataObj.append(key, value[0])
+          }
+          // Handle boolean values
+          else if (typeof value === 'boolean') {
+            formDataObj.append(key, value.toString())
+          }
+          // Handle other values
+          else if (typeof value === 'string' || typeof value === 'number') {
+            formDataObj.append(key, value.toString())
+          }
+        }
       })
 
-      if (!response.ok) throw new Error('Application submission failed')
+      const response = await fetch('/api/drivers/apply', {
+        method: 'POST',
+        body: formDataObj, // Send as multipart/form-data
+      })
+
+      const result = await response.json()
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Application submission failed')
+      }
 
       setSubmitted(true)
-    } catch (error) {
+    } catch (error: any) {
       console.error('Submission error:', error)
-      alert('Failed to submit application. Please try again.')
+      alert(error.message || 'Failed to submit application. Please try again.')
     } finally {
       setIsSubmitting(false)
     }

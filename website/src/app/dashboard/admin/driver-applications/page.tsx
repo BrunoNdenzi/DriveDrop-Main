@@ -101,72 +101,69 @@ export default function AdminDriverApplicationsPage() {
   }
 
   const handleApprove = async (applicationId: string, email: string, fullName: string) => {
-    if (!confirm('Approve this driver application? This will create a driver account and send them login credentials.')) {
+    const comment = prompt('Optional: Add a note for the driver (will be included in approval email):')
+    
+    if (!confirm(`Approve driver application for ${fullName}? This will:\n- Create a driver account\n- Send login credentials via email\n- Allow them to start accepting shipments`)) {
       return
     }
 
     setProcessing(applicationId)
     try {
-      // Update application status
-      const { error: appError } = await supabase
-        .from('driver_applications')
-        .update({
-          status: 'approved',
-          reviewed_at: new Date().toISOString()
-        })
-        .eq('id', applicationId)
+      // Call API to approve application and create user account
+      const response = await fetch(`/api/drivers/applications/${applicationId}/approve`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ adminComment: comment }),
+      })
 
-      if (appError) throw appError
+      const result = await response.json()
 
-      // TODO: Call an API endpoint to create auth user and profile
-      // For now, just mark as approved
-      // The API should:
-      // 1. Create auth.users entry with email
-      // 2. Generate temporary password
-      // 3. Create profile with role='driver'
-      // 4. Send welcome email with login credentials
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to approve application')
+      }
 
-      toast('Driver application approved! TODO: Set up user account creation API', 'success')
+      toast('✅ Driver approved! Account created and welcome email sent.', 'success')
       fetchApplications()
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error approving application:', error)
-      toast('Failed to approve application', 'error')
+      toast(error.message || 'Failed to approve application', 'error')
     } finally {
       setProcessing(null)
     }
   }
 
   const handleReject = async (applicationId: string) => {
-    const reason = rejectionReason.trim()
-    if (!reason) {
+    const reason = prompt('Rejection reason (will be sent to applicant):')
+    
+    if (!reason || !reason.trim()) {
       toast('Please provide a rejection reason', 'error')
       return
     }
 
-    if (!confirm('Reject this driver application? The applicant will be notified.')) {
+    if (!confirm('Reject this driver application? The applicant will be notified via email.')) {
       return
     }
 
     setProcessing(applicationId)
     try {
-      const { error } = await supabase
-        .from('driver_applications')
-        .update({
-          status: 'rejected',
-          reviewed_at: new Date().toISOString(),
-          rejection_reason: reason
-        })
-        .eq('id', applicationId)
+      // Call API to reject application
+      const response = await fetch(`/api/drivers/applications/${applicationId}/reject`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reason }),
+      })
 
-      if (error) throw error
+      const result = await response.json()
 
-      toast('Application rejected', 'success')
-      setRejectionReason('')
-      setViewingDocs(null)
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to reject application')
+      }
+
+      toast('Application rejected and applicant notified', 'success')
       fetchApplications()
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error rejecting application:', error)
-      toast('Failed to reject application', 'error')
+      toast(error.message || 'Failed to reject application', 'error')
     } finally {
       setProcessing(null)
     }
