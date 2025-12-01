@@ -29,6 +29,11 @@ export async function POST(
     // Generate a secure temporary password
     const temporaryPassword = generatePassword(16)
 
+    // Split full name into first and last name
+    const nameParts = application.full_name.trim().split(' ')
+    const firstName = nameParts[0] || ''
+    const lastName = nameParts.slice(1).join(' ') || nameParts[0] || ''
+
     // Create user account in auth.users using Admin API
     let authData
     try {
@@ -37,10 +42,10 @@ export async function POST(
         password: temporaryPassword,
         email_confirm: true, // Auto-confirm email
         user_metadata: {
-          full_name: application.full_name,
+          first_name: firstName,
+          last_name: lastName,
           phone: application.phone,
           role: 'driver',
-          onboarding_complete: false,
         },
       })
 
@@ -63,11 +68,11 @@ export async function POST(
       .insert({
         id: authData.user.id,
         email: application.email,
-        full_name: application.full_name,
+        first_name: firstName,
+        last_name: lastName,
         phone: application.phone,
         role: 'driver',
         avatar_url: null,
-        onboarding_complete: false,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       })
