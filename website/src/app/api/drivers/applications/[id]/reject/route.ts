@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { supabase } from '@/lib/supabase'
+import { getServiceSupabase } from '@/lib/supabase'
 import { sendEmail } from '@/lib/email'
 
 export async function POST(
@@ -9,9 +9,10 @@ export async function POST(
   try {
     const { reason } = await request.json()
     const applicationId = params.id
+    const supabase = getServiceSupabase()
 
     // Get application details
-    const { data: application, error: fetchError } = await supabase
+    const { data: application, error: fetchError} = await supabase
       .from('driver_applications')
       .select('*')
       .eq('id', applicationId)
