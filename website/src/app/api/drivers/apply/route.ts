@@ -291,9 +291,100 @@ export async function POST(request: NextRequest) {
           </html>
         `,
       })
+      console.log('Applicant confirmation email sent successfully')
     } catch (emailError) {
-      console.error('Error sending confirmation email:', emailError)
+      console.error('Error sending confirmation email to applicant:', emailError)
       // Don't fail the request if email fails - application is already submitted
+    }
+
+    // Send notification email to admin
+    try {
+      await sendEmail({
+        to: 'infos@calkons.com',
+        subject: '🚨 New Driver Application Submitted - DriveDrop',
+        html: `
+          <!DOCTYPE html>
+          <html>
+            <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+              <div style="background: linear-gradient(135deg, #FF6B6B 0%, #EE5A6F 100%); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
+                <h1 style="color: white; margin: 0; font-size: 28px;">🚨 New Driver Application</h1>
+              </div>
+              
+              <div style="background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px;">
+                <p style="font-size: 16px; margin-bottom: 20px;">
+                  A new driver application has been submitted and requires review.
+                </p>
+                
+                <div style="background: white; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #FF6B6B;">
+                  <h2 style="margin: 0 0 15px 0; color: #FF6B6B; font-size: 18px;">📋 Applicant Information</h2>
+                  <table style="width: 100%; font-size: 14px;">
+                    <tr>
+                      <td style="padding: 8px 0; color: #666; width: 40%;"><strong>Full Name:</strong></td>
+                      <td style="padding: 8px 0;">${fullName}</td>
+                    </tr>
+                    <tr>
+                      <td style="padding: 8px 0; color: #666;"><strong>Email:</strong></td>
+                      <td style="padding: 8px 0;">${email}</td>
+                    </tr>
+                    <tr>
+                      <td style="padding: 8px 0; color: #666;"><strong>Phone:</strong></td>
+                      <td style="padding: 8px 0;">${phone}</td>
+                    </tr>
+                    <tr>
+                      <td style="padding: 8px 0; color: #666;"><strong>License State:</strong></td>
+                      <td style="padding: 8px 0;">${licenseState}</td>
+                    </tr>
+                    <tr>
+                      <td style="padding: 8px 0; color: #666;"><strong>Application ID:</strong></td>
+                      <td style="padding: 8px 0; font-family: monospace;">${application.id.substring(0, 8).toUpperCase()}</td>
+                    </tr>
+                    <tr>
+                      <td style="padding: 8px 0; color: #666;"><strong>Submitted:</strong></td>
+                      <td style="padding: 8px 0;">${new Date().toLocaleString()}</td>
+                    </tr>
+                  </table>
+                </div>
+
+                <div style="background: #fff3cd; padding: 15px; border-radius: 4px; margin: 20px 0; border-left: 4px solid #ffc107;">
+                  <p style="margin: 0; font-size: 14px; color: #856404;">
+                    ⚠️ <strong>Documents Uploaded:</strong><br>
+                    ${licenseFrontUrl ? '✅ Driver License (Front)' : '❌ Driver License (Front)'}<br>
+                    ${licenseBackUrl ? '✅ Driver License (Back)' : '❌ Driver License (Back)'}<br>
+                    ${proofOfAddressUrl ? '✅ Proof of Address' : '❌ Proof of Address'}<br>
+                    ${insuranceProofUrl ? '✅ Insurance Document' : '❌ Insurance Document'}
+                  </p>
+                </div>
+
+                <div style="background: #e8f5f4; padding: 15px; border-radius: 4px; margin: 20px 0;">
+                  <p style="margin: 0; font-size: 14px; color: #00695c;">
+                    📊 <strong>Background Check Status:</strong> Not Started<br>
+                    🚦 <strong>Application Status:</strong> Pending Review
+                  </p>
+                </div>
+                
+                <div style="text-align: center; margin: 30px 0;">
+                  <a href="https://www.drivedrop.us.com/dashboard/admin/driver-applications" 
+                     style="display: inline-block; background: #FF6B6B; color: white; padding: 15px 30px; text-decoration: none; border-radius: 5px; font-weight: bold; font-size: 16px;">
+                    Review Application Now →
+                  </a>
+                </div>
+
+                <p style="font-size: 14px; color: #666; margin-top: 30px; text-align: center;">
+                  This is an automated notification from the DriveDrop driver application system.
+                </p>
+              </div>
+              
+              <div style="text-align: center; padding: 20px; color: #666; font-size: 12px;">
+                <p>© ${new Date().getFullYear()} DriveDrop. All rights reserved.</p>
+              </div>
+            </body>
+          </html>
+        `,
+      })
+      console.log('Admin notification email sent successfully')
+    } catch (emailError) {
+      console.error('Error sending notification email to admin:', emailError)
+      // Don't fail the request if email fails
     }
 
     // TODO: Initiate background check via Checkr API or similar service
