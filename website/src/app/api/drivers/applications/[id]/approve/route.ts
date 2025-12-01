@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { supabase } from '@/lib/supabase'
+import { getServiceSupabase } from '@/lib/supabase'
 import { generatePassword } from '@/lib/encryption'
 import { sendEmail } from '@/lib/email'
 
@@ -10,6 +10,7 @@ export async function POST(
   try {
     const { adminComment } = await request.json()
     const applicationId = params.id
+    const supabase = getServiceSupabase()
 
     // Get application details
     const { data: application, error: fetchError } = await supabase

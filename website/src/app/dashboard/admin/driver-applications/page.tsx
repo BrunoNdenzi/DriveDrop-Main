@@ -67,6 +67,36 @@ export default function AdminDriverApplicationsPage() {
   const [processing, setProcessing] = useState<string | null>(null)
   const supabase = getSupabaseBrowserClient()
 
+  // Function to get signed URL for viewing documents
+  const getSignedUrl = async (url: string) => {
+    try {
+      const response = await fetch('/api/storage/signed-url', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ path: url }),
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to get signed URL')
+      }
+
+      return data.signedUrl
+    } catch (error) {
+      console.error('Error getting signed URL:', error)
+      toast('Failed to load document', 'error')
+      return null
+    }
+  }
+
+  const viewDocument = async (url: string) => {
+    const signedUrl = await getSignedUrl(url)
+    if (signedUrl) {
+      window.open(signedUrl, '_blank')
+    }
+  }
+
   useEffect(() => {
     fetchApplications()
   }, [filter])
@@ -368,14 +398,12 @@ export default function AdminDriverApplicationsPage() {
                       {app.license_front_url ? '✓' : '✗'} License Front
                     </span>
                     {app.license_front_url && (
-                      <a
-                        href={app.license_front_url}
-                        target="_blank"
-                        rel="noopener noreferrer"
+                      <button
+                        onClick={() => viewDocument(app.license_front_url!)}
                         className="text-blue-600 hover:text-blue-700"
                       >
                         <Eye className="h-4 w-4" />
-                      </a>
+                      </button>
                     )}
                   </div>
                   <div className="flex items-center justify-between">
@@ -383,14 +411,12 @@ export default function AdminDriverApplicationsPage() {
                       {app.license_back_url ? '✓' : '✗'} License Back
                     </span>
                     {app.license_back_url && (
-                      <a
-                        href={app.license_back_url}
-                        target="_blank"
-                        rel="noopener noreferrer"
+                      <button
+                        onClick={() => viewDocument(app.license_back_url!)}
                         className="text-blue-600 hover:text-blue-700"
                       >
                         <Eye className="h-4 w-4" />
-                      </a>
+                      </button>
                     )}
                   </div>
                   <div className="flex items-center justify-between">
@@ -398,14 +424,12 @@ export default function AdminDriverApplicationsPage() {
                       {app.insurance_proof_url ? '✓' : '✗'} Insurance Proof
                     </span>
                     {app.insurance_proof_url && (
-                      <a
-                        href={app.insurance_proof_url}
-                        target="_blank"
-                        rel="noopener noreferrer"
+                      <button
+                        onClick={() => viewDocument(app.insurance_proof_url!)}
                         className="text-blue-600 hover:text-blue-700"
                       >
                         <Eye className="h-4 w-4" />
-                      </a>
+                      </button>
                     )}
                   </div>
                   <div className="flex items-center justify-between">
@@ -413,14 +437,12 @@ export default function AdminDriverApplicationsPage() {
                       {app.proof_of_address_url ? '✓' : '✗'} Proof of Address
                     </span>
                     {app.proof_of_address_url && (
-                      <a
-                        href={app.proof_of_address_url}
-                        target="_blank"
-                        rel="noopener noreferrer"
+                      <button
+                        onClick={() => viewDocument(app.proof_of_address_url!)}
                         className="text-blue-600 hover:text-blue-700"
                       >
                         <Eye className="h-4 w-4" />
-                      </a>
+                      </button>
                     )}
                   </div>
                 </div>
