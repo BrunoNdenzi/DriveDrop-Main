@@ -29,23 +29,30 @@ export async function POST(
     // Generate a secure temporary password
     const temporaryPassword = generatePassword(16)
 
-    // Create user account in auth.users
-    const { data: authData, error: authError } = await supabase.auth.admin.createUser({
-      email: application.email,
-      password: temporaryPassword,
-      email_confirm: true, // Auto-confirm email
-      user_metadata: {
-        full_name: application.full_name,
-        phone: application.phone,
-        role: 'driver',
-        onboarding_complete: false,
-      },
-    })
+    // Create user account in auth.users using Admin API
+    let authData
+    try {
+      const createUserResponse = await supabase.auth.admin.createUser({
+        email: application.email,
+        password: temporaryPassword,
+        email_confirm: true, // Auto-confirm email
+        user_metadata: {
+          full_name: application.full_name,
+          phone: application.phone,
+          role: 'driver',
+          onboarding_complete: false,
+        },
+      })
 
-    if (authError) {
+      if (createUserResponse.error) {
+        throw createUserResponse.error
+      }
+
+      authData = createUserResponse.data
+    } catch (authError: any) {
       console.error('Error creating user account:', authError)
       return NextResponse.json(
-        { error: `Failed to create user account: ${authError.message}` },
+        { error: `Failed to create user account: ${authError.message || 'Unknown error'}` },
         { status: 500 }
       )
     }
