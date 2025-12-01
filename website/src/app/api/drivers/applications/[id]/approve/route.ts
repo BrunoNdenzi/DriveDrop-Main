@@ -85,9 +85,9 @@ export async function POST(
       .from('driver_applications')
       .update({
         status: 'approved',
-        approved_at: new Date().toISOString(),
+        reviewed_at: new Date().toISOString(),
+        reviewed_by: authData.user.id, // Link to created user
         admin_comment: adminComment || null,
-        user_id: authData.user.id, // Link to created user
       })
       .eq('id', applicationId)
 
