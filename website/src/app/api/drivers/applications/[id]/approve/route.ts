@@ -62,27 +62,20 @@ export async function POST(
       )
     }
 
-    // Create profile in profiles table
-    const { error: profileError } = await supabase
+    // Note: Profile is automatically created by the handle_new_user trigger
+    // We just need to verify it was created successfully
+    const { data: profile, error: profileError } = await supabase
       .from('profiles')
-      .insert({
-        id: authData.user.id,
-        email: application.email,
-        first_name: firstName,
-        last_name: lastName,
-        phone: application.phone,
-        role: 'driver',
-        avatar_url: null,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      })
+      .select('id')
+      .eq('id', authData.user.id)
+      .single()
 
-    if (profileError) {
-      console.error('Error creating profile:', profileError)
-      // Try to delete the auth user if profile creation fails
+    if (profileError || !profile) {
+      console.error('Error verifying profile creation:', profileError)
+      // Profile wasn't created by trigger, try to delete the auth user
       await supabase.auth.admin.deleteUser(authData.user.id)
       return NextResponse.json(
-        { error: 'Failed to create user profile' },
+        { error: 'Failed to create user profile automatically' },
         { status: 500 }
       )
     }
