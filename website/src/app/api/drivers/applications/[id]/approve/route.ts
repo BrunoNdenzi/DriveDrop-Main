@@ -155,7 +155,7 @@ export async function POST(
                 
                 <div style="background: #e8f5e9; padding: 15px; border-radius: 4px; margin-top: 20px;">
                   <p style="margin: 0; font-size: 14px; color: #2e7d32;">
-                    💵 <strong>Payment Info:</strong> You'll earn 80% of each shipment value. Payouts are processed weekly via your preferred method.
+                    💵 <strong>Payment Info:</strong> You'll earn 90% of each shipment value. Payouts are processed weekly via your preferred method.
                   </p>
                 </div>
                 

@@ -265,6 +265,15 @@ export default function DeliveryCompletePage({ params }: { params: { id: string 
 
       if (shipmentError) throw shipmentError
 
+      // Close conversation for privacy - messages no longer accessible after delivery
+      await supabase
+        .from('conversations')
+        .update({ 
+          is_active: false,
+          expires_at: deliveryTime 
+        })
+        .eq('shipment_id', params.id)
+
       // Create tracking event
       await supabase
         .from('tracking_events')
