@@ -30,7 +30,7 @@ export async function POST(
       .from('driver_applications')
       .update({
         status: 'rejected',
-        rejected_at: new Date().toISOString(),
+        reviewed_at: new Date().toISOString(),
         admin_comment: reason || null,
       })
       .eq('id', applicationId)
