@@ -24,30 +24,51 @@ function ResetPasswordContent() {
   const [isValidToken, setIsValidToken] = useState(false)
 
   useEffect(() => {
-    // Check for code parameter (from password reset email)
-    const code = searchParams?.get('code')
-    
-    if (code) {
-      // Exchange code for session
-      supabase.auth.exchangeCodeForSession(code).then(({ data, error }) => {
-        if (error) {
-          console.error('Error exchanging code:', error)
-          setError('Invalid or expired reset link. Please request a new one.')
+    const initializePasswordReset = async () => {
+      // Check for code or token parameter (from password reset email)
+      const code = searchParams?.get('code')
+      const token = searchParams?.get('token')
+      const resetCode = code || token
+      
+      if (resetCode) {
+        try {
+          // Exchange code for session
+          const { data, error } = await supabase.auth.exchangeCodeForSession(resetCode)
+          
+          if (error) {
+            console.error('Error exchanging code:', error)
+            setError('Invalid or expired reset link. Please request a new one.')
+            setIsValidToken(false)
+          } else if (data.session) {
+            console.log('Successfully exchanged code for session')
+            setIsValidToken(true)
+          }
+        } catch (err) {
+          console.error('Error in code exchange:', err)
+          setError('Failed to validate reset link. Please try again.')
           setIsValidToken(false)
-        } else if (data.session) {
-          setIsValidToken(true)
         }
-      })
-    } else {
-      // Check if we have an existing session from the reset link
-      supabase.auth.getSession().then(({ data: { session } }) => {
-        if (session) {
-          setIsValidToken(true)
-        } else {
-          setError('Invalid or expired reset link. Please request a new one.')
+      } else {
+        // Check if we have an existing session from the reset link
+        try {
+          const { data: { session } } = await supabase.auth.getSession()
+          
+          if (session) {
+            console.log('Found existing session')
+            setIsValidToken(true)
+          } else {
+            setError('Invalid or expired reset link. Please request a new one.')
+            setIsValidToken(false)
+          }
+        } catch (err) {
+          console.error('Error getting session:', err)
+          setError('Failed to validate session. Please try again.')
+          setIsValidToken(false)
         }
-      })
+      }
     }
+
+    initializePasswordReset()
   }, [searchParams])
 
   const handleSubmit = async (e: React.FormEvent) => {
