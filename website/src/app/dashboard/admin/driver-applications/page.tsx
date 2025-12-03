@@ -163,13 +163,15 @@ export default function AdminDriverApplicationsPage() {
   }
 
   const handleReject = async (applicationId: string) => {
-    const reason = prompt('Rejection reason (will be sent to applicant):')
+    // Use the rejection reason from state (already entered in the textarea)
+    const reason = rejectionReason.trim()
     
-    if (!reason || !reason.trim()) {
+    if (!reason) {
       toast('Please provide a rejection reason', 'error')
       return
     }
 
+    // Final confirmation before rejecting
     if (!confirm('Reject this driver application? The applicant will be notified via email.')) {
       return
     }
@@ -190,6 +192,11 @@ export default function AdminDriverApplicationsPage() {
       }
 
       toast('Application rejected and applicant notified', 'success')
+      
+      // Clear the rejection reason and close the dialog
+      setRejectionReason('')
+      setViewingDocs(null)
+      
       fetchApplications()
     } catch (error: any) {
       console.error('Error rejecting application:', error)
