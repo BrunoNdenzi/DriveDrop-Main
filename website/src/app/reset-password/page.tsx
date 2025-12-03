@@ -24,15 +24,31 @@ function ResetPasswordContent() {
   const [isValidToken, setIsValidToken] = useState(false)
 
   useEffect(() => {
-    // Check if we have a valid session from the reset link
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session) {
-        setIsValidToken(true)
-      } else {
-        setError('Invalid or expired reset link. Please request a new one.')
-      }
-    })
-  }, [])
+    // Check for code parameter (from password reset email)
+    const code = searchParams?.get('code')
+    
+    if (code) {
+      // Exchange code for session
+      supabase.auth.exchangeCodeForSession(code).then(({ data, error }) => {
+        if (error) {
+          console.error('Error exchanging code:', error)
+          setError('Invalid or expired reset link. Please request a new one.')
+          setIsValidToken(false)
+        } else if (data.session) {
+          setIsValidToken(true)
+        }
+      })
+    } else {
+      // Check if we have an existing session from the reset link
+      supabase.auth.getSession().then(({ data: { session } }) => {
+        if (session) {
+          setIsValidToken(true)
+        } else {
+          setError('Invalid or expired reset link. Please request a new one.')
+        }
+      })
+    }
+  }, [searchParams])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
