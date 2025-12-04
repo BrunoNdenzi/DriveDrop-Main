@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Input } from '@/components/ui/input'
 
 interface GooglePlacesAutocompleteProps {
-  onSelect: (address: string) => void
+  onSelect: (address: string, coordinates: { lat: number; lng: number }) => void
   placeholder?: string
   defaultValue?: string
 }
@@ -32,9 +32,14 @@ export function GooglePlacesAutocomplete({
 
       autocompleteRef.current.addListener('place_changed', () => {
         const place = autocompleteRef.current?.getPlace()
-        if (place?.formatted_address) {
-          setValue(place.formatted_address)
-          onSelect(place.formatted_address)
+        if (place?.formatted_address && place?.geometry?.location) {
+          const address = place.formatted_address
+          const coordinates = {
+            lat: place.geometry.location.lat(),
+            lng: place.geometry.location.lng(),
+          }
+          setValue(address)
+          onSelect(address, coordinates)
         }
       })
     }

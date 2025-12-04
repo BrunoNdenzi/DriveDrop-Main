@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Loader2, ArrowRight, MapPin, Truck, DollarSign } from 'lucide-react'
 import { GooglePlacesAutocomplete } from '@/components/GooglePlacesAutocomplete'
+import { pricingService } from '@/services/pricingService'
 
 const quoteSchema = z.object({
   pickupLocation: z.string().min(1, 'Pickup location is required'),
@@ -30,10 +31,14 @@ interface QuoteResult {
   distance: number
   estimatedDays: number
   breakdown: {
-    basePrice: number
-    fuelSurcharge: number
-    vehicleSurcharge: number
-    speedSurcharge: number
+    baseRatePerMile: number
+    distanceBand: string
+    rawBasePrice: number
+    deliveryType: string
+    deliveryTypeMultiplier: number
+    fuelAdjustmentPercent: number
+    minimumApplied: boolean
+    total: number
   }
 }
 
@@ -41,6 +46,8 @@ export default function QuoteCalculator() {
   const [loading, setLoading] = useState(false)
   const [quote, setQuote] = useState<QuoteResult | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [pickupCoords, setPickupCoords] = useState<{ lat: number; lng: number } | null>(null)
+  const [deliveryCoords, setDeliveryCoords] = useState<{ lat: number; lng: number } | null>(null)
 
   const {
     register,
@@ -59,35 +66,73 @@ export default function QuoteCalculator() {
   const selectedVehicleType = watch('vehicleType')
   const selectedShippingSpeed = watch('shippingSpeed')
 
+  const handlePickupSelect = (address: string, coordinates: { lat: number; lng: number }) => {
+    setValue('pickupLocation', address, { shouldValidate: true })
+    setPickupCoords(coordinates)
+  }
+
+  const handleDeliverySelect = (address: string, coordinates: { lat: number; lng: number }) => {
+    setValue('deliveryLocation', address, { shouldValidate: true })
+    setDeliveryCoords(coordinates)
+  }
+
   const onSubmit = async (data: QuoteFormData) => {
     setLoading(true)
     setError(null)
     setQuote(null)
 
     try {
-      // Call Next.js API route (which proxies to Railway backend)
-      const response = await fetch('/api/quotes/calculate', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          pickupAddress: data.pickupLocation,
-          deliveryAddress: data.deliveryLocation,
-          vehicleType: data.vehicleType,
-          shippingSpeed: data.shippingSpeed,
-        }),
-      })
-
-      if (!response.ok) {
-        throw new Error('Failed to calculate quote')
+      // Validate that we have coordinates
+      if (!pickupCoords || !deliveryCoords) {
+        throw new Error('Please select valid addresses from the dropdown')
       }
 
-      const result = await response.json()
-      setQuote(result)
+      // Calculate distance using pricingService (same as ShipmentForm)
+      const distance = pricingService.calculateDistance(
+        pickupCoords.lat,
+        pickupCoords.lng,
+        deliveryCoords.lat,
+        deliveryCoords.lng
+      )
+
+      console.log('Calculated distance:', distance, 'miles')
+
+      // Determine delivery dates based on shipping speed
+      const pickupDate = new Date().toISOString().split('T')[0]
+      const deliveryDate = data.shippingSpeed === 'express'
+        ? new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString().split('T')[0] // 2 days
+        : new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString().split('T')[0] // 5 days
+
+      // Calculate quote using pricingService (same logic as ShipmentForm)
+      const quoteResult = pricingService.calculateQuote({
+        vehicleType: data.vehicleType,
+        distanceMiles: Math.round(distance),
+        isAccidentRecovery: false,
+        vehicleCount: 1,
+        pickupDate,
+        deliveryDate,
+        fuelPricePerGallon: 3.70, // Current default fuel price
+      })
+
+      console.log('Quote calculated:', quoteResult)
+
+      // Determine estimated days
+      const estimatedDays = data.shippingSpeed === 'express' 
+        ? 2 
+        : quoteResult.breakdown.deliveryType === 'expedited' 
+          ? 2 
+          : 5
+
+      // Set the quote result
+      setQuote({
+        totalPrice: quoteResult.total,
+        distance: Math.round(distance),
+        estimatedDays,
+        breakdown: quoteResult.breakdown,
+      })
     } catch (err) {
       console.error('Quote calculation error:', err)
-      setError('Unable to calculate quote. Please try again.')
+      setError(err instanceof Error ? err.message : 'Unable to calculate quote. Please try again.')
     } finally {
       setLoading(false)
     }
@@ -135,7 +180,7 @@ export default function QuoteCalculator() {
                     Pickup Location
                   </Label>
                   <GooglePlacesAutocomplete
-                    onSelect={(address) => setValue('pickupLocation', address, { shouldValidate: true })}
+                    onSelect={handlePickupSelect}
                     placeholder="Enter pickup address..."
                   />
                   {errors.pickupLocation && (
@@ -150,7 +195,7 @@ export default function QuoteCalculator() {
                     Delivery Location
                   </Label>
                   <GooglePlacesAutocomplete
-                    onSelect={(address) => setValue('deliveryLocation', address, { shouldValidate: true })}
+                    onSelect={handleDeliverySelect}
                     placeholder="Enter delivery address..."
                   />
                   {errors.deliveryLocation && (
@@ -250,39 +295,49 @@ export default function QuoteCalculator() {
                 <CardTitle className="flex items-center justify-between">
                   <span>Your Quote</span>
                   <span className="text-3xl text-primary">
-                    ${(quote.totalPrice / 100).toFixed(2)}
+                    ${quote.totalPrice.toFixed(2)}
                   </span>
                 </CardTitle>
                 <CardDescription>
-                  Estimated delivery: {quote.estimatedDays} business days • Distance: {quote.distance.toFixed(1)} miles
+                  Estimated delivery: {quote.estimatedDays} business days • Distance: {quote.distance.toFixed(0)} miles
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 {/* Price Breakdown */}
                 <div className="space-y-2 text-sm">
                   <div className="flex justify-between">
-                    <span className="text-muted-foreground">Base Price</span>
-                    <span>${(quote.breakdown.basePrice / 100).toFixed(2)}</span>
+                    <span className="text-muted-foreground">Base Rate ({quote.breakdown.distanceBand})</span>
+                    <span>${quote.breakdown.rawBasePrice.toFixed(2)}</span>
                   </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Fuel Surcharge</span>
-                    <span>${(quote.breakdown.fuelSurcharge / 100).toFixed(2)}</span>
-                  </div>
-                  {quote.breakdown.vehicleSurcharge > 0 && (
+                  {quote.breakdown.deliveryTypeMultiplier !== 1.0 && (
                     <div className="flex justify-between">
-                      <span className="text-muted-foreground">Vehicle Type Surcharge</span>
-                      <span>${(quote.breakdown.vehicleSurcharge / 100).toFixed(2)}</span>
+                      <span className="text-muted-foreground">
+                        {quote.breakdown.deliveryType === 'expedited' ? 'Expedited Delivery' : 'Flexible Delivery Discount'}
+                      </span>
+                      <span className={quote.breakdown.deliveryType === 'expedited' ? '' : 'text-green-600'}>
+                        {quote.breakdown.deliveryType === 'expedited' ? '+' : ''}
+                        {((quote.breakdown.deliveryTypeMultiplier - 1) * 100).toFixed(0)}%
+                      </span>
                     </div>
                   )}
-                  {quote.breakdown.speedSurcharge > 0 && (
+                  {quote.breakdown.fuelAdjustmentPercent !== 0 && (
                     <div className="flex justify-between">
-                      <span className="text-muted-foreground">Express Delivery</span>
-                      <span>${(quote.breakdown.speedSurcharge / 100).toFixed(2)}</span>
+                      <span className="text-muted-foreground">Fuel Price Adjustment</span>
+                      <span className={quote.breakdown.fuelAdjustmentPercent > 0 ? '' : 'text-green-600'}>
+                        {quote.breakdown.fuelAdjustmentPercent > 0 ? '+' : ''}
+                        {quote.breakdown.fuelAdjustmentPercent.toFixed(1)}%
+                      </span>
+                    </div>
+                  )}
+                  {quote.breakdown.minimumApplied && (
+                    <div className="flex justify-between text-xs text-muted-foreground italic">
+                      <span>Minimum fare applied</span>
+                      <span>✓</span>
                     </div>
                   )}
                   <div className="border-t pt-2 flex justify-between font-semibold">
                     <span>Total</span>
-                    <span className="text-primary">${(quote.totalPrice / 100).toFixed(2)}</span>
+                    <span className="text-primary">${quote.totalPrice.toFixed(2)}</span>
                   </div>
                 </div>
 
