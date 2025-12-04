@@ -30,6 +30,11 @@ function ResetPasswordContent() {
       const token = searchParams?.get('token')
       const resetCode = code || token
       
+      // Also check for access_token in hash (Supabase implicit flow)
+      const hash = window.location.hash
+      const hashParams = new URLSearchParams(hash.substring(1))
+      const accessToken = hashParams.get('access_token')
+      
       if (resetCode) {
         try {
           // Exchange code for session
@@ -46,6 +51,24 @@ function ResetPasswordContent() {
         } catch (err) {
           console.error('Error in code exchange:', err)
           setError('Failed to validate reset link. Please try again.')
+          setIsValidToken(false)
+        }
+      } else if (accessToken) {
+        // If we have access token in hash, the session should already be set by Supabase
+        console.log('Found access token in hash, checking session')
+        try {
+          const { data: { session } } = await supabase.auth.getSession()
+          
+          if (session) {
+            console.log('Session found from hash token')
+            setIsValidToken(true)
+          } else {
+            setError('Invalid or expired reset link. Please request a new one.')
+            setIsValidToken(false)
+          }
+        } catch (err) {
+          console.error('Error getting session:', err)
+          setError('Failed to validate session. Please try again.')
           setIsValidToken(false)
         }
       } else {
