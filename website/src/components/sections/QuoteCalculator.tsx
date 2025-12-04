@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import * as z from 'zod'
@@ -76,6 +76,19 @@ export default function QuoteCalculator() {
     setDeliveryCoords(coordinates)
   }
 
+  // Recalculate quote when shipping speed or vehicle type changes
+  useEffect(() => {
+    if (quote && pickupCoords && deliveryCoords) {
+      // Recalculate with new settings
+      onSubmit({ 
+        pickupLocation: watch('pickupLocation'),
+        deliveryLocation: watch('deliveryLocation'),
+        vehicleType: selectedVehicleType,
+        shippingSpeed: selectedShippingSpeed 
+      })
+    }
+  }, [selectedShippingSpeed, selectedVehicleType])
+
   const onSubmit = async (data: QuoteFormData) => {
     setLoading(true)
     setError(null)
@@ -99,16 +112,18 @@ export default function QuoteCalculator() {
 
       // Determine delivery dates based on shipping speed
       // Express = no delivery date (blank = expedited = +25%)
-      // Standard = delivery date 5 days out (flexible = -5% if > 7 days, standard if < 7 days)
-      const pickupDate = new Date().toISOString().split('T')[0]
+      // Standard = no dates at all (standard = 1.0x multiplier, no charge)
+      let pickupDate: string | undefined
       let deliveryDate: string | undefined
       
       if (data.shippingSpeed === 'express') {
-        // Express: blank delivery date triggers expedited pricing (+25%)
+        // Express: provide pickup but blank delivery date triggers expedited pricing (+25%)
+        pickupDate = new Date().toISOString().split('T')[0]
         deliveryDate = undefined
       } else {
-        // Standard: 5 days out (will be standard pricing as it's < 7 days)
-        deliveryDate = new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+        // Standard: no dates at all = standard pricing (1.0x multiplier)
+        pickupDate = undefined
+        deliveryDate = undefined
       }
 
       console.log('Pricing inputs:', { 
