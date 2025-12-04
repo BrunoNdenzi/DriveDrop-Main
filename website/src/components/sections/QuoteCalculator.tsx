@@ -98,10 +98,25 @@ export default function QuoteCalculator() {
       console.log('Calculated distance:', distance, 'miles')
 
       // Determine delivery dates based on shipping speed
+      // Express = no delivery date (blank = expedited = +25%)
+      // Standard = delivery date 5 days out (flexible = -5% if > 7 days, standard if < 7 days)
       const pickupDate = new Date().toISOString().split('T')[0]
-      const deliveryDate = data.shippingSpeed === 'express'
-        ? new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString().split('T')[0] // 2 days
-        : new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString().split('T')[0] // 5 days
+      let deliveryDate: string | undefined
+      
+      if (data.shippingSpeed === 'express') {
+        // Express: blank delivery date triggers expedited pricing (+25%)
+        deliveryDate = undefined
+      } else {
+        // Standard: 5 days out (will be standard pricing as it's < 7 days)
+        deliveryDate = new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+      }
+
+      console.log('Pricing inputs:', { 
+        pickupDate, 
+        deliveryDate, 
+        shippingSpeed: data.shippingSpeed,
+        vehicleType: data.vehicleType 
+      })
 
       // Calculate quote using pricingService (same logic as ShipmentForm)
       const quoteResult = pricingService.calculateQuote({
@@ -116,12 +131,15 @@ export default function QuoteCalculator() {
 
       console.log('Quote calculated:', quoteResult)
 
-      // Determine estimated days
-      const estimatedDays = data.shippingSpeed === 'express' 
-        ? 2 
-        : quoteResult.breakdown.deliveryType === 'expedited' 
-          ? 2 
-          : 5
+      // Determine estimated days based on delivery type returned from pricing service
+      let estimatedDays: number
+      if (quoteResult.breakdown.deliveryType === 'expedited') {
+        estimatedDays = 2
+      } else if (quoteResult.breakdown.deliveryType === 'flexible') {
+        estimatedDays = 7
+      } else {
+        estimatedDays = 5
+      }
 
       // Set the quote result
       setQuote({
@@ -290,66 +308,80 @@ export default function QuoteCalculator() {
 
           {/* Quote Result */}
           {quote && (
-            <Card className="mt-6 border-primary">
-              <CardHeader>
-                <CardTitle className="flex items-center justify-between">
-                  <span>Your Quote</span>
-                  <span className="text-3xl text-primary">
-                    ${quote.totalPrice.toFixed(2)}
-                  </span>
-                </CardTitle>
-                <CardDescription>
-                  Estimated delivery: {quote.estimatedDays} business days • Distance: {quote.distance.toFixed(0)} miles
-                </CardDescription>
+            <Card className="mt-6 border-2 border-primary shadow-lg">
+              <CardHeader className="pb-3">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle className="text-2xl">Your Quote</CardTitle>
+                    <CardDescription className="mt-1">
+                      {quote.distance} miles • {quote.estimatedDays} business days
+                    </CardDescription>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-4xl font-bold text-primary">
+                      ${quote.totalPrice.toFixed(2)}
+                    </div>
+                  </div>
+                </div>
               </CardHeader>
               <CardContent className="space-y-4">
-                {/* Price Breakdown */}
-                <div className="space-y-2 text-sm">
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Base Rate ({quote.breakdown.distanceBand})</span>
+                {/* Price Breakdown - Simplified */}
+                <div className="bg-muted/50 rounded-lg p-4 space-y-2 text-sm">
+                  <div className="flex justify-between font-medium">
+                    <span className="text-muted-foreground">Base Rate</span>
                     <span>${quote.breakdown.rawBasePrice.toFixed(2)}</span>
                   </div>
+                  
                   {quote.breakdown.deliveryTypeMultiplier !== 1.0 && (
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">
-                        {quote.breakdown.deliveryType === 'expedited' ? 'Expedited Delivery' : 'Flexible Delivery Discount'}
+                        {quote.breakdown.deliveryType === 'expedited' && '⚡ Express Delivery'}
+                        {quote.breakdown.deliveryType === 'flexible' && '📅 Flexible Delivery'}
                       </span>
-                      <span className={quote.breakdown.deliveryType === 'expedited' ? '' : 'text-green-600'}>
-                        {quote.breakdown.deliveryType === 'expedited' ? '+' : ''}
-                        {((quote.breakdown.deliveryTypeMultiplier - 1) * 100).toFixed(0)}%
+                      <span className={quote.breakdown.deliveryType === 'flexible' ? 'text-green-600 font-medium' : 'font-medium'}>
+                        {quote.breakdown.deliveryType === 'expedited' && '+25%'}
+                        {quote.breakdown.deliveryType === 'flexible' && '-5%'}
                       </span>
                     </div>
                   )}
+                  
                   {quote.breakdown.fuelAdjustmentPercent !== 0 && (
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Fuel Price Adjustment</span>
+                    <div className="flex justify-between text-xs">
+                      <span className="text-muted-foreground">Fuel Adjustment</span>
                       <span className={quote.breakdown.fuelAdjustmentPercent > 0 ? '' : 'text-green-600'}>
                         {quote.breakdown.fuelAdjustmentPercent > 0 ? '+' : ''}
                         {quote.breakdown.fuelAdjustmentPercent.toFixed(1)}%
                       </span>
                     </div>
                   )}
-                  {quote.breakdown.minimumApplied && (
-                    <div className="flex justify-between text-xs text-muted-foreground italic">
-                      <span>Minimum fare applied</span>
-                      <span>✓</span>
-                    </div>
-                  )}
-                  <div className="border-t pt-2 flex justify-between font-semibold">
-                    <span>Total</span>
+                  
+                  <div className="border-t border-border pt-2 mt-2 flex justify-between font-bold text-base">
+                    <span>Total Price</span>
                     <span className="text-primary">${quote.totalPrice.toFixed(2)}</span>
                   </div>
                 </div>
 
+                {/* Payment Info */}
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm">
+                  <div className="font-semibold text-blue-900 mb-1">Payment Terms</div>
+                  <div className="text-blue-800 space-y-1">
+                    <div className="flex justify-between">
+                      <span>Pay Now (20%):</span>
+                      <span className="font-semibold">${(quote.totalPrice * 0.2).toFixed(2)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Pay on Delivery (80%):</span>
+                      <span className="font-semibold">${(quote.totalPrice * 0.8).toFixed(2)}</span>
+                    </div>
+                  </div>
+                </div>
+
                 {/* Call to Action */}
-                <div className="pt-4 space-y-3">
+                <div className="pt-2">
                   <Button onClick={handleOpenInApp} className="w-full" size="lg">
                     Book This Shipment
-                    <ArrowRight className="ml-2 h-4 w-4" />
+                    <ArrowRight className="ml-2 h-5 w-5" />
                   </Button>
-                  <p className="text-xs text-center text-muted-foreground">
-                    Pay only 20% upfront • Remaining 80% after delivery
-                  </p>
                 </div>
               </CardContent>
             </Card>
