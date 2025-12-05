@@ -39,6 +39,12 @@ app.use(cors({
   credentials: config.server.corsCredentials,
 }));
 app.use(morgan('combined'));
+
+// Stripe webhook route MUST come before express.json() to receive raw body
+// This route needs the raw body for signature verification
+app.use('/api/v1/payments/webhook', express.raw({ type: 'application/json' }));
+
+// Apply JSON parsing to all other routes
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 
