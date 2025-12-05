@@ -10,6 +10,7 @@ import { useAuth } from '../../context/AuthContext';
 import { RealtimeChannel } from '@supabase/supabase-js';
 import { realtimeService } from '../../services/RealtimeService';
 import { locationTrackingService } from '../../services/LocationTrackingService';
+import { paymentService } from '../../services/paymentService';
 import { ShipmentStatus } from '../../types/shipment';
 import DeliveryConfirmationModal from '../../components/driver/DeliveryConfirmationModal';
 
@@ -160,7 +161,7 @@ export default function ShipmentDetailsScreen({ route, navigation }: any) {
 
   // Handle delivery confirmation with optional photos
   const handleDeliveryConfirmation = async (photoUrls: string[]) => {
-    if (!shipment) return;
+    if (!shipment || !userProfile) return;
     
     setShowDeliveryModal(false);
     setStatusUpdating(true);
@@ -168,8 +169,8 @@ export default function ShipmentDetailsScreen({ route, navigation }: any) {
     try {
       console.log('📦 Confirming delivery with photos:', photoUrls.length);
       
-      // Update shipment status to delivered and save delivery photos
-      const { error } = await supabase
+      // STEP 1: Update shipment status to delivered and save delivery photos
+      const { error: updateError, data: updatedShipment } = await supabase
         .from('shipments')
         .update({ 
           status: 'delivered' as any,
@@ -177,26 +178,69 @@ export default function ShipmentDetailsScreen({ route, navigation }: any) {
           actual_delivery_time: new Date().toISOString(),
           updated_at: new Date().toISOString()
         })
-        .eq('id', shipment.id);
+        .eq('id', shipment.id)
+        .select('payment_intent_id')
+        .single();
 
-      if (error) throw error;
+      if (updateError) throw updateError;
 
       // Update local state
       setShipment(prev => prev ? { ...prev, status: 'delivered' } : null);
 
-      Alert.alert(
-        'Delivery Confirmed',
-        photoUrls.length > 0 
-          ? `Shipment marked as delivered with ${photoUrls.length} confirmation photo(s).`
-          : 'Shipment marked as delivered without photos. You may be held responsible in case of disputes.',
-        [{ 
-          text: 'OK',
-          onPress: () => {
-            // Navigate back to My Shipments and it will auto-refresh
-            navigation.navigate('MyShipments');
-          }
-        }]
-      );
+      // STEP 2: Capture the remaining 80% payment
+      if (updatedShipment?.payment_intent_id) {
+        console.log('💳 Capturing remaining 80% payment...');
+        
+        const captureResult = await paymentService.captureRemainingPayment(
+          shipment.id,
+          updatedShipment.payment_intent_id,
+          userProfile.id
+        );
+
+        if (captureResult.success) {
+          console.log('✅ Payment captured successfully!');
+          
+          Alert.alert(
+            'Delivery Confirmed',
+            photoUrls.length > 0 
+              ? `Shipment delivered with ${photoUrls.length} photo(s). Final payment (80%) has been processed.`
+              : 'Shipment delivered. Final payment (80%) has been processed.\n\nNote: No photos were taken. You may be held responsible in case of disputes.',
+            [{ 
+              text: 'OK',
+              onPress: () => {
+                // Navigate back to My Shipments and it will auto-refresh
+                navigation.navigate('MyShipments');
+              }
+            }]
+          );
+        } else {
+          console.error('❌ Payment capture failed:', captureResult.error);
+          
+          Alert.alert(
+            'Delivery Confirmed - Payment Issue',
+            `Shipment marked as delivered, but there was an issue processing the final payment:\n\n${captureResult.error}\n\nPlease contact support. The payment will be processed manually.`,
+            [{ 
+              text: 'OK',
+              onPress: () => {
+                navigation.navigate('MyShipments');
+              }
+            }]
+          );
+        }
+      } else {
+        console.warn('⚠️ No payment intent ID found - skipping payment capture');
+        
+        Alert.alert(
+          'Delivery Confirmed',
+          'Shipment marked as delivered.\n\nNote: No payment information found. Please contact support if payment processing is needed.',
+          [{ 
+            text: 'OK',
+            onPress: () => {
+              navigation.navigate('MyShipments');
+            }
+          }]
+        );
+      }
     } catch (error) {
       console.error('Error confirming delivery:', error);
       Alert.alert('Error', 'Failed to confirm delivery. Please try again.');
