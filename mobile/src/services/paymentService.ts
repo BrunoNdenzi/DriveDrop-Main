@@ -288,6 +288,62 @@ class PaymentService {
       return 'unknown';
     }
   }
+
+  /**
+   * Capture the remaining 80% payment when driver completes delivery
+   * This is the critical final payment step
+   */
+  async captureRemainingPayment(
+    shipmentId: string,
+    paymentIntentId: string,
+    driverId: string
+  ): Promise<{ success: boolean; error?: string }> {
+    try {
+      console.log('🔐 Capturing remaining payment (80%)...', {
+        shipmentId,
+        paymentIntentId,
+        driverId
+      });
+
+      // Get the user session
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (!session) {
+        throw new Error('User not authenticated');
+      }
+
+      // Call the backend API to capture remaining payment
+      const response = await fetch(`${getApiUrl()}/api/stripe/capture-remaining`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`
+        },
+        body: JSON.stringify({
+          shipmentId,
+          paymentIntentId,
+          driverId
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.error('❌ Payment capture API error:', errorData);
+        throw new Error(errorData.error || errorData.message || 'Failed to capture remaining payment');
+      }
+
+      const responseData = await response.json();
+      console.log('✅ Remaining payment captured successfully:', responseData);
+
+      return { success: true };
+    } catch (error) {
+      console.error('❌ Error capturing remaining payment:', error);
+      return { 
+        success: false, 
+        error: error instanceof Error ? error.message : 'Unknown payment capture error'
+      };
+    }
+  }
 }
 
 export const paymentService = new PaymentService();

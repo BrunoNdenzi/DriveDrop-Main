@@ -265,6 +265,18 @@ const DeliveryConfirmationModal: React.FC<DeliveryConfirmationModalProps> = ({
             </View>
           </View>
 
+          {/* Payment Info Banner */}
+          <View style={styles.paymentBanner}>
+            <MaterialIcons name="payment" size={24} color="#4CAF50" />
+            <View style={styles.paymentContent}>
+              <Text style={styles.paymentTitle}>💳 Payment Processing</Text>
+              <Text style={styles.paymentText}>
+                When you confirm delivery, the remaining 80% payment will be automatically 
+                charged to the client's card on file. You'll be notified once payment is processed.
+              </Text>
+            </View>
+          </View>
+
           {/* Photo Guidelines */}
           <View style={styles.guidelinesCard}>
             <Text style={styles.guidelinesTitle}>📸 Recommended Photos:</Text>
@@ -417,6 +429,30 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     color: '#E65100',
+    lineHeight: 20,
+  },
+  paymentBanner: {
+    flexDirection: 'row',
+    backgroundColor: '#E8F5E9',
+    padding: 16,
+    borderRadius: 12,
+    marginBottom: 16,
+    borderLeftWidth: 4,
+    borderLeftColor: '#4CAF50',
+  },
+  paymentContent: {
+    flex: 1,
+    marginLeft: 12,
+  },
+  paymentTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#2E7D32',
+    marginBottom: 8,
+  },
+  paymentText: {
+    fontSize: 14,
+    color: '#1B5E20',
     lineHeight: 20,
   },
   guidelinesCard: {
