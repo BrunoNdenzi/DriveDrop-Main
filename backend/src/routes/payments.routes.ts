@@ -91,9 +91,9 @@ router.post(
 );
 
 // Webhook endpoint (no authentication)
+// Note: Raw body parsing is configured globally in index.ts for this route
 router.post(
   '/webhook',
-  express.raw({ type: 'application/json' }),
   paymentsController.handleWebhook
 );
 
