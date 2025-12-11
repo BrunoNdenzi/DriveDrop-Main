@@ -16,6 +16,7 @@ export type RootStackParamList = {
   // Screens accessible from tabs
   ShipmentDetails: { shipmentId: string; refreshTrigger?: number };
   ShipmentDetails_Driver: { shipmentId: string; refreshTrigger?: number }; // Driver view of shipment details
+  TrackShipment: { shipmentId: string }; // Live tracking screen for clients
   RouteMap: { shipmentId: string };
   TransactionHistory: undefined;
   CreateShipment: undefined;
@@ -46,6 +47,7 @@ export type RootStackParamList = {
   
   // Diagnostic Screens
   NetworkDiagnostic: undefined;
+  SentryTest: undefined;
   
   // Booking Flow Screens
   BookingStepCustomer: { quoteId?: string };

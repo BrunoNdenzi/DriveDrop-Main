@@ -188,6 +188,18 @@ export default function SettingsScreen() {
           disabled={saving}
           buttonStyle={styles.saveButton}
         />
+        
+        <Divider style={styles.divider} />
+        
+        <View style={styles.section}>
+          <Text h4 style={styles.sectionTitle}>Developer Tools</Text>
+          <Button
+            title="Test Sentry Error Tracking"
+            onPress={() => navigation.navigate('SentryTest')}
+            buttonStyle={styles.testButton}
+            type="outline"
+          />
+        </View>
       </ScrollView>
     </SafeAreaView>
   );

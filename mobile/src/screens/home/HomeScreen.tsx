@@ -43,6 +43,7 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
   const [completedShipments, setCompletedShipments] = useState<number>(0);
   const [totalSpent, setTotalSpent] = useState<number>(0);
   const [unreadNotifications, setUnreadNotifications] = useState<number>(0);
+  const [recentActivity, setRecentActivity] = useState<any[]>([]);
   
   // Alias for consistency with existing code
   const notifications = unreadNotifications;
@@ -103,22 +104,30 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
         ['delivered']
       );
       
-      // Calculate total spent from completed shipments
-      const total = completedData.reduce((sum, shipment) => {
-        // Use final_price if available, otherwise use estimated_price
-        const shipmentCost = shipment.final_price || shipment.estimated_price || 0;
-        // Ensure we're dealing with numbers
-        const cost = typeof shipmentCost === 'string' ? parseFloat(shipmentCost) : shipmentCost;
-        return sum + cost;
-      }, 0);
+      // Calculate total spent from ALL shipments (matching website logic)
+      // This includes both upfront (20%) and final (80%) payments
+      const { data: allShipments, error: allShipmentsError } = await supabase
+        .from('shipments')
+        .select('estimated_price')
+        .eq('client_id', userProfile.id);
+      
+      if (allShipmentsError) {
+        console.error('Error fetching all shipments:', allShipmentsError);
+      }
+      
+      // Sum all shipment estimated prices (this represents total amount paid/to be paid)
+      const totalSpent = allShipments?.reduce((sum, shipment) => {
+        const price = shipment.estimated_price || 0;
+        return sum + price;
+      }, 0) || 0;
       
       // Log the calculated total for debugging
-      console.log('Calculated total spent:', total);
+      console.log('Calculated total spent (from all shipments):', { totalSpent, shipmentCount: allShipments?.length });
       
       setActiveShipments(activeData.length);
       setPendingShipments(pendingData.length);
       setCompletedShipments(completedData.length);
-      setTotalSpent(total);
+      setTotalSpent(totalSpent);
       
       // Fetch notification count (recent status updates since last viewed)
       const lastViewed = userProfile.notifications_last_viewed_at
@@ -133,6 +142,21 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
         .gte('updated_at', lastViewed.toISOString());
       
       setUnreadNotifications(recentUpdates?.length || 0);
+      
+      // Fetch recent activity (last 3 shipment status updates)
+      const { data: recentShipments, error: activityError } = await supabase
+        .from('shipments')
+        .select('id, title, status, updated_at')
+        .eq('client_id', userProfile.id)
+        .in('status', ['picked_up', 'in_transit', 'delivered', 'assigned'])
+        .order('updated_at', { ascending: false })
+        .limit(3);
+      
+      if (activityError) {
+        console.error('Error fetching recent activity:', activityError);
+      } else {
+        setRecentActivity(recentShipments || []);
+      }
       
     } catch (error) {
       console.error('Error fetching shipment stats:', error);
@@ -488,7 +512,7 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
                 </View>
                 <View style={styles.currencyContainer}>
                   <Text style={styles.currencySymbolLarge}>$</Text>
-                  <Text style={styles.statHighlight}>{formatCurrency(totalSpent)}</Text>
+                  <Text style={styles.statHighlight}>{totalSpent.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</Text>
                 </View>
               </View>
             </Card>
@@ -534,38 +558,73 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
         </View>
 
         {/* Recent Activity */}
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Recent Activity</Text>
-            <TouchableOpacity onPress={() => navigation.navigate('Shipments')}>
-              <Text style={styles.viewAllText}>View All</Text>
-            </TouchableOpacity>
-          </View>
-          
-          <Card variant="default" padding="base" style={styles.activityCard}>
-            <View style={styles.activityItem}>
-              <MaterialIcons name="local-shipping" size={20} color={Colors.primary} />
-              <View style={styles.activityContent}>
-                <Text style={styles.activityTitle}>Shipment #DR001 picked up</Text>
-                <Text style={styles.activityTime}>2 hours ago</Text>
-              </View>
-              <MaterialIcons name="chevron-right" size={20} color={Colors.text.secondary} />
+        {recentActivity.length > 0 && (
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Recent Activity</Text>
+              <TouchableOpacity onPress={() => navigation.navigate('Shipments')}>
+                <Text style={styles.viewAllText}>View All</Text>
+              </TouchableOpacity>
             </View>
-          </Card>
-        </View>
+            
+            {recentActivity.map((activity) => {
+              const getStatusIcon = (status: string) => {
+                switch (status) {
+                  case 'picked_up': return 'local-shipping';
+                  case 'in_transit': return 'navigation';
+                  case 'delivered': return 'check-circle';
+                  case 'assigned': return 'person';
+                  default: return 'local-shipping';
+                }
+              };
+              
+              const getStatusText = (status: string) => {
+                switch (status) {
+                  case 'picked_up': return 'picked up';
+                  case 'in_transit': return 'in transit';
+                  case 'delivered': return 'delivered';
+                  case 'assigned': return 'driver assigned';
+                  default: return status.replace('_', ' ');
+                }
+              };
+              
+              const getTimeAgo = (dateString: string) => {
+                const date = new Date(dateString);
+                const now = new Date();
+                const diffMs = now.getTime() - date.getTime();
+                const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+                const diffDays = Math.floor(diffHours / 24);
+                
+                if (diffDays > 0) return `${diffDays} day${diffDays > 1 ? 's' : ''} ago`;
+                if (diffHours > 0) return `${diffHours} hour${diffHours > 1 ? 's' : ''} ago`;
+                return 'Just now';
+              };
+              
+              return (
+                <Card key={activity.id} variant="default" padding="base" style={styles.activityCard}>
+                  <TouchableOpacity
+                    style={styles.activityItem}
+                    onPress={() => navigation.getParent()?.navigate('ShipmentDetails', { shipmentId: activity.id })}
+                  >
+                    <MaterialIcons name={getStatusIcon(activity.status)} size={20} color={Colors.primary} />
+                    <View style={styles.activityContent}>
+                      <Text style={styles.activityTitle}>{activity.title} {getStatusText(activity.status)}</Text>
+                      <Text style={styles.activityTime}>{getTimeAgo(activity.updated_at)}</Text>
+                    </View>
+                    <MaterialIcons name="chevron-right" size={20} color={Colors.text.secondary} />
+                  </TouchableOpacity>
+                </Card>
+              );
+            })}
+          </View>
+        )}
 
-        {/* Promotional Banner */}
+        {/* Promotional Banner - Dynamic offers coming soon */}
         <Card variant="elevated" padding="lg" style={styles.promoCard}>
           <View style={styles.promoContent}>
-            <Text style={styles.promoTitle}>🎉 Special Offer</Text>
-            <Text style={styles.promoSubtitle}>Get 15% off your next shipment with code DRIVE15</Text>
-            <Button
-              title="Learn More"
-              variant="outline"
-              size="sm"
-              onPress={() => {}}
-              style={styles.promoButton}
-            />
+            <Text style={styles.promoTitle}>🎉 Special Offers</Text>
+            <Text style={styles.promoSubtitle}>Stay tuned for exclusive deals and promotions!</Text>
+            <Text style={[styles.promoSubtitle, { fontSize: 12, marginTop: 8, fontStyle: 'italic' }]}>Check back soon for new offers</Text>
           </View>
         </Card>
 

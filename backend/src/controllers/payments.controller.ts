@@ -20,12 +20,13 @@ import { supabaseAdmin as supabase } from '@lib/supabase';
  * @access Private
  */
 export const createPaymentIntent = asyncHandler(async (req: Request, res: Response) => {
-  const { amount, currency = 'usd', shipmentId } = req.body;
+  const { amount, currency = 'usd', shipmentId, description, metadata } = req.body;
 
   logger.info('Received payment intent creation request', {
     amount,
     currency,
-    shipmentId,
+    shipmentId: shipmentId || 'null (new flow)',
+    hasMetadata: !!metadata,
     user: req.user?.id
   });
 
@@ -43,65 +44,82 @@ export const createPaymentIntent = asyncHandler(async (req: Request, res: Respon
   }
 
   try {
+    // Merge custom metadata with default metadata
+    const defaultMetadata = {
+      userId: req.user.id,
+      userEmail: req.user.email,
+      isInitialPayment: 'true',
+      totalAmount: Math.round(amount * 100).toString(),
+      remainingAmount: Math.round(amount * 0.80 * 100).toString(),
+    };
+
+    const finalMetadata = { ...defaultMetadata, ...metadata };
+    if (shipmentId) {
+      finalMetadata.shipmentId = shipmentId;
+    }
+
     const paymentIntent = await stripeService.createPaymentIntent({
       amount: Math.round(amount * 0.20 * 100), // 20% initial payment in cents
       currency,
       clientId: req.user.id,
-      shipmentId,
-      description: `Initial 20% payment for DriveDrop shipment ${shipmentId}`,
-      metadata: {
-        userId: req.user.id,
-        userEmail: req.user.email,
-        isInitialPayment: 'true',
-        totalAmount: Math.round(amount * 100).toString(),
-        remainingAmount: Math.round(amount * 0.80 * 100).toString(),
-      },
+      shipmentId: shipmentId || undefined,
+      description: description || `Initial 20% payment for DriveDrop shipment ${shipmentId || 'pending'}`,
+      metadata: finalMetadata,
     });
 
-    // Create payment record in database
-    logger.info('💳 Creating payment record in database', {
-      shipmentId,
-      clientId: req.user.id,
-      paymentIntentId: paymentIntent.id,
-      totalAmount: Math.round(amount * 100),
-      initialAmount: Math.round(amount * 0.20 * 100)
-    });
-
-    const { data: paymentRecord, error: paymentError } = await supabase
-      .from('payments')
-      .insert({
-        shipment_id: shipmentId,
-        client_id: req.user.id, // Use client_id not user_id to match the database schema
-        amount: Math.round(amount * 100), // Total amount in cents
-        initial_amount: Math.round(amount * 0.20 * 100), // 20% in cents
-        remaining_amount: Math.round(amount * 0.80 * 100), // 80% in cents
-        payment_intent_id: paymentIntent.id,
-        status: 'pending',
-        booking_timestamp: new Date().toISOString(),
-        refund_deadline: new Date(Date.now() + 60 * 60 * 1000).toISOString(), // 1 hour from now
-      })
-      .select();
-
-    if (paymentError) {
-      logger.error('❌ Failed to create payment record', { 
-        error: paymentError, 
+    // Only create payment record if shipmentId is provided (legacy flow)
+    // For new flow, payment record will be created after shipment creation
+    if (shipmentId) {
+      logger.info('💳 Creating payment record in database (legacy flow)', {
         shipmentId,
-        paymentIntentId: paymentIntent.id 
+        clientId: req.user.id,
+        paymentIntentId: paymentIntent.id,
+        totalAmount: Math.round(amount * 100),
+        initialAmount: Math.round(amount * 0.20 * 100)
       });
-      throw createError('Failed to record payment', 500, 'PAYMENT_RECORD_FAILED');
-    }
 
-    logger.info('✅ Payment record created successfully', {
-      paymentRecord,
-      shipmentId,
-      paymentIntentId: paymentIntent.id
-    });
+      const { data: paymentRecord, error: paymentError } = await supabase
+        .from('payments')
+        .insert({
+          shipment_id: shipmentId,
+          client_id: req.user.id,
+          amount: Math.round(amount * 100),
+          initial_amount: Math.round(amount * 0.20 * 100),
+          remaining_amount: Math.round(amount * 0.80 * 100),
+          payment_intent_id: paymentIntent.id,
+          status: 'pending',
+          booking_timestamp: new Date().toISOString(),
+          refund_deadline: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
+        })
+        .select();
+
+      if (paymentError) {
+        logger.error('❌ Failed to create payment record', { 
+          error: paymentError, 
+          shipmentId,
+          paymentIntentId: paymentIntent.id 
+        });
+        throw createError('Failed to record payment', 500, 'PAYMENT_RECORD_FAILED');
+      }
+
+      logger.info('✅ Payment record created successfully', {
+        paymentRecord,
+        shipmentId,
+        paymentIntentId: paymentIntent.id
+      });
+    } else {
+      logger.info('💳 Skipping payment record creation (new flow - will create after shipment)', {
+        clientId: req.user.id,
+        paymentIntentId: paymentIntent.id,
+      });
+    }
 
     logger.info('Successfully created payment intent', {
       paymentIntentId: paymentIntent.id,
       status: paymentIntent.status,
       initialAmount: Math.round(amount * 0.20 * 100),
       totalAmount: Math.round(amount * 100),
+      flow: shipmentId ? 'legacy' : 'new',
     });
 
     res.status(201).json(successResponse({

@@ -458,23 +458,24 @@ export default function ShipmentDetailsScreen({ route, navigation }: ShipmentDet
           </View>
         )}
         
-        {shipment.status === 'in_transit' && (
+        {/* Live Tracking for Active Shipments */}
+        {(['pickup_verified', 'picked_up', 'in_transit'].includes(shipment.status)) && (
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Track Delivery</Text>
+            <Text style={styles.sectionTitle}>Live Tracking</Text>
             
             <TouchableOpacity
-              style={styles.actionButton}
-              onPress={() => navigation.navigate('RouteMap', { shipmentId: shipment.id })}
+              style={styles.trackLiveButton}
+              onPress={() => navigation.navigate('TrackShipment', { shipmentId: shipment.id })}
             >
-              <MaterialIcons name="map" size={20} color={Colors.background} />
-              <Text style={styles.actionButtonText}>Track on Map</Text>
+              <MaterialIcons name="my-location" size={24} color="white" />
+              <Text style={styles.trackLiveButtonText}>Track Live Location</Text>
             </TouchableOpacity>
             
             {driverLocation && (
-              <View style={styles.detailRow}>
-                <Text style={styles.detailLabel}>Last updated</Text>
-                <Text style={styles.detailValue}>
-                  {formatDate(driverLocation.location_timestamp)}
+              <View style={styles.lastLocationUpdate}>
+                <MaterialIcons name="access-time" size={16} color={Colors.text.secondary} />
+                <Text style={styles.lastLocationText}>
+                  Last updated: {new Date(driverLocation.timestamp).toLocaleTimeString()}
                 </Text>
               </View>
             )}
@@ -697,5 +698,35 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     marginLeft: 8,
     flex: 1,
+  },
+  trackLiveButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: Colors.primary,
+    paddingVertical: 16,
+    borderRadius: 12,
+    gap: 12,
+    shadowColor: Colors.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 5,
+  },
+  trackLiveButtonText: {
+    color: 'white',
+    fontSize: 17,
+    fontWeight: '700',
+  },
+  lastLocationUpdate: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 12,
+    gap: 6,
+  },
+  lastLocationText: {
+    fontSize: 13,
+    color: Colors.text.secondary,
   },
 });
