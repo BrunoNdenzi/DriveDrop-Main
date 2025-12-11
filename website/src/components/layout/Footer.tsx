@@ -37,6 +37,11 @@ export default function Footer() {
                 </Link>
               </li>
               <li>
+                <Link href="/contact" className="text-muted-foreground hover:text-primary">
+                  Contact Us
+                </Link>
+              </li>
+              <li>
                 <Link href="/#mobile-app" className="text-muted-foreground hover:text-primary">
                   Mobile App
                 </Link>
@@ -72,11 +77,15 @@ export default function Footer() {
             <ul className="space-y-2 text-sm">
               <li className="flex items-center space-x-2 text-muted-foreground">
                 <Mail className="h-4 w-4" />
-                <span>support@drivedrop.us.com</span>
+                <a href="mailto:infos@calkons.com" className="hover:text-primary">
+                  infos@calkons.com
+                </a>
               </li>
               <li className="flex items-center space-x-2 text-muted-foreground">
                 <Phone className="h-4 w-4" />
-                <span>1-704-312-0690</span>
+                <a href="tel:+17042662317" className="hover:text-primary">
+                  +1-704-266-2317
+                </a>
               </li>
               <li className="flex items-center space-x-2 text-muted-foreground">
                 <MapPin className="h-4 w-4" />
