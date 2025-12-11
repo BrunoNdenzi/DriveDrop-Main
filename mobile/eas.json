@@ -8,14 +8,16 @@
       "developmentClient": true,
       "distribution": "internal",
       "env": {
-        "EXPO_PUBLIC_ENV": "development"
+        "EXPO_PUBLIC_ENV": "development",
+        "EXPO_PUBLIC_SENTRY_DSN": "{{EXPO_PUBLIC_SENTRY_DSN}}"
       }
     },
     "preview": {
       "distribution": "internal",
       "channel": "preview",
       "env": {
-        "EXPO_PUBLIC_ENV": "staging"
+        "EXPO_PUBLIC_ENV": "staging",
+        "EXPO_PUBLIC_SENTRY_DSN": "{{EXPO_PUBLIC_SENTRY_DSN}}"
       }
     },
     "production": {
@@ -35,7 +37,7 @@
         "EXPO_PUBLIC_API_URL": "{{EXPO_PUBLIC_API_URL}}",
         "EXPO_PUBLIC_GOOGLE_MAPS_API_KEY": "{{EXPO_PUBLIC_GOOGLE_MAPS_API_KEY}}",
         "EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY": "{{EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY}}",
-        "SENTRY_DSN": "{{SENTRY_DSN}}"
+        "EXPO_PUBLIC_SENTRY_DSN": "{{EXPO_PUBLIC_SENTRY_DSN}}"
       }
     }
   },

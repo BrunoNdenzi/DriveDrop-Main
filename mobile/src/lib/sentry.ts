@@ -4,7 +4,7 @@ import Constants from 'expo-constants';
 // Initialize Sentry
 export const initSentry = () => {
   try {
-    const dsn = process.env.SENTRY_DSN || Constants.expoConfig?.extra?.sentryDsn;
+    const dsn = process.env.EXPO_PUBLIC_SENTRY_DSN || Constants.expoConfig?.extra?.sentryDsn;
     const environment = process.env.EXPO_PUBLIC_ENV || Constants.expoConfig?.extra?.env || 'development';
     
     if (!dsn) {
@@ -33,8 +33,11 @@ export const initSentry = () => {
       enableNativeNagger: false,
     });
     
-    // Log Sentry initialization
-    console.log(`Sentry initialized in ${environment} environment`);
+    // Log Sentry initialization with details
+    console.log(`✅ Sentry initialized successfully`);
+    console.log(`   Environment: ${environment}`);
+    console.log(`   DSN: ${dsn.substring(0, 30)}...`);
+    console.log(`   Release: ${Constants.expoConfig?.version || '1.0.0'}`);
     return true;
   } catch (error) {
     console.error('Failed to initialize Sentry:', error);

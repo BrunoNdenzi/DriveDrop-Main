@@ -89,8 +89,17 @@ class PaymentService {
 
   /**
    * Create a payment intent for a shipment
+   * @param shipmentId - Optional shipment ID (null for new flow, string for legacy)
+   * @param amount - Total amount in dollars
+   * @param description - Payment description
+   * @param metadata - Optional metadata for analytics and support
    */
-  async createPaymentIntent(shipmentId: string, amount: number, description?: string): Promise<PaymentIntent> {
+  async createPaymentIntent(
+    shipmentId: string | null, 
+    amount: number, 
+    description?: string,
+    metadata?: Record<string, string>
+  ): Promise<PaymentIntent> {
     try {
       // Get the user session
       const { data: { session } } = await supabase.auth.getSession();
@@ -99,24 +108,32 @@ class PaymentService {
         throw new Error('User not authenticated');
       }
 
+      const requestBody: any = {
+        amount,
+        description,
+        metadata,
+      };
+
+      // Only include shipmentId if provided (backward compatibility)
+      if (shipmentId) {
+        requestBody.shipmentId = shipmentId;
+      }
+
       const response = await fetch(`${this.apiUrl}/create-intent`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${session.access_token}`
         },
-        body: JSON.stringify({
-          amount,
-          shipmentId,
-          description
-        }),
+        body: JSON.stringify(requestBody),
       });
 
       // Log the request payload for debugging
       console.log('Payment intent request payload:', {
         amount,
-        shipmentId,
-        description
+        shipmentId: shipmentId || 'null (new flow)',
+        description,
+        hasMetadata: !!metadata,
       });
 
       if (!response.ok) {

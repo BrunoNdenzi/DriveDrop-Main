@@ -42,7 +42,7 @@ module.exports = ({ config }) => {
       enableCrashReporting: process.env.EXPO_PUBLIC_ENABLE_CRASH_REPORTING === 'true',
       googleMapsApiKey: process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY || '',
       stripePublishableKey: process.env.EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY || '',
-      sentryDsn: process.env.SENTRY_DSN || '',
+      sentryDsn: process.env.EXPO_PUBLIC_SENTRY_DSN || '',
       projectId: "cee4610e-7236-4481-be20-707b4b147f19",
       eas: {
         projectId: "cee4610e-7236-4481-be20-707b4b147f19"

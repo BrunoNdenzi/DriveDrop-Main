@@ -68,12 +68,12 @@ export default function SignUpScreen({ navigation }: SignUpScreenProps) {
           {
             text: 'Apply on Website',
             onPress: async () => {
-              const url = 'https://drivedrop.com/apply-driver';
+              const url = 'https://drivedrop.us.com/drivers/register';
               const canOpen = await Linking.canOpenURL(url);
               if (canOpen) {
                 await Linking.openURL(url);
               } else {
-                Alert.alert('Error', 'Cannot open website. Please visit drivedrop.com/apply-driver');
+                Alert.alert('Error', 'Cannot open website. Please visit drivedrop.us.com/drivers/register');
               }
             }
           },
@@ -114,6 +114,30 @@ export default function SignUpScreen({ navigation }: SignUpScreenProps) {
         // No need to manually create a profile record as Supabase should handle this 
         // via triggers or RLS policies, but we can confirm the user was created
         console.log('User created successfully:', data.user.id);
+        
+        // Send welcome email via backend API
+        try {
+          const apiUrl = process.env.EXPO_PUBLIC_API_URL || 'https://drivedrop-api.up.railway.app';
+          const response = await fetch(`${apiUrl}/api/v1/notifications/welcome`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              email: email,
+              firstName: firstName,
+            }),
+          });
+          
+          if (response.ok) {
+            console.log('Welcome email sent successfully');
+          } else {
+            console.warn('Failed to send welcome email, but user was created');
+          }
+        } catch (emailError) {
+          console.warn('Error sending welcome email:', emailError);
+          // Don't fail signup if email fails
+        }
       }
 
       Alert.alert(

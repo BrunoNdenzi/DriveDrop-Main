@@ -20,6 +20,7 @@ import ConsolidatedNewShipmentScreen from '../screens/ConsolidatedNewShipmentScr
 import ShipmentCompletionScreen from '../screens/ShipmentCompletionScreen';
 import ShipmentsScreen from '../screens/shipments/ShipmentsScreen';
 import ShipmentDetailsScreen from '../screens/shipments/ShipmentDetailsScreen';
+import TrackShipmentScreen from '../screens/shipments/TrackShipmentScreen';
 import ProfileScreen from '../screens/profile/ProfileScreen';
 import SettingsScreen from '../screens/SettingsScreen';
 import NotificationTestScreen from '../screens/NotificationTestScreen';
@@ -40,6 +41,9 @@ import ChatScreen from '../screens/ChatScreen';
 
 // Diagnostic Screens
 import NetworkDiagnosticScreen from '../screens/NetworkDiagnosticScreen';
+
+// Debug Screens
+import SentryTestScreen from '../screens/debug/SentryTestScreen';
 
 // Booking Screens
 import BookingStepCustomerScreen from '../screens/booking/BookingStepCustomerScreen';
@@ -312,6 +316,12 @@ export default function Navigation() {
             />
             
             <Stack.Screen
+              name="TrackShipment"
+              component={TrackShipmentScreen}
+              options={{ title: 'Track Shipment' }}
+            />
+            
+            <Stack.Screen
               name="ShipmentDetails_Driver"
               component={DriverShipmentDetailsScreen}
               options={({ navigation }) => ({
@@ -455,6 +465,13 @@ export default function Navigation() {
               name="NetworkDiagnostic"
               component={NetworkDiagnosticScreen}
               options={{ title: 'Network Diagnostics' }}
+            />
+            
+            {/* Debug screens */}
+            <Stack.Screen
+              name="SentryTest"
+              component={SentryTestScreen}
+              options={{ title: 'Sentry Error Tracking Test' }}
             />
             
             {/* Add other authenticated screens here */}
