@@ -76,7 +76,7 @@ export default function AccountDeletionPage() {
   }
 
   if (!profile) {
-    router.push('/login')
+    router.push('/login?redirect=/account-deletion')
     return null
   }
 
