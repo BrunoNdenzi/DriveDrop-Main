@@ -567,7 +567,7 @@ export default function ShipmentForm({ onSubmit, isSubmitting, showClientFields 
               id="specialInstructions"
               value={formData.specialInstructions}
               onChange={(e) => updateFormData('specialInstructions', e.target.value)}
-              placeholder="Any special handling requirements or notes..."
+              placeholder="Include specific street address, unit number, gate codes, parking details, timing preferences, and any special handling requirements..."
               rows={4}
             />
           </div>
