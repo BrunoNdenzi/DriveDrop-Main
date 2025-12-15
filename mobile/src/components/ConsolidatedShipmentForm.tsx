@@ -803,7 +803,7 @@ const ConsolidatedShipmentForm: React.FC<ConsolidatedShipmentFormProps> = ({
             style={[styles.textInput, styles.textArea]}
             value={formData.specialInstructions}
             onChangeText={(value) => updateField('specialInstructions', value)}
-            placeholder="Any special handling instructions...(Pickup or delivery additiional details"
+            placeholder="Include specific street address, unit number, gate codes, parking details, and any special requirements"
             placeholderTextColor="#475467"
             multiline
             numberOfLines={3}

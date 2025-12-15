@@ -384,14 +384,14 @@ export default function BookingStepDeliveryScreen({ navigation }: BookingStepDel
             <View style={styles.inputContainer}>
               <Text style={styles.inputLabel}>Special Instructions</Text>
               <Input
-                placeholder="Any special delivery instructions or requirements"
+                placeholder="Include specific street address, unit number, gate codes, parking details, and access instructions"
                 value={deliveryDetails.specialInstructions || ''}
                 onChangeText={(value) => handleInputChange('specialInstructions', value)}
                 leftIcon="note"
                 multiline
                 numberOfLines={3}
               />
-              <Text style={styles.helper}>Gate codes, specific location details, timing preferences, etc.</Text>
+              <Text style={styles.helper}>Provide exact pickup/delivery locations, gate codes, parking instructions, etc.</Text>
             </View>
           </Card>
 

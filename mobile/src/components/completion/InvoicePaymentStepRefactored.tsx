@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { useStripe, StripeProvider, initPaymentSheet, presentPaymentSheet } from '@stripe/stripe-react-native';
 import { MaterialIcons } from '@expo/vector-icons';
+import * as FileSystem from 'expo-file-system';
 import { Colors } from '../../constants/Colors';
 import { supabase } from '../../lib/supabase';
 import { paymentService } from '../../services/paymentService';
@@ -19,24 +20,15 @@ import * as Sentry from '@sentry/react-native';
 const apiUrl = getApiUrl();
 
 interface InvoicePaymentStepProps {
-  totalPrice: number;
-  vehicleYear: string;
-  vehicleMake: string;
-  vehicleModel: string;
-  vehicleVIN: string;
-  pickupLocation: string;
-  deliveryLocation: string;
-  clientName: string;
-  clientEmail: string;
-  clientPhone: string;
-  pickupLatitude: number;
-  pickupLongitude: number;
-  deliveryLatitude: number;
-  deliveryLongitude: number;
-  distance: number;
-  clientPhotos: { uri: string; type: string }[];
-  onComplete: (shipmentId: string) => void;
-  stripePublishableKey: string;
+  shipmentData: any;
+  completionData: {
+    vehiclePhotos: string[];
+    ownershipDocuments: string[];
+    termsAccepted: boolean;
+    paymentCompleted: boolean;
+  };
+  onPaymentComplete: (paymentIntentId: string, shipmentId: string) => void;
+  onFinalSubmit?: () => void;
 }
 
 interface ErrorDetails {
@@ -46,24 +38,10 @@ interface ErrorDetails {
 }
 
 const InvoicePaymentStepRefactored: React.FC<InvoicePaymentStepProps> = ({
-  totalPrice,
-  vehicleYear,
-  vehicleMake,
-  vehicleModel,
-  vehicleVIN,
-  pickupLocation,
-  deliveryLocation,
-  clientName,
-  clientEmail,
-  clientPhone,
-  pickupLatitude,
-  pickupLongitude,
-  deliveryLatitude,
-  deliveryLongitude,
-  distance,
-  clientPhotos,
-  onComplete,
-  stripePublishableKey,
+  shipmentData,
+  completionData,
+  onPaymentComplete,
+  onFinalSubmit,
 }) => {
   const { initPaymentSheet, presentPaymentSheet } = useStripe();
   const [ready, setReady] = useState(false);
@@ -71,15 +49,50 @@ const InvoicePaymentStepRefactored: React.FC<InvoicePaymentStepProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [paymentIntentId, setPaymentIntentId] = useState<string | null>(null);
   const [clientSecret, setClientSecret] = useState<string | null>(null);
+  const [isInitializing, setIsInitializing] = useState(false);
 
-  // Calculate payment amounts
-  const upfrontAmount = totalPrice * 0.2;
-  const remainingAmount = totalPrice * 0.8;
+  // Extract data from shipmentData
+  const totalPrice = shipmentData.estimatedPrice || 0; // In dollars
+  const vehicleYear = shipmentData.year || shipmentData.vehicleYear || '';
+  const vehicleMake = shipmentData.make || shipmentData.vehicleMake || '';
+  const vehicleModel = shipmentData.model || shipmentData.vehicleModel || '';
+  const vehicleVIN = shipmentData.vin || shipmentData.vehicleVIN || '';
+  const pickupLocation = shipmentData.pickupAddress || '';
+  const deliveryLocation = shipmentData.deliveryAddress || '';
+  const distance = shipmentData.distance || 0;
+  const clientPhotos = completionData.vehiclePhotos.map(uri => ({ uri, type: 'image/jpeg' }));
+  const stripePublishableKey = process.env.EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY || '';
+
+  // Calculate payment amounts with safety checks
+  const validTotalPrice = typeof totalPrice === 'number' && !isNaN(totalPrice) ? totalPrice : 0;
+  const validDistance = typeof distance === 'number' && !isNaN(distance) ? distance : 0;
+  const upfrontAmount = validTotalPrice * 0.2;
+  const remainingAmount = validTotalPrice * 0.8;
+
+  // Get user data for metadata
+  const [userData, setUserData] = useState<any>(null);
 
   useEffect(() => {
-    // Create payment intent immediately when component mounts
-    createPaymentIntent();
+    const fetchUserData = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', user.id)
+          .single();
+        setUserData(profile);
+      }
+    };
+    fetchUserData();
   }, []);
+
+  useEffect(() => {
+    // Create payment intent immediately when component mounts (only once)
+    if (!isInitializing && !clientSecret && validTotalPrice > 0) {
+      createPaymentIntent();
+    }
+  }, [validTotalPrice]); // Only run when price changes
 
   useEffect(() => {
     // Initialize Payment Sheet when we have client secret
@@ -93,12 +106,18 @@ const InvoicePaymentStepRefactored: React.FC<InvoicePaymentStepProps> = ({
    * This prevents orphaned shipments if payment fails
    */
   const createPaymentIntent = async () => {
+    if (isInitializing) {
+      console.log('⏭️ Already creating payment intent, skipping...');
+      return;
+    }
+
     try {
-      console.log('🔄 Creating payment intent for amount:', totalPrice);
+      setIsInitializing(true);
+      console.log('🔄 Creating payment intent for amount:', validTotalPrice);
       
       const response = await paymentService.createPaymentIntent(
         null, // No shipmentId yet!
-        totalPrice,
+        validTotalPrice,
         `${vehicleYear} ${vehicleMake} ${vehicleModel} - ${pickupLocation} to ${deliveryLocation}`,
         {
           // Rich metadata for analytics and support
@@ -106,10 +125,10 @@ const InvoicePaymentStepRefactored: React.FC<InvoicePaymentStepProps> = ({
           vin: vehicleVIN,
           pickup_location: pickupLocation,
           delivery_location: deliveryLocation,
-          customer_name: clientName,
-          customer_email: clientEmail,
-          customer_phone: clientPhone,
-          distance: distance.toString(),
+          customer_name: userData ? `${userData.first_name} ${userData.last_name}` : 'Unknown',
+          customer_email: userData?.email || 'unknown@example.com',
+          customer_phone: userData?.phone || 'N/A',
+          distance: validDistance.toString(),
           upfront_amount: upfrontAmount.toFixed(2),
           remaining_amount: remainingAmount.toFixed(2),
         }
@@ -141,6 +160,7 @@ const InvoicePaymentStepRefactored: React.FC<InvoicePaymentStepProps> = ({
       });
       
       setError(getErrorMessage(err));
+      setIsInitializing(false);
       Alert.alert(
         'Payment Setup Failed',
         'Unable to initialize payment. Please try again or contact support.',
@@ -167,7 +187,6 @@ const InvoicePaymentStepRefactored: React.FC<InvoicePaymentStepProps> = ({
           testEnv: __DEV__,
         },
         allowsDelayedPaymentMethods: true,
-        returnURL: 'drivedrop://payment-sheet',
       });
 
       if (error) {
@@ -268,23 +287,23 @@ const InvoicePaymentStepRefactored: React.FC<InvoicePaymentStepProps> = ({
       }
 
       // Create shipment with paid status
-      const shipmentData = {
+      const newShipmentData = {
         client_id: user.user.id,
-        title: `${vehicleYear} ${vehicleMake} ${vehicleModel}`,
+        title: `Vehicle Transport - ${vehicleMake} ${vehicleModel}`,
         vehicle_year: vehicleYear ? parseInt(vehicleYear) : null,
         vehicle_make: vehicleMake,
         vehicle_model: vehicleModel,
         pickup_address: pickupLocation,
         delivery_address: deliveryLocation,
-        distance,
-        estimated_price: totalPrice,
+        distance: validDistance,
+        estimated_price: validTotalPrice,
         status: 'accepted' as const, // Payment confirmed, ready for driver assignment
         payment_status: 'completed' as const, // Payment successfully processed
       };
 
       const { data: shipments, error: shipmentError } = await supabase
         .from('shipments')
-        .insert(shipmentData)
+        .insert(newShipmentData)
         .select();
 
       if (shipmentError || !shipments || shipments.length === 0) {
@@ -312,7 +331,10 @@ const InvoicePaymentStepRefactored: React.FC<InvoicePaymentStepProps> = ({
         data: { shipmentId: shipment.id },
       });
 
-      onComplete(shipment.id);
+      onPaymentComplete(confirmedPaymentIntentId, shipment.id);
+      if (onFinalSubmit) {
+        onFinalSubmit();
+      }
 
     } catch (err: any) {
       console.error('❌ Shipment creation failed after payment:', err);
@@ -374,14 +396,18 @@ const InvoicePaymentStepRefactored: React.FC<InvoicePaymentStepProps> = ({
         const fileName = `${shipmentId}_${index}_${Date.now()}.jpg`;
         const filePath = `client-photos/${shipmentId}/${fileName}`;
 
-        // Fetch the image as blob
-        const response = await fetch(photo.uri);
-        const blob = await response.blob();
+        // Read file as base64
+        const base64 = await FileSystem.readAsStringAsync(photo.uri, {
+          encoding: FileSystem.EncodingType.Base64,
+        });
+
+        // Convert base64 to array buffer
+        const arrayBuffer = Uint8Array.from(atob(base64), c => c.charCodeAt(0));
 
         const { error } = await supabase.storage
           .from('shipment-photos')
-          .upload(filePath, blob, {
-            contentType: photo.type || 'image/jpeg',
+          .upload(filePath, arrayBuffer, {
+            contentType: 'image/jpeg',
             upsert: false,
           });
 
@@ -490,11 +516,6 @@ const InvoicePaymentStepRefactored: React.FC<InvoicePaymentStepProps> = ({
           </View>
           
           <View style={styles.detailRow}>
-            <Text style={styles.detailLabel}>VIN</Text>
-            <Text style={styles.detailValue}>{vehicleVIN}</Text>
-          </View>
-          
-          <View style={styles.detailRow}>
             <Text style={styles.detailLabel}>From</Text>
             <Text style={styles.detailValue}>{pickupLocation}</Text>
           </View>
@@ -506,7 +527,7 @@ const InvoicePaymentStepRefactored: React.FC<InvoicePaymentStepProps> = ({
           
           <View style={[styles.detailRow, { borderBottomWidth: 0 }]}>
             <Text style={styles.detailLabel}>Distance</Text>
-            <Text style={styles.detailValue}>{distance.toFixed(1)} miles</Text>
+            <Text style={styles.detailValue}>{validDistance.toFixed(1)} miles</Text>
           </View>
         </View>
 
@@ -514,7 +535,7 @@ const InvoicePaymentStepRefactored: React.FC<InvoicePaymentStepProps> = ({
         <View style={styles.paymentSummary}>
           <View style={styles.summaryRow}>
             <Text style={styles.summaryLabel}>Total Estimate</Text>
-            <Text style={styles.summaryAmount}>${totalPrice.toFixed(2)}</Text>
+            <Text style={styles.summaryAmount}>${validTotalPrice.toFixed(2)}</Text>
           </View>
           
           <View style={styles.summaryRow}>
@@ -530,7 +551,7 @@ const InvoicePaymentStepRefactored: React.FC<InvoicePaymentStepProps> = ({
           </View>
           
           <Text style={styles.summaryNote}>
-            We'll hold the full amount (${totalPrice.toFixed(2)}) on your card. Only 20% (${upfrontAmount.toFixed(2)}) will be charged now. The remaining 80% will be charged upon delivery.
+            We'll hold the full amount (${validTotalPrice.toFixed(2)}) on your card. Only 20% (${upfrontAmount.toFixed(2)}) will be charged now. The remaining 80% will be charged upon delivery.
           </Text>
         </View>
 

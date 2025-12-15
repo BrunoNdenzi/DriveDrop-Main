@@ -15,7 +15,7 @@ import { Colors } from '../constants/Colors';
 import VehiclePhotosStep from '../components/completion/VehiclePhotosStep';
 import ProofOfOwnershipStep from '../components/completion/ProofOfOwnershipStep';
 import TermsAndConditionsStep from '../components/completion/TermsAndConditionsStep';
-import InvoicePaymentStep from '../components/completion/InvoicePaymentStep';
+import InvoicePaymentStep from '../components/completion/InvoicePaymentStepRefactored';
 
 interface Props {
   navigation: any;

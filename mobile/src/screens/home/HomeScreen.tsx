@@ -89,13 +89,13 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
       // Fetch active shipments (assigned, picked_up, in_transit)
       const activeData = await ShipmentService.getClientShipments(
         userProfile.id, 
-        ['assigned', 'picked_up', 'in_transit', 'accepted']
+        ['assigned', 'picked_up', 'in_transit']
       );
       
-      // Fetch pending shipments
+      // Fetch pending shipments (includes accepted - payment completed, awaiting driver)
       const pendingData = await ShipmentService.getClientShipments(
         userProfile.id,
-        ['pending']
+        ['pending', 'accepted']
       );
       
       // Fetch completed shipments
