@@ -11,6 +11,11 @@ export const metadata: Metadata = {
   title: 'DriveDrop - Vehicle Shipping Made Simple',
   description: 'Ship your vehicle anywhere in the US with trusted drivers. Get instant quotes and track your shipment in real-time.',
   keywords: 'vehicle shipping, car transport, auto shipping, vehicle delivery',
+  icons: {
+    icon: '/favicon.png',
+    shortcut: '/favicon.png',
+    apple: '/favicon.png',
+  },
   openGraph: {
     title: 'DriveDrop - Vehicle Shipping Made Simple',
     description: 'Ship your vehicle anywhere in the US with trusted drivers.',
@@ -18,6 +23,14 @@ export const metadata: Metadata = {
     siteName: 'DriveDrop',
     locale: 'en_US',
     type: 'website',
+    images: [
+      {
+        url: '/truck-logo.png',
+        width: 1200,
+        height: 1200,
+        alt: 'DriveDrop Logo',
+      },
+    ],
   },
 }
 

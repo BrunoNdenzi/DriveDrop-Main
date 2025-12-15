@@ -70,7 +70,7 @@ export default function Header() {
                 <div className="absolute inset-0 rounded-full bg-primary/10 scale-0 group-hover:scale-100 transition-transform" />
               </Link>
               <Link 
-                href="/#track" 
+                href="/login?redirect=/dashboard/client/track" 
                 className="nav-link group"
               >
                 <span className="relative z-10">Track Shipment</span>
@@ -150,7 +150,7 @@ export default function Header() {
               Become a Driver
             </Link>
             <Link
-              href="/#track"
+              href="/login?redirect=/dashboard/client/track"
               className="px-6 py-4 text-base font-medium rounded-xl hover:bg-primary/10 hover:text-primary transition-all hover:translate-x-2 flex items-center group"
               onClick={() => setIsMenuOpen(false)}
             >

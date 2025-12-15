@@ -213,8 +213,8 @@ export default function TermsOfServicePage() {
             <p className="mb-4">For questions about these Terms:</p>
             <ul className="list-none space-y-2">
               <li><strong>Email:</strong> <a href="mailto:legal@drivedrop.us.com" className="text-primary underline">legal@drivedrop.us.com</a></li>
-              <li><strong>Mail:</strong> DriveDrop Legal, [Your Address]</li>
-              <li><strong>Phone:</strong> 1-800-DRIVEDROP</li>
+              <li><strong>Mail:</strong> DriveDrop Legal, Charlotte, North Carolina, USA</li>
+              <li><strong>Phone:</strong> <a href="tel:+17042662317" className="text-primary underline">+1-704-266-2317</a></li>
             </ul>
           </section>
 

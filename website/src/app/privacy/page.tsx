@@ -77,7 +77,7 @@ export default function PrivacyPolicyPage() {
             <ul className="list-disc pl-6 space-y-2">
               <li><strong>Access:</strong> Request a copy of your personal data</li>
               <li><strong>Correction:</strong> Update inaccurate or incomplete information</li>
-              <li><strong>Deletion:</strong> Request deletion of your data (subject to legal requirements)</li>
+              <li><strong>Deletion:</strong> Request deletion of your data (subject to legal requirements) - <a href="/account-deletion" className="text-primary underline font-semibold">Submit deletion request</a></li>
               <li><strong>Opt-Out:</strong> Unsubscribe from marketing communications</li>
               <li><strong>Data Portability:</strong> Receive your data in a machine-readable format</li>
               <li><strong>Object:</strong> Object to certain data processing activities</li>
@@ -146,8 +146,8 @@ export default function PrivacyPolicyPage() {
             <p className="mb-4">For privacy-related questions or concerns, contact us at:</p>
             <ul className="list-none space-y-2">
               <li><strong>Email:</strong> <a href="mailto:privacy@drivedrop.us.com" className="text-primary underline">privacy@drivedrop.us.com</a></li>
-              <li><strong>Mail:</strong> DriveDrop Privacy Team, [Your Address]</li>
-              <li><strong>Phone:</strong> 1-704-312-0690</li>
+              <li><strong>Mail:</strong> DriveDrop Privacy Team, Charlotte, North Carolina, USA</li>
+              <li><strong>Phone:</strong> <a href="tel:+17042662317" className="text-primary underline">+1-704-266-2317</a></li>
             </ul>
           </section>
 

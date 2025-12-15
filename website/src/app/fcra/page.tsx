@@ -209,8 +209,8 @@ export default function FCRADisclosurePage() {
             </p>
             <ul className="list-none space-y-2">
               <li><strong>Email:</strong> <a href="mailto:background@drivedrop.us.com" className="text-primary underline">background@drivedrop.us.com</a></li>
-              <li><strong>Mail:</strong> DriveDrop Background Check Team, [Your Address]</li>
-              <li><strong>Phone:</strong> 1-704-312-0690</li>
+              <li><strong>Mail:</strong> DriveDrop Background Check Team, Charlotte, North Carolina, USA</li>
+              <li><strong>Phone:</strong> <a href="tel:+17042662317" className="text-primary underline">+1-704-266-2317</a></li>
             </ul>
           </section>
 
