@@ -19,6 +19,9 @@ import {
   Star
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { OnboardingTour } from '@/components/onboarding/OnboardingTour'
+import { HelpButton } from '@/components/onboarding/HelpButton'
+import { driverDashboardTour } from '@/lib/tour-steps'
 
 interface Job {
   id: string
@@ -193,9 +196,18 @@ export default function DriverDashboardPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6" id="driver-dashboard">
+      {/* Onboarding Tour */}
+      <OnboardingTour 
+        tourConfig={driverDashboardTour} 
+        storageKey="driver_tour"
+      />
+
+      {/* Help Button */}
+      <HelpButton userRole="driver" currentPage="driver" />
+
       {/* Welcome Header */}
-      <div className="bg-gradient-to-r from-orange-500 to-orange-600 rounded-2xl p-8 text-white">
+      <div className="bg-gradient-to-r from-orange-500 to-orange-600 rounded-2xl p-8 text-white" data-tour="driver-status">
         <h1 className="text-3xl font-bold mb-2">
           Welcome back, {profile?.first_name || 'Driver'}! 🚚
         </h1>
@@ -216,7 +228,7 @@ export default function DriverDashboardPage() {
 
       {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <div className="bg-white rounded-xl p-6 border border-gray-200 hover:shadow-lg transition-shadow">
+        <div className="bg-white rounded-xl p-6 border border-gray-200 hover:shadow-lg transition-shadow" data-tour="earnings">
           <div className="flex items-center justify-between mb-4">
             <div className="p-3 bg-green-50 rounded-lg">
               <DollarSign className="h-6 w-6 text-green-600" />
@@ -260,7 +272,7 @@ export default function DriverDashboardPage() {
 
       {/* Active Deliveries */}
       {activeDeliveries.length > 0 && (
-        <div className="bg-white rounded-xl border border-gray-200">
+        <div className="bg-white rounded-xl border border-gray-200" data-tour="active-deliveries">
           <div className="p-6 border-b border-gray-200">
             <div className="flex items-center justify-between">
               <h2 className="text-xl font-bold text-gray-900">Active Deliveries</h2>
@@ -328,7 +340,7 @@ export default function DriverDashboardPage() {
       )}
 
       {/* Available Jobs */}
-      <div className="bg-white rounded-xl border border-gray-200">
+      <div className="bg-white rounded-xl border border-gray-200" data-tour="available-jobs">
         <div className="p-6 border-b border-gray-200">
           <div className="flex items-center justify-between">
             <h2 className="text-xl font-bold text-gray-900">Available Jobs</h2>
