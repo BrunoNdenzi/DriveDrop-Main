@@ -382,6 +382,7 @@ export default function ShipmentForm({ onSubmit, isSubmitting, showClientFields 
               value={formData.pickupAddress}
               onSelect={(address: string, coords: { lat: number; lng: number }) => handleAddressSelect('pickupAddress', address, coords)}
               placeholder="Enter pickup address"
+              data-tour="pickup-address"
             />
           </div>
           <div>
@@ -390,6 +391,7 @@ export default function ShipmentForm({ onSubmit, isSubmitting, showClientFields 
               value={formData.deliveryAddress}
               onSelect={(address: string, coords: { lat: number; lng: number }) => handleAddressSelect('deliveryAddress', address, coords)}
               placeholder="Enter delivery address"
+              data-tour="delivery-address"
             />
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -445,6 +447,7 @@ export default function ShipmentForm({ onSubmit, isSubmitting, showClientFields 
                 onChange={(e) => updateFormData('vehicleType', e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500"
                 required
+                data-tour="vehicle-selection"
               >
                 <option value="">Select type</option>
                 <option value="Sedan">Sedan</option>
@@ -569,6 +572,7 @@ export default function ShipmentForm({ onSubmit, isSubmitting, showClientFields 
               onChange={(e) => updateFormData('specialInstructions', e.target.value)}
               placeholder="Include specific street address, unit number, gate codes, parking details, timing preferences, and any special handling requirements..."
               rows={4}
+              data-tour="special-instructions"
             />
           </div>
         </div>
@@ -586,7 +590,7 @@ export default function ShipmentForm({ onSubmit, isSubmitting, showClientFields 
         <div className="space-y-4">
           {formData.estimatedPrice > 0 && formData.pricingBreakdown ? (
             <>
-              <div className="bg-teal-50 border border-teal-200 rounded-lg p-6">
+              <div className="bg-teal-50 border border-teal-200 rounded-lg p-6" data-tour="pricing-preview">
                 <div className="space-y-3">
                   {/* Distance Band Info */}
                   <div className="flex justify-between items-center text-sm">
@@ -694,6 +698,7 @@ export default function ShipmentForm({ onSubmit, isSubmitting, showClientFields 
           type="submit"
           disabled={isSubmitting || !Object.values(sectionValidity).every(valid => valid)}
           className="w-full bg-teal-600 hover:bg-teal-700 text-white py-6 text-lg font-semibold"
+          data-tour="submit-shipment"
         >
           {isSubmitting ? 'Processing...' : 'Continue to Completion'}
         </Button>

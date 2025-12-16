@@ -17,6 +17,10 @@ import {
   Calendar
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { OnboardingTour } from '@/components/onboarding/OnboardingTour'
+import { OnboardingChecklist } from '@/components/onboarding/OnboardingChecklist'
+import { HelpButton } from '@/components/onboarding/HelpButton'
+import { clientDashboardTour } from '@/lib/tour-steps'
 
 interface Shipment {
   id: string
@@ -132,7 +136,19 @@ export default function ClientDashboardPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6" id="client-dashboard">
+      {/* Onboarding Tour */}
+      <OnboardingTour 
+        tourConfig={clientDashboardTour} 
+        storageKey="dashboard_tour"
+      />
+
+      {/* Help Button */}
+      <HelpButton userRole="client" currentPage="dashboard" />
+
+      {/* Onboarding Checklist */}
+      <OnboardingChecklist userRole="client" />
+
       {/* Welcome Header */}
       <div className="bg-gradient-to-r from-primary to-secondary rounded-2xl p-8 text-white">
         <h1 className="text-3xl font-bold mb-2">
@@ -141,7 +157,7 @@ export default function ClientDashboardPage() {
         <p className="text-white/90 mb-6">
           Track your shipments and manage your deliveries all in one place
         </p>
-        <Link href="/dashboard/client/new-shipment">
+        <Link href="/dashboard/client/new-shipment" data-tour="create-shipment">
           <Button
             size="lg"
             className="bg-white text-primary hover:bg-white/90 shadow-xl"
@@ -199,11 +215,11 @@ export default function ClientDashboardPage() {
       </div>
 
       {/* Recent Shipments */}
-      <div className="bg-white rounded-xl border border-gray-200">
+      <div className="bg-white rounded-xl border border-gray-200" data-tour="active-shipments">
         <div className="p-6 border-b border-gray-200">
           <div className="flex items-center justify-between">
             <h2 className="text-xl font-bold text-gray-900">Recent Shipments</h2>
-            <Link href="/dashboard/client/shipments">
+            <Link href="/dashboard/client/shipments" data-tour="shipment-history">
               <Button variant="ghost" size="sm">
                 View All
                 <ArrowRight className="h-4 w-4 ml-2" />
@@ -320,6 +336,7 @@ export default function ClientDashboardPage() {
 
         <Link
           href="/dashboard/client/payments"
+          data-tour="payment-methods"
           className="bg-white rounded-xl p-6 border-2 border-dashed border-gray-300 hover:border-orange-500 hover:bg-orange-50 transition-all group"
         >
           <div className="flex items-center gap-4">

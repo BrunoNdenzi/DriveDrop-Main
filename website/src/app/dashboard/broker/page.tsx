@@ -28,6 +28,9 @@ import {
   Clock
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { OnboardingTour } from '@/components/onboarding/OnboardingTour';
+import { HelpButton } from '@/components/onboarding/HelpButton';
+import { brokerDashboardTour } from '@/lib/tour-steps';
 
 function BrokerDashboardContent() {
   const router = useRouter();
@@ -99,7 +102,16 @@ function BrokerDashboardContent() {
   const statusColors = getVerificationStatusColor(broker.verification_status);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6" id="broker-dashboard">
+      {/* Onboarding Tour */}
+      <OnboardingTour 
+        tourConfig={brokerDashboardTour} 
+        storageKey="broker_tour"
+      />
+
+      {/* Help Button */}
+      <HelpButton userRole="broker" currentPage="broker" />
+
       {/* Welcome Banner */}
       {showWelcome && (
         <div className="bg-gradient-to-r from-blue-600 to-blue-700 rounded-2xl p-6 text-white">
@@ -225,7 +237,7 @@ function BrokerDashboardContent() {
         {/* Stats Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           {/* Total Shipments */}
-          <div className="bg-white rounded-xl p-6 border border-gray-200">
+          <div className="bg-white rounded-xl p-6 border border-gray-200" data-tour="client-management">
             <div className="flex items-center gap-3 mb-4">
               <div className="p-3 bg-blue-50 rounded-lg">
                 <Package className="h-6 w-6 text-blue-600" />
@@ -245,7 +257,7 @@ function BrokerDashboardContent() {
           </div>
 
           {/* Total Revenue */}
-          <div className="bg-white rounded-xl p-6 border border-gray-200">
+          <div className="bg-white rounded-xl p-6 border border-gray-200" data-tour="commission-earnings">
             <div className="flex items-center gap-3 mb-4">
               <div className="p-3 bg-green-50 rounded-lg">
                 <DollarSign className="h-6 w-6 text-green-600" />
@@ -267,7 +279,7 @@ function BrokerDashboardContent() {
           </div>
 
           {/* Carrier Network */}
-          <div className="bg-white rounded-xl p-6 border border-gray-200">
+          <div className="bg-white rounded-xl p-6 border border-gray-200" data-tour="carrier-network">
             <div className="flex items-center gap-3 mb-4">
               <div className="p-3 bg-purple-50 rounded-lg">
                 <Users className="h-6 w-6 text-purple-600" />
@@ -308,7 +320,7 @@ function BrokerDashboardContent() {
         </div>
 
         {/* Quick Actions */}
-        <div className="bg-white rounded-xl border border-gray-200">
+        <div className="bg-white rounded-xl border border-gray-200" data-tour="assignments">
           <div className="px-6 py-5 border-b border-gray-200">
             <h3 className="text-lg font-semibold text-gray-900">Quick Actions</h3>
             <p className="text-sm text-gray-600 mt-1">Manage your brokerage operations</p>

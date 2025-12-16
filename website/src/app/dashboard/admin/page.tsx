@@ -19,6 +19,9 @@ import {
   BarChart3
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { OnboardingTour } from '@/components/onboarding/OnboardingTour'
+import { HelpButton } from '@/components/onboarding/HelpButton'
+import { adminDashboardTour } from '@/lib/tour-steps'
 
 interface SystemStats {
   totalUsers: number
@@ -147,9 +150,18 @@ export default function AdminDashboardPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6" id="admin-dashboard">
+      {/* Onboarding Tour */}
+      <OnboardingTour 
+        tourConfig={adminDashboardTour} 
+        storageKey="admin_tour"
+      />
+
+      {/* Help Button */}
+      <HelpButton userRole="admin" currentPage="admin" />
+
       {/* Welcome Header */}
-      <div className="bg-gradient-to-r from-purple-600 to-purple-700 rounded-2xl p-8 text-white">
+      <div className="bg-gradient-to-r from-purple-600 to-purple-700 rounded-2xl p-8 text-white" data-tour="analytics">
         <h1 className="text-3xl font-bold mb-2">
           Admin Dashboard 🛡️
         </h1>
@@ -237,6 +249,7 @@ export default function AdminDashboardPage() {
         <Link
           href="/dashboard/admin/applications"
           className="bg-white rounded-xl p-6 border-2 border-dashed border-orange-300 hover:border-orange-500 hover:bg-orange-50 transition-all group"
+          data-tour="driver-management"
         >
           <div className="flex items-center justify-between mb-3">
             <div className="p-3 bg-orange-50 rounded-lg group-hover:bg-orange-500 group-hover:text-white transition-colors">
@@ -257,6 +270,7 @@ export default function AdminDashboardPage() {
         <Link
           href="/dashboard/admin/shipments"
           className="bg-white rounded-xl p-6 border-2 border-dashed border-blue-300 hover:border-blue-500 hover:bg-blue-50 transition-all group"
+          data-tour="shipments-overview"
         >
           <div className="flex items-center justify-between mb-3">
             <div className="p-3 bg-blue-50 rounded-lg group-hover:bg-blue-500 group-hover:text-white transition-colors">
@@ -388,13 +402,13 @@ export default function AdminDashboardPage() {
             {/* Quick Links */}
             <div className="pt-4 space-y-2">
               <Link href="/dashboard/admin/users">
-                <Button variant="outline" className="w-full justify-start" size="sm">
+                <Button variant="outline" className="w-full justify-start" size="sm" data-tour="user-management">
                   <Users className="h-4 w-4 mr-2" />
                   Manage Users
                 </Button>
               </Link>
               <Link href="/dashboard/admin/pricing">
-                <Button variant="outline" className="w-full justify-start" size="sm">
+                <Button variant="outline" className="w-full justify-start" size="sm" data-tour="pricing-config">
                   <DollarSign className="h-4 w-4 mr-2" />
                   Configure Pricing
                 </Button>

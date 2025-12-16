@@ -4,6 +4,7 @@ import Script from 'next/script'
 import { ToastContainer } from '@/components/ui/toast'
 import AuthHashHandler from '@/components/AuthHashHandler'
 import './globals.css'
+import '@/styles/tour.css'
 
 const inter = Inter({ subsets: ['latin'] })
 
