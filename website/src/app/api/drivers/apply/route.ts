@@ -265,7 +265,7 @@ export async function POST(request: NextRequest) {
                     <li>We'll review your application and documents</li>
                     <li>Background check will be initiated</li>
                     <li>You'll receive an email once we make a decision (typically within 3-5 business days)</li>
-                    <li>If approved, you'll receive login credentials to start driving</li>
+                    <li>If approved, you'll receive login credentials</li>
                   </ol>
                 </div>
                 

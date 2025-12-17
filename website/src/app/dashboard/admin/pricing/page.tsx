@@ -75,42 +75,42 @@ export default function AdminPricingPage() {
         .eq('is_active', true)
         .order('created_at', { ascending: false })
         .limit(1)
-        .single()
+        .maybeSingle()
 
       if (error) {
-        if (error.code === 'PGRST116') {
-          // No active config found, create default
-          const defaultConfig = {
-            min_quote: 150.00,
-            accident_min_quote: 80.00,
-            min_miles: 100,
-            base_fuel_price: 3.70,
-            current_fuel_price: 3.70,
-            fuel_adjustment_per_dollar: 5.00,
-            surge_multiplier: 1.00,
-            surge_enabled: false,
-            expedited_multiplier: 1.25,
-            standard_multiplier: 1.00,
-            flexible_multiplier: 0.95,
-            short_distance_max: 500,
-            mid_distance_max: 1500,
-            bulk_discount_enabled: true,
-            expedited_service_enabled: true,
-            flexible_service_enabled: true,
-            is_active: true
-          }
-          
-          const { data: newConfig, error: createError } = await supabase
-            .from('pricing_config')
-            .insert([defaultConfig])
-            .select()
-            .single()
-          
-          if (createError) throw createError
-          setConfig(newConfig as PricingConfig)
-        } else {
-          throw error
+        throw error
+      }
+
+      if (!data) {
+        // No active config found, create default
+        const defaultConfig = {
+          min_quote: 150.00,
+          accident_min_quote: 80.00,
+          min_miles: 100,
+          base_fuel_price: 3.70,
+          current_fuel_price: 3.70,
+          fuel_adjustment_per_dollar: 5.00,
+          surge_multiplier: 1.00,
+          surge_enabled: false,
+          expedited_multiplier: 1.25,
+          standard_multiplier: 1.00,
+          flexible_multiplier: 0.95,
+          short_distance_max: 500,
+          mid_distance_max: 1500,
+          bulk_discount_enabled: true,
+          expedited_service_enabled: true,
+          flexible_service_enabled: true,
+          is_active: true
         }
+        
+        const { data: newConfig, error: createError } = await supabase
+          .from('pricing_config')
+          .insert([defaultConfig])
+          .select()
+          .single()
+        
+        if (createError) throw createError
+        setConfig(newConfig as PricingConfig)
       } else {
         setConfig(data as PricingConfig)
       }
@@ -128,7 +128,12 @@ export default function AdminPricingPage() {
   }
 
   const updateField = (field: keyof PricingConfig, value: any) => {
-    setEditedConfig(prev => ({ ...prev, [field]: value }))
+    console.log('updateField called:', field, value, 'current editedConfig:', editedConfig)
+    setEditedConfig(prev => {
+      const updated = { ...prev, [field]: value }
+      console.log('Updated editedConfig:', updated)
+      return updated
+    })
   }
 
   const getValue = (field: keyof PricingConfig): any => {
@@ -136,7 +141,9 @@ export default function AdminPricingPage() {
   }
 
   const hasChanges = () => {
-    return Object.keys(editedConfig).length > 0
+    const changes = Object.keys(editedConfig).length > 0
+    console.log('hasChanges:', changes, 'editedConfig:', editedConfig)
+    return changes
   }
 
   const handleSave = async () => {
