@@ -51,15 +51,7 @@ export default function AdminApplicationsPage() {
     try {
       let query = supabase
         .from('driver_applications')
-        .select(`
-          *,
-          user:profiles!driver_applications_user_id_fkey (
-            first_name,
-            last_name,
-            email,
-            phone
-          )
-        `)
+        .select('*')
         .order('created_at', { ascending: false })
 
       if (filterStatus !== 'all') {
