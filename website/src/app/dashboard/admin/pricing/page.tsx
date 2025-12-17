@@ -67,27 +67,56 @@ export default function AdminPricingPage() {
       setLoading(true)
       
       const supabase = getSupabaseBrowserClient()
-      const { data: { session } } = await supabase.auth.getSession()
       
-      if (!session) {
-        throw new Error('Not authenticated')
-      }
+      // Fetch pricing config directly from Supabase
+      const { data, error } = await supabase
+        .from('pricing_config')
+        .select('*')
+        .eq('is_active', true)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .single()
 
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/pricing/config`, {
-        headers: {
-          'Authorization': `Bearer ${session.access_token}`,
-          'Content-Type': 'application/json',
-        },
-      })
-
-      const data = await response.json()
-      
-      if (data.success) {
-        setConfig(data.data)
-        setEditedConfig({})
+      if (error) {
+        if (error.code === 'PGRST116') {
+          // No active config found, create default
+          const defaultConfig = {
+            base_price_per_mile: 1.50,
+            distance_tiers: [
+              { min_miles: 0, max_miles: 100, price_per_mile: 2.00 },
+              { min_miles: 101, max_miles: 500, price_per_mile: 1.50 },
+              { min_miles: 501, max_miles: null, price_per_mile: 1.25 }
+            ],
+            vehicle_type_multipliers: {
+              sedan: 1.0,
+              suv: 1.2,
+              truck: 1.3,
+              motorcycle: 0.8,
+              luxury: 1.5
+            },
+            demand_surge_multiplier: 1.0,
+            fuel_price_adjustment: 1.0,
+            minimum_price: 50.00,
+            booking_fee: 25.00,
+            insurance_fee: 15.00,
+            is_active: true
+          }
+          
+          const { data: newConfig, error: createError } = await supabase
+            .from('pricing_config')
+            .insert([defaultConfig])
+            .select()
+            .single()
+          
+          if (createError) throw createError
+          setConfig(newConfig as PricingConfig)
+        } else {
+          throw error
+        }
       } else {
-        throw new Error(data.error?.message || 'Failed to load configuration')
+        setConfig(data as PricingConfig)
       }
+      setEditedConfig({})
     } catch (error: any) {
       console.error('Failed to load pricing config:', error)
       alert(error.message || 'Failed to load pricing configuration')
@@ -127,36 +156,38 @@ export default function AdminPricingPage() {
       setSaving(true)
       
       const supabase = getSupabaseBrowserClient()
-      const { data: { session } } = await supabase.auth.getSession()
       
-      if (!session) {
-        throw new Error('Not authenticated')
-      }
-      
-      const payload = {
-        ...editedConfig,
-        change_reason: changeReason,
+      if (!config?.id) {
+        throw new Error('No pricing config found')
       }
 
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/pricing/config/${config?.id}`, {
-        method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${session.access_token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(payload),
-      })
+      // Update the pricing config in Supabase
+      const { data, error } = await supabase
+        .from('pricing_config')
+        .update({
+          ...editedConfig,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', config.id)
+        .select()
+        .single()
 
-      const data = await response.json()
-      
-      if (data.success) {
-        setConfig(data.data)
-        setEditedConfig({})
-        setChangeReason('')
-        alert('Pricing configuration updated successfully!')
-      } else {
-        throw new Error(data.error?.message || 'Failed to update configuration')
-      }
+      if (error) throw error
+
+      // Record the change in history
+      await supabase
+        .from('pricing_config_history')
+        .insert([{
+          config_id: config.id,
+          change_reason: changeReason,
+          old_values: config,
+          new_values: { ...config, ...editedConfig }
+        }])
+
+      setConfig(data as PricingConfig)
+      setEditedConfig({})
+      setChangeReason('')
+      alert('Pricing configuration updated successfully!')
     } catch (error: any) {
       console.error('Failed to update pricing config:', error)
       alert(error.message || 'Failed to update pricing configuration')

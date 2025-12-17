@@ -28,9 +28,6 @@ import {
   Clock
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { OnboardingTour } from '@/components/onboarding/OnboardingTour';
-import { HelpButton } from '@/components/onboarding/HelpButton';
-import { brokerDashboardTour } from '@/lib/tour-steps';
 
 function BrokerDashboardContent() {
   const router = useRouter();
@@ -103,15 +100,6 @@ function BrokerDashboardContent() {
 
   return (
     <div className="space-y-6" id="broker-dashboard">
-      {/* Onboarding Tour */}
-      <OnboardingTour 
-        tourConfig={brokerDashboardTour} 
-        storageKey="broker_tour"
-      />
-
-      {/* Help Button */}
-      <HelpButton userRole="broker" currentPage="broker" />
-
       {/* Welcome Banner */}
       {showWelcome && (
         <div className="bg-gradient-to-r from-blue-600 to-blue-700 rounded-2xl p-6 text-white">

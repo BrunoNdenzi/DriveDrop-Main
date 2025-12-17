@@ -72,6 +72,22 @@ export async function POST(request: Request) {
       )
     }
 
+    // Check if password change is required (for newly approved drivers)
+    const forcePasswordChange = authData.user.user_metadata?.force_password_change === true
+    
+    if (forcePasswordChange) {
+      return NextResponse.json({
+        success: true,
+        requiresPasswordChange: true,
+        redirectTo: '/change-password?required=true',
+        user: {
+          id: authData.user.id,
+          email: authData.user.email,
+          role: profile.role,
+        },
+      })
+    }
+
     // Return success with redirect path
     return NextResponse.json({
       success: true,

@@ -6,9 +6,6 @@ import { ArrowLeft, Package } from 'lucide-react'
 import Link from 'next/link'
 import ShipmentForm from '@/components/shipment/ShipmentForm'
 import { Button } from '@/components/ui/button'
-import { OnboardingTour } from '@/components/onboarding/OnboardingTour'
-import { HelpButton } from '@/components/onboarding/HelpButton'
-import { shipmentCreationTour } from '@/lib/tour-steps'
 
 export default function NewShipmentPage() {
   const router = useRouter()
@@ -31,15 +28,6 @@ export default function NewShipmentPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Onboarding Tour */}
-      <OnboardingTour 
-        tourConfig={shipmentCreationTour} 
-        storageKey="shipment_creation_tour"
-      />
-
-      {/* Help Button */}
-      <HelpButton userRole="client" currentPage="shipment_creation" />
-
       {/* Header */}
       <div className="bg-white border-b sticky top-0 z-10 shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
