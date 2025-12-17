@@ -3,6 +3,7 @@
 
 -- Drop existing policies if any
 DROP POLICY IF EXISTS "Allow admin full access to pricing_config" ON pricing_config;
+DROP POLICY IF EXISTS "Allow public read of active pricing" ON pricing_config;
 
 -- Create policy allowing admins full access
 CREATE POLICY "Allow admin full access to pricing_config"
@@ -25,7 +26,7 @@ WITH CHECK (
 );
 
 -- Also allow public read for pricing calculations
-CREATE POLICY IF NOT EXISTS "Allow public read of active pricing"
+CREATE POLICY "Allow public read of active pricing"
 ON pricing_config
 FOR SELECT
 TO authenticated
