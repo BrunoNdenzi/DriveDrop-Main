@@ -96,7 +96,7 @@ export default function AdminDashboardPage() {
 
         const pendingApplications = jobApplicationsResult.count || 0
 
-        stats({
+        setStats({
           totalUsers,
           totalClients,
           totalDrivers,
