@@ -46,6 +46,7 @@ export async function POST(
           last_name: lastName,
           phone: application.phone,
           role: 'driver',
+          force_password_change: true, // Force password change on first login
         },
       })
 
