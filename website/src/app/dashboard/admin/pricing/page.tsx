@@ -81,24 +81,22 @@ export default function AdminPricingPage() {
         if (error.code === 'PGRST116') {
           // No active config found, create default
           const defaultConfig = {
-            base_price_per_mile: 1.50,
-            distance_tiers: [
-              { min_miles: 0, max_miles: 100, price_per_mile: 2.00 },
-              { min_miles: 101, max_miles: 500, price_per_mile: 1.50 },
-              { min_miles: 501, max_miles: null, price_per_mile: 1.25 }
-            ],
-            vehicle_type_multipliers: {
-              sedan: 1.0,
-              suv: 1.2,
-              truck: 1.3,
-              motorcycle: 0.8,
-              luxury: 1.5
-            },
-            demand_surge_multiplier: 1.0,
-            fuel_price_adjustment: 1.0,
-            minimum_price: 50.00,
-            booking_fee: 25.00,
-            insurance_fee: 15.00,
+            min_quote: 150.00,
+            accident_min_quote: 80.00,
+            min_miles: 100,
+            base_fuel_price: 3.70,
+            current_fuel_price: 3.70,
+            fuel_adjustment_per_dollar: 5.00,
+            surge_multiplier: 1.00,
+            surge_enabled: false,
+            expedited_multiplier: 1.25,
+            standard_multiplier: 1.00,
+            flexible_multiplier: 0.95,
+            short_distance_max: 500,
+            mid_distance_max: 1500,
+            bulk_discount_enabled: true,
+            expedited_service_enabled: true,
+            flexible_service_enabled: true,
             is_active: true
           }
           
