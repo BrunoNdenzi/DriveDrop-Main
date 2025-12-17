@@ -113,13 +113,14 @@ export default function AdminDashboardPage() {
         // Get recent shipments
         const { data: recentShipments } = await supabase
           .from('shipments')
-          .select('id, created_at, pickup_address, profiles!client_id(first_name, last_name)')
+          .select('id, created_at, pickup_address, client_id, profiles!client_id(first_name, last_name)')
           .order('created_at', { ascending: false })
           .limit(3)
 
-        recentShipments?.forEach(shipment => {
-          const clientName = shipment.profiles 
-            ? `${shipment.profiles.first_name} ${shipment.profiles.last_name}`
+        recentShipments?.forEach((shipment: any) => {
+          const profile = shipment.profiles
+          const clientName = profile 
+            ? `${profile.first_name} ${profile.last_name}`
             : 'Unknown Client'
           activities.push({
             id: `shipment-${shipment.id}`,
