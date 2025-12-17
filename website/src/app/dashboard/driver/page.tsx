@@ -19,9 +19,6 @@ import {
   Star
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { OnboardingTour } from '@/components/onboarding/OnboardingTour'
-import { HelpButton } from '@/components/onboarding/HelpButton'
-import { driverDashboardTour } from '@/lib/tour-steps'
 
 interface Job {
   id: string
@@ -197,15 +194,6 @@ export default function DriverDashboardPage() {
 
   return (
     <div className="space-y-6" id="driver-dashboard">
-      {/* Onboarding Tour */}
-      <OnboardingTour 
-        tourConfig={driverDashboardTour} 
-        storageKey="driver_tour"
-      />
-
-      {/* Help Button */}
-      <HelpButton userRole="driver" currentPage="driver" />
-
       {/* Welcome Header */}
       <div className="bg-gradient-to-r from-orange-500 to-orange-600 rounded-2xl p-8 text-white" data-tour="driver-status">
         <h1 className="text-3xl font-bold mb-2">

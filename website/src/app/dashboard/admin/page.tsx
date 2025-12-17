@@ -19,9 +19,6 @@ import {
   BarChart3
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { OnboardingTour } from '@/components/onboarding/OnboardingTour'
-import { HelpButton } from '@/components/onboarding/HelpButton'
-import { adminDashboardTour } from '@/lib/tour-steps'
 
 interface SystemStats {
   totalUsers: number
@@ -99,7 +96,7 @@ export default function AdminDashboardPage() {
 
         const pendingApplications = jobApplicationsResult.count || 0
 
-        setStats({
+        stats({
           totalUsers,
           totalClients,
           totalDrivers,
@@ -110,27 +107,67 @@ export default function AdminDashboardPage() {
           pendingApplications,
         })
 
-        // Create mock recent activity (would be from actual events table)
-        setRecentActivity([
-          {
-            id: '1',
+        // Fetch recent activity from database
+        const activities: RecentActivity[] = []
+
+        // Get recent shipments
+        const { data: recentShipments } = await supabase
+          .from('shipments')
+          .select('id, created_at, pickup_address, profiles!client_id(first_name, last_name)')
+          .order('created_at', { ascending: false })
+          .limit(3)
+
+        recentShipments?.forEach(shipment => {
+          const clientName = shipment.profiles 
+            ? `${shipment.profiles.first_name} ${shipment.profiles.last_name}`
+            : 'Unknown Client'
+          activities.push({
+            id: `shipment-${shipment.id}`,
             type: 'shipment',
-            description: 'New shipment created',
-            timestamp: new Date().toISOString(),
-          },
-          {
-            id: '2',
+            description: `New shipment created by ${clientName}`,
+            timestamp: shipment.created_at,
+          })
+        })
+
+        // Get recent user registrations
+        const { data: recentUsers } = await supabase
+          .from('profiles')
+          .select('id, created_at, first_name, last_name, role')
+          .eq('role', 'client')
+          .order('created_at', { ascending: false })
+          .limit(2)
+
+        recentUsers?.forEach(user => {
+          activities.push({
+            id: `user-${user.id}`,
             type: 'user',
-            description: 'New client registered',
-            timestamp: new Date(Date.now() - 3600000).toISOString(),
-          },
-          {
-            id: '3',
+            description: `New client registered: ${user.first_name} ${user.last_name}`,
+            timestamp: user.created_at,
+          })
+        })
+
+        // Get recent driver applications
+        const { data: recentApps } = await supabase
+          .from('job_applications')
+          .select('id, submitted_at, full_name')
+          .order('submitted_at', { ascending: false })
+          .limit(2)
+
+        recentApps?.forEach(app => {
+          activities.push({
+            id: `app-${app.id}`,
             type: 'application',
-            description: 'Driver application submitted',
-            timestamp: new Date(Date.now() - 7200000).toISOString(),
-          },
-        ])
+            description: `Driver application submitted: ${app.full_name}`,
+            timestamp: app.submitted_at,
+          })
+        })
+
+        // Sort all activities by timestamp
+        activities.sort((a, b) => 
+          new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+        )
+
+        setRecentActivity(activities.slice(0, 5))
       } catch (error) {
         console.error('Error fetching admin data:', error)
       } finally {
@@ -151,15 +188,6 @@ export default function AdminDashboardPage() {
 
   return (
     <div className="space-y-6" id="admin-dashboard">
-      {/* Onboarding Tour */}
-      <OnboardingTour 
-        tourConfig={adminDashboardTour} 
-        storageKey="admin_tour"
-      />
-
-      {/* Help Button */}
-      <HelpButton userRole="admin" currentPage="admin" />
-
       {/* Welcome Header */}
       <div className="bg-gradient-to-r from-purple-600 to-purple-700 rounded-2xl p-8 text-white" data-tour="analytics">
         <h1 className="text-3xl font-bold mb-2">

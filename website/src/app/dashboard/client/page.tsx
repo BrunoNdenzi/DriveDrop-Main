@@ -17,10 +17,6 @@ import {
   Calendar
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { OnboardingTour } from '@/components/onboarding/OnboardingTour'
-import { OnboardingChecklist } from '@/components/onboarding/OnboardingChecklist'
-import { HelpButton } from '@/components/onboarding/HelpButton'
-import { clientDashboardTour } from '@/lib/tour-steps'
 
 interface Shipment {
   id: string
@@ -137,18 +133,6 @@ export default function ClientDashboardPage() {
 
   return (
     <div className="space-y-6" id="client-dashboard">
-      {/* Onboarding Tour */}
-      <OnboardingTour 
-        tourConfig={clientDashboardTour} 
-        storageKey="dashboard_tour"
-      />
-
-      {/* Help Button */}
-      <HelpButton userRole="client" currentPage="dashboard" />
-
-      {/* Onboarding Checklist */}
-      <OnboardingChecklist userRole="client" />
-
       {/* Welcome Header */}
       <div className="bg-gradient-to-r from-primary to-secondary rounded-2xl p-8 text-white">
         <h1 className="text-3xl font-bold mb-2">
