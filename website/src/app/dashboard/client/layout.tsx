@@ -85,10 +85,7 @@ export default function ClientDashboardLayout({
             {/* Right Side Actions */}
             <div className="flex items-center gap-4">
               {/* Notifications */}
-              <button className="p-2 rounded-lg hover:bg-gray-100 transition-colors relative">
-                <Bell className="h-5 w-5 text-gray-600" />
-                <span className="absolute top-1 right-1 w-2 h-2 bg-orange-500 rounded-full"></span>
-              </button>
+              <NotificationBell />
 
               {/* User Menu */}
               <div className="relative">

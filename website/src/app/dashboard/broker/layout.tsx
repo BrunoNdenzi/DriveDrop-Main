@@ -22,6 +22,7 @@ import {
   User
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import NotificationBell from '@/components/NotificationBell'
 
 const navItems = [
   { href: '/dashboard/broker', label: 'Dashboard', icon: LayoutDashboard },
@@ -92,10 +93,7 @@ export default function BrokerDashboardLayout({
             {/* Right Side Actions */}
             <div className="flex items-center gap-4">
               {/* Notifications */}
-              <button className="p-2 rounded-lg hover:bg-gray-100 transition-colors relative">
-                <Bell className="h-5 w-5 text-gray-600" />
-                <span className="absolute top-1 right-1 w-2 h-2 bg-blue-600 rounded-full"></span>
-              </button>
+              <NotificationBell />
 
               {/* User Menu */}
               <div className="relative">
