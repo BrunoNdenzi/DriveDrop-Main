@@ -76,7 +76,7 @@ export default function AdminDashboardPage() {
             .from('shipments')
             .select('status, estimated_price'),
           supabase
-            .from('job_applications')
+            .from('driver_applications')
             .select('*', { count: 'exact', head: true })
             .eq('status', 'pending')
         ])
@@ -149,17 +149,17 @@ export default function AdminDashboardPage() {
 
         // Get recent driver applications
         const { data: recentApps } = await supabase
-          .from('job_applications')
-          .select('id, submitted_at, full_name')
-          .order('submitted_at', { ascending: false })
+          .from('driver_applications')
+          .select('id, created_at, first_name, last_name')
+          .order('created_at', { ascending: false })
           .limit(2)
 
         recentApps?.forEach(app => {
           activities.push({
             id: `app-${app.id}`,
             type: 'application',
-            description: `Driver application submitted: ${app.full_name}`,
-            timestamp: app.submitted_at,
+            description: `Driver application submitted: ${app.first_name} ${app.last_name}`,
+            timestamp: app.created_at,
           })
         })
 
