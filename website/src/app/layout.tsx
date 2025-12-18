@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import { Inter } from 'next/font/google'
 import Script from 'next/script'
+import { Analytics } from '@vercel/analytics/next'
 import { ToastContainer } from '@/components/ui/toast'
 import AuthHashHandler from '@/components/AuthHashHandler'
 import './globals.css'
@@ -51,6 +52,7 @@ export default function RootLayout({
         <AuthHashHandler />
         {children}
         <ToastContainer />
+        <Analytics />
       </body>
     </html>
   )
