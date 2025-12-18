@@ -77,8 +77,7 @@ export default function AdminDashboardPage() {
             .select('status, estimated_price'),
           supabase
             .from('driver_applications')
-            .select('*', { count: 'exact', head: true })
-            .eq('status', 'pending')
+            .select('*')
         ])
 
         const totalClients = clientsResult.count || 0
@@ -94,7 +93,8 @@ export default function AdminDashboardPage() {
         const completedShipments = shipments.filter(s => s.status === 'delivered').length
         const totalRevenue = shipments.reduce((sum, s) => sum + (s.estimated_price || 0), 0)
 
-        const pendingApplications = jobApplicationsResult.count || 0
+        const allApplications = jobApplicationsResult.data || []
+        const pendingApplications = allApplications.filter((app: any) => app.status === 'pending').length
 
         setStats({
           totalUsers,
@@ -104,7 +104,7 @@ export default function AdminDashboardPage() {
           activeShipments,
           completedShipments,
           totalRevenue,
-          pendingApplications,
+          pendingApplications: totalApplications // Show total applications instead of just pending,
         })
 
         // Fetch recent activity from database
@@ -150,7 +150,7 @@ export default function AdminDashboardPage() {
         // Get recent driver applications
         const { data: recentApps } = await supabase
           .from('driver_applications')
-          .select('id, created_at, first_name, last_name')
+          .select('*')
           .order('created_at', { ascending: false })
           .limit(2)
 
