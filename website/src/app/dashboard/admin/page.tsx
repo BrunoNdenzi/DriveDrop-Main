@@ -104,7 +104,7 @@ export default function AdminDashboardPage() {
           activeShipments,
           completedShipments,
           totalRevenue,
-          pendingApplications: totalApplications // Show total applications instead of just pending,
+          pendingApplications,
         })
 
         // Fetch recent activity from database
