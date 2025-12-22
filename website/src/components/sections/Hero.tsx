@@ -16,27 +16,27 @@ export default function Hero() {
       <div className="container relative z-10">
         <div className="grid lg:grid-cols-2 gap-12 items-center">
           {/* Left content */}
-          <div className="space-y-8 animate-slide-up">
+          <div className="space-y-12 animate-slide-up">
             {/* Headline */}
-            <div className="space-y-4">
-              <h1 className="text-5xl md:text-7xl font-bold tracking-tight leading-tight">
+            <div className="space-y-6">
+              <h1 className="text-6xl md:text-8xl font-bold tracking-tight leading-tight">
                 Ship Your Vehicle
-                <span className="block text-gradient mt-2">
+                <span className="block text-gradient mt-4">
                   Anywhere. Anytime.
                 </span>
               </h1>
-              <p className="text-xl text-muted-foreground max-w-xl">
+              <p className="text-2xl text-muted-foreground max-w-xl leading-relaxed">
                 Connect with verified drivers, get instant quotes, and track your vehicle 
                 in real-time. The modern way to ship your car.
               </p>
             </div>
 
             {/* CTA Buttons */}
-            <div className="flex flex-col sm:flex-row gap-4">
+            <div className="flex flex-col sm:flex-row gap-6">
               <Button 
                 asChild 
                 size="lg" 
-                className="gradient-primary text-lg px-8 py-6 hover-lift group"
+                className="gradient-primary text-xl px-10 py-7 hover-lift group"
               >
                 <Link href="/#quote">
                   Get Instant Quote 
@@ -47,7 +47,7 @@ export default function Hero() {
                 asChild 
                 variant="outline" 
                 size="lg"
-                className="text-lg px-8 py-6 border-2 border-primary/20 hover:border-primary hover:bg-primary/5"
+                className="text-xl px-10 py-7 border-2 border-primary/20 hover:border-primary hover:bg-primary/5"
               >
                 <Link href="/#how-it-works">
                   How It Works
@@ -56,34 +56,34 @@ export default function Hero() {
             </div>
 
             {/* Trust badges */}
-            <div className="flex flex-wrap items-center gap-6 pt-4">
-              <div className="flex items-center space-x-2">
+            <div className="flex flex-wrap items-center gap-8 pt-6">
+              <div className="flex items-center space-x-3">
                 <div className="flex -space-x-2">
                   {[1, 2, 3, 4].map((i) => (
                     <div 
                       key={i} 
-                      className="w-10 h-10 rounded-full bg-primary/20 border-2 border-white flex items-center justify-center"
+                      className="w-12 h-12 rounded-full bg-primary/20 border-2 border-white flex items-center justify-center"
                     >
-                      <Truck className="w-5 h-5 text-primary" />
+                      <Truck className="w-6 h-6 text-primary" />
                     </div>
                   ))}
                 </div>
-                <div className="text-sm">
-                  <div className="font-semibold">1,000+ Drivers</div>
+                <div className="text-base">
+                  <div className="font-semibold text-lg">1,000+ Drivers</div>
                   <div className="text-muted-foreground">Verified & Insured</div>
                 </div>
               </div>
               
-              <div className="h-12 w-px bg-border" />
+              <div className="h-14 w-px bg-border" />
               
-              <div className="flex items-center space-x-2">
+              <div className="flex items-center space-x-3">
                 <div className="flex">
                   {[1, 2, 3, 4, 5].map((i) => (
-                    <Star key={i} className="w-5 h-5 fill-secondary text-secondary" />
+                    <Star key={i} className="w-6 h-6 fill-secondary text-secondary" />
                   ))}
                 </div>
-                <div className="text-sm">
-                  <div className="font-semibold">4.9/5 Rating</div>
+                <div className="text-base">
+                  <div className="font-semibold text-lg">4.9/5 Rating</div>
                   <div className="text-muted-foreground">10,000+ Reviews</div>
                 </div>
               </div>
