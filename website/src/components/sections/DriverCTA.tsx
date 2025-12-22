@@ -4,17 +4,17 @@ import { DollarSign, MapPin, Clock } from 'lucide-react'
 
 export default function DriverCTA() {
   return (
-    <section className="py-20">
+    <section className="py-12">
       <div className="container">
-        <div className="mx-auto max-w-4xl rounded-2xl bg-gradient-to-br from-primary to-blue-600 p-8 text-center text-white md:p-12">
-          <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">
+        <div className="mx-auto max-w-4xl rounded-2xl bg-gradient-to-br from-primary to-blue-600 p-8 text-center text-white md:p-10">
+          <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">
             Become a DriveDrop Driver
           </h2>
-          <p className="mt-4 text-lg opacity-90">
+          <p className="mt-3 text-base opacity-90">
             Earn money by delivering vehicles across the US. Set your own schedule and get paid weekly.
           </p>
           
-          <div className="mt-8 grid gap-6 sm:grid-cols-3 text-left">
+          <div className="mt-6 grid gap-4 sm:grid-cols-3 text-left">
             <div className="flex items-start space-x-3">
               <DollarSign className="h-6 w-6 flex-shrink-0" />
               <div>
@@ -38,7 +38,7 @@ export default function DriverCTA() {
             </div>
           </div>
 
-          <div className="mt-8">
+          <div className="mt-6">
             <Button asChild size="lg" variant="secondary">
               <Link href="/drivers/register">Apply to Drive</Link>
             </Button>
