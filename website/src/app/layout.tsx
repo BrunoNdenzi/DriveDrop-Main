@@ -11,7 +11,7 @@ const inter = Inter({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
   title: 'DriveDrop - Vehicle Shipping Made Simple',
-  description: 'Ship your vehicle anywhere in the US with trusted drivers. Get instant quotes and track your shipment in real-time.',
+  description: 'Professional vehicle shipping with 1,000+ verified drivers. Get instant quotes in 30 seconds, real-time GPS tracking, and full insurance up to $100k. Rated 4.9/5 by 10,000+ customers.',
   keywords: 'vehicle shipping, car transport, auto shipping, vehicle delivery',
   icons: {
     icon: '/favicon.png',
@@ -20,7 +20,7 @@ export const metadata: Metadata = {
   },
   openGraph: {
     title: 'DriveDrop - Vehicle Shipping Made Simple',
-    description: 'Ship your vehicle anywhere in the US with trusted drivers.',
+    description: 'Professional vehicle shipping with verified drivers. Get instant quotes, real-time tracking, and full insurance.',
     url: 'https://drivedrop.us.com',
     siteName: 'DriveDrop',
     locale: 'en_US',
