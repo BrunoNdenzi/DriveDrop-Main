@@ -187,16 +187,16 @@ export default function QuoteCalculator() {
   }
 
   return (
-    <section id="quote" className="py-20 bg-muted/50">
+    <section id="quote" className="py-12 bg-muted/50">
       <div className="container">
         <div className="mx-auto max-w-2xl text-center">
-          <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">Get Instant Quote</h2>
-          <p className="mt-4 text-lg text-muted-foreground">
+          <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">Get Instant Quote</h2>
+          <p className="mt-3 text-base text-muted-foreground">
             Calculate your shipping cost in seconds
           </p>
         </div>
 
-        <div className="mt-12 mx-auto max-w-3xl">
+        <div className="mt-8 mx-auto max-w-3xl">
           <Card>
             <CardHeader>
               <CardTitle>Shipment Details</CardTitle>
@@ -205,7 +205,7 @@ export default function QuoteCalculator() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+              <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
                 {/* Pickup Location */}
                 <div className="space-y-2">
                   <Label htmlFor="pickupLocation">
