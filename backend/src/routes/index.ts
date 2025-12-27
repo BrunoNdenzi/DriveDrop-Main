@@ -18,6 +18,13 @@ import adminRoutes from './admin.routes';
 import pickupVerificationRoutes from './pickupVerification.routes';
 import { notificationsRoutes}  from './notifications.routes';
 
+// Commercial Expansion Routes
+import commercialRoutes from './commercial';
+import integrationsRoutes from './integrations';
+import bolRoutes from './bol';
+import dispatcherRoutes from './dispatcher';
+import webhooksRoutes from './webhooks';
+
 const router = Router();
 
 // API welcome message
@@ -39,6 +46,12 @@ router.get('/', (_req, res) => {
       admin: '/api/v1/admin',
       notifications: '/api/v1/notifications',
       pickupVerification: '/api/v1/shipments (pickup verification endpoints)',
+      // Commercial Expansion APIs
+      commercial: '/api/v1/commercial',
+      integrations: '/api/v1/integrations',
+      bol: '/api/v1/bol',
+      dispatcher: '/api/v1/dispatcher',
+      webhooks: '/api/v1/webhooks',
     },
   });
 });
@@ -58,5 +71,12 @@ router.use('/diagnostics', diagnosticsRoutes);
 router.use('/pricing', pricingRoutes);
 router.use('/admin', adminRoutes);
 router.use('/notifications', notificationsRoutes);
+
+// Commercial Expansion Routes
+router.use('/commercial', commercialRoutes);
+router.use('/integrations', integrationsRoutes);
+router.use('/bol', bolRoutes);
+router.use('/dispatcher', dispatcherRoutes);
+router.use('/webhooks', webhooksRoutes);
 
 export default router;

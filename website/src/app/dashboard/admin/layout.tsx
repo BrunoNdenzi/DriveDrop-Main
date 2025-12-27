@@ -21,7 +21,11 @@ import {
   ChevronDown,
   Shield,
   ClipboardCheck,
-  MapIcon
+  MapIcon,
+  Building2,
+  Plug,
+  FileText,
+  Bot
 } from 'lucide-react'
 import NotificationBell from '@/components/NotificationBell'
 import { Button } from '@/components/ui/button'
@@ -35,6 +39,11 @@ const navItems = [
   { href: '/dashboard/admin/driver-applications', label: 'Driver Applications', icon: UserCheck },
   { href: '/dashboard/admin/pricing', label: 'Pricing', icon: DollarSign },
   { href: '/dashboard/admin/reports', label: 'Reports', icon: BarChart3 },
+  // Commercial Expansion
+  { href: '/dashboard/admin/commercial', label: 'Commercial Accounts', icon: Building2 },
+  { href: '/dashboard/admin/integrations', label: 'Integrations', icon: Plug },
+  { href: '/dashboard/admin/bol', label: 'BOL Management', icon: FileText },
+  { href: '/dashboard/admin/ai-review', label: 'AI Review Queue', icon: Bot },
   { href: '/dashboard/admin/settings', label: 'Settings', icon: Settings },
 ]
 
