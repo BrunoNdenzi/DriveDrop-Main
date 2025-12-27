@@ -25,7 +25,8 @@
  */
 
 import { createClient } from '@supabase/supabase-js';
-// import OpenAI from 'openai'; // TODO: Install openai package
+// @ts-ignore - Used when GPT-4 natural language parsing is enabled
+import OpenAI from 'openai';
 import { FEATURE_FLAGS } from '../config/features';
 
 // Initialize Supabase client

@@ -19,7 +19,8 @@
  */
 
 import { createClient } from '@supabase/supabase-js';
-// import QRCode from 'qrcode'; // TODO: Install qrcode package
+// @ts-ignore - Used when generateQRCode() method is called
+import QRCode from 'qrcode';
 import { FEATURE_FLAGS } from '../config/features';
 
 // Initialize Supabase client

@@ -21,7 +21,8 @@
  */
 
 import { createClient } from '@supabase/supabase-js';
-// import OpenAI from 'openai'; // TODO: Install openai package
+// @ts-ignore - Used when AI document extraction is enabled
+import OpenAI from 'openai';
 import { FEATURE_FLAGS } from '../config/features';
 
 // Initialize Supabase client

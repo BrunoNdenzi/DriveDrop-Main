@@ -21,8 +21,10 @@
 
 import { createClient } from '@supabase/supabase-js';
 import axios, { AxiosRequestConfig } from 'axios';
-// import * as sftp from 'ssh2-sftp-client';
-// import { parse as parseCSV } from 'csv-parse/sync';
+// @ts-ignore - Used when SFTP integration type is enabled
+import * as sftp from 'ssh2-sftp-client';
+// @ts-ignore - Used when CSV integration type is enabled
+import { parse as parseCSV } from 'csv-parse/sync';
 import { FEATURE_FLAGS } from '../config/features';
 
 // Initialize Supabase client
