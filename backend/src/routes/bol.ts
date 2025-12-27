@@ -101,14 +101,21 @@ router.get('/', checkBOLFeature, requireAuth, async (req: Request, res: Response
   try {
     const { status, commercial_account_id, date_from, date_to, limit, offset } = req.query;
 
-    const filters = {
-      status: status as string | undefined,
-      commercial_account_id: commercial_account_id as string | undefined,
-      date_from: date_from as string | undefined,
-      date_to: date_to as string | undefined,
-      limit: limit ? parseInt(limit as string) : undefined,
-      offset: offset ? parseInt(offset as string) : undefined,
-    };
+    const filters: {
+      status?: string;
+      commercial_account_id?: string;
+      date_from?: string;
+      date_to?: string;
+      limit?: number;
+      offset?: number;
+    } = {};
+
+    if (status) filters.status = status as string;
+    if (commercial_account_id) filters.commercial_account_id = commercial_account_id as string;
+    if (date_from) filters.date_from = date_from as string;
+    if (date_to) filters.date_to = date_to as string;
+    if (limit) filters.limit = parseInt(limit as string);
+    if (offset) filters.offset = parseInt(offset as string);
 
     const result = await bolService.listBOLs(filters);
 
@@ -137,6 +144,10 @@ router.get('/', checkBOLFeature, requireAuth, async (req: Request, res: Response
 router.get('/:id', checkBOLFeature, requireAuth, async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
+    if (!id) {
+      res.status(400).json({ error: 'BOL ID is required' });
+      return;
+    }
 
     const bol = await bolService.getBOL(id);
 
@@ -171,6 +182,10 @@ router.get('/:id', checkBOLFeature, requireAuth, async (req: Request, res: Respo
 router.get('/shipment/:id', checkBOLFeature, requireAuth, async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
+    if (!id) {
+      res.status(400).json({ error: 'Shipment ID is required' });
+      return;
+    }
 
     const bol = await bolService.getBOLByShipment(id);
 
@@ -199,6 +214,10 @@ router.get('/shipment/:id', checkBOLFeature, requireAuth, async (req: Request, r
 router.patch('/:id', checkBOLFeature, requireAuth, async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
+    if (!id) {
+      res.status(400).json({ error: 'BOL ID is required' });
+      return;
+    }
     const updates = req.body;
 
     // Validate updates
@@ -241,6 +260,10 @@ router.patch('/:id', checkBOLFeature, requireAuth, async (req: Request, res: Res
 router.post('/:id/condition', checkBOLFeature, requireAuth, async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
+    if (!id) {
+      res.status(400).json({ error: 'BOL ID is required' });
+      return;
+    }
     const conditionData = req.body;
 
     // Validate required fields
@@ -295,6 +318,10 @@ router.post('/:id/condition', checkBOLFeature, requireAuth, async (req: Request,
 router.post('/:id/signature', checkBOLFeature, requireAuth, async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
+    if (!id) {
+      res.status(400).json({ error: 'BOL ID is required' });
+      return;
+    }
     const { signer_type, signer_name, signature_data } = req.body;
 
     // Validate required fields
@@ -351,6 +378,10 @@ router.post('/:id/signature', checkBOLFeature, requireAuth, async (req: Request,
 router.patch('/:id/status', checkBOLFeature, requireAuth, async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
+    if (!id) {
+      res.status(400).json({ error: 'BOL ID is required' });
+      return;
+    }
     const { status } = req.body;
 
     // Validate status
@@ -393,6 +424,10 @@ router.patch('/:id/status', checkBOLFeature, requireAuth, async (req: Request, r
 router.get('/:id/pdf', checkBOLFeature, requireAuth, async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
+    if (!id) {
+      res.status(400).json({ error: 'BOL ID is required' });
+      return;
+    }
 
     const result = await bolService.generatePDF(id);
 
