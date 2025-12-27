@@ -19,7 +19,8 @@
  */
 
 import { createClient } from '@supabase/supabase-js';
-// import PDFDocument from 'pdfkit'; // TODO: Install pdfkit package
+// @ts-ignore - Used when generatePDF() method is called
+import PDFDocument from 'pdfkit';
 import { FEATURE_FLAGS } from '../config/features';
 
 // Initialize Supabase client
