@@ -836,6 +836,24 @@ CREATE TABLE public.tracking_events (
   CONSTRAINT tracking_events_created_by_fkey FOREIGN KEY (created_by) REFERENCES public.profiles(id),
   CONSTRAINT tracking_events_shipment_id_fkey FOREIGN KEY (shipment_id) REFERENCES public.shipments(id)
 );
+CREATE TABLE public.user_onboarding (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  user_id uuid NOT NULL UNIQUE,
+  dashboard_tour_completed boolean DEFAULT false,
+  shipment_creation_tour_completed boolean DEFAULT false,
+  tracking_tour_completed boolean DEFAULT false,
+  payment_tour_completed boolean DEFAULT false,
+  admin_tour_completed boolean DEFAULT false,
+  broker_tour_completed boolean DEFAULT false,
+  driver_tour_completed boolean DEFAULT false,
+  checklist_progress jsonb DEFAULT '{"profile_completed": false, "documents_uploaded": false, "payment_method_added": false, "first_shipment_created": false, "first_shipment_tracked": false}'::jsonb,
+  dismissed_hints ARRAY DEFAULT ARRAY[]::text[],
+  show_tours boolean DEFAULT true,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT user_onboarding_pkey PRIMARY KEY (id),
+  CONSTRAINT user_onboarding_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
+);
 CREATE TABLE public.user_vehicles (
   id uuid NOT NULL DEFAULT uuid_generate_v4(),
   user_id uuid NOT NULL,
