@@ -14,27 +14,73 @@ export default function AITestPage() {
   const [extractedData, setExtractedData] = useState<any>(null)
   const [createdShipment, setCreatedShipment] = useState<any>(null)
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null)
+  const [isMounted, setIsMounted] = useState(false)
 
   useEffect(() => {
+    setIsMounted(true)
+  }, [])
+
+  useEffect(() => {
+    if (!isMounted) return
+
+    let redirectTimeout: NodeJS.Timeout
+    let authCheckComplete = false
+
     const checkAuth = async () => {
-      const { data: { session } } = await supabase.auth.getSession()
-      
-      if (!session) {
+      try {
+        // Check the current session
+        const { data: { session }, error } = await supabase.auth.getSession()
+        
+        console.log('🔐 Test page auth check:', { 
+          hasSession: !!session,
+          userId: session?.user?.id,
+          error: error?.message
+        })
+        
+        authCheckComplete = true
+        
+        if (session) {
+          setIsAuthenticated(true)
+        } else {
+          // One more check after a brief delay
+          await new Promise(resolve => setTimeout(resolve, 300))
+          const { data: { session: retrySession } } = await supabase.auth.getSession()
+          
+          if (retrySession) {
+            setIsAuthenticated(true)
+          } else {
+            setIsAuthenticated(false)
+            // Redirect to login after 1.5 seconds
+            redirectTimeout = setTimeout(() => {
+              router.push('/login?redirect=/test-ai')
+            }, 1500)
+          }
+        }
+      } catch (error) {
+        console.error('Auth check error:', error)
         setIsAuthenticated(false)
-        // Redirect to login after 3 seconds
-        setTimeout(() => {
-          router.push('/login?redirect=/test-ai')
-        }, 3000)
-      } else {
-        setIsAuthenticated(true)
       }
     }
 
-    checkAuth()
-  }, [])
+    // Listen for auth state changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      console.log('🔐 Auth state changed:', { event, hasSession: !!session })
+      if (session && authCheckComplete) {
+        setIsAuthenticated(true)
+        if (redirectTimeout) clearTimeout(redirectTimeout)
+      }
+    })
 
-  // Show loading state while checking auth
-  if (isAuthenticated === null) {
+    checkAuth()
+
+    return () => {
+      subscription.unsubscribe()
+      if (redirectTimeout) clearTimeout(redirectTimeout)
+    }
+  }, [router, isMounted])
+
+  // Show loading state while checking auth or not mounted
+  if (!isMounted || isAuthenticated === null) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">

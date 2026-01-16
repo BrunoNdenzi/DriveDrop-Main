@@ -174,7 +174,7 @@ export default function NaturalLanguageShipmentCreator({
                     ✨ Benji Created Your Shipment!
                   </h3>
                   <p className="text-sm text-green-700 mt-1 mb-4">
-                    Extracted with {(result.confidence * 100).toFixed(0)}% confidence • Redirecting...
+                    Extracted with {((result.confidence || 0) * 100).toFixed(0)}% confidence • Redirecting...
                   </p>
 
                   <div className="grid grid-cols-2 gap-4 text-sm bg-white rounded-lg p-4">
@@ -194,7 +194,7 @@ export default function NaturalLanguageShipmentCreator({
                     </div>
                     <div>
                       <span className="text-gray-600">Estimated Price:</span>
-                      <p className="font-medium text-teal-700">${result.shipment.estimated_price.toFixed(2)}</p>
+                      <p className="font-medium text-teal-700">${(result.shipment.estimated_price || 0).toFixed(2)}</p>
                     </div>
                   </div>
                 </div>
