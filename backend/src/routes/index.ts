@@ -25,6 +25,9 @@ import bolRoutes from './bol';
 import dispatcherRoutes from './dispatcher';
 import webhooksRoutes from './webhooks';
 
+// AI-Powered Features
+import aiRoutes from './ai.routes';
+
 const router = Router();
 
 // API welcome message
@@ -52,6 +55,7 @@ router.get('/', (_req, res) => {
       bol: '/api/v1/bol',
       dispatcher: '/api/v1/dispatcher',
       webhooks: '/api/v1/webhooks',
+      ai: '/api/v1/ai',
     },
   });
 });
@@ -78,5 +82,8 @@ router.use('/integrations', integrationsRoutes);
 router.use('/bol', bolRoutes);
 router.use('/dispatcher', dispatcherRoutes);
 router.use('/webhooks', webhooksRoutes);
+
+// AI-Powered Features
+router.use('/ai', aiRoutes);
 
 export default router;
