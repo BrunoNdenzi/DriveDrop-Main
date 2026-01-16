@@ -374,19 +374,20 @@ Return JSON with this structure:
         };
       }
 
-      // Create shipment
+      // Create shipment with proper column mapping
       const { data: shipment, error } = await supabase
         .from('shipments')
         .insert({
-          user_id: userId,
+          client_id: userId,
+          title: `${parsedData.vehicle.year || ''} ${parsedData.vehicle.make || ''} ${parsedData.vehicle.model || ''}`.trim() || 'Vehicle Shipment',
+          description: `Shipment created via Benji AI`,
           vehicle_year: parsedData.vehicle.year,
           vehicle_make: parsedData.vehicle.make,
           vehicle_model: parsedData.vehicle.model,
-          vehicle_vin: parsedData.vehicle.vin,
-          pickup_location: parsedData.pickup.location,
-          delivery_location: parsedData.delivery.location,
-          status: 'quote_requested',
-          source: 'natural_language',
+          pickup_address: parsedData.pickup.location,
+          delivery_address: parsedData.delivery.location,
+          status: 'pending',
+          estimated_price: 0, // Will be calculated by pricing engine
           created_at: new Date().toISOString(),
         })
         .select()
