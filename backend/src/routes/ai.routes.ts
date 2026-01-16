@@ -106,9 +106,18 @@ router.post('/natural-language-shipment', authenticate, async (req: Request, res
     // Create the shipment
     const result = await nlService.createShipment(userId, parseResult.parsed_data);
 
+    if (!result.success) {
+      res.status(400).json({
+        error: 'Failed to create shipment',
+        details: result.error,
+      });
+      return;
+    }
+
     res.json({
       success: true,
-      shipment: result,
+      shipment_id: result.shipment_id,
+      shipment: result.shipment,
       extractedData: parseResult.parsed_data,
       confidence: parseResult.confidence_score,
       message: 'Shipment created successfully from natural language',

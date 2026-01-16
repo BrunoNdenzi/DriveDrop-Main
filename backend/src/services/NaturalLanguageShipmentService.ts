@@ -28,6 +28,8 @@ import { createClient } from '@supabase/supabase-js';
 // @ts-ignore - Used when GPT-4 natural language parsing is enabled
 import OpenAI from 'openai';
 import { FEATURE_FLAGS } from '../config/features';
+import { googleMapsService } from './google-maps.service';
+import { pricingService, VehicleType } from './pricing.service';
 
 // Initialize Supabase client
 const supabase = createClient(
@@ -349,6 +351,7 @@ Return JSON with this structure:
   ): Promise<{
     success: boolean;
     shipment_id?: string;
+    shipment?: any;
     error?: string;
   }> {
     try {
@@ -374,6 +377,37 @@ Return JSON with this structure:
         };
       }
 
+      // Calculate distance and price
+      let estimatedPrice = 0;
+      let distanceMiles = 0;
+      
+      try {
+        // Get distance using Google Maps
+        const directions = await googleMapsService.getDirections(
+          parsedData.pickup.location,
+          parsedData.delivery.location
+        );
+        
+        distanceMiles = Math.round(directions.distance.value * 0.000621371); // meters to miles
+        
+        // Map vehicle type to pricing service type
+        const vehicleType = this.mapVehicleTypeToPricing(parsedData.vehicle);
+        
+        // Calculate price
+        const quote = await pricingService.calculateQuoteWithDynamicConfig({
+          vehicleType,
+          distanceMiles,
+          isAccidentRecovery: false,
+          vehicleCount: 1,
+        });
+        
+        estimatedPrice = Math.round(quote.total);
+      } catch (error) {
+        console.error('Error calculating price:', error);
+        // If pricing fails, use default minimum
+        estimatedPrice = 150;
+      }
+
       // Create shipment with proper column mapping
       const { data: shipment, error } = await supabase
         .from('shipments')
@@ -387,7 +421,8 @@ Return JSON with this structure:
           pickup_address: parsedData.pickup.location,
           delivery_address: parsedData.delivery.location,
           status: 'pending',
-          estimated_price: 0, // Will be calculated by pricing engine
+          estimated_price: estimatedPrice,
+          distance: distanceMiles,
           created_at: new Date().toISOString(),
         })
         .select()
@@ -435,6 +470,42 @@ Return JSON with this structure:
         error: error.message,
       };
     }
+  }
+
+  /**
+   * Map parsed vehicle data to pricing service vehicle type
+   */
+  private mapVehicleTypeToPricing(vehicle: any): VehicleType {
+    const make = vehicle?.make?.toLowerCase() || '';
+    const model = vehicle?.model?.toLowerCase() || '';
+    
+    // Luxury brands
+    if (['bmw', 'mercedes', 'audi', 'lexus', 'porsche', 'tesla', 'jaguar', 'maserati', 'bentley', 'rolls royce'].some(brand => make.includes(brand))) {
+      return 'luxury';
+    }
+    
+    // Motorcycles
+    if (['motorcycle', 'bike', 'harley', 'yamaha', 'honda', 'kawasaki', 'suzuki', 'ducati'].some(type => make.includes(type) || model.includes(type))) {
+      return 'motorcycle';
+    }
+    
+    // Pickup trucks
+    if (['f-150', 'f150', 'silverado', 'ram', 'tundra', 'tacoma', 'ranger', 'colorado', 'titan', 'frontier', 'pickup', 'truck'].some(type => model.includes(type))) {
+      return 'pickup';
+    }
+    
+    // Heavy vehicles
+    if (['semi', 'truck', 'box truck', 'commercial', 'cargo van', 'sprinter'].some(type => model.includes(type))) {
+      return 'heavy';
+    }
+    
+    // SUVs
+    if (['suv', 'explorer', 'tahoe', 'suburban', 'yukon', 'expedition', 'pilot', 'highlander', 'pathfinder', '4runner', 'traverse', 'durango'].some(type => model.includes(type))) {
+      return 'suv';
+    }
+    
+    // Default to sedan
+    return 'sedan';
   }
 
   /**
