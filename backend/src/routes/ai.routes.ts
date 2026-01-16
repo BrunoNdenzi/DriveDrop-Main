@@ -171,7 +171,7 @@ router.post('/bulk-upload', authenticate, async (req: Request, res: Response): P
  */
 router.get('/bulk-upload/:uploadId', authenticate, async (req: Request, res: Response): Promise<void> => {
   try {
-    const uploadId = req.params.uploadId || '';
+    const uploadId = req.params['uploadId'] || '';
     if (!uploadId) {
       res.status(400).json({ error: 'Upload ID is required' });
       return;
@@ -224,7 +224,7 @@ router.get('/document-queue', authenticate, async (_req: Request, res: Response)
  */
 router.post('/review-extraction/:extractionId', authenticate, async (req: Request, res: Response): Promise<void> => {
   try {
-    const extractionId = req.params.extractionId;
+    const extractionId = req.params['extractionId'];
     const { corrections, notes, approved = true } = req.body;
     const reviewerId = req.user?.id;
 
