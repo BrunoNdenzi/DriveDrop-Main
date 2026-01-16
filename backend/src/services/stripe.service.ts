@@ -17,7 +17,7 @@ try {
     throw new Error('Stripe configuration is missing');
   }
   stripe = new Stripe(config.stripe.secretKey, {
-    apiVersion: '2025-08-27.basil',
+    apiVersion: '2025-06-30.basil',
   });
   logger.info('Stripe service initialized successfully');
 } catch (error) {

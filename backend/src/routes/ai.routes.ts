@@ -3,14 +3,12 @@
  * Document extraction, natural language shipments, bulk uploads
  */
 import { Router, Request, Response } from 'express';
-import multer from 'multer';
-import { authMiddleware } from '../middleware/auth.middleware';
+import { authenticate } from '@middlewares/auth.middleware';
 import { AIDocumentExtractionService } from '../services/AIDocumentExtractionService';
 import { NaturalLanguageShipmentService } from '../services/NaturalLanguageShipmentService';
 import { BulkUploadService } from '../services/BulkUploadService';
 
 const router = Router();
-const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } }); // 10MB limit
 
 const aiDocService = new AIDocumentExtractionService();
 const nlService = new NaturalLanguageShipmentService();
@@ -20,39 +18,33 @@ const bulkService = new BulkUploadService();
  * POST /api/v1/ai/extract-document
  * Extract vehicle data from uploaded document image (registration, title, insurance)
  */
-router.post('/extract-document', authMiddleware, upload.single('document'), async (req: Request, res: Response) => {
+router.post('/extract-document', authenticate, async (req: Request, res: Response): Promise<void> => {
   try {
-    const file = req.file;
-    const { shipmentId, documentType } = req.body;
+    const { fileUrl, documentType, shipmentId } = req.body;
 
-    if (!file) {
-      return res.status(400).json({ error: 'No document uploaded' });
+    if (!fileUrl) {
+      res.status(400).json({ error: 'Document file URL is required' });
+      return;
     }
 
-    const result = await aiDocService.extractDocumentData(
-      file.buffer,
-      file.mimetype,
-      documentType || 'registration'
-    );
+    // Queue document for processing
+    const queueResult = await aiDocService.queueDocument({
+      shipment_id: shipmentId,
+      document_type: documentType || 'other',
+      file_url: fileUrl,
+      uploaded_by: req.user?.id || '',
+    });
 
-    // If shipment ID provided, associate with shipment
-    if (shipmentId && result.extractedData) {
-      await aiDocService.saveExtraction(shipmentId, {
-        documentType: result.documentType,
-        extractedData: result.extractedData,
-        confidence: result.confidence,
-        requiresReview: result.requiresReview,
-        ocrText: result.ocrText,
-      });
-    }
+    // Process immediately
+    const result = await aiDocService.processDocument(queueResult.queue_id);
 
     res.json({
       success: true,
-      data: result.extractedData,
-      confidence: result.confidence,
-      requiresReview: result.requiresReview,
-      lowConfidenceFields: result.lowConfidenceFields,
-      message: result.requiresReview
+      data: result.extracted_data,
+      confidence: result.confidence_score,
+      requiresReview: result.review_status === 'pending',
+      queueId: queueResult.queue_id,
+      message: result.review_status === 'pending'
         ? 'Document extracted but requires human review due to low confidence'
         : 'Document extracted successfully',
     });
@@ -70,36 +62,44 @@ router.post('/extract-document', authMiddleware, upload.single('document'), asyn
  * Create shipment from natural language prompt
  * Example: "Ship my 2023 Honda Civic from Los Angeles to New York next week"
  */
-router.post('/natural-language-shipment', authMiddleware, async (req: Request, res: Response) => {
+router.post('/natural-language-shipment', authenticate, async (req: Request, res: Response): Promise<void> => {
   try {
     const { prompt, inputMethod = 'text' } = req.body;
     const userId = req.user?.id;
 
     if (!prompt) {
-      return res.status(400).json({ error: 'Natural language prompt is required' });
+      res.status(400).json({ error: 'Natural language prompt is required' });
+      return;
     }
 
     if (!userId) {
-      return res.status(401).json({ error: 'User not authenticated' });
+      res.status(401).json({ error: 'User not authenticated' });
+      return;
     }
 
-    const result = await nlService.createShipmentFromPrompt(prompt, userId, inputMethod);
+    // Parse the prompt
+    const parseResult = await nlService.parseShipment({
+      user_id: userId,
+      input_text: prompt,
+      input_method: inputMethod as any,
+    });
 
-    if (!result.success) {
-      return res.status(400).json({
+    if (!parseResult.success || !parseResult.parsed_data) {
+      res.status(400).json({
         error: 'Failed to parse natural language prompt',
-        details: result.error,
-        validationErrors: result.validationErrors,
-        extractedData: result.extractedData, // Return partial data even if failed
+        details: 'Could not extract shipment data from prompt',
       });
+      return;
     }
+
+    // Create the shipment
+    const result = await nlService.createShipment(parseResult.parsed_data, userId);
 
     res.json({
       success: true,
-      shipment: result.shipment,
-      extractedData: result.extractedData,
-      confidence: result.confidence,
-      validationWarnings: result.validationWarnings,
+      shipment: result,
+      extractedData: parseResult.parsed_data,
+      confidence: parseResult.confidence_score,
       message: 'Shipment created successfully from natural language',
     });
   } catch (error: any) {
@@ -115,25 +115,26 @@ router.post('/natural-language-shipment', authMiddleware, async (req: Request, r
  * POST /api/v1/ai/bulk-upload
  * Upload CSV file with multiple shipments
  */
-router.post('/bulk-upload', authMiddleware, upload.single('file'), async (req: Request, res: Response) => {
+router.post('/bulk-upload', authenticate, async (req: Request, res: Response): Promise<void> => {
   try {
-    const file = req.file;
+    const { fileUrl } = req.body;
     const userId = req.user?.id;
 
-    if (!file) {
-      return res.status(400).json({ error: 'No CSV file uploaded' });
+    if (!fileUrl) {
+      res.status(400).json({ error: 'CSV file URL is required' });
+      return;
     }
 
     if (!userId) {
-      return res.status(401).json({ error: 'User not authenticated' });
+      res.status(401).json({ error: 'User not authenticated' });
+      return;
     }
 
-    const result = await bulkService.processBulkUpload(file.buffer, file.originalname, userId);
+    const result = await bulkService.startBulkUpload(fileUrl, userId);
 
     res.json({
       success: true,
-      uploadId: result.uploadId,
-      totalRows: result.totalRows,
+      uploadId: result.upload_id,
       status: result.status,
       message: 'Bulk upload started successfully',
     });
@@ -150,13 +151,14 @@ router.post('/bulk-upload', authMiddleware, upload.single('file'), async (req: R
  * GET /api/v1/ai/bulk-upload/:uploadId
  * Check status of bulk upload
  */
-router.get('/bulk-upload/:uploadId', authMiddleware, async (req: Request, res: Response) => {
+router.get('/bulk-upload/:uploadId', authenticate, async (req: Request, res: Response): Promise<void> => {
   try {
     const { uploadId } = req.params;
     const status = await bulkService.getUploadStatus(uploadId);
 
     if (!status) {
-      return res.status(404).json({ error: 'Upload not found' });
+      res.status(404).json({ error: 'Upload not found' });
+      return;
     }
 
     res.json({
@@ -176,14 +178,14 @@ router.get('/bulk-upload/:uploadId', authMiddleware, async (req: Request, res: R
  * GET /api/v1/ai/document-queue
  * Get pending documents waiting for AI extraction
  */
-router.get('/document-queue', authMiddleware, async (req: Request, res: Response) => {
+router.get('/document-queue', authenticate, async (_req: Request, res: Response): Promise<void> => {
   try {
-    const queue = await aiDocService.getExtractionQueue();
+    const queue = await aiDocService.getReviewQueue({ status: 'pending' });
 
     res.json({
       success: true,
-      queue,
-      count: queue.length,
+      queue: queue.items,
+      count: queue.total,
     });
   } catch (error: any) {
     console.error('Get document queue error:', error);
@@ -198,21 +200,26 @@ router.get('/document-queue', authMiddleware, async (req: Request, res: Response
  * POST /api/v1/ai/review-extraction/:extractionId
  * Human review and correction of AI extraction
  */
-router.post('/review-extraction/:extractionId', authMiddleware, async (req: Request, res: Response) => {
+router.post('/review-extraction/:extractionId', authenticate, async (req: Request, res: Response): Promise<void> => {
   try {
     const { extractionId } = req.params;
-    const { corrections, notes } = req.body;
+    const { corrections, notes, approved = true } = req.body;
     const reviewerId = req.user?.id;
 
     if (!reviewerId) {
-      return res.status(401).json({ error: 'User not authenticated' });
+      res.status(401).json({ error: 'User not authenticated' });
+      return;
     }
 
-    await aiDocService.reviewExtraction(extractionId, reviewerId, corrections, notes);
+    if (approved) {
+      await aiDocService.approveExtraction(extractionId, reviewerId, corrections);
+    } else {
+      await aiDocService.rejectExtraction(extractionId, reviewerId, notes || 'Rejected');
+    }
 
     res.json({
       success: true,
-      message: 'Extraction reviewed and corrected successfully',
+      message: 'Extraction reviewed successfully',
     });
   } catch (error: any) {
     console.error('Review extraction error:', error);

@@ -45,10 +45,10 @@ interface BulkUploadStatus {
 }
 
 export class BulkUploadService {
-  private nlService: NaturalLanguageShipmentService;
+  // private nlService: NaturalLanguageShipmentService;
 
   constructor() {
-    this.nlService = new NaturalLanguageShipmentService();
+    // this.nlService = new NaturalLanguageShipmentService();
   }
 
   /**
