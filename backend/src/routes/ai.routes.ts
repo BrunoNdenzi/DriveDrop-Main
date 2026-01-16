@@ -41,6 +41,11 @@ router.post('/extract-document', authenticate, async (req: Request, res: Respons
       uploaded_by: userId,
     });
 
+    if (!queueResult.queue_id) {
+      res.status(500).json({ error: 'Failed to queue document' });
+      return;
+    }
+
     // Process immediately
     const result = await aiDocService.processDocument(queueResult.queue_id);
 
@@ -146,9 +151,9 @@ router.post('/bulk-upload', authenticate, async (req: Request, res: Response): P
 
     res.json({
       success: true,
-      uploadId: result.uploadId,
-      totalRows: result.totalRows,
-      status: result.status,
+      uploadId: result['uploadId'],
+      totalRows: result['totalRows'],
+      status: result['status'],
       message: 'Bulk upload started successfully',
     });
   } catch (error: any) {
@@ -219,9 +224,14 @@ router.get('/document-queue', authenticate, async (_req: Request, res: Response)
  */
 router.post('/review-extraction/:extractionId', authenticate, async (req: Request, res: Response): Promise<void> => {
   try {
-    const { extractionId } = req.params;
+    const extractionId = req.params.extractionId;
     const { corrections, notes, approved = true } = req.body;
     const reviewerId = req.user?.id;
+
+    if (!extractionId) {
+      res.status(400).json({ error: 'Extraction ID is required' });
+      return;
+    }
 
     if (!reviewerId) {
       res.status(401).json({ error: 'User not authenticated' });
