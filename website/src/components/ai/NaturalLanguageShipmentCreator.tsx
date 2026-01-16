@@ -47,18 +47,23 @@ export default function NaturalLanguageShipmentCreator({
     try {
       const response = await aiService.createShipmentFromPrompt(prompt, 'text')
       
-      if (response.success && response.shipment) {
+      if (response.success && (response.shipment || response.shipment_id)) {
         setResult(response)
+        
+        // Get shipment ID from either response format
+        const shipmentId = response.shipment?.id || response.shipment_id
         
         // Call callback if provided
         if (onShipmentCreated) {
-          onShipmentCreated(response.shipment)
+          onShipmentCreated(response.shipment || { id: shipmentId })
         }
 
         // Redirect to shipment page after short delay
-        setTimeout(() => {
-          router.push(`/dashboard/client/shipments/${response.shipment?.id}`)
-        }, 2000)
+        if (shipmentId) {
+          setTimeout(() => {
+            router.push(`/dashboard/client/shipments/${shipmentId}`)
+          }, 2000)
+        }
       } else {
         setError(response.error || 'Failed to create shipment from prompt')
       }
