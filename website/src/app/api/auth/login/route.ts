@@ -6,7 +6,7 @@ export const dynamic = 'force-dynamic'
 
 export async function POST(request: Request) {
   try {
-    const { email, password, role } = await request.json()
+    const { email, password, role, redirectTo } = await request.json()
 
     const cookieStore = await cookies()
     
@@ -91,7 +91,7 @@ export async function POST(request: Request) {
     // Return success with redirect path
     return NextResponse.json({
       success: true,
-      redirectTo: `/dashboard/${profile.role}`,
+      redirectTo: redirectTo || `/dashboard/${profile.role}`,
       user: {
         id: authData.user.id,
         email: authData.user.email,

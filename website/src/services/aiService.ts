@@ -92,9 +92,16 @@ class AIService {
     
     // Try to get token from Supabase session
     try {
-      const { createClient } = await import('@/lib/supabase')
-      const supabase = createClient
-      const { data: { session } } = await supabase.auth.getSession()
+      const { supabase } = await import('@/lib/supabase')
+      const { data: { session }, error } = await supabase.auth.getSession()
+      
+      console.log('🔐 Auth Debug:', {
+        hasSession: !!session,
+        hasToken: !!session?.access_token,
+        tokenPreview: session?.access_token ? `${session.access_token.substring(0, 20)}...` : 'none',
+        error: error?.message
+      })
+      
       return session?.access_token || null
     } catch (error) {
       console.error('Failed to get auth token:', error)
