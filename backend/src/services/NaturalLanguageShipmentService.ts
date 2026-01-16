@@ -387,7 +387,6 @@ Return JSON with this structure:
           delivery_location: parsedData.delivery.location,
           status: 'quote_requested',
           source: 'natural_language',
-          ai_created: true,
           created_at: new Date().toISOString(),
         })
         .select()
