@@ -400,6 +400,7 @@ Return JSON with this structure:
       return {
         success: true,
         shipment_id: shipment.id,
+        shipment: shipment,
       };
     } catch (error: any) {
       return {
