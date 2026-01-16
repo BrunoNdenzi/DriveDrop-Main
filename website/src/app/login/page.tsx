@@ -1,8 +1,8 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -16,6 +16,8 @@ type UserRole = 'client' | 'driver' | 'broker' | 'admin'
 
 export default function LoginPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const redirectTo = searchParams.get('redirect')
   const [activeRole, setActiveRole] = useState<UserRole>('client')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -39,6 +41,7 @@ export default function LoginPage() {
           email,
           password,
           role: activeRole,
+          redirectTo,
         }),
       })
 
