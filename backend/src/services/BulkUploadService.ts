@@ -4,7 +4,6 @@
  */
 import { createClient } from '@supabase/supabase-js';
 import { parse } from 'csv-parse/sync';
-import { NaturalLanguageShipmentService } from './NaturalLanguageShipmentService';
 
 const supabase = createClient(
   process.env['SUPABASE_URL'] || '',
