@@ -186,16 +186,16 @@ export default function NaturalLanguageShipmentCreator({
                     <div>
                       <span className="text-gray-600">Vehicle:</span>
                       <p className="font-medium text-gray-900">
-                        {result.shipment.vehicle_year} {result.shipment.vehicle_make} {result.shipment.vehicle_model}
+                        {result.extractedData?.vehicle?.year || result.shipment?.vehicle_year || ''} {result.extractedData?.vehicle?.make || result.shipment?.vehicle_make || ''} {result.extractedData?.vehicle?.model || result.shipment?.vehicle_model || ''}
                       </p>
                     </div>
                     <div>
                       <span className="text-gray-600">From:</span>
-                      <p className="font-medium text-gray-900">{result.shipment.pickup_address}</p>
+                      <p className="font-medium text-gray-900">{result.extractedData?.pickup?.location || result.shipment?.pickup_address || ''}</p>
                     </div>
                     <div>
                       <span className="text-gray-600">To:</span>
-                      <p className="font-medium text-gray-900">{result.shipment.delivery_address}</p>
+                      <p className="font-medium text-gray-900">{result.extractedData?.delivery?.location || result.shipment?.delivery_address || ''}</p>
                     </div>
                     <div>
                       <span className="text-gray-600">Estimated Price:</span>

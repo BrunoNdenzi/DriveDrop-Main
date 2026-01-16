@@ -26,6 +26,7 @@ interface DocumentExtractionResponse {
 
 interface NaturalLanguageShipmentResponse {
   success: boolean
+  shipment_id?: string
   shipment?: {
     id: string
     vehicle_year: number
