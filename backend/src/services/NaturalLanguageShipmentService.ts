@@ -25,7 +25,6 @@
  */
 
 import { createClient } from '@supabase/supabase-js';
-// @ts-ignore - Used when GPT-4 natural language parsing is enabled
 import OpenAI from 'openai';
 import { FEATURE_FLAGS } from '../config/features';
 import { googleMapsService } from './google-maps.service';
@@ -37,12 +36,10 @@ const supabase = createClient(
   process.env['SUPABASE_SERVICE_ROLE_KEY'] || ''
 );
 
-// TODO: Initialize OpenAI after package install
-/*
+// Initialize OpenAI client
 const openai = new OpenAI({
-  apiKey: process.env['OPENAI_API_KEY'],
+  apiKey: process.env['OPENAI_API_KEY'] || '',
 });
-*/
 
 export interface NLShipmentInput {
   user_id: string;
@@ -162,122 +159,71 @@ export class NaturalLanguageShipmentService {
    * Parse input using GPT-4
    */
   private async parseWithGPT4(input: NLShipmentInput): Promise<NLParseResult> {
-    // TODO: Implement with OpenAI GPT-4 after package install
-    /*
-    const systemPrompt = `You are an AI assistant for a vehicle shipping platform.
+    try {
+      if (!process.env['OPENAI_API_KEY']) {
+        throw new Error('OpenAI API key not configured');
+      }
+
+      console.log(`Parsing natural language with GPT-4: "${input.input_text}"`);
+
+      const systemPrompt = `You are Benji, an AI assistant for a vehicle shipping platform.
 Extract structured shipment data from natural language input.
 
 IMPORTANT RULES:
 1. Extract only information explicitly stated or clearly implied
-2. For dates: Parse relative dates ("next week" → actual date, "Monday" → next Monday)
-3. For locations: Extract city/state at minimum, full address if provided
-4. For vehicles: Try to identify year, make, model, VIN if mentioned
-5. For missing critical fields, generate clarification questions
-6. Return confidence score 0.0-1.0 based on completeness
+2. For dates: Parse relative dates ("next week" → ISO date 7 days from now, "Monday" → next Monday's ISO date)
+3. For locations: Extract full location as stated - city name at minimum (e.g., "Los Angeles", "Dallas, TX", "123 Main St, Boston, MA")
+4. For vehicles: Identify year (number), make (string), model (string), VIN if mentioned, condition (operable/inoperable)
+5. For missing critical fields, note them in missing_fields array
+6. Return confidence score 0.0-1.0 based on how complete and clear the information is
 
-Return JSON with this structure:
+Return ONLY valid JSON with this EXACT structure:
 {
-  "vehicle": {"year": number, "make": string, "model": string, "vin": string, "type": string, "condition": string},
-  "pickup": {"location": string, "city": string, "state": string, "date": string, "contact_name": string},
-  "delivery": {"location": string, "city": string, "state": string, "date": string, "contact_name": string},
-  "preferences": {"enclosed_transport": boolean, "expedited": boolean, "price_preference": string},
-  "metadata": {"urgency": string, "lot_number": string, "auction_house": string}
-}`;
+  "vehicle": {"year": number|null, "make": string|null, "model": string|null, "vin": string|null, "type": string|null, "condition": string|null},
+  "pickup": {"location": string|null, "date": string|null},
+  "delivery": {"location": string|null, "date": string|null},
+  "preferences": {"enclosed_transport": boolean|null, "expedited": boolean|null},
+  "metadata": {"urgency": string|null, "notes": string|null}
+}
 
-    const completion = await openai.chat.completions.create({
-      model: 'gpt-4',
-      messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: input.input_text },
-      ],
-      response_format: { type: 'json_object' },
-      temperature: 0.1,
-    });
+ONLY include fields with actual values - use null for missing data. Location should be as specific as possible from the input.`;
 
-    const parsed = JSON.parse(completion.choices[0].message.content || '{}');
-    
-    // Calculate confidence and identify missing fields
-    const analysis = this.analyzeCompleteness(parsed);
+      const completion = await openai.chat.completions.create({
+        model: 'gpt-4o',
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: input.input_text },
+        ],
+        response_format: { type: 'json_object' },
+        temperature: 0.1,
+        max_tokens: 1000,
+      });
 
-    return {
-      success: true,
-      parsed_data: parsed,
-      confidence_score: analysis.confidence,
-      missing_fields: analysis.missingFields,
-      clarification_questions: analysis.questions,
-    };
-    */
-
-    // Placeholder implementation
-    console.log(`Parsing NL input (${input.input_method}): ${input.input_text}`);
-
-    // Simple regex-based extraction for demo
-    const text = input.input_text.toLowerCase();
-    
-    const parsedData: ParsedShipmentData = {
-      vehicle: {},
-      pickup: {},
-      delivery: {},
-      preferences: {},
-      metadata: {},
-    };
-
-    // Extract years (4 digits)
-    const yearMatch = input.input_text.match(/\b(19|20)\d{2}\b/);
-    if (yearMatch) {
-      parsedData.vehicle!.year = parseInt(yearMatch[0]);
-    }
-
-    // Extract common car makes
-    const makes = ['toyota', 'honda', 'ford', 'chevrolet', 'tesla', 'bmw', 'mercedes', 'audi'];
-    for (const make of makes) {
-      if (text.includes(make)) {
-        parsedData.vehicle!.make = make.charAt(0).toUpperCase() + make.slice(1);
-        break;
+      const content = completion.choices[0]?.message?.content;
+      if (!content) {
+        throw new Error('No response from GPT-4');
       }
-    }
 
-    // Extract VIN (17 characters)
-    const vinMatch = input.input_text.match(/\b[A-HJ-NPR-Z0-9]{17}\b/);
-    if (vinMatch) {
-      parsedData.vehicle!.vin = vinMatch[0];
-    }
+      const parsed = JSON.parse(content) as ParsedShipmentData;
+      console.log('Parsed data:', JSON.stringify(parsed, null, 2));
+      
+      // Calculate confidence and identify missing fields
+      const analysis = this.analyzeCompleteness(parsed);
 
-    // Extract locations (from/to patterns)
-    const fromMatch = input.input_text.match(/from\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?(?:,\s*[A-Z]{2})?)/i);
-    if (fromMatch && fromMatch[1]) {
-      parsedData.pickup!.location = fromMatch[1];
+      return {
+        success: true,
+        parsed_data: parsed,
+        confidence_score: analysis.confidence,
+        missing_fields: analysis.missingFields,
+        clarification_questions: analysis.questions,
+      };
+    } catch (error: any) {
+      console.error('GPT-4 parsing error:', error);
+      return {
+        success: false,
+        error: error.message,
+      };
     }
-
-    const toMatch = input.input_text.match(/to\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?(?:,\s*[A-Z]{2})?)/i);
-    if (toMatch && toMatch[1]) {
-      parsedData.delivery!.location = toMatch[1];
-    }
-
-    // Detect urgency
-    if (text.includes('asap') || text.includes('urgent') || text.includes('immediately')) {
-      parsedData.metadata!.urgency = 'asap';
-    } else if (text.includes('flexible') || text.includes('whenever')) {
-      parsedData.metadata!.urgency = 'flexible';
-    }
-
-    // Detect transport preferences
-    if (text.includes('enclosed')) {
-      parsedData.preferences!.enclosed_transport = true;
-    }
-    if (text.includes('expedited') || text.includes('fast')) {
-      parsedData.preferences!.expedited = true;
-    }
-
-    const analysis = this.analyzeCompleteness(parsedData);
-
-    return {
-      success: true,
-      parsed_data: parsedData,
-      confidence_score: analysis.confidence,
-      missing_fields: analysis.missingFields,
-      clarification_questions: analysis.questions,
-    };
   }
 
   /**
