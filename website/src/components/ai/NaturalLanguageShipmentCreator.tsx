@@ -58,12 +58,15 @@ export default function NaturalLanguageShipmentCreator({
           onShipmentCreated(response.shipment || { id: shipmentId })
         }
 
-        // Redirect to shipment page after short delay
+        // Stay on page for testing - redirect disabled
+        // TODO: Re-enable redirect after testing complete
+        /*
         if (shipmentId) {
           setTimeout(() => {
             router.push(`/dashboard/client/shipments/${shipmentId}`)
           }, 2000)
         }
+        */
       } else {
         setError(response.error || 'Failed to create shipment from prompt')
       }
@@ -179,7 +182,7 @@ export default function NaturalLanguageShipmentCreator({
                     ✨ Benji Created Your Shipment!
                   </h3>
                   <p className="text-sm text-green-700 mt-1 mb-4">
-                    Extracted with {((result.confidence || 0) * 100).toFixed(0)}% confidence • Redirecting...
+                    Extracted with {((result.confidence || 0) * 100).toFixed(0)}% confidence
                   </p>
 
                   <div className="grid grid-cols-2 gap-4 text-sm bg-white rounded-lg p-4">

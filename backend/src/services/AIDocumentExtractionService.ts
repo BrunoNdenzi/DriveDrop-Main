@@ -21,7 +21,6 @@
  */
 
 import { createClient } from '@supabase/supabase-js';
-// @ts-ignore - Used when AI document extraction is enabled
 import OpenAI from 'openai';
 import { FEATURE_FLAGS } from '../config/features';
 
@@ -31,12 +30,10 @@ const supabase = createClient(
   process.env['SUPABASE_SERVICE_ROLE_KEY'] || ''
 );
 
-// TODO: Initialize OpenAI after package install
-/*
+// Initialize OpenAI client
 const openai = new OpenAI({
-  apiKey: process.env['OPENAI_API_KEY'],
+  apiKey: process.env['OPENAI_API_KEY'] || '',
 });
-*/
 
 export interface DocumentUpload {
   shipment_id: string;
@@ -223,35 +220,58 @@ export class AIDocumentExtractionService {
   }
 
   /**
-   * Perform OCR on document
-   * TODO: Implement with Google Cloud Vision or AWS Textract after package install
+   * Perform OCR and extraction on document using GPT-4o Vision
+   * Combines OCR + extraction in one API call for efficiency
    */
   private async performOCR(documentUrl: string): Promise<string> {
-    // Placeholder implementation
-    // In production, integrate with:
-    // - Google Cloud Vision API
-    // - AWS Textract
-    // - Azure Computer Vision
+    try {
+      if (!process.env['OPENAI_API_KEY']) {
+        throw new Error('OpenAI API key not configured');
+      }
 
-    console.log(`OCR processing: ${documentUrl}`);
+      console.log(`Processing document with GPT-4o Vision: ${documentUrl}`);
 
-    // TODO: Actual OCR implementation
-    /*
-    // Example with Google Cloud Vision:
-    const vision = require('@google-cloud/vision');
-    const client = new vision.ImageAnnotatorClient();
-    
-    const [result] = await client.textDetection(documentUrl);
-    const detections = result.textAnnotations;
-    const text = detections[0]?.description || '';
-    
-    return text;
-    */
+      // Use GPT-4o Vision to extract text from the image
+      const response = await openai.chat.completions.create({
+        model: 'gpt-4o',
+        messages: [
+          {
+            role: 'system',
+            content: 'You are an OCR specialist. Extract ALL text from the document image exactly as it appears. Preserve formatting, line breaks, and layout.',
+          },
+          {
+            role: 'user',
+            content: [
+              {
+                type: 'text',
+                text: 'Extract all text from this document image. Include every detail you can see.',
+              },
+              {
+                type: 'image_url',
+                image_url: {
+                  url: documentUrl,
+                  detail: 'high', // Use high detail for better OCR accuracy
+                },
+              },
+            ],
+          },
+        ],
+        max_tokens: 2000,
+        temperature: 0.1,
+      });
 
-    // Temporary placeholder
-    return `[OCR PLACEHOLDER - Install Google Cloud Vision or AWS Textract]
-Document URL: ${documentUrl}
-Note: This would contain the actual extracted text from the document.`;
+      const extractedText = response.choices[0]?.message?.content || '';
+      
+      if (!extractedText) {
+        throw new Error('No text extracted from document');
+      }
+
+      console.log(`Extracted ${extractedText.length} characters from document`);
+      return extractedText;
+    } catch (error: any) {
+      console.error('OCR error:', error);
+      throw new Error(`OCR failed: ${error.message}`);
+    }
   }
 
   /**
@@ -261,52 +281,60 @@ Note: This would contain the actual extracted text from the document.`;
     ocrText: string,
     documentType: string
   ): Promise<{ extracted_data: ExtractedData }> {
-    // TODO: Implement with OpenAI GPT-4 after package install
-    /*
-    const completion = await openai.chat.completions.create({
-      model: 'gpt-4',
-      messages: [
-        {
-          role: 'system',
-          content: `You are a document extraction specialist for vehicle shipping documents.
+    try {
+      if (!process.env['OPENAI_API_KEY']) {
+        throw new Error('OpenAI API key not configured');
+      }
+
+      console.log(`Extracting structured data from ${documentType} document`);
+
+      const completion = await openai.chat.completions.create({
+        model: 'gpt-4o',
+        messages: [
+          {
+            role: 'system',
+            content: `You are a document extraction specialist for vehicle shipping documents.
 Extract structured data from the OCR text into JSON format.
 Document type: ${documentType}
-Always return valid JSON with these possible fields:
-- vehicle_info: {vin, year, make, model, color, mileage, license_plate}
-- seller_info: {name, address, phone, email}
-- buyer_info: {name, address, phone, email}
-- sale_info: {sale_date, sale_price, payment_method}
-- insurance_info: {policy_number, provider, coverage_amount, expiration_date}
-- inspection_info: {inspection_date, inspector_name, pass_status, notes}
-Only include fields you can confidently extract.`,
-        },
-        {
-          role: 'user',
-          content: `Extract data from this OCR text:\n\n${ocrText}`,
-        },
-      ],
-      response_format: { type: 'json_object' },
-      temperature: 0.1, // Low temperature for consistency
-    });
 
-    const extracted = JSON.parse(completion.choices[0].message.content || '{}');
-    return { extracted_data: extracted };
-    */
+IMPORTANT: Return ONLY valid JSON with these possible fields (omit any field you cannot confidently extract):
+- vehicle_info: {vin?, year?, make?, model?, color?, mileage?, license_plate?}
+- seller_info: {name?, address?, phone?, email?}
+- buyer_info: {name?, address?, phone?, email?}
+- sale_info: {sale_date?, sale_price?, payment_method?}
+- insurance_info: {policy_number?, provider?, coverage_amount?, expiration_date?}
+- inspection_info: {inspection_date?, inspector_name?, pass_status?, notes?}
 
-    // Placeholder implementation
-    console.log(`GPT-4 extraction for ${documentType}: ${ocrText.substring(0, 100)}...`);
+Rules:
+1. Only include fields with high confidence
+2. Use correct data types (numbers for year/mileage/price, strings for text)
+3. Normalize values (e.g., "HONDA" → "Honda", dates to ISO format)
+4. Return empty object {} if no data can be extracted
+5. MUST be valid JSON - no explanations, no markdown, just JSON`,
+          },
+          {
+            role: 'user',
+            content: `Extract data from this OCR text:\n\n${ocrText}`,
+          },
+        ],
+        response_format: { type: 'json_object' },
+        temperature: 0.1,
+        max_tokens: 1500,
+      });
 
-    // Return placeholder data
-    const placeholderData: ExtractedData = {
-      vehicle_info: {
-        vin: 'PLACEHOLDER_VIN',
-        year: 2020,
-        make: 'PLACEHOLDER',
-        model: 'NEEDS_GPT4',
-      },
-    };
+      const content = completion.choices[0]?.message?.content;
+      if (!content) {
+        throw new Error('No response from GPT-4');
+      }
 
-    return { extracted_data: placeholderData };
+      const extracted = JSON.parse(content) as ExtractedData;
+      console.log(`Extracted data:`, JSON.stringify(extracted, null, 2));
+      
+      return { extracted_data: extracted };
+    } catch (error: any) {
+      console.error('Structured extraction error:', error);
+      throw new Error(`Extraction failed: ${error.message}`);
+    }
   }
 
   /**
