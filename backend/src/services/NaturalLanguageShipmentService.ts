@@ -161,7 +161,8 @@ export class NaturalLanguageShipmentService {
   private async parseWithGPT4(input: NLShipmentInput): Promise<NLParseResult> {
     try {
       if (!process.env['OPENAI_API_KEY']) {
-        throw new Error('OpenAI API key not configured');
+        console.warn('OpenAI API key not configured, using fallback parsing');
+        return this.fallbackParsing(input);
       }
 
       console.log(`Parsing natural language with GPT-4: "${input.input_text}"`);
@@ -219,11 +220,101 @@ ONLY include fields with actual values - use null for missing data. Location sho
       };
     } catch (error: any) {
       console.error('GPT-4 parsing error:', error);
+      
+      // Fallback to regex parsing if OpenAI fails (rate limit, quota, etc)
+      if (error.status === 429 || error.code === 'insufficient_quota') {
+        console.warn('OpenAI quota exceeded, using fallback regex parsing');
+        return this.fallbackParsing(input);
+      }
+      
       return {
         success: false,
         error: error.message,
       };
     }
+  }
+
+  /**
+   * Fallback regex-based parsing when OpenAI is unavailable
+   */
+  private fallbackParsing(input: NLShipmentInput): NLParseResult {
+    console.log(`Using fallback parsing for: "${input.input_text}"`);
+
+    const text = input.input_text.toLowerCase();
+    
+    const parsedData: ParsedShipmentData = {
+      vehicle: {},
+      pickup: {},
+      delivery: {},
+      preferences: {},
+      metadata: {},
+    };
+
+    // Extract years (4 digits)
+    const yearMatch = input.input_text.match(/\b(19|20)\d{2}\b/);
+    if (yearMatch) {
+      parsedData.vehicle!.year = parseInt(yearMatch[0]);
+    }
+
+    // Extract common car makes
+    const makes = ['toyota', 'honda', 'ford', 'chevrolet', 'chevy', 'tesla', 'bmw', 'mercedes', 'audi', 'lexus', 'nissan', 'mazda', 'subaru', 'volkswagen', 'vw', 'hyundai', 'kia', 'jeep', 'ram', 'dodge', 'gmc'];
+    for (const make of makes) {
+      if (text.includes(make)) {
+        parsedData.vehicle!.make = make === 'chevy' ? 'Chevrolet' : make === 'vw' ? 'Volkswagen' : make.charAt(0).toUpperCase() + make.slice(1);
+        break;
+      }
+    }
+
+    // Extract common models
+    const models = ['civic', 'accord', 'camry', 'corolla', 'model 3', 'model s', 'model x', 'model y', 'f-150', 'f150', 'silverado', 'tahoe', 'suburban'];
+    for (const model of models) {
+      if (text.includes(model)) {
+        parsedData.vehicle!.model = model.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+        break;
+      }
+    }
+
+    // Extract VIN (17 characters)
+    const vinMatch = input.input_text.match(/\b[A-HJ-NPR-Z0-9]{17}\b/);
+    if (vinMatch) {
+      parsedData.vehicle!.vin = vinMatch[0];
+    }
+
+    // Extract locations (from/to patterns)
+    const fromMatch = input.input_text.match(/from\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?(?:,\s*[A-Z]{2})?)/i);
+    if (fromMatch && fromMatch[1]) {
+      parsedData.pickup!.location = fromMatch[1];
+    }
+
+    const toMatch = input.input_text.match(/to\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?(?:,\s*[A-Z]{2})?)/i);
+    if (toMatch && toMatch[1]) {
+      parsedData.delivery!.location = toMatch[1];
+    }
+
+    // Detect urgency
+    if (text.includes('asap') || text.includes('urgent') || text.includes('immediately')) {
+      parsedData.metadata!.urgency = 'asap';
+    } else if (text.includes('flexible') || text.includes('whenever')) {
+      parsedData.metadata!.urgency = 'flexible';
+    }
+
+    // Detect transport preferences
+    if (text.includes('enclosed')) {
+      parsedData.preferences!.enclosed_transport = true;
+    }
+    if (text.includes('expedited') || text.includes('fast')) {
+      parsedData.preferences!.expedited = true;
+    }
+
+    const analysis = this.analyzeCompleteness(parsedData);
+
+    return {
+      success: true,
+      parsed_data: parsedData,
+      confidence_score: analysis.confidence * 0.7, // Reduce confidence for fallback parsing
+      missing_fields: analysis.missingFields,
+      clarification_questions: analysis.questions,
+    };
   }
 
   /**
