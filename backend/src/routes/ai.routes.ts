@@ -20,30 +20,16 @@ const bulkService = new BulkUploadService();
  */
 router.post('/extract-document', authenticate, async (req: Request, res: Response): Promise<void> => {
   try {
-    // Handle both JSON (with fileUrl) and FormData (with document file)
-    let fileUrl: string;
-    let documentType: string;
-    let shipmentId: string | undefined;
+    const { fileUrl, documentType, shipmentId } = req.body || {};
 
-    // Check if this is FormData or JSON
-    if (req.body && typeof req.body === 'object' && !req.file) {
-      // JSON format
-      fileUrl = req.body.fileUrl;
-      documentType = req.body.documentType;
-      shipmentId = req.body.shipmentId;
-    } else {
-      // For now, reject file uploads - client should upload to storage first
-      res.status(400).json({ 
-        error: 'Please upload the file to storage first and provide the fileUrl',
-        details: 'Direct file upload not yet implemented. Upload to Supabase storage and pass the public URL.'
-      });
-      return;
-    }
-
-    if (!fileUrl) {
+    if (!fileUrl || typeof fileUrl !== 'string') {
       res.status(400).json({ error: 'Document file URL is required' });
       return;
     }
+
+    // Validate document type
+    const validDocTypes = ['bill_of_sale', 'title', 'insurance', 'inspection_report', 'other'];
+    const docType = validDocTypes.includes(documentType) ? documentType : 'other';
 
     const userId = req.user?.id;
     if (!userId) {
@@ -54,7 +40,7 @@ router.post('/extract-document', authenticate, async (req: Request, res: Respons
     // Queue document for processing
     const queueResult = await aiDocService.queueDocument({
       shipment_id: shipmentId,
-      document_type: documentType || 'other',
+      document_type: docType as 'bill_of_sale' | 'title' | 'insurance' | 'inspection_report' | 'other',
       file_url: fileUrl,
       uploaded_by: userId,
     });
