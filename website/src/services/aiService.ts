@@ -133,20 +133,35 @@ class AIService {
     shipmentId?: string
   ): Promise<DocumentExtractionResponse> {
     try {
-      const formData = new FormData()
-      formData.append('document', file)
-      formData.append('documentType', documentType)
-      if (shipmentId) {
-        formData.append('shipmentId', shipmentId)
+      // Step 1: Upload file to Supabase storage
+      const fileName = `${Date.now()}-${file.name}`
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from('documents')
+        .upload(`ai-extractions/${fileName}`, file, {
+          contentType: file.type,
+          upsert: false
+        })
+
+      if (uploadError) {
+        throw new Error(`File upload failed: ${uploadError.message}`)
       }
 
-      const token = await this.getAuthToken()
+      // Step 2: Get public URL
+      const { data: urlData } = supabase.storage
+        .from('documents')
+        .getPublicUrl(`ai-extractions/${fileName}`)
+
+      const fileUrl = urlData.publicUrl
+
+      // Step 3: Send URL to backend for AI extraction
       const response = await fetch(`${API_BASE_URL}/ai/extract-document`, {
         method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        },
-        body: formData
+        headers: await this.getHeaders(),
+        body: JSON.stringify({
+          fileUrl,
+          documentType,
+          shipmentId
+        })
       })
 
       if (!response.ok) {
