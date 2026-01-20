@@ -1,7 +1,7 @@
 import OpenAI from 'openai';
 
 const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
+  apiKey: process.env['OPENAI_API_KEY'],
 });
 
 export interface ChatMessage {
@@ -219,7 +219,7 @@ Key Features to Highlight:
 
     // Simple keyword-based responses when OpenAI unavailable
     let message = "I'm experiencing some technical difficulties right now. Let me help you with the basics!";
-    const suggestions: string[] = [];
+    let suggestions: string[] = [];
 
     if (lastUserMessage.includes('track') || lastUserMessage.includes('where')) {
       message = "To track your vehicle, you can view real-time updates on your shipment page. Would you like me to guide you there?";
@@ -230,6 +230,11 @@ Key Features to Highlight:
     } else if (lastUserMessage.includes('price') || lastUserMessage.includes('quote')) {
       message = "I can calculate a quote instantly! Just provide: vehicle details, pickup location, and delivery location.";
       suggestions.push("Calculate now", "See pricing");
+    }
+
+    // If no specific match, provide role-based suggestions
+    if (suggestions.length === 0) {
+      suggestions = this.generateSuggestions(context, message);
     }
 
     return {
