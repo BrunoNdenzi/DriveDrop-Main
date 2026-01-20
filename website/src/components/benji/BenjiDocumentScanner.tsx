@@ -6,7 +6,6 @@ import { Camera, Upload, X, Check, Loader2, FileText, Sparkles } from 'lucide-re
 import { useDropzone } from 'react-dropzone';
 import { aiService } from '@/services/aiService';
 import toast from 'react-hot-toast';
-import { getSupabaseBrowserClient } from '@/lib/supabase-client';
 
 interface DocumentScannerProps {
   onComplete?: (data: any) => void;
@@ -119,28 +118,12 @@ export const BenjiDocumentScanner = ({
     });
 
     try {
-      // Step 1: Upload to Supabase
-      const supabase = getSupabaseBrowserClient();
-      const timestamp = Date.now();
-      const filename = `${timestamp}-${selectedFile.name}`;
-      const filePath = `documents/ai-extractions/${filename}`;
-
+      // Upload and extract with AI service
       setProgress({
         stage: 'uploading',
         progress: 30,
         message: 'Uploading to secure storage...',
       });
-
-      const { error: uploadError } = await supabase.storage
-        .from('documents')
-        .upload(filePath, selectedFile);
-
-      if (uploadError) throw uploadError;
-
-      // Get public URL
-      const { data: { publicUrl } } = supabase.storage
-        .from('documents')
-        .getPublicUrl(filePath);
 
       setProgress({
         stage: 'analyzing',
@@ -148,8 +131,8 @@ export const BenjiDocumentScanner = ({
         message: '🤖 Benji is reading your document...',
       });
 
-      // Step 2: Extract data with AI
-      const response = await aiService.extractDocument(publicUrl, documentType, shipmentId);
+      // AI service handles upload and extraction
+      const response = await aiService.extractDocument(selectedFile, documentType as any, shipmentId);
 
       setProgress({
         stage: 'extracting',
