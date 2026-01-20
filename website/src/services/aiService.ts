@@ -301,6 +301,42 @@ class AIService {
       throw error
     }
   }
+
+  /**
+   * Benji Chat - Send message and get AI response
+   */
+  async chat(
+    messages: Array<{ role: 'user' | 'assistant'; content: string }>,
+    context?: {
+      userType?: 'client' | 'driver' | 'admin' | 'broker'
+      currentPage?: string
+      shipmentId?: string
+    }
+  ): Promise<{
+    success: boolean
+    message: string
+    confidence: number
+    suggestions?: string[]
+    timestamp: string
+  }> {
+    try {
+      const headers = await this.getHeaders()
+      const response = await fetch(`${API_BASE_URL}/ai/chat`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ messages, context })
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to get chat response')
+      }
+
+      return await response.json()
+    } catch (error: any) {
+      console.error('Benji chat error:', error)
+      throw error
+    }
+  }
 }
 
 export const aiService = new AIService()

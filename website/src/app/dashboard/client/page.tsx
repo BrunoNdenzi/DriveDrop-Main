@@ -17,6 +17,7 @@ import {
   Calendar
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { BenjiChat } from '@/components/benji/BenjiChat'
 
 interface Shipment {
   id: string
@@ -334,6 +335,13 @@ export default function ClientDashboardPage() {
           </div>
         </Link>
       </div>
+
+      {/* Benji Chat Widget */}
+      <BenjiChat 
+        context="dashboard" 
+        userId={profile?.id}
+        userType="client"
+      />
     </div>
   )
 }
