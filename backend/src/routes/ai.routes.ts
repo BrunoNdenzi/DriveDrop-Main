@@ -8,6 +8,8 @@ import { AIDocumentExtractionService } from '../services/AIDocumentExtractionSer
 import { NaturalLanguageShipmentService } from '../services/NaturalLanguageShipmentService';
 import { BulkUploadService } from '../services/BulkUploadService';
 import { benjiChatService, ChatMessage, ChatContext } from '../services/BenjiChatService';
+import { benjiDispatcherService } from '../services/BenjiDispatcherService';
+import { benjiLoadRecommendationService } from '../services/BenjiLoadRecommendationService';
 
 const router = Router();
 
@@ -318,6 +320,111 @@ router.post('/chat', authenticate, async (req: Request, res: Response): Promise<
     console.error('Benji chat error:', error);
     res.status(500).json({
       error: 'Failed to process chat',
+      details: error.message,
+    });
+  }
+});
+
+/**
+ * POST /api/v1/ai/dispatcher/analyze
+ * Analyze unassigned loads and available drivers
+ * Returns optimal assignment recommendations with confidence scores
+ */
+router.post('/dispatcher/analyze', authenticate, async (req: Request, res: Response): Promise<void> => {
+  try {
+    // Check admin permission
+    if (req.user?.role !== 'admin') {
+      res.status(403).json({ error: 'Admin access required' });
+      return;
+    }
+
+    const analysis = await benjiDispatcherService.analyzeDispatchOpportunities();
+
+    res.status(200).json({
+      success: true,
+      analysis,
+      timestamp: new Date().toISOString(),
+    });
+  } catch (error: any) {
+    console.error('Dispatcher analysis error:', error);
+    res.status(500).json({
+      error: 'Failed to analyze dispatch opportunities',
+      details: error.message,
+    });
+  }
+});
+
+/**
+ * POST /api/v1/ai/dispatcher/auto-assign
+ * Auto-assign loads to drivers based on recommendations
+ * Body: { matches: DriverLoadMatch[] }
+ */
+router.post('/dispatcher/auto-assign', authenticate, async (req: Request, res: Response): Promise<void> => {
+  try {
+    // Check admin permission
+    if (req.user?.role !== 'admin') {
+      res.status(403).json({ error: 'Admin access required' });
+      return;
+    }
+
+    const { matches } = req.body;
+
+    if (!Array.isArray(matches)) {
+      res.status(400).json({ error: 'Matches array required' });
+      return;
+    }
+
+    const result = await benjiDispatcherService.autoAssignLoads(matches);
+
+    res.status(200).json({
+      success: true,
+      result,
+      timestamp: new Date().toISOString(),
+    });
+  } catch (error: any) {
+    console.error('Auto-assignment error:', error);
+    res.status(500).json({
+      error: 'Failed to auto-assign loads',
+      details: error.message,
+    });
+  }
+});
+
+/**
+ * GET /api/v1/ai/loads/recommendations/:driverId
+ * Get personalized load recommendations for a driver
+ */
+router.get('/loads/recommendations/:driverId', authenticate, async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { driverId } = req.params;
+
+    if (!driverId) {
+      res.status(400).json({ error: 'Driver ID is required' });
+      return;
+    }
+
+    if (!req.user?.id) {
+      res.status(401).json({ error: 'User not authenticated' });
+      return;
+    }
+
+    // Verify driver is requesting their own recommendations or admin is requesting
+    if (req.user.id !== driverId && req.user.role !== 'admin') {
+      res.status(403).json({ error: 'Access denied' });
+      return;
+    }
+
+    const recommendations = await benjiLoadRecommendationService.getRecommendations(driverId);
+
+    res.status(200).json({
+      success: true,
+      recommendations,
+      timestamp: new Date().toISOString(),
+    });
+  } catch (error: any) {
+    console.error('Load recommendations error:', error);
+    res.status(500).json({
+      error: 'Failed to generate load recommendations',
       details: error.message,
     });
   }
