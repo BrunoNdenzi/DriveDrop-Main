@@ -15,6 +15,8 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
+import { BenjiChat } from '@/components/benji/BenjiChat';
+import { useAuth } from '@/hooks/useAuth';
 
 interface UploadResult {
   success: number;
@@ -24,6 +26,7 @@ interface UploadResult {
 
 export default function BulkUploadPage() {
   const router = useRouter();
+  const { profile } = useAuth();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [file, setFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
@@ -478,6 +481,13 @@ Jane Smith,jane@example.com,555-5678,789 Pine St,Miami,FL,33101,321 Elm St,Chica
           </div>
         </div>
       </div>
+
+      {/* Benji Chat Widget - Help with bulk uploads */}
+      <BenjiChat 
+        context="dashboard" 
+        userId={profile?.id}
+        userType="broker"
+      />
     </div>
   );
 }

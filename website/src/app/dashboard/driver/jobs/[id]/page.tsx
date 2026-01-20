@@ -19,6 +19,7 @@ import {
   Car
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { BenjiChat } from '@/components/benji/BenjiChat'
 
 interface JobDetails {
   id: string
@@ -441,6 +442,14 @@ export default function JobDetailPage() {
           </div>
         </div>
       </div>
+
+      {/* Benji Chat Widget - Context-aware for this job */}
+      <BenjiChat 
+        context="shipment" 
+        userId={profile?.id}
+        userType="driver"
+        shipmentId={job.id}
+      />
     </div>
   )
 }

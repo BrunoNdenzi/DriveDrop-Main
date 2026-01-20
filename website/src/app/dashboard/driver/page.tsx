@@ -19,6 +19,7 @@ import {
   Star
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { BenjiChat } from '@/components/benji/BenjiChat'
 
 interface Job {
   id: string
@@ -455,6 +456,13 @@ export default function DriverDashboardPage() {
           </div>
         </div>
       </div>
+
+      {/* Benji Chat Widget */}
+      <BenjiChat 
+        context="dashboard" 
+        userId={profile?.id}
+        userType="driver"
+      />
     </div>
   )
 }
