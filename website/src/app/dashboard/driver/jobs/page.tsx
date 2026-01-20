@@ -17,9 +17,11 @@ import {
   TrendingUp,
   Truck,
   Calendar,
-  CheckCircle
+  CheckCircle,
+  Sparkles
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import BenjiLoadRecommendations from '@/components/driver/BenjiLoadRecommendations'
 
 interface Job {
   id: string
@@ -40,6 +42,7 @@ interface Job {
 
 export default function DriverJobsPage() {
   const router = useRouter()
+  const [mode, setMode] = useState<'benji' | 'browse'>('benji')
   const [jobs, setJobs] = useState<Job[]>([])
   const [filteredJobs, setFilteredJobs] = useState<Job[]>([])
   const [loading, setLoading] = useState(true)
@@ -139,7 +142,7 @@ export default function DriverJobsPage() {
     // Distance filter
     if (filterDistance !== 'all') {
       const maxDistance = parseInt(filterDistance)
-      filtered = filtered.filter(job => job.distance <= maxDistance)
+      filtered = filtered.filter(job => job.distance != null && job.distance <= maxDistance)
     }
 
     // Vehicle type filter
@@ -285,24 +288,59 @@ export default function DriverJobsPage() {
           <div className="flex items-center justify-between h-16">
             <div>
               <h1 className="text-2xl font-bold text-gray-900">Available Jobs</h1>
-              <p className="text-sm text-gray-600">{filteredJobs.length} jobs available</p>
+              <p className="text-sm text-gray-600">
+                {mode === 'benji' ? 'AI-powered recommendations' : `${filteredJobs.length} jobs available`}
+              </p>
             </div>
-            <Link href="/dashboard/driver">
-              <Button variant="outline" size="sm">
-                Back to Dashboard
-              </Button>
-            </Link>
+            <div className="flex gap-3">
+              <div className="flex bg-gray-100 rounded-lg p-1">
+                <button
+                  onClick={() => setMode('benji')}
+                  className={`px-4 py-2 rounded-md font-medium text-sm transition-all flex items-center gap-2 ${
+                    mode === 'benji'
+                      ? 'bg-gradient-to-r from-teal-600 to-purple-600 text-white shadow-md'
+                      : 'text-gray-700 hover:text-gray-900'
+                  }`}
+                >
+                  <Sparkles className="h-4 w-4" />
+                  Benji
+                </button>
+                <button
+                  onClick={() => setMode('browse')}
+                  className={`px-4 py-2 rounded-md font-medium text-sm transition-all ${
+                    mode === 'browse'
+                      ? 'bg-white text-gray-900 shadow-md'
+                      : 'text-gray-700 hover:text-gray-900'
+                  }`}
+                >
+                  Browse All
+                </button>
+              </div>
+              <Link href="/dashboard/driver">
+                <Button variant="outline" size="sm">
+                  Back to Dashboard
+                </Button>
+              </Link>
+            </div>
           </div>
         </div>
       </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Filters */}
-        <div className="bg-white rounded-lg shadow-sm p-6 mb-6 border border-gray-200">
-          <div className="flex items-center gap-2 mb-4">
-            <Filter className="h-5 w-5 text-gray-600" />
-            <h2 className="text-lg font-semibold text-gray-900">Filters</h2>
-          </div>
+        {/* Benji Mode */}
+        {mode === 'benji' && (
+          <BenjiLoadRecommendations />
+        )}
+
+        {/* Browse Mode */}
+        {mode === 'browse' && (
+          <>
+            {/* Filters */}
+            <div className="bg-white rounded-lg shadow-sm p-6 mb-6 border border-gray-200">
+              <div className="flex items-center gap-2 mb-4">
+                <Filter className="h-5 w-5 text-gray-600" />
+                <h2 className="text-lg font-semibold text-gray-900">Filters</h2>
+              </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             {/* Search */}
@@ -533,11 +571,11 @@ export default function DriverJobsPage() {
                     <div className="mt-4 flex items-center gap-4 text-sm text-gray-600">
                       <span className="flex items-center gap-1">
                         <Ruler className="h-4 w-4" />
-                        {job.distance.toFixed(0)} miles
+                        {job.distance ? job.distance.toFixed(0) : 'N/A'} miles
                       </span>
                       <span className="flex items-center gap-1">
                         <Clock className="h-4 w-4" />
-                        ~{Math.ceil(job.distance / 500)} days estimated
+                        ~{job.distance ? Math.ceil(job.distance / 500) : 'N/A'} days estimated
                       </span>
                     </div>
                   </div>
@@ -582,6 +620,8 @@ export default function DriverJobsPage() {
               </div>
             ))}
           </div>
+        )}
+          </>
         )}
       </div>
     </div>

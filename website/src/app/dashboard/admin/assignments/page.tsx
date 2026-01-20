@@ -15,9 +15,11 @@ import {
   ChevronUp,
   Star,
   Phone,
-  Mail
+  Mail,
+  Sparkles
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import BenjiDispatcher from '@/components/admin/BenjiDispatcher'
 
 interface Driver {
   id: string
@@ -58,6 +60,7 @@ interface Shipment {
 
 export default function AdminAssignmentsPage() {
   const { profile } = useAuth()
+  const [mode, setMode] = useState<'benji' | 'manual'>('benji')
   const [shipments, setShipments] = useState<Shipment[]>([])
   const [applications, setApplications] = useState<Record<string, Application[]>>({})
   const [availableDrivers, setAvailableDrivers] = useState<Driver[]>([])
@@ -284,45 +287,78 @@ export default function AdminAssignmentsPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold text-gray-900">Job Assignments</h1>
-          <p className="text-gray-600 mt-1">Review applications and assign drivers to shipments</p>
+          <p className="text-gray-600 mt-1">AI-powered dispatch or manual assignment</p>
         </div>
-        <Button onClick={fetchData} variant="outline">
-          Refresh
-        </Button>
+        <div className="flex gap-3">
+          <div className="flex bg-gray-100 rounded-lg p-1">
+            <button
+              onClick={() => setMode('benji')}
+              className={`px-4 py-2 rounded-md font-medium text-sm transition-all flex items-center gap-2 ${
+                mode === 'benji'
+                  ? 'bg-gradient-to-r from-teal-600 to-purple-600 text-white shadow-md'
+                  : 'text-gray-700 hover:text-gray-900'
+              }`}
+            >
+              <Sparkles className="h-4 w-4" />
+              Benji AI
+            </button>
+            <button
+              onClick={() => setMode('manual')}
+              className={`px-4 py-2 rounded-md font-medium text-sm transition-all ${
+                mode === 'manual'
+                  ? 'bg-white text-gray-900 shadow-md'
+                  : 'text-gray-700 hover:text-gray-900'
+              }`}
+            >
+              Manual
+            </button>
+          </div>
+          <Button onClick={fetchData} variant="outline">
+            Refresh
+          </Button>
+        </div>
       </div>
 
-      {/* Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="bg-blue-50 rounded-lg p-4 border border-blue-200">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-blue-600 font-medium">Pending Shipments</p>
-              <p className="text-2xl font-bold text-blue-900">{shipments.length}</p>
+      {/* Benji AI Mode */}
+      {mode === 'benji' && (
+        <BenjiDispatcher />
+      )}
+
+      {/* Manual Mode */}
+      {mode === 'manual' && (
+        <>
+          {/* Stats */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="bg-blue-50 rounded-lg p-4 border border-blue-200">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-blue-600 font-medium">Pending Shipments</p>
+                  <p className="text-2xl font-bold text-blue-900">{shipments.length}</p>
+                </div>
+                <Package className="h-8 w-8 text-blue-500" />
+              </div>
             </div>
-            <Package className="h-8 w-8 text-blue-500" />
-          </div>
-        </div>
-        <div className="bg-green-50 rounded-lg p-4 border border-green-200">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-green-600 font-medium">Total Applications</p>
-              <p className="text-2xl font-bold text-green-900">
-                {Object.values(applications).reduce((sum, apps) => sum + apps.length, 0)}
-              </p>
+            <div className="bg-green-50 rounded-lg p-4 border border-green-200">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-green-600 font-medium">Total Applications</p>
+                  <p className="text-2xl font-bold text-green-900">
+                    {Object.values(applications).reduce((sum, apps) => sum + apps.length, 0)}
+                  </p>
+                </div>
+                <User className="h-8 w-8 text-green-500" />
+              </div>
             </div>
-            <User className="h-8 w-8 text-green-500" />
-          </div>
-        </div>
-        <div className="bg-purple-50 rounded-lg p-4 border border-purple-200">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-purple-600 font-medium">Available Drivers</p>
-              <p className="text-2xl font-bold text-purple-900">{availableDrivers.length}</p>
+            <div className="bg-purple-50 rounded-lg p-4 border border-purple-200">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-purple-600 font-medium">Available Drivers</p>
+                  <p className="text-2xl font-bold text-purple-900">{availableDrivers.length}</p>
+                </div>
+                <User className="h-8 w-8 text-purple-500" />
+              </div>
             </div>
-            <User className="h-8 w-8 text-purple-500" />
           </div>
-        </div>
-      </div>
 
       {/* Shipments List */}
       <div className="space-y-4">
@@ -556,6 +592,8 @@ export default function AdminAssignmentsPage() {
             </div>
           </div>
         </div>
+      )}
+        </>
       )}
     </div>
   )
