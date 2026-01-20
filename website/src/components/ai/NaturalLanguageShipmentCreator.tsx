@@ -1,12 +1,14 @@
 'use client'
 
-import { useState, useRef } from 'react'
-import { Sparkles, Send, Loader2, CheckCircle, AlertCircle, ArrowRight, Mic, X } from 'lucide-react'
+import { useState, useRef, useEffect } from 'react'
+import { Sparkles, Send, Loader2, CheckCircle, AlertCircle, ArrowRight, Mic, MicOff, X, Camera } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { aiService, NaturalLanguageShipmentResponse } from '@/services/aiService'
 import { cn } from '@/lib/utils'
 import { useRouter } from 'next/navigation'
+import { BenjiDocumentScanner } from '@/components/benji/BenjiDocumentScanner'
+import toast from 'react-hot-toast'
 
 interface NaturalLanguageShipmentCreatorProps {
   onShipmentCreated?: (shipment: any) => void
@@ -23,14 +25,90 @@ export default function NaturalLanguageShipmentCreator({
   const [isProcessing, setIsProcessing] = useState(false)
   const [result, setResult] = useState<NaturalLanguageShipmentResponse | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [isListening, setIsListening] = useState(false)
+  const [showDocScanner, setShowDocScanner] = useState(false)
   const router = useRouter()
   const textareaRef = useRef<HTMLTextAreaElement>(null)
+  const recognitionRef = useRef<any>(null)
 
   const examples = [
     "Ship my 2023 Honda Civic from Los Angeles to New York next week",
     "Move my Tesla Model 3 VIN 5YJ3E1EA1MF000001 from San Francisco to Seattle ASAP",
     "Transport a non-running 2019 Ford F-150 from Dallas to Phoenix"
   ]
+
+  // Initialize voice recognition
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition
+      if (SpeechRecognition) {
+        recognitionRef.current = new SpeechRecognition()
+        recognitionRef.current.continuous = false
+        recognitionRef.current.interimResults = true
+        recognitionRef.current.lang = 'en-US'
+
+        recognitionRef.current.onresult = (event: any) => {
+          const transcript = Array.from(event.results)
+            .map((result: any) => result[0])
+            .map((result: any) => result.transcript)
+            .join('')
+          
+          setPrompt(transcript)
+        }
+
+        recognitionRef.current.onend = () => {
+          setIsListening(false)
+        }
+
+        recognitionRef.current.onerror = (event: any) => {
+          console.error('Speech recognition error:', event.error)
+          setIsListening(false)
+          if (event.error === 'not-allowed') {
+            toast.error('Microphone access denied. Please enable it in your browser settings.')
+          }
+        }
+      }
+    }
+
+    return () => {
+      if (recognitionRef.current) {
+        recognitionRef.current.stop()
+      }
+    }
+  }, [])
+
+  const toggleVoiceInput = () => {
+    if (!recognitionRef.current) {
+      toast.error('Voice input not supported in your browser')
+      return
+    }
+
+    if (isListening) {
+      recognitionRef.current.stop()
+      setIsListening(false)
+    } else {
+      recognitionRef.current.start()
+      setIsListening(true)
+      toast.success('🎤 Listening... Speak now!')
+    }
+  }
+
+  const handleDocumentScanned = (data: any) => {
+    // Auto-fill prompt from scanned document
+    let generatedPrompt = 'Ship my '
+    
+    if (data.year) generatedPrompt += `${data.year} `
+    if (data.make) generatedPrompt += `${data.make} `
+    if (data.model) generatedPrompt += `${data.model} `
+    if (data.vin) generatedPrompt += `VIN ${data.vin} `
+    
+    generatedPrompt += 'from [pickup location] to [delivery location]'
+    
+    setPrompt(generatedPrompt)
+    setShowDocScanner(false)
+    toast.success('Document scanned! Please add pickup and delivery locations.')
+    textareaRef.current?.focus()
+  }
 
   const handleSubmit = async (e?: React.FormEvent) => {
     e?.preventDefault()
@@ -131,24 +209,64 @@ export default function NaturalLanguageShipmentCreator({
               )}
             </div>
 
-            <Button
-              type="submit"
-              disabled={isProcessing || !prompt.trim()}
-              className="w-full bg-gradient-to-r from-teal-600 to-teal-700 hover:from-teal-700 hover:to-teal-800 text-white text-lg py-6 shadow-lg shadow-teal-600/20 group"
-            >
-              {isProcessing ? (
-                <>
-                  <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                  Benji is creating your shipment...
-                </>
-              ) : (
-                <>
-                  <Sparkles className="mr-2 h-5 w-5" />
-                  Create Shipment with Benji
-                  <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
-                </>
-              )}
-            </Button>
+            {/* Action Buttons Row */}
+            <div className="flex gap-3">
+              {/* Voice Input Button */}
+              <button
+                type="button"
+                onClick={toggleVoiceInput}
+                disabled={isProcessing}
+                className={cn(
+                  "px-4 py-3 rounded-xl font-medium transition-all flex items-center space-x-2 border-2",
+                  isListening
+                    ? "bg-red-50 border-red-300 text-red-700 hover:bg-red-100"
+                    : "bg-white border-gray-300 text-gray-700 hover:border-teal-300 hover:bg-teal-50"
+                )}
+              >
+                {isListening ? (
+                  <>
+                    <MicOff className="w-5 h-5 animate-pulse" />
+                    <span>Stop</span>
+                  </>
+                ) : (
+                  <>
+                    <Mic className="w-5 h-5" />
+                    <span>Voice</span>
+                  </>
+                )}
+              </button>
+
+              {/* Document Scanner Button */}
+              <button
+                type="button"
+                onClick={() => setShowDocScanner(true)}
+                disabled={isProcessing}
+                className="px-4 py-3 rounded-xl font-medium transition-all flex items-center space-x-2 border-2 bg-white border-gray-300 text-gray-700 hover:border-purple-300 hover:bg-purple-50"
+              >
+                <Camera className="w-5 h-5" />
+                <span>Scan Doc</span>
+              </button>
+
+              {/* Submit Button */}
+              <Button
+                type="submit"
+                disabled={isProcessing || !prompt.trim()}
+                className="flex-1 bg-gradient-to-r from-teal-600 to-teal-700 hover:from-teal-700 hover:to-teal-800 text-white text-lg py-6 shadow-lg shadow-teal-600/20 group"
+              >
+                {isProcessing ? (
+                  <>
+                    <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                    Processing...
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="mr-2 h-5 w-5" />
+                    Create
+                    <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
+                  </>
+                )}
+              </Button>
+            </div>
           </form>
 
           {/* Examples */}
@@ -314,6 +432,14 @@ export default function NaturalLanguageShipmentCreator({
             <p className="text-sm text-red-700">{error}</p>
           </div>
         </div>
+      )}
+
+      {/* Document Scanner Modal */}
+      {showDocScanner && (
+        <BenjiDocumentScanner
+          onComplete={handleDocumentScanned}
+          onClose={() => setShowDocScanner(false)}
+        />
       )}
     </div>
   )
