@@ -7,6 +7,7 @@ import { authenticate } from '@middlewares/auth.middleware';
 import { AIDocumentExtractionService } from '../services/AIDocumentExtractionService';
 import { NaturalLanguageShipmentService } from '../services/NaturalLanguageShipmentService';
 import { BulkUploadService } from '../services/BulkUploadService';
+import { benjiChatService, ChatMessage, ChatContext } from '../services/BenjiChatService';
 
 const router = Router();
 
@@ -265,6 +266,58 @@ router.post('/review-extraction/:extractionId', authenticate, async (req: Reques
     console.error('Review extraction error:', error);
     res.status(500).json({
       error: 'Failed to review extraction',
+      details: error.message,
+    });
+  }
+});
+
+/**
+ * POST /api/v1/ai/chat
+ * Benji AI Chat - Context-aware conversational assistant
+ */
+router.post('/chat', authenticate, async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { messages, context } = req.body;
+
+    if (!messages || !Array.isArray(messages)) {
+      res.status(400).json({ error: 'Messages array is required' });
+      return;
+    }
+
+    const userId = req.user?.id;
+    if (!userId) {
+      res.status(401).json({ error: 'User not authenticated' });
+      return;
+    }
+
+    // Build chat context
+    const chatContext: ChatContext = {
+      userId,
+      userType: context?.userType || 'client',
+      currentPage: context?.currentPage,
+      shipmentId: context?.shipmentId,
+    };
+
+    console.log('Benji chat request:', {
+      userId,
+      messageCount: messages.length,
+      context: chatContext,
+    });
+
+    // Get AI response
+    const response = await benjiChatService.chat(messages as ChatMessage[], chatContext);
+
+    res.status(200).json({
+      success: true,
+      message: response.message,
+      confidence: response.confidence,
+      suggestions: response.suggestions,
+      timestamp: new Date().toISOString(),
+    });
+  } catch (error: any) {
+    console.error('Benji chat error:', error);
+    res.status(500).json({
+      error: 'Failed to process chat',
       details: error.message,
     });
   }
