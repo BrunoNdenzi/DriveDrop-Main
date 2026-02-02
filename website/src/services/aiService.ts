@@ -133,6 +133,10 @@ class AIService {
     shipmentId?: string
   ): Promise<DocumentExtractionResponse> {
     try {
+      // Import supabase client
+      const { getSupabaseBrowserClient } = await import('@/lib/supabase-client')
+      const supabase = getSupabaseBrowserClient()
+
       // Step 1: Upload file to Supabase storage
       const fileName = `${Date.now()}-${file.name}`
       const { data: uploadData, error: uploadError } = await supabase.storage

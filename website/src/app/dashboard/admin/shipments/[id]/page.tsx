@@ -80,6 +80,7 @@ export default function AdminShipmentDetailPage() {
   const params = useParams()
   const router = useRouter()
   const [shipment, setShipment] = useState<Shipment | null>(null)
+  const [profile, setProfile] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [availableDrivers, setAvailableDrivers] = useState<any[]>([])
   const [assigningDriver, setAssigningDriver] = useState(false)
@@ -87,11 +88,33 @@ export default function AdminShipmentDetailPage() {
   const supabase = getSupabaseBrowserClient()
 
   useEffect(() => {
+    fetchProfile()
+  }, [])
+
+  useEffect(() => {
     if (params.id) {
       fetchShipment()
       fetchAvailableDrivers()
     }
   }, [params.id])
+
+  const fetchProfile = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (user) {
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', user.id)
+          .single()
+        
+        if (error) throw error
+        setProfile(data)
+      }
+    } catch (error) {
+      console.error('Error fetching profile:', error)
+    }
+  }
 
   const fetchShipment = async () => {
     try {
