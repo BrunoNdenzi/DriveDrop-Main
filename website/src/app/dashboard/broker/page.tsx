@@ -37,6 +37,7 @@ function BrokerDashboardContent() {
 
   const [loading, setLoading] = useState(true);
   const [broker, setBroker] = useState<BrokerProfile | null>(null);
+  const [profile, setProfile] = useState<any>(null);
   const [stats, setStats] = useState<BrokerStatsResponse | null>(null);
   const [error, setError] = useState('');
 
@@ -53,6 +54,17 @@ function BrokerDashboardContent() {
       if (authError || !user) {
         router.push('/auth/signin');
         return;
+      }
+
+      // Get user profile
+      const { data: profileData } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', user.id)
+        .single();
+      
+      if (profileData) {
+        setProfile(profileData);
       }
 
       // Get broker profile
