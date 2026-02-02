@@ -172,18 +172,8 @@ export default function QuoteCalculator() {
   }
 
   const handleOpenInApp = () => {
-    const pickup = encodeURIComponent(watch('pickupLocation') || '')
-    const delivery = encodeURIComponent(watch('deliveryLocation') || '')
-    const vehicleType = watch('vehicleType') || 'sedan'
-    
-    // Try to open mobile app with deep link
-    const deepLink = `drivedrop://create-shipment?pickup=${pickup}&delivery=${delivery}&vehicleType=${vehicleType}`
-    
-    // Fallback to Play Store if app not installed
-    window.location.href = deepLink
-    setTimeout(() => {
-      window.location.href = 'https://play.google.com/store/apps/details?id=com.drivedrop.app'
-    }, 2000)
+    // Redirect to client sign up page to continue with shipment
+    window.location.href = '/signup?role=client&continue=shipment'
   }
 
   return (
