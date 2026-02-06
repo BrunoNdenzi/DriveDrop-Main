@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { Suspense, useState, useEffect } from 'react'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Button } from '@/components/ui/button'
@@ -10,7 +10,7 @@ import { User, Mail, Lock, Phone, ArrowRight, AlertCircle, CheckCircle, Sparkles
 import Header from '@/components/layout/Header'
 import Footer from '@/components/layout/Footer'
 
-export default function SignUpPage() {
+function SignUpPageContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const role = searchParams.get('role') || 'client' // Get role from URL param
@@ -366,5 +366,13 @@ export default function SignUpPage() {
       </main>
       <Footer />
     </>
+  )
+}
+
+export default function SignUpPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen" />}>
+      <SignUpPageContent />
+    </Suspense>
   )
 }
