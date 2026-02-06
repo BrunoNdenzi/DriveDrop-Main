@@ -5,10 +5,12 @@ import Image from 'next/image'
 import { useState, useEffect } from 'react'
 import { Menu, X, LogIn, Sparkles, ArrowRight } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import SignUpRoleModal from '@/components/auth/SignUpRoleModal'
 
 export default function Header() {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const [isScrolled, setIsScrolled] = useState(false)
+  const [showSignUpModal, setShowSignUpModal] = useState(false)
 
   useEffect(() => {
     const handleScroll = () => {
@@ -56,13 +58,6 @@ export default function Header() {
                 <div className="absolute inset-0 rounded-full bg-primary/10 scale-0 group-hover:scale-100 transition-transform" />
               </Link>
               <Link 
-                href="/#how-it-works" 
-                className="nav-link group"
-              >
-                <span className="relative z-10">How It Works</span>
-                <div className="absolute inset-0 rounded-full bg-primary/10 scale-0 group-hover:scale-100 transition-transform" />
-              </Link>
-              <Link 
                 href="/drivers/register" 
                 className="nav-link group"
               >
@@ -92,14 +87,14 @@ export default function Header() {
               </Link>
             </Button>
             <Button 
-              asChild 
               className="gradient-primary hover-lift relative overflow-hidden group"
+              onClick={() => setShowSignUpModal(true)}
             >
-              <Link href="/#quote" className="relative z-10 flex items-center">
+              <span className="relative z-10 flex items-center">
                 <Sparkles className="w-4 h-4 mr-2 group-hover:animate-spin" />
-                Get Started
+                Register
                 <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
-              </Link>
+              </span>
             </Button>
           </div>
 
@@ -134,14 +129,6 @@ export default function Header() {
               Get Quote
             </Link>
             <Link
-              href="/#how-it-works"
-              className="px-6 py-4 text-base font-medium rounded-xl hover:bg-primary/10 hover:text-primary transition-all hover:translate-x-2 flex items-center group"
-              onClick={() => setIsMenuOpen(false)}
-            >
-              <span className="w-1 h-1 rounded-full bg-primary mr-3 group-hover:scale-150 transition-transform" />
-              How It Works
-            </Link>
-            <Link
               href="/drivers/register"
               className="px-6 py-4 text-base font-medium rounded-xl hover:bg-primary/10 hover:text-primary transition-all hover:translate-x-2 flex items-center group"
               onClick={() => setIsMenuOpen(false)}
@@ -171,19 +158,22 @@ export default function Header() {
             
             <div className="px-6 pt-2">
               <Button 
-                asChild 
                 className="w-full gradient-primary hover-lift"
                 size="lg"
+                onClick={() => {
+                  setIsMenuOpen(false)
+                  setShowSignUpModal(true)
+                }}
               >
-                <Link href="/#quote" onClick={() => setIsMenuOpen(false)}>
-                  <Sparkles className="w-4 h-4 mr-2" />
-                  Get Started
-                </Link>
+                <Sparkles className="w-4 h-4 mr-2" />
+                Register
               </Button>
             </div>
           </nav>
         </div>
       )}
+
+      <SignUpRoleModal open={showSignUpModal} onOpenChange={setShowSignUpModal} />
     </header>
   )
 }

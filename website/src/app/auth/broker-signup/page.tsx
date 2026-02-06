@@ -3,7 +3,6 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { getSupabaseBrowserClient } from '@/lib/supabase-client';
-import { brokerProfileService } from '@/services/brokerService';
 import type { CreateBrokerProfile, BusinessStructure } from '@/types/broker';
 
 export default function BrokerSignupPage() {
@@ -12,6 +11,15 @@ export default function BrokerSignupPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+
+  const getSignupErrorMessage = (message?: string) => {
+    if (!message) return 'Failed to create broker account';
+    const normalized = message.toLowerCase();
+    if (normalized.includes('error sending email') || normalized.includes('confirmation email')) {
+      return 'Failed to send the email, please contact support';
+    }
+    return message;
+  };
 
   // Form data
   const [formData, setFormData] = useState({
@@ -101,39 +109,7 @@ export default function BrokerSignupPage() {
     setLoading(true);
 
     try {
-      const supabase = getSupabaseBrowserClient();
-
-      // Step 1: Create user account
-      const { data: authData, error: authError } = await supabase.auth.signUp({
-        email: formData.email,
-        password: formData.password,
-        options: {
-          data: {
-            full_name: formData.full_name,
-            phone: formData.phone,
-            role: 'broker',
-          },
-        },
-      });
-
-      if (authError) throw authError;
-      if (!authData.user) throw new Error('Failed to create user');
-
-      // Step 2: Create profile
-      const { error: profileError } = await supabase
-        .from('profiles')
-        .update({
-          full_name: formData.full_name,
-          phone: formData.phone,
-          role: 'broker',
-        })
-        .eq('id', authData.user.id);
-
-      if (profileError) throw profileError;
-
-      // Step 3: Create broker profile
-      const brokerProfile: CreateBrokerProfile = {
-        profile_id: authData.user.id,
+      const brokerProfile: Omit<CreateBrokerProfile, 'profile_id'> = {
         company_name: formData.company_name,
         dba_name: formData.dba_name || undefined,
         company_email: formData.company_email,
@@ -150,16 +126,40 @@ export default function BrokerSignupPage() {
         business_zip: formData.business_zip,
         business_country: 'USA',
         default_commission_rate: parseFloat(formData.default_commission_rate),
-        platform_fee_rate: 10, // Platform takes 10%
+        platform_fee_rate: 10,
       };
 
-      await brokerProfileService.create(brokerProfile);
+      const response = await fetch('/api/auth/signup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: formData.email,
+          password: formData.password,
+          firstName: formData.full_name.split(' ')[0] || formData.full_name,
+          lastName: formData.full_name.split(' ').slice(1).join(' '),
+          phone: formData.phone,
+          role: 'broker',
+          brokerProfile,
+        }),
+      });
 
-      // Success! Redirect to dashboard
+      if (!response.ok) {
+        const errorBody = await response.json().catch(() => ({}));
+        throw new Error(errorBody.error || 'Failed to create broker account');
+      }
+
+      const supabase = getSupabaseBrowserClient();
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email: formData.email,
+        password: formData.password,
+      });
+
+      if (signInError) throw signInError;
+
       router.push('/dashboard/broker?welcome=true');
     } catch (err: any) {
       console.error('Signup error:', err);
-      setError(err.message || 'Failed to create broker account');
+      setError(getSignupErrorMessage(err.message));
     } finally {
       setLoading(false);
     }
