@@ -99,10 +99,7 @@ function SignUpPageContent() {
       }
 
       setSuccess(true)
-      // Show success message and redirect after 3 seconds
-      setTimeout(() => {
-        router.push('/login')
-      }, 3000)
+      // Don't auto-redirect - users need to verify email first
     } catch (err: any) {
       console.error('Signup error:', err)
       setError(getSignupErrorMessage(err.message))
@@ -123,18 +120,18 @@ function SignUpPageContent() {
                 <CheckCircle className="w-10 h-10 text-white" />
               </div>
               <div className="space-y-2">
-                <h1 className="text-3xl font-bold">Account Created!</h1>
+                <h1 className="text-3xl font-bold">Check Your Email!</h1>
                 <p className="text-muted-foreground">
-                  Your account is ready. You can log in with <strong>{formData.email}</strong>
+                  We've sent a verification link to <strong>{formData.email}</strong>
                 </p>
                 <p className="text-sm text-muted-foreground">
-                  If you do not receive a welcome email, contact support.
+                  Please verify your email before logging in. Check your spam folder if you don't see it.
                 </p>
               </div>
               <div className="pt-4">
-                <p className="text-sm text-muted-foreground">
-                  Redirecting to login page...
-                </p>
+                <Button onClick={() => router.push('/login')} className="w-full">
+                  Go to Login
+                </Button>
               </div>
             </div>
           </div>

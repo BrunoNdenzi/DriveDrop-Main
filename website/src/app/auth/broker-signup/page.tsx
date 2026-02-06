@@ -148,15 +148,8 @@ export default function BrokerSignupPage() {
         throw new Error(errorBody.error || 'Failed to create broker account');
       }
 
-      const supabase = getSupabaseBrowserClient();
-      const { error: signInError } = await supabase.auth.signInWithPassword({
-        email: formData.email,
-        password: formData.password,
-      });
-
-      if (signInError) throw signInError;
-
-      router.push('/dashboard/broker?welcome=true');
+      // Email verification required - redirect to login with success message
+      router.push('/login?verified=false&message=Please check your email to verify your account before logging in');
     } catch (err: any) {
       console.error('Signup error:', err);
       setError(getSignupErrorMessage(err.message));

@@ -32,7 +32,7 @@ export async function POST(request: NextRequest) {
     const createUserResponse = await supabase.auth.admin.createUser({
       email,
       password,
-      email_confirm: true,
+      email_confirm: false, // Require email verification before login
       user_metadata: {
         first_name: firstName,
         last_name: lastName || '',
@@ -112,6 +112,18 @@ export async function POST(request: NextRequest) {
           { status: 500 }
         )
       }
+    }
+
+    // Send welcome email (non-blocking - don't fail signup if email fails)
+    try {
+      await fetch(`${process.env.NEXT_PUBLIC_API_URL}/notifications/welcome`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, firstName }),
+      })
+    } catch (emailError) {
+      console.error('Failed to send welcome email:', emailError)
+      // Don't throw - email failure shouldn't block signup
     }
 
     return NextResponse.json({ success: true })
