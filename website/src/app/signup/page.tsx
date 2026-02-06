@@ -1,8 +1,8 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -13,6 +13,9 @@ import Footer from '@/components/layout/Footer'
 
 export default function SignUpPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const role = searchParams.get('role') || 'client' // Get role from URL param
+  
   const [formData, setFormData] = useState({
     firstName: '',
     lastName: '',
@@ -62,7 +65,7 @@ export default function SignUpPage() {
             first_name: formData.firstName,
             last_name: formData.lastName,
             phone: formData.phone,
-            role: 'client',
+            role: role, // Use role from URL param
           },
           emailRedirectTo: `${window.location.origin}/auth/callback`,
         },
@@ -71,6 +74,23 @@ export default function SignUpPage() {
       if (signUpError) throw signUpError
 
       if (data.user) {
+        // Send welcome email (don't block on this)
+        try {
+          await fetch('/api/emails/welcome', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              email: formData.email,
+              firstName: formData.firstName,
+              lastName: formData.lastName,
+              role: role // client or broker from URL param
+            })
+          })
+        } catch (emailError) {
+          console.error('Failed to send welcome email:', emailError)
+          // Don't fail signup if email fails
+        }
+
         setSuccess(true)
         // Show success message and redirect after 3 seconds
         setTimeout(() => {
@@ -137,7 +157,9 @@ export default function SignUpPage() {
               <div>
                 <h1 className="text-4xl font-bold">Create Your Account</h1>
                 <p className="text-muted-foreground mt-2">
-                  Join DriveDrop and start shipping your vehicles today
+                  {role === 'client' && 'Join DriveDrop and start shipping your vehicles today'}
+                  {role === 'broker' && 'Join DriveDrop as a broker and connect your network'}
+                  {!role || (role !== 'client' && role !== 'broker') && 'Join DriveDrop today'}
                 </p>
               </div>
             </div>
