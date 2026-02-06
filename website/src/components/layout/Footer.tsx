@@ -77,8 +77,8 @@ export default function Footer() {
             <ul className="space-y-2 text-sm">
               <li className="flex items-center space-x-2 text-muted-foreground">
                 <Mail className="h-4 w-4" />
-                <a href="mailto:infos@calkons.com" className="hover:text-primary">
-                  infos@calkons.com
+                <a href="mailto:infos@drivedrop.us.com" className="hover:text-primary">
+                  infos@drivedrop.us.com
                 </a>
               </li>
               <li className="flex items-center space-x-2 text-muted-foreground">
@@ -92,6 +92,34 @@ export default function Footer() {
                 <span>United States</span>
               </li>
             </ul>
+          </div>
+        </div>
+
+        {/* License & Certifications */}
+        <div className="mt-6 border-t pt-6">
+          <div className="mx-auto max-w-4xl">
+            <div className="flex flex-col items-center justify-center gap-4 text-sm">
+              <div className="flex flex-wrap items-center justify-center gap-4 text-muted-foreground">
+                <div className="flex items-center gap-2 px-3 py-1.5 bg-primary/5 rounded-lg border border-primary/10">
+                  <span className="font-semibold text-primary">USDOT:</span>
+                  <span className="font-mono">4503929</span>
+                </div>
+                <div className="flex items-center gap-2 px-3 py-1.5 bg-primary/5 rounded-lg border border-primary/10">
+                  <span className="font-semibold text-primary">MC:</span>
+                  <span className="font-mono">1521596</span>
+                </div>
+                <div className="flex items-center gap-2 px-3 py-1.5 bg-primary/5 rounded-lg border border-primary/10">
+                  <span className="font-semibold text-primary">FF:</span>
+                  <span className="font-mono">70301</span>
+                </div>
+                <span className="px-3 py-1.5 bg-green-50 text-green-700 font-medium rounded-lg border border-green-200">
+                  ✓ Licensed & Insured
+                </span>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Freight Forwarder • Interstate Carrier • Fully Bonded & Insured
+              </p>
+            </div>
           </div>
         </div>
 

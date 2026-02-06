@@ -125,7 +125,7 @@ export default function RootLayout({
                 '@type': 'ContactPoint',
                 telephone: '+1-704-266-2317',
                 contactType: 'Customer Service',
-                email: 'infos@calkons.com',
+                email: 'infos@drivedrop.us.com',
                 areaServed: 'US',
                 availableLanguage: 'English'
               },

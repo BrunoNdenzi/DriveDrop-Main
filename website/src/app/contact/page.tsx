@@ -106,10 +106,10 @@ export default function ContactPage() {
                   Send us an email anytime
                 </p>
                 <a
-                  href="mailto:infos@calkons.com"
+                  href="mailto:infos@drivedrop.us.com"
                   className="text-primary hover:underline font-medium"
                 >
-                  infos@calkons.com
+                  infos@drivedrop.us.com
                 </a>
               </CardContent>
             </Card>

@@ -22,9 +22,9 @@ export async function POST(request: Request) {
       )
     }
 
-    // Send email to infos@calkons.com
+    // Send email to infos@drivedrop.us.com
     await sendEmail({
-      to: 'infos@calkons.com',
+      to: 'infos@drivedrop.us.com',
       subject: `Contact Form: ${subject}`,
       html: `
         <!DOCTYPE html>
@@ -198,7 +198,7 @@ export async function POST(request: Request) {
                           <strong>Contact Us</strong>
                         </p>
                         <p style="margin: 0 0 5px; color: #999999; font-size: 14px;">
-                          Email: <a href="mailto:infos@calkons.com" style="color: #667eea; text-decoration: none;">infos@calkons.com</a>
+                          Email: <a href="mailto:infos@drivedrop.us.com" style="color: #667eea; text-decoration: none;">infos@drivedrop.us.com</a>
                         </p>
                         <p style="margin: 0; color: #999999; font-size: 14px;">
                           Phone: <a href="tel:+17042662317" style="color: #667eea; text-decoration: none;">+1-704-266-2317</a>
