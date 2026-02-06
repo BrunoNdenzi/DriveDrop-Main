@@ -300,7 +300,7 @@ export async function POST(request: NextRequest) {
     // Send notification email to admin
     try {
       await sendEmail({
-        to: 'infos@calkons.com',
+        to: 'infos@drivedrop.us.com',
         subject: '🚨 New Driver Application Submitted - DriveDrop',
         html: `
           <!DOCTYPE html>

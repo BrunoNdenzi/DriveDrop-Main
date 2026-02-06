@@ -6,7 +6,7 @@ const transporter = nodemailer.createTransport({
   port: parseInt(process.env.SMTP_PORT || '587'),
   secure: process.env.SMTP_SECURE === 'true',
   auth: {
-    user: process.env.SMTP_USER || 'infos@calkons.com',
+    user: process.env.SMTP_USER || 'infos@drivedrop.us.com',
     pass: process.env.SMTP_PASS || 'vjnkgiuitlyyuwxs',
   },
 })
@@ -21,7 +21,7 @@ interface EmailOptions {
 export async function sendEmail({ to, subject, html, from }: EmailOptions) {
   try {
     const info = await transporter.sendMail({
-      from: from || process.env.SMTP_FROM || 'DriveDrop <infos@calkons.com>',
+      from: from || process.env.SMTP_FROM || 'DriveDrop <infos@drivedrop.us.com>',
       to,
       subject,
       html,
