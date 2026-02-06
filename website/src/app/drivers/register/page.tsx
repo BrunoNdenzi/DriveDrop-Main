@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import * as z from 'zod'
@@ -11,25 +11,49 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Checkbox } from '@/components/ui/checkbox'
 import { Textarea } from '@/components/ui/textarea'
 import { Progress } from '@/components/ui/progress'
-import { ArrowRight, ArrowLeft, Upload, CheckCircle, Truck, Shield, FileText } from 'lucide-react'
+import { ArrowRight, ArrowLeft, Upload, CheckCircle, Truck, Shield, FileText, AlertCircle } from 'lucide-react'
 import Header from '@/components/layout/Header'
 import Footer from '@/components/layout/Footer'
 
-// Step 1: Personal Information
+// Helper function to calculate age
+const calculateAge = (dateString: string): number => {
+  const birthDate = new Date(dateString)
+  const today = new Date()
+  let age = today.getFullYear() - birthDate.getFullYear()
+  const monthDiff = today.getMonth() - birthDate.getMonth()
+  if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+    age--
+  }
+  return age
+}
+
+// Helper function to check if date is expired
+const isDateExpired = (dateString: string): boolean => {
+  const expiryDate = new Date(dateString)
+  const today = new Date()
+  today.setHours(0, 0, 0, 0) // Reset time to compare only dates
+  return expiryDate < today
+}
+
+// Step 1: Personal Information (SSN REMOVED)
 const personalInfoSchema = z.object({
   fullName: z.string().min(2, 'Full name is required'),
-  dateOfBirth: z.string().min(1, 'Date of birth is required'),
+  dateOfBirth: z.string().min(1, 'Date of birth is required').refine((date) => {
+    const age = calculateAge(date)
+    return age >= 18
+  }, 'You must be at least 18 years old to apply'),
   email: z.string().email('Valid email is required'),
   phone: z.string().min(10, 'Valid phone number is required'),
   address: z.string().min(5, 'Address is required'),
-  ssn: z.string().regex(/^\d{3}-\d{2}-\d{4}$/, 'SSN must be in format XXX-XX-XXXX'),
 })
 
-// Step 2: Driver's License
+// Step 2: Driver's License (with expiry validation)
 const licenseSchema = z.object({
   licenseNumber: z.string().min(1, 'License number is required'),
   licenseState: z.string().min(2, 'State is required'),
-  licenseExpiration: z.string().min(1, 'Expiration date is required'),
+  licenseExpiration: z.string().min(1, 'Expiration date is required').refine((date) => {
+    return !isDateExpired(date)
+  }, 'Your driver\'s license has expired. Please renew it before applying'),
   licenseFront: z.any().optional(),
   licenseBack: z.any().optional(),
   proofOfAddress: z.any().optional(),
@@ -42,11 +66,13 @@ const drivingHistorySchema = z.object({
   incidentDescription: z.string().optional(),
 })
 
-// Step 4: Insurance Information
+// Step 4: Insurance Information (with expiry validation)
 const insuranceSchema = z.object({
   insuranceProvider: z.string().min(1, 'Insurance provider is required'),
   policyNumber: z.string().min(1, 'Policy number is required'),
-  policyExpiration: z.string().min(1, 'Expiration date is required'),
+  policyExpiration: z.string().min(1, 'Expiration date is required').refine((date) => {
+    return !isDateExpired(date)
+  }, 'Your insurance policy has expired. Please renew it before applying'),
   insuranceProof: z.any().optional(),
   coverageAmount: z.string().min(1, 'Coverage amount is required'),
 })
@@ -75,6 +101,11 @@ export default function DriverRegistrationPage() {
 
   const totalSteps = 5
   const progress = (currentStep / totalSteps) * 100
+
+  // Auto-scroll to top when step changes
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }, [currentStep])
 
   const nextStep = (data: Partial<FormData>) => {
     setFormData({ ...formData, ...data })
@@ -295,11 +326,12 @@ function PersonalInfoStep({ defaultValues, onNext }: any) {
             {errors.address && <p className="text-sm text-destructive mt-1">{errors.address.message}</p>}
           </div>
 
-          <div>
-            <Label htmlFor="ssn">Social Security Number *</Label>
-            <Input {...register('ssn')} placeholder="XXX-XX-XXXX" maxLength={11} />
-            <p className="text-xs text-muted-foreground mt-1">Required for background check. Your data is encrypted and secure.</p>
-            {errors.ssn && <p className="text-sm text-destructive mt-1">{errors.ssn.message}</p>}
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 flex items-start gap-3">
+            <Shield className="h-5 w-5 text-blue-600 flex-shrink-0 mt-0.5" />
+            <div className="text-sm text-blue-900">
+              <p className="font-semibold mb-1">Age Requirement</p>
+              <p>You must be at least 18 years old to become a driver. We'll verify your age from your date of birth.</p>
+            </div>
           </div>
 
           <Button type="submit" className="w-full">
@@ -341,6 +373,14 @@ function LicenseStep({ defaultValues, onNext, onBack }: any) {
               <Label htmlFor="licenseExpiration">Expiration Date *</Label>
               <Input type="date" {...register('licenseExpiration')} />
               {errors.licenseExpiration && <p className="text-sm text-destructive mt-1">{errors.licenseExpiration.message}</p>}
+            </div>
+          </div>
+
+          <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 flex items-start gap-3">
+            <AlertCircle className="h-5 w-5 text-amber-600 flex-shrink-0 mt-0.5" />
+            <div className="text-sm text-amber-900">
+              <p className="font-semibold mb-1">License Expiry Check</p>
+              <p>Your driver's license must be current and not expired. Applications with expired licenses cannot be processed.</p>
             </div>
           </div>
 
@@ -479,6 +519,14 @@ function InsuranceStep({ defaultValues, onNext, onBack }: any) {
             <Label htmlFor="policyExpiration">Policy Expiration Date *</Label>
             <Input type="date" {...register('policyExpiration')} />
             {errors.policyExpiration && <p className="text-sm text-destructive mt-1">{errors.policyExpiration.message}</p>}
+          </div>
+
+          <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 flex items-start gap-3">
+            <AlertCircle className="h-5 w-5 text-amber-600 flex-shrink-0 mt-0.5" />
+            <div className="text-sm text-amber-900">
+              <p className="font-semibold mb-1">Insurance Expiry Check</p>
+              <p>Your insurance policy must be current and not expired. Applications with expired insurance cannot be processed.</p>
+            </div>
           </div>
 
           <div>
