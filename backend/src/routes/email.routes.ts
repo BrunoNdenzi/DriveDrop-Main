@@ -4,7 +4,7 @@
 import { Router, Request, Response } from 'express';
 import { asyncHandler } from '@utils/error';
 import { successResponse } from '@utils/response';
-import brevoService from '@services/BrevoService';
+import brevoService from '../services/BrevoService';
 
 const router = Router();
 
@@ -59,7 +59,7 @@ router.post('/send-welcome', asyncHandler(async (req: Request, res: Response) =>
     });
   }
 
-  res.status(200).json(successResponse({
+  return res.status(200).json(successResponse({
     message: 'Welcome email sent successfully',
     email,
     templateType
