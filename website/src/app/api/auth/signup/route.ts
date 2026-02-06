@@ -57,7 +57,6 @@ export async function POST(request: NextRequest) {
           id: userId,
           first_name: firstName,
           last_name: lastName || '',
-          full_name: `${firstName} ${lastName || ''}`.trim(),
           phone: phone || '',
           role,
         },
