@@ -43,9 +43,10 @@ export default function NaturalLanguageShipmentCreator({
       const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition
       if (SpeechRecognition) {
         recognitionRef.current = new SpeechRecognition()
-        recognitionRef.current.continuous = false
+        recognitionRef.current.continuous = true // Keep listening
         recognitionRef.current.interimResults = true
         recognitionRef.current.lang = 'en-US'
+        recognitionRef.current.maxAlternatives = 1
 
         recognitionRef.current.onresult = (event: any) => {
           const transcript = Array.from(event.results)
@@ -61,10 +62,24 @@ export default function NaturalLanguageShipmentCreator({
         }
 
         recognitionRef.current.onerror = (event: any) => {
-          console.error('Speech recognition error:', event.error)
           setIsListening(false)
-          if (event.error === 'not-allowed') {
-            toast.error('Microphone access denied. Please enable it in your browser settings.')
+          
+          switch (event.error) {
+            case 'not-allowed':
+              toast.error('🎤 Microphone access denied. Please enable it in your browser settings.')
+              break
+            case 'no-speech':
+              toast('No speech detected. Click Voice again to try.', { 
+                icon: '🎤',
+                duration: 2000 
+              })
+              break
+            case 'network':
+              toast.error('Network error. Please check your connection.')
+              break
+            case 'aborted':
+              // User manually stopped - silent
+              break
           }
         }
       }
@@ -77,19 +92,49 @@ export default function NaturalLanguageShipmentCreator({
     }
   }, [])
 
-  const toggleVoiceInput = () => {
+  const toggleVoiceInput = async () => {
     if (!recognitionRef.current) {
-      toast.error('Voice input not supported in your browser')
+      toast.error('Voice input not supported in your browser. Try Chrome or Edge.')
       return
     }
 
     if (isListening) {
       recognitionRef.current.stop()
       setIsListening(false)
+      toast('Voice input stopped', { icon: '⏸️', duration: 1500 })
     } else {
-      recognitionRef.current.start()
-      setIsListening(true)
-      toast.success('🎤 Listening... Speak now!')
+      try {
+        // Request microphone access with audio enhancements
+        await navigator.mediaDevices.getUserMedia({ 
+          audio: {
+            echoCancellation: true,
+            noiseSuppression: true,
+            autoGainControl: true
+          } 
+        })
+        
+        recognitionRef.current.start()
+        setIsListening(true)
+        
+        toast('🎤 Listening... Start speaking now!', { 
+          duration: 4000,
+          style: {
+            background: '#ef4444',
+            color: 'white',
+            fontWeight: 'bold'
+          }
+        })
+      } catch (error: any) {
+        setIsListening(false)
+        
+        if (error.name === 'NotAllowedError') {
+          toast.error('🚫 Microphone access denied. Please allow microphone access.')
+        } else if (error.name === 'NotFoundError') {
+          toast.error('❌ No microphone found. Please check your device.')
+        } else {
+          toast.error('Failed to access microphone.')
+        }
+      }
     }
   }
 
@@ -355,59 +400,127 @@ export default function NaturalLanguageShipmentCreator({
 
   // Inline variant - used in forms
   return (
-    <div className={cn('space-y-4', className)}>
-      {/* Header */}
-      <div className="flex items-center gap-2">
-        <Sparkles className="h-5 w-5 text-purple-600" />
-        <h3 className="text-lg font-semibold text-gray-900">Quick Create with Benji</h3>
-        <div className="ml-auto">
-          <span className="text-xs bg-purple-100 text-purple-700 px-2 py-1 rounded-full font-medium">
-            Beta
-          </span>
+    <div className={cn('space-y-6', className)}>
+      {/* Input Mode Indicators */}
+      <div className="flex items-center gap-3 p-4 bg-gradient-to-r from-teal-50 to-purple-50 rounded-xl border border-teal-200">
+        <Sparkles className="h-6 w-6 text-teal-600 flex-shrink-0" />
+        <div className="flex-1">
+          <h3 className="text-sm font-semibold text-gray-900">How to use Benji:</h3>
+          <p className="text-xs text-gray-600 mt-0.5">
+            Type your request below, or click 🎤 Voice to speak, or 📸 Scan Doc to upload a document
+          </p>
         </div>
+        {isListening && (
+          <div className="flex items-center gap-2 text-sm text-red-600 font-medium animate-pulse">
+            <div className="w-2 h-2 bg-red-600 rounded-full animate-ping" />
+            Listening...
+          </div>
+        )}
       </div>
 
       {/* Input Area */}
-      <form onSubmit={handleSubmit} className="space-y-3">
+      <form onSubmit={handleSubmit} className="space-y-4">
         <div className="relative">
           <Textarea
             ref={textareaRef}
             value={prompt}
             onChange={(e) => setPrompt(e.target.value)}
-            placeholder="Tell Benji what you need: 'Ship my 2023 Honda from LA to NYC next week'"
-            rows={3}
+            placeholder="Example: 'Ship my 2023 Honda Civic from Los Angeles to Miami next week'"
+            rows={4}
             disabled={isProcessing}
-            className="resize-none"
+            className="resize-none text-base"
           />
           {prompt && !isProcessing && (
             <button
               type="button"
               onClick={handleClear}
-              className="absolute top-2 right-2 p-1 hover:bg-gray-100 rounded transition-colors"
+              className="absolute top-3 right-3 p-1.5 hover:bg-gray-100 rounded-full transition-colors"
             >
-              <X className="h-3 w-3 text-gray-400" />
+              <X className="h-4 w-4 text-gray-400" />
             </button>
           )}
         </div>
 
-        <Button
-          type="submit"
-          disabled={isProcessing || !prompt.trim()}
-          className="w-full bg-teal-600 hover:bg-teal-700"
-        >
-          {isProcessing ? (
-            <>
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              Benji is working...
-            </>
-          ) : (
-            <>
-              <Sparkles className="mr-2 h-4 w-4" />
-              Create with Benji
-            </>
-          )}
-        </Button>
+        {/* Action Buttons Row */}
+        <div className="flex gap-3">
+          {/* Voice Input Button */}
+          <button
+            type="button"
+            onClick={toggleVoiceInput}
+            disabled={isProcessing}
+            className={cn(
+              "px-4 py-3 rounded-xl font-medium transition-all flex items-center space-x-2 border-2",
+              isListening
+                ? "bg-red-50 border-red-300 text-red-700 hover:bg-red-100"
+                : "bg-white border-gray-300 text-gray-700 hover:border-teal-300 hover:bg-teal-50"
+            )}
+          >
+            {isListening ? (
+              <>
+                <MicOff className="w-5 h-5 animate-pulse" />
+                <span>Stop</span>
+              </>
+            ) : (
+              <>
+                <Mic className="w-5 h-5" />
+                <span>Voice</span>
+              </>
+            )}
+          </button>
+
+          {/* Document Scanner Button */}
+          <button
+            type="button"
+            onClick={() => setShowDocScanner(true)}
+            disabled={isProcessing}
+            className="px-4 py-3 rounded-xl font-medium transition-all flex items-center space-x-2 border-2 bg-white border-gray-300 text-gray-700 hover:border-purple-300 hover:bg-purple-50"
+          >
+            <Camera className="w-5 h-5" />
+            <span>Scan Doc</span>
+          </button>
+
+          {/* Submit Button */}
+          <Button
+            type="submit"
+            disabled={isProcessing || !prompt.trim()}
+            className="flex-1 bg-gradient-to-r from-teal-600 to-teal-700 hover:from-teal-700 hover:to-teal-800 text-white py-6 shadow-lg"
+          >
+            {isProcessing ? (
+              <>
+                <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                Processing...
+              </>
+            ) : (
+              <>
+                <Sparkles className="mr-2 h-5 w-5" />
+                Create
+                <ArrowRight className="ml-2 h-5 w-5" />
+              </>
+            )}
+          </Button>
+        </div>
       </form>
+
+      {/* Examples - Only show when no input */}
+      {!prompt && !result && !error && (
+        <div>
+          <p className="text-sm font-medium text-gray-700 mb-3">Try these examples:</p>
+          <div className="grid grid-cols-1 gap-2">
+            {examples.map((example, idx) => (
+              <button
+                key={idx}
+                onClick={() => handleExampleClick(example)}
+                className="text-left text-sm p-3 rounded-lg bg-white hover:bg-teal-50 border border-gray-200 hover:border-teal-300 transition-all group"
+              >
+                <div className="flex items-start gap-2">
+                  <Sparkles className="h-4 w-4 text-gray-400 group-hover:text-teal-600 flex-shrink-0 mt-0.5" />
+                  <span className="text-gray-600 group-hover:text-gray-900">{example}</span>
+                </div>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Success Result */}
       {result?.success && result.shipment && (

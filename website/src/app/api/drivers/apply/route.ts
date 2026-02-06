@@ -58,7 +58,8 @@ export async function POST(request: NextRequest) {
     const email = formData.get('email') as string
     const phone = formData.get('phone') as string
     const address = formData.get('address') as string
-    const ssn = formData.get('ssn') as string
+    // SSN is now optional and removed from the form
+    const ssn = formData.get('ssn') as string | null
     
     const licenseNumber = formData.get('licenseNumber') as string
     const licenseState = formData.get('licenseState') as string
@@ -82,14 +83,13 @@ export async function POST(request: NextRequest) {
     const insuranceConsent = formData.get('insuranceConsent') === 'true'
     const termsAccepted = formData.get('termsAccepted') === 'true'
 
-    // Validate required fields
+    // Validate required fields (SSN no longer required)
     const requiredFields = [
       { name: 'fullName', value: fullName },
       { name: 'dateOfBirth', value: dateOfBirth },
       { name: 'email', value: email },
       { name: 'phone', value: phone },
       { name: 'address', value: address },
-      { name: 'ssn', value: ssn },
       { name: 'licenseNumber', value: licenseNumber },
       { name: 'licenseState', value: licenseState },
       { name: 'licenseExpiration', value: licenseExpiration },
@@ -110,18 +110,20 @@ export async function POST(request: NextRequest) {
 
     console.log('All required fields present')
 
-    // Encrypt SSN before storing (AES-256-GCM encryption)
-    let ssnEncrypted: string
-    try {
-      console.log('Encrypting SSN...')
-      ssnEncrypted = encrypt(ssn)
-      console.log('SSN encrypted successfully')
-    } catch (error) {
-      console.error('Error encrypting SSN:', error)
-      return NextResponse.json(
-        { error: 'Failed to process sensitive data securely' },
-        { status: 500 }
-      )
+    // Encrypt SSN if provided (optional now)
+    let ssnEncrypted: string | null = null
+    if (ssn) {
+      try {
+        console.log('Encrypting SSN...')
+        ssnEncrypted = encrypt(ssn)
+        console.log('SSN encrypted successfully')
+      } catch (error) {
+        console.error('Error encrypting SSN:', error)
+        return NextResponse.json(
+          { error: 'Failed to process sensitive data securely' },
+          { status: 500 }
+        )
+      }
     }
 
     // Create a temporary folder ID for file uploads
@@ -187,7 +189,7 @@ export async function POST(request: NextRequest) {
         email: email,
         phone: phone,
         address: address,
-        ssn_encrypted: ssnEncrypted, // ✅ Now encrypted!
+        ssn_encrypted: ssnEncrypted, // ✅ Now optional and nullable!
         
         license_number: licenseNumber,
         license_state: licenseState,
@@ -238,7 +240,29 @@ export async function POST(request: NextRequest) {
 
     console.log('Application inserted successfully:', application.id)
 
-    // Send confirmation email to applicant
+    // Send welcome/confirmation email via Brevo (preferred method)
+    try {
+      const backendUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
+      const firstName = fullName.split(' ')[0]
+      
+      await fetch(`${backendUrl}/api/v1/emails/send-welcome`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email,
+          firstName,
+          lastName: fullName.split(' ').slice(1).join(' '),
+          role: 'driver'
+        })
+      })
+      console.log('Driver welcome email sent via Brevo'
+)
+    } catch (emailError) {
+      console.error('Error sending Brevo email:', emailError)
+      // Continue - fallback to nodemailer below
+    }
+
+    // Fallback: Send confirmation email to applicant using nodemailer
     try {
       const firstName = fullName.split(' ')[0]
       await sendEmail({

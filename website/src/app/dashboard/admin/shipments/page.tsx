@@ -403,7 +403,7 @@ export default function AdminShipmentsPage() {
                         <DollarSign className="h-4 w-4" />
                         ${(shipment.final_price || shipment.estimated_price).toFixed(2)}
                       </span>
-                      <span>{shipment.distance.toFixed(0)} miles</span>
+                      <span>{shipment.distance ? shipment.distance.toFixed(0) : 'N/A'} miles</span>
                     </div>
                   </div>
 
