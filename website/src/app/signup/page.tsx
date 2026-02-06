@@ -7,7 +7,6 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { User, Mail, Lock, Phone, ArrowRight, AlertCircle, CheckCircle, Sparkles, Truck, Eye, EyeOff } from 'lucide-react'
-import { supabase } from '@/lib/supabase'
 import Header from '@/components/layout/Header'
 import Footer from '@/components/layout/Footer'
 
@@ -29,6 +28,15 @@ export default function SignUpPage() {
   const [success, setSuccess] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
+
+  const getSignupErrorMessage = (message?: string) => {
+    if (!message) return 'Failed to create account. Please try again.'
+    const normalized = message.toLowerCase()
+    if (normalized.includes('error sending email') || normalized.includes('confirmation email')) {
+      return 'Failed to send the email, please contact support'
+    }
+    return message
+  }
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData(prev => ({
@@ -56,50 +64,48 @@ export default function SignUpPage() {
     }
 
     try {
-      // Sign up with Supabase
-      const { data, error: signUpError } = await supabase.auth.signUp({
-        email: formData.email,
-        password: formData.password,
-        options: {
-          data: {
-            first_name: formData.firstName,
-            last_name: formData.lastName,
-            phone: formData.phone,
-            role: role, // Use role from URL param
-          },
-          emailRedirectTo: `${window.location.origin}/auth/callback`,
-        },
+      const response = await fetch('/api/auth/signup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: formData.email,
+          password: formData.password,
+          firstName: formData.firstName,
+          lastName: formData.lastName,
+          phone: formData.phone,
+          role,
+        }),
       })
 
-      if (signUpError) throw signUpError
-
-      if (data.user) {
-        // Send welcome email (don't block on this)
-        try {
-          await fetch('/api/emails/welcome', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              email: formData.email,
-              firstName: formData.firstName,
-              lastName: formData.lastName,
-              role: role // client or broker from URL param
-            })
-          })
-        } catch (emailError) {
-          console.error('Failed to send welcome email:', emailError)
-          // Don't fail signup if email fails
-        }
-
-        setSuccess(true)
-        // Show success message and redirect after 3 seconds
-        setTimeout(() => {
-          router.push('/login')
-        }, 3000)
+      if (!response.ok) {
+        const errorBody = await response.json().catch(() => ({}))
+        throw new Error(errorBody.error || 'Failed to create account. Please try again.')
       }
+
+      // Send welcome email (don't block on this)
+      try {
+        await fetch('/api/emails/welcome', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            email: formData.email,
+            firstName: formData.firstName,
+            lastName: formData.lastName,
+            role,
+          }),
+        })
+      } catch (emailError) {
+        console.error('Failed to send welcome email:', emailError)
+      }
+
+      setSuccess(true)
+      // Show success message and redirect after 3 seconds
+      setTimeout(() => {
+        router.push('/login')
+      }, 3000)
     } catch (err: any) {
       console.error('Signup error:', err)
-      setError(err.message || 'Failed to create account. Please try again.')
+      setError(getSignupErrorMessage(err.message))
     } finally {
       setLoading(false)
     }
@@ -119,10 +125,10 @@ export default function SignUpPage() {
               <div className="space-y-2">
                 <h1 className="text-3xl font-bold">Account Created!</h1>
                 <p className="text-muted-foreground">
-                  We've sent a verification email to <strong>{formData.email}</strong>
+                  Your account is ready. You can log in with <strong>{formData.email}</strong>
                 </p>
                 <p className="text-sm text-muted-foreground">
-                  Please check your inbox and click the verification link to activate your account.
+                  If you do not receive a welcome email, contact support.
                 </p>
               </div>
               <div className="pt-4">
