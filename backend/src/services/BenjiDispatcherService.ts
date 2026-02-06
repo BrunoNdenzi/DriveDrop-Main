@@ -62,7 +62,10 @@ export class BenjiDispatcherService {
         .in('status', ['pending', 'quoted'])
         .order('created_at', { ascending: true })
 
-      if (loadsError) throw loadsError
+      if (loadsError) {
+        console.error('[BenjiDispatcher] Error fetching loads:', loadsError)
+        throw loadsError
+      }
 
       // Get available drivers (role = driver, status active)
       const { data: drivers, error: driversError } = await supabase
@@ -71,7 +74,12 @@ export class BenjiDispatcherService {
         .eq('role', 'driver')
         .eq('status', 'active')
 
-      if (driversError) throw driversError
+      if (driversError) {
+        console.error('[BenjiDispatcher] Error fetching drivers:', driversError)
+        throw driversError
+      }
+
+      console.log(`[BenjiDispatcher] Found ${loads?.length || 0} unassigned loads and ${drivers?.length || 0} available drivers`)
 
       // Calculate optimal matches
       const matches = await this.calculateOptimalMatches(loads || [], drivers || [])
@@ -144,7 +152,8 @@ export class BenjiDispatcherService {
    * Score a single driver-load match (0-100)
    */
   private async scoreDriverLoadMatch(load: any, driver: any): Promise<DriverLoadMatch> {
-    const scores = {
+    try {
+      const scores = {
       proximity: 0,
       route_fit: 0,
       earnings: 0,
@@ -155,10 +164,11 @@ export class BenjiDispatcherService {
     const reasons: string[] = []
 
     // 1. PROXIMITY SCORE (40% weight) - How close is driver to pickup?
-    const distanceToPickup = this.calculateDistance(
-      driver.location || { coordinates: [-97.7431, 30.2672] }, // Austin default
-      load.pickup_location
-    )
+    // Default to Austin, TX if locations are missing
+    const driverLocation = driver.location || { coordinates: [-97.7431, 30.2672] }
+    const pickupLocation = load.pickup_location || { coordinates: [-97.7431, 30.2672] }
+    
+    const distanceToPickup = this.calculateDistance(driverLocation, pickupLocation)
 
     if (distanceToPickup < 10) {
       scores.proximity = 100
@@ -180,7 +190,9 @@ export class BenjiDispatcherService {
     }
 
     // 3. EARNINGS SCORE (20% weight) - Is price fair/above market?
-    const pricePerMile = load.estimated_price / load.estimated_distance_km / 0.621371
+    const estimatedDistance = load.estimated_distance_km || load.distance || 100 // Default to 100km if missing
+    const pricePerMile = load.estimated_price / (estimatedDistance * 0.621371) // km to miles
+    
     if (pricePerMile > 2.5) {
       scores.earnings = 100
       reasons.push('Premium rate (above market)')
@@ -233,6 +245,22 @@ export class BenjiDispatcherService {
       estimated_earnings: load.estimated_price * 0.80, // 80% to driver, 20% platform fee
       route_fit: routeFit,
       distance_to_pickup: distanceToPickup
+    }
+    } catch (error) {
+      console.error('[BenjiDispatcher] Error scoring driver-load match:', error)
+      console.error('[BenjiDispatcher] Load:', load?.id, 'Driver:', driver?.id)
+      
+      // Return a low-confidence match if scoring fails
+      return {
+        load,
+        driver,
+        score: 0,
+        confidence: 0,
+        reasons: ['Error calculating match'],
+        estimated_earnings: load.estimated_price * 0.80,
+        route_fit: 0,
+        distance_to_pickup: 0
+      }
     }
   }
 
@@ -377,9 +405,12 @@ export class BenjiDispatcherService {
    * Check if two locations are within same city/region (within 30 miles)
    */
   private areCitiesNear(
-    loc1: { coordinates: [number, number] },
-    loc2: { coordinates: [number, number] }
+    loc1: { coordinates: [number, number] } | null,
+    loc2: { coordinates: [number, number] } | null
   ): boolean {
+    if (!loc1 || !loc2 || !loc1.coordinates || !loc2.coordinates) {
+      return false // Cannot compare if locations are missing
+    }
     const distance = this.calculateDistance(loc1, loc2)
     return distance < 30 // Within 30 miles = same city
   }

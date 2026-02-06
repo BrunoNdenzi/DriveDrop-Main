@@ -14,6 +14,7 @@ import messagesRoutes from './messages.routes';
 import { diagnosticsRoutes } from './diagnostics.routes';
 import pricingRoutes from './pricing.routes';
 import adminRoutes from './admin.routes';
+import emailRoutes from './email.routes';
 
 import pickupVerificationRoutes from './pickupVerification.routes';
 import { notificationsRoutes}  from './notifications.routes';
@@ -48,6 +49,7 @@ router.get('/', (_req, res) => {
       messages: '/api/v1/messages',
       admin: '/api/v1/admin',
       notifications: '/api/v1/notifications',
+      emails: '/api/v1/emails',
       pickupVerification: '/api/v1/shipments (pickup verification endpoints)',
       // Commercial Expansion APIs
       commercial: '/api/v1/commercial',
@@ -74,6 +76,7 @@ router.use('/messages', messagesRoutes);
 router.use('/diagnostics', diagnosticsRoutes);
 router.use('/pricing', pricingRoutes);
 router.use('/admin', adminRoutes);
+router.use('/emails', emailRoutes);
 router.use('/notifications', notificationsRoutes);
 
 // Commercial Expansion Routes

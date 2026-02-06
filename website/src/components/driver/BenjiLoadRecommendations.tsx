@@ -5,6 +5,7 @@ import { Sparkles, MapPin, DollarSign, TrendingUp, Clock, Star, Navigation, Zap,
 import { Button } from '@/components/ui/button'
 import toast from 'react-hot-toast'
 import { useAuth } from '@/hooks/useAuth'
+import { getSupabaseBrowserClient } from '@/lib/supabase-client'
 
 interface LoadRecommendation {
   load: any
@@ -44,11 +45,27 @@ export default function BenjiLoadRecommendations() {
 
     setIsLoading(true)
     try {
+      // Get auth token from Supabase session
+      const supabase = getSupabaseBrowserClient()
+      const { data: { session } } = await supabase.auth.getSession()
+      
+      console.log('🔐 Auth Debug:', {
+        hasSession: !!session,
+        hasToken: !!session?.access_token,
+        tokenPreview: session?.access_token ? `${session.access_token.substring(0, 30)}...` : 'none',
+        profileId: profile.id,
+        userId: session?.user?.id
+      })
+      
+      if (!session?.access_token) {
+        throw new Error('No authentication token available')
+      }
+
       const response = await fetch(
         `https://drivedrop-main-production.up.railway.app/api/v1/ai/loads/recommendations/${profile.id}`,
         {
           headers: {
-            'Authorization': `Bearer ${localStorage.getItem('token')}`
+            'Authorization': `Bearer ${session.access_token}`
           }
         }
       )

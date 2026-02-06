@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { Sparkles, Zap, TrendingUp, DollarSign, Clock, CheckCircle, AlertTriangle, Loader2, User, MapPin, Star } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import toast from 'react-hot-toast'
+import { getSupabaseBrowserClient } from '@/lib/supabase-client'
 
 interface DriverLoadMatch {
   load: any
@@ -39,11 +40,19 @@ export default function BenjiDispatcher() {
   const analyzeOpportunities = async () => {
     setIsAnalyzing(true)
     try {
+      // Get auth token from Supabase session
+      const supabase = getSupabaseBrowserClient()
+      const { data: { session } } = await supabase.auth.getSession()
+      
+      if (!session?.access_token) {
+        throw new Error('No authentication token available')
+      }
+
       const response = await fetch('https://drivedrop-main-production.up.railway.app/api/v1/ai/dispatcher/analyze', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
+          'Authorization': `Bearer ${session.access_token}`
         }
       })
 
@@ -83,11 +92,19 @@ export default function BenjiDispatcher() {
 
     setIsAssigning(true)
     try {
+      // Get auth token from Supabase session
+      const supabase = getSupabaseBrowserClient()
+      const { data: { session } } = await supabase.auth.getSession()
+      
+      if (!session?.access_token) {
+        throw new Error('No authentication token available')
+      }
+
       const response = await fetch('https://drivedrop-main-production.up.railway.app/api/v1/ai/dispatcher/auto-assign', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
+          'Authorization': `Bearer ${session.access_token}`
         },
         body: JSON.stringify({ matches: matchesToAssign })
       })
