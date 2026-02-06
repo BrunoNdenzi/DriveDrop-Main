@@ -56,8 +56,9 @@ export async function POST(request: NextRequest) {
     const userId = createUserResponse.data.user.id
     console.log('[Signup API] User created successfully:', userId)
     
-    // Manually send the confirmation email
-    console.log('[Signup API] Sending confirmation email via Supabase...')
+    // Generate confirmation link (admin.generateLink does NOT send emails automatically!)
+    console.log('[Signup API] Generating confirmation link...')
+    let confirmationLink = ''
     try {
       const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://drivedrop.us.com'
       const { data: linkData, error: linkError } = await supabase.auth.admin.generateLink({
@@ -72,12 +73,42 @@ export async function POST(request: NextRequest) {
       if (linkError) {
         console.error('[Signup API] Failed to generate confirmation link:', linkError)
       } else {
-        console.log('[Signup API] Confirmation link generated:', linkData.properties.action_link)
-        // The link is generated but Supabase should have sent the email via SMTP
-        // If SMTP is configured, the email is sent automatically when generate Link is called
+        confirmationLink = linkData.properties.action_link
+        console.log('[Signup API] Confirmation link generated successfully')
       }
     } catch (confirmError) {
       console.error('[Signup API] Confirmation email exception:', confirmError)
+    }
+
+    // Send verification email via Brevo with the confirmation link
+    if (confirmationLink) {
+      console.log('[Signup API] Sending verification email via backend...')
+      try {
+        const verificationEmailUrl = `${process.env.NEXT_PUBLIC_API_URL}/notifications/email-verification`
+        const verificationResponse = await fetch(verificationEmailUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ 
+            email, 
+            firstName,
+            verificationLink: confirmationLink
+          }),
+        })
+        
+        const verificationData = await verificationResponse.json()
+        console.log('[Signup API] Verification email response:', {
+          status: verificationResponse.status,
+          data: verificationData
+        })
+        
+        if (!verificationResponse.ok) {
+          console.error('[Signup API] Verification email failed:', verificationData)
+        } else {
+          console.log('[Signup API] Verification email sent successfully')
+        }
+      } catch (emailError) {
+        console.error('[Signup API] Verification email exception:', emailError)
+      }
     }
 
     const profileResponse = await supabase
