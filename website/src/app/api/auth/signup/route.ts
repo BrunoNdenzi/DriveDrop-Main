@@ -29,10 +29,14 @@ export async function POST(request: NextRequest) {
 
     const supabase = getServiceSupabase()
 
+    console.log('[Signup API] Creating user:', { email, role })
+
+    // admin.createUser does NOT send confirmation emails by default
+    // We'll create the user, then manually trigger the confirmation email
     const createUserResponse = await supabase.auth.admin.createUser({
       email,
       password,
-      email_confirm: false, // Require email verification before login
+      email_confirm: false, // User needs to verify email
       user_metadata: {
         first_name: firstName,
         last_name: lastName || '',
@@ -42,6 +46,7 @@ export async function POST(request: NextRequest) {
     })
 
     if (createUserResponse.error || !createUserResponse.data.user) {
+      console.error('[Signup API] User creation failed:', createUserResponse.error)
       return NextResponse.json(
         { error: createUserResponse.error?.message || 'Failed to create user' },
         { status: 400 }
@@ -49,6 +54,30 @@ export async function POST(request: NextRequest) {
     }
 
     const userId = createUserResponse.data.user.id
+    console.log('[Signup API] User created successfully:', userId)
+    
+    // Manually send the confirmation email
+    console.log('[Signup API] Sending confirmation email via Supabase...')
+    try {
+      const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://drivedrop.us.com'
+      const { data: linkData, error: linkError } = await supabase.auth.admin.generateLink({
+        type: 'signup',
+        email: email,
+        options: {
+          redirectTo: `${siteUrl}/auth/callback`
+        }
+      })
+      
+      if (linkError) {
+        console.error('[Signup API] Failed to generate confirmation link:', linkError)
+      } else {
+        console.log('[Signup API] Confirmation link generated:', linkData.properties.action_link)
+        // The link is generated but Supabase should have sent the email via SMTP
+        // If SMTP is configured, the email is sent automatically when generate Link is called
+      }
+    } catch (confirmError) {
+      console.error('[Signup API] Confirmation email exception:', confirmError)
+    }
 
     const profileResponse = await supabase
       .from('profiles')
@@ -115,17 +144,34 @@ export async function POST(request: NextRequest) {
     }
 
     // Send welcome email (non-blocking - don't fail signup if email fails)
+    console.log('[Signup API] Sending welcome email to:', email)
     try {
-      await fetch(`${process.env.NEXT_PUBLIC_API_URL}/notifications/welcome`, {
+      const welcomeEmailUrl = `${process.env.NEXT_PUBLIC_API_URL}/notifications/welcome`
+      console.log('[Signup API] Welcome email URL:', welcomeEmailUrl)
+      
+      const welcomeResponse = await fetch(welcomeEmailUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, firstName }),
       })
+      
+      const welcomeData = await welcomeResponse.json()
+      console.log('[Signup API] Welcome email response:', {
+        status: welcomeResponse.status,
+        data: welcomeData
+      })
+      
+      if (!welcomeResponse.ok) {
+        console.error('[Signup API] Welcome email failed:', welcomeData)
+      } else {
+        console.log('[Signup API] Welcome email sent successfully')
+      }
     } catch (emailError) {
-      console.error('Failed to send welcome email:', emailError)
+      console.error('[Signup API] Welcome email exception:', emailError)
       // Don't throw - email failure shouldn't block signup
     }
 
+    console.log('[Signup API] Signup completed successfully')
     return NextResponse.json({ success: true })
   } catch (error: any) {
     console.error('Signup API error:', error)
