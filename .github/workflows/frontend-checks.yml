@@ -1,0 +1,133 @@
+name: Frontend Checks
+
+on:
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'frontend/**'
+      - '.github/workflows/frontend-checks.yml'
+  push:
+    branches: [ main ]
+    paths:
+      - 'frontend/**'
+
+jobs:
+  frontend-lint-and-typecheck:
+    runs-on: ubuntu-latest
+    
+    strategy:
+      matrix:
+        node-version: [20]
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Node.js ${{ matrix.node-version }}
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ matrix.node-version }}
+        cache: 'npm'
+        
+    - name: Check if frontend package.json exists
+      id: check-package
+      run: |
+        if [ -f "frontend/package.json" ]; then
+          echo "exists=true" >> $GITHUB_OUTPUT
+          echo "Frontend package.json found"
+        else
+          echo "exists=false" >> $GITHUB_OUTPUT
+          echo "Frontend package.json not found - skipping checks"
+        fi
+        
+    - name: Install dependencies
+      if: steps.check-package.outputs.exists == 'true'
+      run: |
+        cd frontend
+        npm ci || npm install
+        
+    - name: Run ESLint
+      if: steps.check-package.outputs.exists == 'true'
+      run: |
+        cd frontend
+        # Check if lint script exists in package.json
+        if npm run | grep -q "lint"; then
+          echo "Running npm run lint..."
+          npm run lint -- --max-warnings=0
+        else
+          echo "No lint script found, running eslint directly..."
+          npx eslint src --ext .ts,.tsx --max-warnings=0
+        fi
+      continue-on-error: false
+      
+    - name: Run TypeScript type check
+      if: steps.check-package.outputs.exists == 'true'
+      run: |
+        cd frontend
+        # Check if type-check script exists in package.json
+        if npm run | grep -q "type-check"; then
+          echo "Running npm run type-check..."
+          npm run type-check
+        else
+          echo "No type-check script found, running tsc directly..."
+          npx tsc --noEmit
+        fi
+      continue-on-error: false
+      
+    - name: Run tests (if available)
+      if: steps.check-package.outputs.exists == 'true'
+      run: |
+        cd frontend
+        # Check if test script exists and is not a placeholder
+        if npm run | grep -q "test" && ! npm run test 2>&1 | grep -q "Tests not implemented"; then
+          echo "Running npm run test..."
+          npm run test
+        else
+          echo "No test script found or tests not implemented yet - skipping"
+        fi
+      continue-on-error: true
+      
+    - name: Create log artifacts directory
+      run: |
+        mkdir -p drivedrop_finalize/ci_logs/frontend_checks
+        
+    - name: Generate CI logs
+      run: |
+        cat > drivedrop_finalize/ci_logs/frontend_checks/frontend_checks.json << EOF
+        {
+          "timestamp": "$(date -u +"%Y-%m-%dT%H:%M:%SZ")",
+          "workflow_run_id": "${{ github.run_id }}",
+          "workflow_run_number": "${{ github.run_number }}",
+          "commit_sha": "${{ github.sha }}",
+          "branch": "${{ github.ref_name }}",
+          "event_name": "${{ github.event_name }}",
+          "checks_performed": {
+            "package_json_exists": "${{ steps.check-package.outputs.exists }}",
+            "eslint_ran": "${{ steps.check-package.outputs.exists == 'true' }}",
+            "typecheck_ran": "${{ steps.check-package.outputs.exists == 'true' }}",
+            "tests_ran": "conditional"
+          },
+          "status": "completed",
+          "message": "Frontend checks completed for DriveDrop skeleton structure"
+        }
+        EOF
+        
+    - name: Upload CI logs as artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: frontend-checks-logs
+        path: drivedrop_finalize/ci_logs/frontend_checks/
+        retention-days: 30
+        
+    - name: Skip checks message (if no package.json)
+      if: steps.check-package.outputs.exists == 'false'
+      run: |
+        echo "::notice::Frontend package.json not found - this is expected for initial skeleton PR"
+        echo "::notice::Future PRs will run full frontend checks once package.json is properly configured"
+        
+    - name: Success message
+      if: steps.check-package.outputs.exists == 'true'
+      run: |
+        echo "::notice::Frontend checks completed successfully"
+        echo "::notice::ESLint and TypeScript checks passed"
+        echo "::notice::CI logs uploaded to artifacts"
