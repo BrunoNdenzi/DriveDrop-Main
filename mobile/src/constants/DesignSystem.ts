@@ -1,6 +1,9 @@
 /**
- * DriveDrop Design System - Design Tokens
- * Comprehensive design tokens for consistent UI/UX across the app
+ * DriveDrop Design System - Enterprise Operations Design Tokens
+ * 
+ * Constitution: Operational clarity, state-driven UI, data density.
+ * No decorative gradients. No heavy shadows. No startup SaaS patterns.
+ * Every element must answer: What is happening? What requires action?
  */
 
 // Brand Colors
@@ -49,7 +52,7 @@ export const NeutralColors = {
   black: '#000000',
 } as const;
 
-// Semantic Colors
+// Semantic / Status Colors — enterprise-grade operational palette
 export const SemanticColors = {
   success: {
     50: '#ECFDF3',
@@ -78,6 +81,14 @@ export const SemanticColors = {
     500: '#0EA5E9',
     600: '#0284C7',
     700: '#0369A1',
+  },
+  // Operational status tokens (shipment lifecycle)
+  neutral: {
+    50: '#F8FAFC',
+    100: '#F1F5F9',
+    500: '#64748B',
+    600: '#475569',
+    700: '#334155',
   },
 } as const;
 
@@ -142,63 +153,70 @@ export const Spacing = {
   32: 128,
 } as const;
 
-// Border Radius
+// Border Radius — Enterprise scale: tight, functional, no pill shapes
 export const BorderRadius = {
   none: 0,
-  xs: 2,
-  sm: 4,
-  base: 6,
-  md: 8,
-  lg: 12,
-  xl: 16,
-  '2xl': 20,
-  '3xl': 24,
+  xs: 1,
+  sm: 2,
+  base: 3,
+  md: 4,
+  lg: 6,
+  xl: 8,
+  '2xl': 10,
+  '3xl': 12,
   full: 9999,
 } as const;
 
-// Shadows
+// Shadows — Minimal, structural only. No decorative elevation.
 export const Shadows = {
+  none: {
+    shadowColor: 'transparent',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0,
+    shadowRadius: 0,
+    elevation: 0,
+  },
   xs: {
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
+    shadowOpacity: 0.04,
+    shadowRadius: 1,
     elevation: 1,
   },
   sm: {
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
+    shadowOpacity: 0.06,
+    shadowRadius: 2,
     elevation: 2,
   },
   base: {
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 6,
-    elevation: 3,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 3,
+    elevation: 2,
   },
   md: {
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 6,
-    elevation: 4,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
+    elevation: 3,
   },
   lg: {
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.15,
-    shadowRadius: 15,
-    elevation: 8,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 6,
+    elevation: 4,
   },
   xl: {
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 20 },
-    shadowOpacity: 0.25,
-    shadowRadius: 25,
-    elevation: 12,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 5,
   },
 } as const;
 
@@ -231,37 +249,84 @@ export const ComponentTokens = {
   button: {
     height: {
       sm: 32,
-      base: 44,
-      lg: 56,
+      base: 40,
+      lg: 48,
     },
     padding: {
       sm: { horizontal: Spacing[3], vertical: Spacing[2] },
-      base: { horizontal: Spacing[6], vertical: Spacing[3] },
-      lg: { horizontal: Spacing[8], vertical: Spacing[4] },
+      base: { horizontal: Spacing[5], vertical: Spacing[3] },
+      lg: { horizontal: Spacing[6], vertical: Spacing[4] },
     },
+    borderRadius: BorderRadius.md,
   },
   input: {
     height: {
       sm: 32,
-      base: 44,
-      lg: 56,
+      base: 40,
+      lg: 48,
     },
     padding: {
-      horizontal: Spacing[4],
-      vertical: Spacing[3],
+      horizontal: Spacing[3],
+      vertical: Spacing[2],
     },
+    borderRadius: BorderRadius.md,
   },
   card: {
     padding: {
-      sm: Spacing[4],
-      base: Spacing[6],
-      lg: Spacing[8],
+      sm: Spacing[3],
+      base: Spacing[4],
+      lg: Spacing[6],
     },
     borderRadius: BorderRadius.lg,
   },
+  badge: {
+    padding: {
+      horizontal: Spacing[2],
+      vertical: Spacing[1],
+    },
+    borderRadius: BorderRadius.sm,
+    fontSize: Typography.fontSize.xs,
+  },
+  table: {
+    headerHeight: 40,
+    rowHeight: 44,
+    cellPadding: {
+      horizontal: Spacing[3],
+      vertical: Spacing[2],
+    },
+    borderColor: NeutralColors.gray[200],
+  },
+  metricStrip: {
+    padding: Spacing[4],
+    gap: Spacing[4],
+  },
+  pageHeader: {
+    paddingVertical: Spacing[4],
+    paddingHorizontal: Spacing[4],
+    titleSize: Typography.fontSize['xl'],
+    subtitleSize: Typography.fontSize.sm,
+  },
 } as const;
 
-// Updated Colors object for backward compatibility
+// Shipment lifecycle status map — single source of truth
+export const StatusColorMap = {
+  pending:       { bg: SemanticColors.warning[50],  text: SemanticColors.warning[700],  border: SemanticColors.warning[500] },
+  quote_pending: { bg: SemanticColors.warning[50],  text: SemanticColors.warning[700],  border: SemanticColors.warning[500] },
+  accepted:      { bg: SemanticColors.info[50],     text: SemanticColors.info[700],     border: SemanticColors.info[500] },
+  assigned:      { bg: SemanticColors.info[50],     text: SemanticColors.info[700],     border: SemanticColors.info[500] },
+  picked_up:     { bg: BrandColors.primary[50],     text: BrandColors.primary[800],     border: BrandColors.primary[500] },
+  in_transit:    { bg: BrandColors.primary[50],     text: BrandColors.primary[800],     border: BrandColors.primary[500] },
+  delivered:     { bg: SemanticColors.success[50],   text: SemanticColors.success[700],  border: SemanticColors.success[500] },
+  completed:     { bg: SemanticColors.success[50],   text: SemanticColors.success[700],  border: SemanticColors.success[500] },
+  cancelled:     { bg: SemanticColors.error[50],     text: SemanticColors.error[700],    border: SemanticColors.error[500] },
+  failed:        { bg: SemanticColors.error[50],     text: SemanticColors.error[700],    border: SemanticColors.error[500] },
+  draft:         { bg: SemanticColors.neutral[50],   text: SemanticColors.neutral[700],  border: SemanticColors.neutral[500] },
+  expired:       { bg: SemanticColors.neutral[50],   text: SemanticColors.neutral[700],  border: SemanticColors.neutral[500] },
+} as const;
+
+export type ShipmentStatus = keyof typeof StatusColorMap;
+
+// Colors object for backward compatibility
 export const Colors = {
   // Brand colors
   primary: BrandColors.primary[500],
@@ -290,17 +355,17 @@ export const Colors = {
   error: SemanticColors.error[500],
   info: SemanticColors.info[500],
 
-  // Shipment status colors
+  // Shipment status colors (backward compat)
   status: {
-    pending: BrandColors.secondary[400],
-    accepted: BrandColors.primary[300],
-    picked_up: BrandColors.primary[300],
-    in_transit: BrandColors.primary[500],
+    pending: SemanticColors.warning[500],
+    accepted: SemanticColors.info[500],
+    picked_up: BrandColors.primary[500],
+    in_transit: BrandColors.primary[600],
     delivered: SemanticColors.success[500],
     cancelled: SemanticColors.error[500],
   },
 
-  // Design system colors
+  // Design system references
   brand: BrandColors,
   neutral: NeutralColors,
   semantic: SemanticColors,
@@ -315,4 +380,5 @@ export default {
   Duration,
   ZIndex,
   ComponentTokens,
+  StatusColorMap,
 };

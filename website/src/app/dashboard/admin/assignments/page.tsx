@@ -268,7 +268,7 @@ export default function AdminAssignmentsPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500"></div>
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-500"></div>
       </div>
     )
   }
@@ -282,20 +282,20 @@ export default function AdminAssignmentsPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Job Assignments</h1>
+          <h1 className="text-lg font-semibold text-gray-900">Job Assignments</h1>
           <p className="text-gray-600 mt-1">AI-powered dispatch or manual assignment</p>
         </div>
         <div className="flex gap-3">
-          <div className="flex bg-gray-100 rounded-lg p-1">
+          <div className="flex bg-gray-100 rounded-md p-1">
             <button
               onClick={() => setMode('benji')}
               className={`px-4 py-2 rounded-md font-medium text-sm transition-all flex items-center gap-2 ${
                 mode === 'benji'
-                  ? 'bg-gradient-to-r from-teal-600 to-purple-600 text-white shadow-md'
+                  ? 'bg-purple-500 text-white'
                   : 'text-gray-700 hover:text-gray-900'
               }`}
             >
@@ -306,7 +306,7 @@ export default function AdminAssignmentsPage() {
               onClick={() => setMode('manual')}
               className={`px-4 py-2 rounded-md font-medium text-sm transition-all ${
                 mode === 'manual'
-                  ? 'bg-white text-gray-900 shadow-md'
+                  ? 'bg-white text-gray-900'
                   : 'text-gray-700 hover:text-gray-900'
               }`}
             >
@@ -329,31 +329,31 @@ export default function AdminAssignmentsPage() {
         <>
           {/* Stats */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="bg-blue-50 rounded-lg p-4 border border-blue-200">
+            <div className="bg-purple-50 rounded-md p-4 border border-purple-200">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-blue-600 font-medium">Pending Shipments</p>
-                  <p className="text-2xl font-bold text-blue-900">{shipments.length}</p>
+                  <p className="text-sm text-purple-500 font-medium">Pending Shipments</p>
+                  <p className="text-lg font-semibold text-purple-900">{shipments.length}</p>
                 </div>
-                <Package className="h-8 w-8 text-blue-500" />
+                <Package className="h-8 w-8 text-purple-500" />
               </div>
             </div>
-            <div className="bg-green-50 rounded-lg p-4 border border-green-200">
+            <div className="bg-green-50 rounded-md p-4 border border-green-200">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm text-green-600 font-medium">Total Applications</p>
-                  <p className="text-2xl font-bold text-green-900">
+                  <p className="text-lg font-semibold text-green-900">
                     {Object.values(applications).reduce((sum, apps) => sum + apps.length, 0)}
                   </p>
                 </div>
                 <User className="h-8 w-8 text-green-500" />
               </div>
             </div>
-            <div className="bg-purple-50 rounded-lg p-4 border border-purple-200">
+            <div className="bg-purple-50 rounded-md p-4 border border-purple-200">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm text-purple-600 font-medium">Available Drivers</p>
-                  <p className="text-2xl font-bold text-purple-900">{availableDrivers.length}</p>
+                  <p className="text-lg font-semibold text-purple-900">{availableDrivers.length}</p>
                 </div>
                 <User className="h-8 w-8 text-purple-500" />
               </div>
@@ -363,8 +363,8 @@ export default function AdminAssignmentsPage() {
       {/* Shipments List */}
       <div className="space-y-4">
         {shipments.length === 0 ? (
-          <div className="bg-white rounded-xl p-12 text-center border border-gray-200">
-            <Package className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+          <div className="bg-white rounded-md p-12 text-center border border-gray-200">
+            <Package className="h-8 w-8 text-gray-400 mx-auto mb-4" />
             <h3 className="text-lg font-semibold text-gray-900 mb-2">No Pending Shipments</h3>
             <p className="text-gray-600">All shipments have been assigned to drivers.</p>
           </div>
@@ -375,9 +375,9 @@ export default function AdminAssignmentsPage() {
             const isExpanded = expandedShipment === shipment.id
 
             return (
-              <div key={shipment.id} className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+              <div key={shipment.id} className="bg-white rounded-md border border-gray-200 overflow-hidden">
                 {/* Shipment Header */}
-                <div className="p-6">
+                <div className="p-4">
                   <div className="flex items-start justify-between mb-4">
                     <div className="flex-1">
                       <div className="flex items-center gap-3 mb-2">
@@ -408,7 +408,7 @@ export default function AdminAssignmentsPage() {
                       </div>
                     </div>
                     <div className="text-right ml-4">
-                      <p className="text-2xl font-bold text-green-600">
+                      <p className="text-lg font-semibold text-green-600">
                         ${shipment.estimated_price.toFixed(2)}
                       </p>
                       <p className="text-sm text-gray-600">{shipment.distance} miles</p>
@@ -454,16 +454,16 @@ export default function AdminAssignmentsPage() {
 
                 {/* Applications List */}
                 {isExpanded && pendingApps.length > 0 && (
-                  <div className="border-t border-gray-200 bg-gray-50 p-6">
+                  <div className="border-t border-gray-200 bg-gray-50 p-4">
                     <h4 className="font-semibold text-gray-900 mb-4">Driver Applications</h4>
                     <div className="space-y-3">
                       {pendingApps.map((app) => (
-                        <div key={app.id} className="bg-white rounded-lg p-4 border border-gray-200">
+                        <div key={app.id} className="bg-white rounded-md p-4 border border-gray-200">
                           <div className="flex items-center justify-between">
                             <div className="flex items-center gap-4">
-                              <div className="h-12 w-12 rounded-full bg-gray-200 flex items-center justify-center">
+                              <div className="h-8 w-8 rounded-full bg-gray-200 flex items-center justify-center">
                                 {app.driver.avatar_url ? (
-                                  <img src={app.driver.avatar_url} alt="" className="h-12 w-12 rounded-full" />
+                                  <img src={app.driver.avatar_url} alt="" className="h-8 w-8 rounded-full" />
                                 ) : (
                                   <User className="h-6 w-6 text-gray-500" />
                                 )}
@@ -536,19 +536,19 @@ export default function AdminAssignmentsPage() {
       {/* Direct Assignment Modal */}
       {showDriverModal && selectedShipment && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-xl max-w-2xl w-full max-h-[80vh] overflow-hidden">
-            <div className="p-6 border-b border-gray-200">
-              <h3 className="text-xl font-semibold text-gray-900">Select Driver to Assign</h3>
+          <div className="bg-white rounded-md max-w-2xl w-full max-h-[80vh] overflow-hidden">
+            <div className="p-4 border-b border-gray-200">
+              <h3 className="text-sm font-semibold text-gray-900">Select Driver to Assign</h3>
             </div>
-            <div className="p-6 overflow-y-auto max-h-[60vh]">
+            <div className="p-4 overflow-y-auto max-h-[60vh]">
               <div className="space-y-3">
                 {availableDrivers.map((driver) => (
-                  <div key={driver.id} className="border border-gray-200 rounded-lg p-4 hover:border-orange-500 cursor-pointer">
+                  <div key={driver.id} className="border border-gray-200 rounded-md p-4 hover:border-orange-500 cursor-pointer">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-4">
-                        <div className="h-12 w-12 rounded-full bg-gray-200 flex items-center justify-center">
+                        <div className="h-8 w-8 rounded-full bg-gray-200 flex items-center justify-center">
                           {driver.avatar_url ? (
-                            <img src={driver.avatar_url} alt="" className="h-12 w-12 rounded-full" />
+                            <img src={driver.avatar_url} alt="" className="h-8 w-8 rounded-full" />
                           ) : (
                             <User className="h-6 w-6 text-gray-500" />
                           )}
@@ -578,7 +578,7 @@ export default function AdminAssignmentsPage() {
                 ))}
               </div>
             </div>
-            <div className="p-6 border-t border-gray-200">
+            <div className="p-4 border-t border-gray-200">
               <Button
                 onClick={() => {
                   setShowDriverModal(false)

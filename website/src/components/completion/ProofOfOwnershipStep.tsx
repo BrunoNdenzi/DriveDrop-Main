@@ -111,9 +111,9 @@ export default function ProofOfOwnershipStep({ shipmentData, documents, onDocume
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {/* Instructions */}
-      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+      <div className="bg-blue-50 border border-blue-200 rounded-md p-4">
         <div className="flex items-start gap-3">
           <AlertCircle className="h-5 w-5 text-blue-600 mt-0.5 flex-shrink-0" />
           <div className="text-sm text-blue-900">
@@ -129,7 +129,7 @@ export default function ProofOfOwnershipStep({ shipmentData, documents, onDocume
       </div>
 
       {/* Vehicle Info */}
-      <div className="bg-gray-50 rounded-lg p-4">
+      <div className="bg-gray-50 rounded-md p-4">
         <h3 className="font-semibold text-gray-900 mb-2">Vehicle Information:</h3>
         <p className="text-gray-700">
           {shipmentData.vehicleYear} {shipmentData.vehicleMake} {shipmentData.vehicleModel}
@@ -147,22 +147,22 @@ export default function ProofOfOwnershipStep({ shipmentData, documents, onDocume
             <div
               key={docType.id}
               className={`
-                p-4 border-2 rounded-lg
+                p-4 border-2 rounded-md
                 ${docType.required 
-                  ? 'border-teal-200 bg-teal-50' 
+                  ? 'border-blue-200 bg-blue-50' 
                   : 'border-gray-200 bg-gray-50'
                 }
               `}
             >
               <div className="flex items-start gap-3">
-                <FileText className={`h-5 w-5 mt-0.5 ${docType.required ? 'text-teal-600' : 'text-gray-400'}`} />
+                <FileText className={`h-5 w-5 mt-0.5 ${docType.required ? 'text-blue-500' : 'text-gray-400'}`} />
                 <div className="flex-1">
                   <div className="flex items-center gap-2">
                     <h4 className="font-semibold text-gray-900 text-sm">
                       {docType.title}
                     </h4>
                     {docType.required && (
-                      <span className="text-xs bg-teal-600 text-white px-2 py-0.5 rounded-full">
+                      <span className="text-xs bg-blue-500 text-white px-2 py-0.5 rounded-full">
                         Required
                       </span>
                     )}
@@ -184,17 +184,17 @@ export default function ProofOfOwnershipStep({ shipmentData, documents, onDocume
       <div
         {...getRootProps()}
         className={`
-          border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-all
+          border-2 border-dashed rounded-md p-4 text-center cursor-pointer transition-all
           ${isDragActive 
-            ? 'border-teal-500 bg-teal-50' 
-            : 'border-gray-300 hover:border-teal-400 hover:bg-gray-50'
+            ? 'border-blue-500 bg-blue-50' 
+            : 'border-gray-300 hover:border-blue-400 hover:bg-gray-50'
           }
         `}
       >
         <input {...getInputProps()} />
-        <Upload className="h-12 w-12 mx-auto mb-4 text-gray-400" />
+        <Upload className="h-8 w-8 mx-auto mb-4 text-gray-400" />
         {isDragActive ? (
-          <p className="text-teal-600 font-medium">Drop documents here...</p>
+          <p className="text-blue-500 font-medium">Drop documents here...</p>
         ) : (
           <>
             <p className="text-gray-900 font-medium mb-2">
@@ -229,9 +229,9 @@ export default function ProofOfOwnershipStep({ shipmentData, documents, onDocume
               return (
                 <div
                   key={index}
-                  className="flex items-center gap-4 p-4 bg-gray-50 border border-gray-200 rounded-lg hover:bg-gray-100 transition-colors"
+                  className="flex items-center gap-4 p-4 bg-gray-50 border border-gray-200 rounded-md hover:bg-gray-100 transition-colors"
                 >
-                  <div className={`p-3 rounded-lg ${isPDF ? 'bg-red-100' : 'bg-blue-100'}`}>
+                  <div className={`p-3 rounded-md ${isPDF ? 'bg-red-100' : 'bg-blue-100'}`}>
                     <File className={`h-6 w-6 ${isPDF ? 'text-red-600' : 'text-blue-600'}`} />
                   </div>
                   <div className="flex-1 min-w-0">
@@ -244,7 +244,7 @@ export default function ProofOfOwnershipStep({ shipmentData, documents, onDocume
                   </div>
                   <button
                     onClick={() => removeDocument(index)}
-                    className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                    className="p-2 text-red-600 hover:bg-red-50 rounded-md transition-colors"
                   >
                     <X className="h-5 w-5" />
                   </button>
@@ -256,9 +256,9 @@ export default function ProofOfOwnershipStep({ shipmentData, documents, onDocume
       )}
 
       {/* Security Notice */}
-      <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+      <div className="bg-gray-50 border border-gray-200 rounded-md p-4">
         <div className="flex items-start gap-3">
-          <div className="p-2 bg-gray-200 rounded-lg">
+          <div className="p-2 bg-gray-200 rounded-md">
             <svg className="h-5 w-5 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
             </svg>
@@ -276,7 +276,7 @@ export default function ProofOfOwnershipStep({ shipmentData, documents, onDocume
 
       {uploading && (
         <div className="text-center py-4">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-teal-600 mx-auto"></div>
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto"></div>
           <p className="text-sm text-gray-600 mt-2">Uploading documents...</p>
         </div>
       )}

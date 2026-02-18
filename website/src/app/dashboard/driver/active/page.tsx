@@ -198,9 +198,9 @@ export default function DriverActiveDeliveriesPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="flex items-center justify-center py-12">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-teal-600 mx-auto mb-4"></div>
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-amber-500 mx-auto mb-4"></div>
           <p className="text-gray-600">Loading active deliveries...</p>
         </div>
       </div>
@@ -208,13 +208,13 @@ export default function DriverActiveDeliveriesPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="space-y-4">
       {/* Header */}
-      <div className="bg-white border-b sticky top-0 z-10 shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div className="bg-white border-b">
+        <div className="px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">Active Deliveries</h1>
+              <h1 className="text-lg font-semibold text-gray-900">Active Deliveries</h1>
               <p className="text-sm text-gray-600">{deliveries.length} active job{deliveries.length !== 1 ? 's' : ''}</p>
             </div>
             <Link href="/dashboard/driver">
@@ -226,24 +226,24 @@ export default function DriverActiveDeliveriesPage() {
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="px-4 sm:px-6 lg:px-8 py-4">
         {deliveries.length === 0 ? (
-          <div className="bg-white rounded-lg shadow-sm p-12 text-center border border-gray-200">
-            <Truck className="h-16 w-16 text-gray-300 mx-auto mb-4" />
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">
+          <div className="bg-white rounded-md p-8 text-center border border-gray-200">
+            <Truck className="h-10 w-10 text-gray-300 mx-auto mb-4" />
+            <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-900 mb-2">
               No Active Deliveries
             </h3>
             <p className="text-gray-600 mb-6">
               You don't have any active deliveries. Browse available jobs to get started.
             </p>
             <Link href="/dashboard/driver/jobs">
-              <Button className="bg-teal-600 hover:bg-teal-700">
+              <Button className="bg-amber-500 hover:bg-amber-600">
                 Browse Available Jobs
               </Button>
             </Link>
           </div>
         ) : (
-          <div className="space-y-6">
+          <div className="space-y-4">
             {deliveries.map((delivery) => {
               const nextStatus = getNextStatus(delivery.status)
               const statusColor = getStatusColor(delivery.status)
@@ -252,7 +252,7 @@ export default function DriverActiveDeliveriesPage() {
               return (
                 <div
                   key={delivery.id}
-                  className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden"
+                  className="bg-white rounded-md border border-gray-200 overflow-hidden"
                 >
                   {/* Header with Status */}
                   <div className={`bg-${statusColor}-50 border-b border-${statusColor}-100 p-4`}>
@@ -266,7 +266,7 @@ export default function DriverActiveDeliveriesPage() {
                         </span>
                       </div>
                       <div className="text-right">
-                        <p className="text-2xl font-bold text-teal-600">
+                        <p className="text-lg font-bold text-amber-500">
                           ${(delivery.estimated_price * 0.8).toFixed(2)}
                         </p>
                         <p className="text-xs text-gray-500">Your earnings</p>
@@ -274,13 +274,13 @@ export default function DriverActiveDeliveriesPage() {
                     </div>
                   </div>
 
-                  <div className="p-6">
+                  <div className="p-4">
                     {/* Vehicle Info */}
                     <div className="mb-6">
-                      <h3 className="text-xl font-semibold text-gray-900 mb-3">
+                      <h3 className="text-sm font-semibold text-gray-900 mb-3">
                         {delivery.title || `${delivery.vehicle_make} ${delivery.vehicle_model} ${delivery.vehicle_year}`}
                       </h3>
-                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 bg-gray-50 rounded-lg p-4">
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 bg-gray-50 rounded-md p-4">
                         <div>
                           <p className="text-xs text-gray-500 mb-1">Type</p>
                           <p className="text-sm font-medium text-gray-900 capitalize">{delivery.vehicle_type}</p>
@@ -302,7 +302,7 @@ export default function DriverActiveDeliveriesPage() {
 
                     {/* Client Info */}
                     {client && (
-                      <div className="mb-6 bg-blue-50 rounded-lg p-4">
+                      <div className="mb-6 bg-blue-50 rounded-md p-4">
                         <h4 className="text-sm font-semibold text-gray-900 mb-2">Client Information</h4>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                           <p className="text-sm text-gray-700">
@@ -380,7 +380,7 @@ export default function DriverActiveDeliveriesPage() {
 
                     {/* Photo Upload Reminder */}
                     {(delivery.status === 'picked_up' || delivery.status === 'delivered') && (
-                      <div className="mt-4 bg-orange-50 border border-orange-200 rounded-lg p-4">
+                      <div className="mt-4 bg-orange-50 border border-orange-200 rounded-md p-4">
                         <div className="flex items-start gap-3">
                           <AlertCircle className="h-5 w-5 text-orange-600 flex-shrink-0 mt-0.5" />
                           <div className="flex-1">
@@ -405,9 +405,9 @@ export default function DriverActiveDeliveriesPage() {
 
         {/* Info Card */}
         {deliveries.length > 0 && (
-          <div className="mt-8 bg-blue-50 border border-blue-200 rounded-lg p-6">
+          <div className="mt-8 bg-blue-50 border border-blue-200 rounded-md p-4">
             <div className="flex items-start gap-4">
-              <div className="p-3 bg-blue-500 rounded-lg">
+              <div className="p-3 bg-blue-500 rounded-md">
                 <Camera className="h-6 w-6 text-white" />
               </div>
               <div>

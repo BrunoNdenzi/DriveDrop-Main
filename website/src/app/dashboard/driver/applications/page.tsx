@@ -129,48 +129,48 @@ export default function DriverApplicationsPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500"></div>
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-amber-500"></div>
       </div>
     )
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {/* Header */}
       <div>
-        <h1 className="text-3xl font-bold text-gray-900">My Job Applications</h1>
+        <h1 className="text-lg font-semibold text-gray-900">My Job Applications</h1>
         <p className="text-gray-600 mt-1">Track your shipment applications and their status</p>
       </div>
 
       {/* Stats */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <div className="bg-white rounded-lg p-4 border border-gray-200">
+        <div className="bg-white rounded-md p-4 border border-gray-200">
           <p className="text-sm text-gray-600 font-medium">Total Applications</p>
-          <p className="text-2xl font-bold text-gray-900 mt-1">{applications.length}</p>
+          <p className="text-lg font-bold text-gray-900 mt-1">{applications.length}</p>
         </div>
-        <div className="bg-yellow-50 rounded-lg p-4 border border-yellow-200">
+        <div className="bg-yellow-50 rounded-md p-4 border border-yellow-200">
           <p className="text-sm text-yellow-600 font-medium">Pending Review</p>
-          <p className="text-2xl font-bold text-yellow-900 mt-1">{pendingCount}</p>
+          <p className="text-lg font-bold text-yellow-900 mt-1">{pendingCount}</p>
         </div>
-        <div className="bg-green-50 rounded-lg p-4 border border-green-200">
+        <div className="bg-green-50 rounded-md p-4 border border-green-200">
           <p className="text-sm text-green-600 font-medium">Approved</p>
-          <p className="text-2xl font-bold text-green-900 mt-1">{acceptedCount}</p>
+          <p className="text-lg font-bold text-green-900 mt-1">{acceptedCount}</p>
         </div>
-        <div className="bg-red-50 rounded-lg p-4 border border-red-200">
+        <div className="bg-red-50 rounded-md p-4 border border-red-200">
           <p className="text-sm text-red-600 font-medium">Rejected</p>
-          <p className="text-2xl font-bold text-red-900 mt-1">{rejectedCount}</p>
+          <p className="text-lg font-bold text-red-900 mt-1">{rejectedCount}</p>
         </div>
       </div>
 
       {/* Filter Tabs */}
-      <div className="bg-white rounded-lg border border-gray-200 p-1 inline-flex">
+      <div className="bg-white rounded-md border border-gray-200 p-1 inline-flex">
         {(['all', 'pending', 'accepted', 'rejected'] as const).map((tab) => (
           <button
             key={tab}
             onClick={() => setFilter(tab)}
             className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
               filter === tab
-                ? 'bg-orange-500 text-white'
+                ? 'bg-amber-500 text-white'
                 : 'text-gray-600 hover:text-gray-900'
             }`}
           >
@@ -182,8 +182,8 @@ export default function DriverApplicationsPage() {
       {/* Applications List */}
       <div className="space-y-4">
         {filteredApplications.length === 0 ? (
-          <div className="bg-white rounded-xl p-12 text-center border border-gray-200">
-            <Clock className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+          <div className="bg-white rounded-md p-8 text-center border border-gray-200">
+            <Clock className="h-8 w-8 text-gray-400 mx-auto mb-4" />
             <h3 className="text-lg font-semibold text-gray-900 mb-2">
               {filter === 'all' ? 'No Applications Yet' : `No ${filter} Applications`}
             </h3>
@@ -198,7 +198,7 @@ export default function DriverApplicationsPage() {
           </div>
         ) : (
           filteredApplications.map((app) => (
-            <div key={app.id} className="bg-white rounded-xl p-6 border border-gray-200 hover:shadow-md transition-shadow">
+            <div key={app.id} className="bg-white rounded-md p-4 border border-gray-200">
               <div className="flex items-start justify-between mb-4">
                 <div className="flex-1">
                   <div className="flex items-center gap-3 mb-2">
@@ -222,7 +222,7 @@ export default function DriverApplicationsPage() {
                 </div>
                 <div className="text-right ml-4">
                   <p className="text-sm text-gray-600">Your Earnings (90%)</p>
-                  <p className="text-2xl font-bold text-green-600">
+                  <p className="text-lg font-bold text-green-600">
                     ${(app.shipment.estimated_price * 0.9).toFixed(2)}
                   </p>
                   <p className="text-sm text-gray-600 mt-1">
@@ -263,7 +263,7 @@ export default function DriverApplicationsPage() {
 
               {/* Actions */}
               {app.status === 'accepted' && app.shipment.status === 'assigned' && (
-                <div className="mt-4 p-4 bg-green-50 rounded-lg border border-green-200">
+                <div className="mt-4 p-4 bg-green-50 rounded-md border border-green-200">
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="font-semibold text-green-900">✓ You've been assigned to this shipment!</p>
@@ -279,7 +279,7 @@ export default function DriverApplicationsPage() {
               )}
 
               {app.status === 'pending' && (
-                <div className="mt-4 p-4 bg-yellow-50 rounded-lg border border-yellow-200">
+                <div className="mt-4 p-4 bg-yellow-50 rounded-md border border-yellow-200">
                   <p className="text-sm text-yellow-800">
                     <strong>Pending Review:</strong> An admin is reviewing your application. You'll be notified once a decision is made.
                   </p>
@@ -287,7 +287,7 @@ export default function DriverApplicationsPage() {
               )}
 
               {app.status === 'rejected' && (
-                <div className="mt-4 p-4 bg-red-50 rounded-lg border border-red-200">
+                <div className="mt-4 p-4 bg-red-50 rounded-md border border-red-200">
                   <p className="text-sm text-red-800">
                     <strong>Application Rejected:</strong> This application was not accepted. The shipment may have been assigned to another driver.
                   </p>

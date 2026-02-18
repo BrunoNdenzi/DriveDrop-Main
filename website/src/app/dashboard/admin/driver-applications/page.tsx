@@ -252,41 +252,41 @@ export default function AdminDriverApplicationsPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500"></div>
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-500"></div>
       </div>
     )
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {/* Header */}
       <div>
-        <h1 className="text-3xl font-bold text-gray-900">Driver Applications</h1>
+        <h1 className="text-lg font-semibold text-gray-900">Driver Applications</h1>
         <p className="text-gray-600 mt-1">Review and approve driver applications to join the platform</p>
       </div>
 
       {/* Stats */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <div className="bg-white rounded-lg p-4 border border-gray-200">
+        <div className="bg-white rounded-md p-4 border border-gray-200">
           <p className="text-sm text-gray-600 font-medium">Total Applications</p>
-          <p className="text-2xl font-bold text-gray-900 mt-1">{applications.length}</p>
+          <p className="text-lg font-semibold text-gray-900 mt-1">{applications.length}</p>
         </div>
-        <div className="bg-yellow-50 rounded-lg p-4 border border-yellow-200">
+        <div className="bg-yellow-50 rounded-md p-4 border border-yellow-200">
           <p className="text-sm text-yellow-600 font-medium">Pending Review</p>
-          <p className="text-2xl font-bold text-yellow-900 mt-1">{pendingCount}</p>
+          <p className="text-lg font-semibold text-yellow-900 mt-1">{pendingCount}</p>
         </div>
-        <div className="bg-green-50 rounded-lg p-4 border border-green-200">
+        <div className="bg-green-50 rounded-md p-4 border border-green-200">
           <p className="text-sm text-green-600 font-medium">Approved</p>
-          <p className="text-2xl font-bold text-green-900 mt-1">{approvedCount}</p>
+          <p className="text-lg font-semibold text-green-900 mt-1">{approvedCount}</p>
         </div>
-        <div className="bg-red-50 rounded-lg p-4 border border-red-200">
+        <div className="bg-red-50 rounded-md p-4 border border-red-200">
           <p className="text-sm text-red-600 font-medium">Rejected</p>
-          <p className="text-2xl font-bold text-red-900 mt-1">{rejectedCount}</p>
+          <p className="text-lg font-semibold text-red-900 mt-1">{rejectedCount}</p>
         </div>
       </div>
 
       {/* Filter Tabs */}
-      <div className="bg-white rounded-lg border border-gray-200 p-1 inline-flex">
+      <div className="bg-white rounded-md border border-gray-200 p-1 inline-flex">
         {(['all', 'pending', 'approved', 'rejected'] as const).map((tab) => (
           <button
             key={tab}
@@ -305,9 +305,9 @@ export default function AdminDriverApplicationsPage() {
       {/* Applications List */}
       <div className="space-y-4">
         {applications.length === 0 ? (
-          <div className="bg-white rounded-xl p-12 text-center border border-gray-200">
-            <Users className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">
+          <div className="bg-white rounded-md p-12 text-center border border-gray-200">
+            <Users className="h-8 w-8 text-gray-400 mx-auto mb-4" />
+            <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-900 mb-2">
               No {filter !== 'all' ? filter : ''} Applications
             </h3>
             <p className="text-gray-600">
@@ -318,11 +318,11 @@ export default function AdminDriverApplicationsPage() {
           </div>
         ) : (
           applications.map((app) => (
-            <div key={app.id} className="bg-white rounded-xl p-6 border border-gray-200">
+            <div key={app.id} className="bg-white rounded-md p-4 border border-gray-200">
               <div className="flex items-start justify-between mb-4">
                 <div className="flex-1">
                   <div className="flex items-center gap-3 mb-2">
-                    <h3 className="text-xl font-bold text-gray-900">
+                    <h3 className="text-sm font-semibold text-gray-900">
                       {app.full_name}
                     </h3>
                     {getStatusBadge(app.status)}
@@ -367,7 +367,7 @@ export default function AdminDriverApplicationsPage() {
               </div>
 
               {/* License & Insurance */}
-              <div className="bg-gray-50 rounded-lg p-4 mb-4">
+              <div className="bg-gray-50 rounded-md p-4 mb-4">
                 <h4 className="font-semibold text-gray-900 mb-2">License & Insurance</h4>
                 <div className="grid grid-cols-2 gap-4 text-sm">
                   <div>
@@ -394,7 +394,7 @@ export default function AdminDriverApplicationsPage() {
               </div>
 
               {/* Documents */}
-              <div className="bg-blue-50 rounded-lg p-4 mb-4 border border-blue-200">
+              <div className="bg-blue-50 rounded-md p-4 mb-4 border border-blue-200">
                 <h4 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
                   <FileText className="h-4 w-4" />
                   Submitted Documents
@@ -407,7 +407,7 @@ export default function AdminDriverApplicationsPage() {
                     {app.license_front_url && (
                       <button
                         onClick={() => viewDocument(app.license_front_url!)}
-                        className="text-blue-600 hover:text-blue-700"
+                        className="text-purple-500 hover:text-purple-600"
                       >
                         <Eye className="h-4 w-4" />
                       </button>
@@ -420,7 +420,7 @@ export default function AdminDriverApplicationsPage() {
                     {app.license_back_url && (
                       <button
                         onClick={() => viewDocument(app.license_back_url!)}
-                        className="text-blue-600 hover:text-blue-700"
+                        className="text-purple-500 hover:text-purple-600"
                       >
                         <Eye className="h-4 w-4" />
                       </button>
@@ -433,7 +433,7 @@ export default function AdminDriverApplicationsPage() {
                     {app.insurance_proof_url && (
                       <button
                         onClick={() => viewDocument(app.insurance_proof_url!)}
-                        className="text-blue-600 hover:text-blue-700"
+                        className="text-purple-500 hover:text-purple-600"
                       >
                         <Eye className="h-4 w-4" />
                       </button>
@@ -446,7 +446,7 @@ export default function AdminDriverApplicationsPage() {
                     {app.proof_of_address_url && (
                       <button
                         onClick={() => viewDocument(app.proof_of_address_url!)}
-                        className="text-blue-600 hover:text-blue-700"
+                        className="text-purple-500 hover:text-purple-600"
                       >
                         <Eye className="h-4 w-4" />
                       </button>
@@ -456,7 +456,7 @@ export default function AdminDriverApplicationsPage() {
               </div>
 
               {/* Background Check */}
-              <div className="flex items-center gap-2 mb-4 p-4 bg-gray-50 rounded-lg border border-gray-200">
+              <div className="flex items-center gap-2 mb-4 p-4 bg-gray-50 rounded-md border border-gray-200">
                 <Shield className="h-5 w-5 text-gray-600" />
                 <span className="text-sm text-gray-700 font-medium">Background Check Status:</span>
                 {getBackgroundCheckBadge(app.background_check_status)}
@@ -464,7 +464,7 @@ export default function AdminDriverApplicationsPage() {
 
               {/* Rejection Reason (if rejected) */}
               {app.status === 'rejected' && app.rejection_reason && (
-                <div className="bg-red-50 rounded-lg p-4 mb-4 border border-red-200">
+                <div className="bg-red-50 rounded-md p-4 mb-4 border border-red-200">
                   <p className="text-sm font-semibold text-red-900 mb-1">Rejection Reason:</p>
                   <p className="text-sm text-red-700">{app.rejection_reason}</p>
                 </div>
@@ -479,7 +479,7 @@ export default function AdminDriverApplicationsPage() {
                         value={rejectionReason}
                         onChange={(e) => setRejectionReason(e.target.value)}
                         placeholder="Enter rejection reason (required)..."
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-orange-500 focus:border-transparent"
                         rows={3}
                       />
                       <div className="flex items-center gap-3">

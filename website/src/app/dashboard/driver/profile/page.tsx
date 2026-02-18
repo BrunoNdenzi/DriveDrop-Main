@@ -322,7 +322,7 @@ export default function DriverProfilePage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
+      <div className="flex items-center justify-center py-12">
         <div className="text-center">
           <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4 text-blue-600" />
           <p className="text-gray-600">Loading profile...</p>
@@ -332,10 +332,10 @@ export default function DriverProfilePage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-20">
+    <div className="space-y-4 bg-gray-50 pb-20">
       {/* Header */}
       <div className="bg-white border-b sticky top-0 z-10">
-        <div className="max-w-6xl mx-auto px-4 py-4">
+        <div className="px-4 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
               <OptimizedLink 
@@ -345,7 +345,7 @@ export default function DriverProfilePage() {
                 <ChevronLeft className="w-6 h-6" />
               </OptimizedLink>
               <div>
-                <h1 className="text-xl font-bold text-gray-900">Driver Profile</h1>
+                <h1 className="text-sm font-semibold text-gray-900">Driver Profile</h1>
                 <p className="text-sm text-gray-600">Manage your account and preferences</p>
               </div>
             </div>
@@ -355,7 +355,7 @@ export default function DriverProfilePage() {
 
       {/* Tabs */}
       <div className="bg-white border-b">
-        <div className="max-w-6xl mx-auto px-4">
+        <div className="px-4">
           <div className="flex space-x-6">
             {[
               { key: 'profile', label: 'Profile', icon: User },
@@ -383,12 +383,12 @@ export default function DriverProfilePage() {
         </div>
       </div>
 
-      <div className="max-w-6xl mx-auto px-4 py-6">
+      <div className="px-4 py-6">
         {/* Profile Tab */}
         {activeTab === 'profile' && (
-          <div className="space-y-6">
-            <div className="bg-white rounded-lg border p-6">
-              <h2 className="text-lg font-semibold text-gray-900 mb-6">Personal Information</h2>
+          <div className="space-y-4">
+            <div className="bg-white rounded-md border p-4">
+              <h2 className="text-xs font-semibold uppercase tracking-wide text-gray-900 mb-6">Personal Information</h2>
               
               <div className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -400,7 +400,7 @@ export default function DriverProfilePage() {
                       type="text"
                       value={firstName}
                       onChange={(e) => setFirstName(e.target.value)}
-                      className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      className="w-full px-3 py-2 border rounded-md focus:ring-1 focus:ring-amber-500 focus:border-transparent"
                     />
                   </div>
                   <div>
@@ -411,7 +411,7 @@ export default function DriverProfilePage() {
                       type="text"
                       value={lastName}
                       onChange={(e) => setLastName(e.target.value)}
-                      className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      className="w-full px-3 py-2 border rounded-md focus:ring-1 focus:ring-amber-500 focus:border-transparent"
                     />
                   </div>
                 </div>
@@ -424,7 +424,7 @@ export default function DriverProfilePage() {
                     type="tel"
                     value={phone}
                     onChange={(e) => setPhone(e.target.value)}
-                    className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="w-full px-3 py-2 border rounded-md focus:ring-1 focus:ring-amber-500 focus:border-transparent"
                   />
                 </div>
 
@@ -436,7 +436,7 @@ export default function DriverProfilePage() {
                     type="email"
                     value={email}
                     disabled
-                    className="w-full px-3 py-2 border rounded-lg bg-gray-50 text-gray-600 cursor-not-allowed"
+                    className="w-full px-3 py-2 border rounded-md bg-gray-50 text-gray-600 cursor-not-allowed"
                   />
                   <p className="text-xs text-gray-500 mt-1">Email cannot be changed</p>
                 </div>
@@ -444,7 +444,7 @@ export default function DriverProfilePage() {
                 <button
                   onClick={saveProfile}
                   disabled={saving}
-                  className="w-full bg-blue-600 text-white py-3 rounded-lg hover:bg-blue-700 disabled:bg-gray-300 font-medium flex items-center justify-center space-x-2"
+                  className="w-full bg-blue-600 text-white py-3 rounded-md hover:bg-blue-700 disabled:bg-gray-300 font-medium flex items-center justify-center space-x-2"
                 >
                   {saving ? (
                     <>
@@ -465,12 +465,12 @@ export default function DriverProfilePage() {
 
         {/* Vehicles Tab */}
         {activeTab === 'vehicles' && (
-          <div className="space-y-6">
+          <div className="space-y-4">
             <div className="flex items-center justify-between">
-              <h2 className="text-lg font-semibold text-gray-900">Your Vehicles</h2>
+              <h2 className="text-xs font-semibold uppercase tracking-wide text-gray-900">Your Vehicles</h2>
               <button
                 onClick={() => setShowAddVehicle(!showAddVehicle)}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center space-x-2"
+                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 flex items-center space-x-2"
               >
                 <Plus className="w-4 h-4" />
                 <span>Add Vehicle</span>
@@ -478,7 +478,7 @@ export default function DriverProfilePage() {
             </div>
 
             {showAddVehicle && (
-              <div className="bg-white rounded-lg border p-6">
+              <div className="bg-white rounded-md border p-4">
                 <h3 className="font-semibold text-gray-900 mb-4">Add New Vehicle</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <input
@@ -486,48 +486,48 @@ export default function DriverProfilePage() {
                     placeholder="Make *"
                     value={newVehicle.make || ''}
                     onChange={(e) => setNewVehicle(prev => ({ ...prev, make: e.target.value }))}
-                    className="px-3 py-2 border rounded-lg"
+                    className="px-3 py-2 border rounded-md"
                   />
                   <input
                     type="text"
                     placeholder="Model *"
                     value={newVehicle.model || ''}
                     onChange={(e) => setNewVehicle(prev => ({ ...prev, model: e.target.value }))}
-                    className="px-3 py-2 border rounded-lg"
+                    className="px-3 py-2 border rounded-md"
                   />
                   <input
                     type="number"
                     placeholder="Year *"
                     value={newVehicle.year || ''}
                     onChange={(e) => setNewVehicle(prev => ({ ...prev, year: parseInt(e.target.value) }))}
-                    className="px-3 py-2 border rounded-lg"
+                    className="px-3 py-2 border rounded-md"
                   />
                   <input
                     type="text"
                     placeholder="Color"
                     value={newVehicle.color || ''}
                     onChange={(e) => setNewVehicle(prev => ({ ...prev, color: e.target.value }))}
-                    className="px-3 py-2 border rounded-lg"
+                    className="px-3 py-2 border rounded-md"
                   />
                   <input
                     type="text"
                     placeholder="License Plate *"
                     value={newVehicle.license_plate || ''}
                     onChange={(e) => setNewVehicle(prev => ({ ...prev, license_plate: e.target.value.toUpperCase() }))}
-                    className="px-3 py-2 border rounded-lg"
+                    className="px-3 py-2 border rounded-md"
                   />
                   <input
                     type="date"
                     placeholder="Insurance Expiry"
                     value={newVehicle.insurance_expiry || ''}
                     onChange={(e) => setNewVehicle(prev => ({ ...prev, insurance_expiry: e.target.value }))}
-                    className="px-3 py-2 border rounded-lg"
+                    className="px-3 py-2 border rounded-md"
                   />
                 </div>
                 <div className="flex space-x-3 mt-4">
                   <button
                     onClick={addVehicle}
-                    className="flex-1 bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700"
+                    className="flex-1 bg-blue-600 text-white py-2 rounded-md hover:bg-blue-700"
                   >
                     Add Vehicle
                   </button>
@@ -536,7 +536,7 @@ export default function DriverProfilePage() {
                       setShowAddVehicle(false)
                       setNewVehicle({})
                     }}
-                    className="px-4 py-2 border rounded-lg hover:bg-gray-50"
+                    className="px-4 py-2 border rounded-md hover:bg-gray-50"
                   >
                     Cancel
                   </button>
@@ -547,10 +547,10 @@ export default function DriverProfilePage() {
             {vehicles.length > 0 ? (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {vehicles.map((vehicle) => (
-                  <div key={vehicle.id} className="bg-white rounded-lg border p-6">
+                  <div key={vehicle.id} className="bg-white rounded-md border p-4">
                     <div className="flex items-start justify-between mb-4">
                       <div className="flex items-center space-x-3">
-                        <div className="w-12 h-12 rounded-lg bg-blue-100 flex items-center justify-center">
+                        <div className="w-8 h-8 rounded-md bg-blue-100 flex items-center justify-center">
                           <Car className="w-6 h-6 text-blue-600" />
                         </div>
                         <div>
@@ -582,14 +582,14 @@ export default function DriverProfilePage() {
                       {!vehicle.is_primary && (
                         <button
                           onClick={() => setPrimaryVehicle(vehicle.id)}
-                          className="flex-1 px-3 py-2 border border-blue-600 text-blue-600 rounded-lg hover:bg-blue-50 text-sm"
+                          className="flex-1 px-3 py-2 border border-blue-600 text-blue-600 rounded-md hover:bg-blue-50 text-sm"
                         >
                           Set Primary
                         </button>
                       )}
                       <button
                         onClick={() => deleteVehicle(vehicle.id)}
-                        className="px-3 py-2 border border-red-600 text-red-600 rounded-lg hover:bg-red-50"
+                        className="px-3 py-2 border border-red-600 text-red-600 rounded-md hover:bg-red-50"
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>
@@ -598,8 +598,8 @@ export default function DriverProfilePage() {
                 ))}
               </div>
             ) : (
-              <div className="bg-white rounded-lg border p-12 text-center">
-                <Car className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+              <div className="bg-white rounded-md border p-12 text-center">
+                <Car className="w-8 h-8 text-gray-400 mx-auto mb-4" />
                 <p className="text-gray-600">No vehicles added yet</p>
                 <p className="text-sm text-gray-500 mt-1">Add a vehicle to start accepting deliveries</p>
               </div>
@@ -609,11 +609,11 @@ export default function DriverProfilePage() {
 
         {/* Settings Tab */}
         {activeTab === 'settings' && (
-          <div className="space-y-6">
-            <div className="bg-white rounded-lg border p-6">
-              <h2 className="text-lg font-semibold text-gray-900 mb-6">Delivery Settings</h2>
+          <div className="space-y-4">
+            <div className="bg-white rounded-md border p-4">
+              <h2 className="text-xs font-semibold uppercase tracking-wide text-gray-900 mb-6">Delivery Settings</h2>
               
-              <div className="space-y-6">
+              <div className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Availability Status
@@ -621,7 +621,7 @@ export default function DriverProfilePage() {
                   <select
                     value={settings.availability_status}
                     onChange={(e) => setSettings(prev => ({ ...prev, availability_status: e.target.value as any }))}
-                    className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 border rounded-md focus:ring-1 focus:ring-amber-500"
                   >
                     <option value="available">Available</option>
                     <option value="busy">Busy</option>
@@ -659,8 +659,8 @@ export default function DriverProfilePage() {
               </div>
             </div>
 
-            <div className="bg-white rounded-lg border p-6">
-              <h2 className="text-lg font-semibold text-gray-900 mb-6">Notifications</h2>
+            <div className="bg-white rounded-md border p-4">
+              <h2 className="text-xs font-semibold uppercase tracking-wide text-gray-900 mb-6">Notifications</h2>
               
               <div className="space-y-4">
                 {[
@@ -694,7 +694,7 @@ export default function DriverProfilePage() {
             <button
               onClick={saveSettings}
               disabled={saving}
-              className="w-full bg-blue-600 text-white py-3 rounded-lg hover:bg-blue-700 disabled:bg-gray-300 font-medium flex items-center justify-center space-x-2"
+              className="w-full bg-blue-600 text-white py-3 rounded-md hover:bg-blue-700 disabled:bg-gray-300 font-medium flex items-center justify-center space-x-2"
             >
               {saving ? (
                 <>
@@ -713,47 +713,47 @@ export default function DriverProfilePage() {
 
         {/* Stats Tab */}
         {activeTab === 'stats' && (
-          <div className="space-y-6">
+          <div className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              <div className="bg-white rounded-lg border p-6">
+              <div className="bg-white rounded-md border p-4">
                 <div className="flex items-center justify-between mb-2">
                   <h3 className="text-sm font-medium text-gray-600">Total Deliveries</h3>
                   <Car className="w-5 h-5 text-blue-600" />
                 </div>
-                <p className="text-3xl font-bold text-gray-900">{stats.total_deliveries}</p>
+                <p className="text-lg font-bold text-gray-900">{stats.total_deliveries}</p>
               </div>
 
-              <div className="bg-white rounded-lg border p-6">
+              <div className="bg-white rounded-md border p-4">
                 <div className="flex items-center justify-between mb-2">
                   <h3 className="text-sm font-medium text-gray-600">Total Earnings</h3>
                   <DollarSign className="w-5 h-5 text-green-600" />
                 </div>
-                <p className="text-3xl font-bold text-gray-900">${stats.total_earnings.toFixed(2)}</p>
+                <p className="text-lg font-bold text-gray-900">${stats.total_earnings.toFixed(2)}</p>
               </div>
 
-              <div className="bg-white rounded-lg border p-6">
+              <div className="bg-white rounded-md border p-4">
                 <div className="flex items-center justify-between mb-2">
                   <h3 className="text-sm font-medium text-gray-600">Average Rating</h3>
                   <Star className="w-5 h-5 text-yellow-500" />
                 </div>
-                <p className="text-3xl font-bold text-gray-900">{stats.average_rating.toFixed(1)}</p>
+                <p className="text-lg font-bold text-gray-900">{stats.average_rating.toFixed(1)}</p>
               </div>
 
-              <div className="bg-white rounded-lg border p-6">
+              <div className="bg-white rounded-md border p-4">
                 <div className="flex items-center justify-between mb-2">
                   <h3 className="text-sm font-medium text-gray-600">Completion Rate</h3>
                   <CheckCircle2 className="w-5 h-5 text-green-600" />
                 </div>
-                <p className="text-3xl font-bold text-gray-900">{stats.completion_rate.toFixed(0)}%</p>
+                <p className="text-lg font-bold text-gray-900">{stats.completion_rate.toFixed(0)}%</p>
               </div>
             </div>
 
-            <div className="bg-white rounded-lg border p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Distance Traveled</h3>
+            <div className="bg-white rounded-md border p-4">
+              <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-900 mb-4">Distance Traveled</h3>
               <div className="flex items-center space-x-3">
                 <MapPin className="w-8 h-8 text-blue-600" />
                 <div>
-                  <p className="text-3xl font-bold text-gray-900">{stats.total_distance.toLocaleString()}</p>
+                  <p className="text-lg font-bold text-gray-900">{stats.total_distance.toLocaleString()}</p>
                   <p className="text-gray-600">Total Miles</p>
                 </div>
               </div>

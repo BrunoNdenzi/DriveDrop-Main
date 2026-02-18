@@ -412,9 +412,9 @@ export default function TrackShipmentPage({ params }: { params: { id: string } }
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="flex items-center justify-center py-12">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-teal-600 mx-auto mb-4"></div>
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto mb-4"></div>
           <p className="text-gray-600">Loading tracking information...</p>
         </div>
       </div>
@@ -423,12 +423,12 @@ export default function TrackShipmentPage({ params }: { params: { id: string } }
 
   if (error || !shipment) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="min-h-[300px] flex items-center justify-center">
         <div className="text-center">
           <p className="text-red-600 mb-4">{error || 'Shipment not found'}</p>
           <button
             onClick={() => router.push('/dashboard/client/shipments')}
-            className="text-teal-600 hover:text-teal-700"
+            className="text-blue-500 hover:text-blue-600"
           >
             Back to Shipments
           </button>
@@ -440,19 +440,19 @@ export default function TrackShipmentPage({ params }: { params: { id: string } }
   const isTrackingActive = TRACKABLE_STATUSES.includes(shipment.status);
 
   return (
-    <div className="h-screen flex flex-col">
+    <div className="h-full flex flex-col">
       {/* Header */}
-      <div className="bg-white border-b px-6 py-4">
+      <div className="bg-white border-b px-4 py-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
             <button
               onClick={() => router.push(`/dashboard/client/shipments/${params.id}`)}
               className="text-gray-600 hover:text-gray-900"
             >
-              <ChevronLeft className="h-6 w-6" />
+              <ChevronLeft className="h-5 w-5" />
             </button>
             <div>
-              <h1 className="text-xl font-semibold text-gray-900">
+              <h1 className="text-sm font-semibold text-gray-900">
                 Track Shipment
               </h1>
               <p className="text-sm text-gray-600">
@@ -465,7 +465,7 @@ export default function TrackShipmentPage({ params }: { params: { id: string } }
             <div className="flex gap-3">
               <button
                 onClick={handleMessageDriver}
-                className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
+                className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50"
               >
                 <MessageCircle className="h-4 w-4" />
                 Message
@@ -473,7 +473,7 @@ export default function TrackShipmentPage({ params }: { params: { id: string } }
               {driver.phone && (
                 <button
                   onClick={handleCallDriver}
-                  className="flex items-center gap-2 px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700"
+                  className="flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600"
                 >
                   <Phone className="h-4 w-4" />
                   Call Driver
@@ -491,17 +491,17 @@ export default function TrackShipmentPage({ params }: { params: { id: string } }
         ) : (
           <div className="w-full h-full flex items-center justify-center bg-gray-100">
             <div className="text-center p-8">
-              <MapPin className="h-16 w-16 text-gray-400 mx-auto mb-4" />
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">
+              <MapPin className="h-10 w-10 text-gray-400 mx-auto mb-4" />
+              <h3 className="text-sm font-semibold text-gray-900 mb-2">
                 Live Tracking Not Available Yet
               </h3>
               <p className="text-gray-600 max-w-md">
                 Real-time GPS tracking will be available once your vehicle has been picked up.
                 This protects driver privacy during the pickup phase.
               </p>
-              <div className="mt-6 p-4 bg-white rounded-lg border border-gray-200 inline-block">
+              <div className="mt-6 p-4 bg-white rounded-md border border-gray-200 inline-block">
                 <p className="text-sm font-medium text-gray-700 mb-2">Current Status:</p>
-                <p className="text-lg font-semibold text-teal-600">
+                <p className="text-sm font-semibold text-blue-500">
                   {STATUS_LABELS[shipment.status] || shipment.status}
                 </p>
               </div>
@@ -510,20 +510,20 @@ export default function TrackShipmentPage({ params }: { params: { id: string } }
         )}
 
         {/* Info Panel */}
-        <div className="absolute bottom-0 left-0 right-0 bg-white shadow-lg border-t">
-          <div className="p-6">
+        <div className="absolute bottom-0 left-0 right-0 bg-white border-t">
+          <div className="p-4">
             {/* Driver Info */}
             {driver && (
-              <div className="flex items-center gap-4 mb-6 pb-6 border-b">
-                <div className="h-12 w-12 rounded-full bg-gray-200 flex items-center justify-center">
+              <div className="flex items-center gap-4 mb-4 pb-4 border-b">
+                <div className="h-9 w-9 rounded-full bg-gray-200 flex items-center justify-center">
                   {driver.avatar_url ? (
                     <img
                       src={driver.avatar_url}
                       alt={`${driver.first_name} ${driver.last_name}`}
-                      className="h-12 w-12 rounded-full object-cover"
+                      className="h-9 w-9 rounded-full object-cover"
                     />
                   ) : (
-                    <User className="h-6 w-6 text-gray-400" />
+                    <User className="h-5 w-5 text-gray-400" />
                   )}
                 </div>
                 <div>
@@ -537,10 +537,10 @@ export default function TrackShipmentPage({ params }: { params: { id: string } }
 
             {/* Stats */}
             {isTrackingActive && driverLocation && (
-              <div className="grid grid-cols-3 gap-4 mb-6">
+              <div className="grid grid-cols-3 gap-3 mb-4">
                 <div className="text-center">
                   <div className="flex items-center justify-center mb-2">
-                    <Clock className="h-5 w-5 text-teal-600" />
+                    <Clock className="h-5 w-5 text-blue-500" />
                   </div>
                   <p className="text-sm text-gray-600">ETA</p>
                   <p className="font-semibold text-gray-900">
@@ -550,7 +550,7 @@ export default function TrackShipmentPage({ params }: { params: { id: string } }
                 
                 <div className="text-center">
                   <div className="flex items-center justify-center mb-2">
-                    <Navigation className="h-5 w-5 text-teal-600" />
+                    <Navigation className="h-5 w-5 text-blue-500" />
                   </div>
                   <p className="text-sm text-gray-600">Distance</p>
                   <p className="font-semibold text-gray-900">
@@ -560,7 +560,7 @@ export default function TrackShipmentPage({ params }: { params: { id: string } }
                 
                 <div className="text-center">
                   <div className="flex items-center justify-center mb-2">
-                    <Truck className="h-5 w-5 text-teal-600" />
+                    <Truck className="h-5 w-5 text-blue-500" />
                   </div>
                   <p className="text-sm text-gray-600">Speed</p>
                   <p className="font-semibold text-gray-900">
@@ -579,16 +579,16 @@ export default function TrackShipmentPage({ params }: { params: { id: string } }
                 <span>{STATUS_LABELS[shipment.status]}</span>
                 <span>Delivery</span>
               </div>
-              <div className="w-full bg-gray-200 rounded-full h-2">
+              <div className="w-full bg-gray-200 rounded-full h-1.5">
                 <div
-                  className="bg-teal-600 h-2 rounded-full transition-all duration-500"
+                  className="bg-blue-500 h-1.5 rounded-full transition-all duration-500"
                   style={{ width: `${getProgress()}%` }}
                 />
               </div>
             </div>
 
             {/* Addresses */}
-            <div className="grid grid-cols-2 gap-4 mt-6 pt-6 border-t">
+            <div className="grid grid-cols-2 gap-3 mt-4 pt-4 border-t">
               <div>
                 <p className="text-xs font-medium text-gray-500 mb-1">PICKUP</p>
                 <p className="text-sm text-gray-900">{shipment.pickup_address}</p>

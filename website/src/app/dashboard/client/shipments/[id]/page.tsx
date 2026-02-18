@@ -232,9 +232,9 @@ For support: support@drivedrop.us.com
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="flex items-center justify-center py-12">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-teal-600 mx-auto mb-4"></div>
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto mb-4"></div>
           <p className="text-gray-600">Loading shipment details...</p>
         </div>
       </div>
@@ -243,13 +243,13 @@ For support: support@drivedrop.us.com
 
   if (!loading && !shipment) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="flex items-center justify-center py-12">
         <div className="text-center">
-          <AlertCircle className="h-16 w-16 text-red-500 mx-auto mb-4" />
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">Shipment Not Found</h2>
-          <p className="text-gray-600 mb-6">This shipment doesn't exist or you don't have access to it.</p>
+          <AlertCircle className="h-10 w-10 text-red-500 mx-auto mb-4" />
+          <h2 className="text-sm font-semibold text-gray-900 mb-2">Shipment Not Found</h2>
+          <p className="text-gray-600 mb-3">This shipment doesn't exist or you don't have access to it.</p>
           <Link href="/dashboard/client/shipments">
-            <Button className="bg-teal-600 hover:bg-teal-700">
+            <Button className="bg-blue-500 hover:bg-blue-600">
               Back to Shipments
             </Button>
           </Link>
@@ -266,9 +266,9 @@ For support: support@drivedrop.us.com
   const isCancelled = shipment.status === 'cancelled'
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div>
       {/* Header */}
-      <div className="bg-white border-b sticky top-0 z-10 shadow-sm">
+      <div className="bg-white border-b">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             <div className="flex items-center gap-4">
@@ -302,13 +302,13 @@ For support: support@drivedrop.us.com
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
           {/* Main Content */}
-          <div className="lg:col-span-2 space-y-6">
+          <div className="lg:col-span-2 space-y-4">
             {/* Status Timeline */}
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-              <h2 className="text-xl font-bold text-gray-900 mb-6">Tracking Timeline</h2>
+            <div className="bg-white rounded-md border border-gray-200 p-4">
+              <h2 className="text-sm font-semibold text-gray-900 mb-4">Tracking Timeline</h2>
               
               <div className="relative">
                 {STATUS_TIMELINE.map((step, index) => {
@@ -321,7 +321,7 @@ For support: support@drivedrop.us.com
                       {!isLast && (
                         <div
                           className={`absolute left-5 top-11 -ml-px h-full w-0.5 ${
-                            isCompleted ? 'bg-teal-600' : 'bg-gray-300'
+                            isCompleted ? 'bg-blue-500' : 'bg-gray-300'
                           }`}
                         ></div>
                       )}
@@ -329,14 +329,14 @@ For support: support@drivedrop.us.com
                       <div className="relative flex items-start group">
                         <div className="flex items-center">
                           <div
-                            className={`h-10 w-10 rounded-full flex items-center justify-center border-2 ${
+                            className={`h-8 w-8 rounded-full flex items-center justify-center border-2 ${
                               isCompleted
-                                ? 'bg-teal-600 border-teal-600'
+                                ? 'bg-blue-500 border-blue-500'
                                 : 'bg-white border-gray-300'
                             }`}
                           >
                             {isCompleted ? (
-                              <CheckCircle className="h-6 w-6 text-white" />
+                              <CheckCircle className="h-4 w-4 text-white" />
                             ) : (
                               <div className="h-3 w-3 rounded-full bg-gray-300"></div>
                             )}
@@ -347,14 +347,14 @@ For support: support@drivedrop.us.com
                           <div className="flex items-center justify-between">
                             <div>
                               <h3 className={`font-semibold ${
-                                isCurrent ? 'text-teal-600' : isCompleted ? 'text-gray-900' : 'text-gray-500'
+                                isCurrent ? 'text-blue-500' : isCompleted ? 'text-gray-900' : 'text-gray-500'
                               }`}>
                                 {step.label}
                               </h3>
                               <p className="text-sm text-gray-600 mt-1">{step.description}</p>
                             </div>
                             {isCurrent && (
-                              <span className="px-3 py-1 bg-teal-100 text-teal-800 text-xs font-medium rounded-full">
+                              <span className="px-3 py-1 bg-blue-50 text-blue-700 text-xs font-medium rounded-full">
                                 Current
                               </span>
                             )}
@@ -367,7 +367,7 @@ For support: support@drivedrop.us.com
               </div>
 
               {isCancelled && (
-                <div className="mt-6 p-4 bg-red-50 border border-red-200 rounded-lg">
+                <div className="mt-6 p-4 bg-red-50 border border-red-200 rounded-md">
                   <div className="flex items-start gap-3">
                     <AlertCircle className="h-5 w-5 text-red-600 mt-0.5" />
                     <div>
@@ -382,16 +382,16 @@ For support: support@drivedrop.us.com
             </div>
 
             {/* Shipment Details */}
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-              <h2 className="text-xl font-bold text-gray-900 mb-6">Shipment Details</h2>
+            <div className="bg-white rounded-md border border-gray-200 p-4">
+              <h2 className="text-sm font-semibold text-gray-900 mb-4">Shipment Details</h2>
               
-              <div className="space-y-6">
+              <div className="space-y-4">
                 {/* Addresses */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <div className="flex items-center gap-2 mb-3">
-                      <div className="w-8 h-8 bg-teal-100 rounded-full flex items-center justify-center">
-                        <MapPin className="h-4 w-4 text-teal-600" />
+                    <div className="flex items-center gap-2 mb-2">
+                      <div className="w-8 h-8 bg-blue-50 rounded-full flex items-center justify-center">
+                        <MapPin className="h-4 w-4 text-blue-500" />
                       </div>
                       <h3 className="font-semibold text-gray-900">Pickup Location</h3>
                     </div>
@@ -405,7 +405,7 @@ For support: support@drivedrop.us.com
                   </div>
 
                   <div>
-                    <div className="flex items-center gap-2 mb-3">
+                    <div className="flex items-center gap-2 mb-2">
                       <div className="w-8 h-8 bg-orange-100 rounded-full flex items-center justify-center">
                         <MapPin className="h-4 w-4 text-orange-600" />
                       </div>
@@ -422,8 +422,8 @@ For support: support@drivedrop.us.com
                 </div>
 
                 {/* Vehicle Info */}
-                <div className="pt-6 border-t border-gray-200">
-                  <h3 className="font-semibold text-gray-900 mb-3">Vehicle Information</h3>
+                <div className="pt-4 border-t border-gray-200">
+                  <h3 className="font-semibold text-gray-900 mb-2">Vehicle Information</h3>
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                     <div>
                       <p className="text-xs text-gray-500 uppercase mb-1">Type</p>
@@ -451,17 +451,17 @@ For support: support@drivedrop.us.com
                 </div>
 
                 {/* Distance */}
-                <div className="pt-6 border-t border-gray-200">
+                <div className="pt-4 border-t border-gray-200">
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-xs text-gray-500 uppercase mb-1">Distance</p>
-                      <p className="text-lg font-bold text-gray-900">
+                      <p className="text-sm font-bold text-gray-900">
                         {shipment.distance.toFixed(0)} miles
                       </p>
                     </div>
                     <div className="text-right">
                       <p className="text-xs text-gray-500 uppercase mb-1">Estimated Time</p>
-                      <p className="text-lg font-bold text-gray-900">
+                      <p className="text-sm font-bold text-gray-900">
                         {Math.ceil(shipment.distance / 500)} days
                       </p>
                     </div>
@@ -482,13 +482,13 @@ For support: support@drivedrop.us.com
                 if (!hasPhotos) return null
                 
                 return (
-                  <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-                    <h2 className="text-xl font-bold text-gray-900 mb-6">Vehicle Photos</h2>
+                  <div className="bg-white rounded-md border border-gray-200 p-4">
+                    <h2 className="text-sm font-semibold text-gray-900 mb-4">Vehicle Photos</h2>
                     <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                       {Object.entries(photos).map(([key, value]: [string, any]) => {
                         if (!value) return null
                         return (
-                          <div key={key} className="relative aspect-video bg-gray-100 rounded-lg overflow-hidden group">
+                          <div key={key} className="relative aspect-video bg-gray-100 rounded-md overflow-hidden group">
                             <img
                               src={value}
                               alt={`${key} view`}
@@ -511,21 +511,21 @@ For support: support@drivedrop.us.com
           </div>
 
           {/* Sidebar */}
-          <div className="space-y-6">
+          <div className="space-y-4">
             {/* Pricing Card */}
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-              <h3 className="text-lg font-bold text-gray-900 mb-4">Pricing</h3>
+            <div className="bg-white rounded-md border border-gray-200 p-4">
+              <h3 className="text-sm font-semibold text-gray-900 mb-3">Pricing</h3>
               <div className="space-y-3">
                 <div className="flex justify-between items-center pb-3 border-b border-gray-200">
                   <span className="text-gray-600">Estimated Price</span>
-                  <span className="text-2xl font-bold text-gray-900">
+                  <span className="text-lg font-bold text-gray-900">
                     ${shipment.estimated_price.toFixed(2)}
                   </span>
                 </div>
                 {shipment.final_price && (
                   <div className="flex justify-between items-center">
                     <span className="text-gray-600">Final Price</span>
-                    <span className="text-lg font-semibold text-teal-600">
+                    <span className="text-lg font-semibold text-blue-500">
                       ${shipment.final_price.toFixed(2)}
                     </span>
                   </div>
@@ -549,14 +549,14 @@ For support: support@drivedrop.us.com
 
             {/* Driver Card */}
             {driver && (
-              <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-                <h3 className="text-lg font-bold text-gray-900 mb-4">Your Driver</h3>
+              <div className="bg-white rounded-md border border-gray-200 p-4">
+                <h3 className="text-sm font-semibold text-gray-900 mb-3">Your Driver</h3>
                 <div className="flex items-start gap-4">
-                  <div className="w-16 h-16 bg-gradient-to-br from-teal-500 to-orange-500 rounded-full flex items-center justify-center flex-shrink-0">
+                  <div className="w-12 h-12 bg-blue-500 rounded-full flex items-center justify-center flex-shrink-0">
                     {driver.avatar_url ? (
                       <img src={driver.avatar_url} alt={driver.first_name} className="w-full h-full rounded-full object-cover" />
                     ) : (
-                      <span className="text-white text-2xl font-bold">
+                      <span className="text-white text-sm font-bold">
                         {driver.first_name.charAt(0)}{driver.last_name.charAt(0)}
                       </span>
                     )}
@@ -579,14 +579,14 @@ For support: support@drivedrop.us.com
                 <div className="mt-4 space-y-2">
                   <a
                     href={`tel:${driver.phone}`}
-                    className="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-50 transition-colors"
+                    className="flex items-center gap-3 p-3 rounded-md hover:bg-gray-50 transition-colors"
                   >
                     <Phone className="h-5 w-5 text-gray-400" />
                     <span className="text-sm text-gray-700">{driver.phone}</span>
                   </a>
                   <a
                     href={`mailto:${driver.email}`}
-                    className="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-50 transition-colors"
+                    className="flex items-center gap-3 p-3 rounded-md hover:bg-gray-50 transition-colors"
                   >
                     <Mail className="h-5 w-5 text-gray-400" />
                     <span className="text-sm text-gray-700">{driver.email}</span>
@@ -595,7 +595,7 @@ For support: support@drivedrop.us.com
 
                 <Button
                   onClick={() => setShowMessaging(true)}
-                  className="w-full mt-4 bg-teal-600 hover:bg-teal-700"
+                  className="w-full mt-4 bg-blue-500 hover:bg-blue-600"
                 >
                   <MessageSquare className="h-4 w-4 mr-2" />
                   Send Message
@@ -605,7 +605,7 @@ For support: support@drivedrop.us.com
                 {['accepted', 'driver_en_route', 'driver_arrived', 'picked_up', 'in_transit', 'in_progress'].includes(shipment.status) && (
                   <Link href={`/dashboard/client/track/${shipment.id}`}>
                     <Button
-                      className="w-full mt-2 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800"
+                      className="w-full mt-2 bg-blue-500 hover:bg-blue-600"
                     >
                       <MapPin className="h-4 w-4 mr-2" />
                       Track Live Location
@@ -616,9 +616,9 @@ For support: support@drivedrop.us.com
             )}
 
             {!driver && shipment.status === 'pending' && (
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
+              <div className="bg-blue-50 border border-blue-200 rounded-md p-4">
                 <div className="flex items-start gap-3">
-                  <Clock className="h-6 w-6 text-blue-600 mt-0.5 flex-shrink-0" />
+                  <Clock className="h-5 w-5 text-blue-600 mt-0.5 flex-shrink-0">
                   <div>
                     <h4 className="font-semibold text-blue-900 mb-1">
                       Awaiting Driver Assignment
@@ -632,9 +632,9 @@ For support: support@drivedrop.us.com
             )}
 
             {/* Support */}
-            <div className="bg-gray-50 border border-gray-200 rounded-lg p-6">
+            <div className="bg-gray-50 border border-gray-200 rounded-md p-4">
               <h3 className="font-semibold text-gray-900 mb-2">Need Help?</h3>
-              <p className="text-sm text-gray-600 mb-4">
+              <p className="text-sm text-gray-600 mb-3">
                 Contact our support team for assistance with your shipment.
               </p>
               <Button variant="outline" className="w-full">
@@ -648,14 +648,14 @@ For support: support@drivedrop.us.com
       {/* Messaging Modal */}
       {showMessaging && driver && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full h-[600px] overflow-hidden flex flex-col">
+          <div className="bg-white rounded-md max-w-2xl w-full h-[600px] overflow-hidden flex flex-col">
             <div className="p-4 border-b border-gray-200 flex items-center justify-between flex-shrink-0">
-              <h3 className="text-lg font-bold text-gray-900">
+              <h3 className="text-sm font-semibold text-gray-900">
                 Message {driver.first_name} {driver.last_name}
               </h3>
               <button
                 onClick={() => setShowMessaging(false)}
-                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                className="p-2 hover:bg-gray-100 rounded-md transition-colors"
               >
                 ✕
               </button>

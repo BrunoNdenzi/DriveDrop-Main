@@ -47,8 +47,8 @@ export default function ClientDashboardLayout({
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/5 to-secondary/5">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+      <div className="min-h-screen flex items-center justify-center bg-[hsl(var(--surface-field))]">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
       </div>
     )
   }
@@ -58,7 +58,7 @@ export default function ClientDashboardLayout({
     : profile?.email?.split('@')[0] || 'User'
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
+    <div className="min-h-screen bg-[hsl(var(--surface-field))]">
       {/* Header */}
       <header className="bg-white border-b border-gray-200 sticky top-0 z-40">
         <div className="px-4 sm:px-6 lg:px-8">
@@ -94,7 +94,7 @@ export default function ClientDashboardLayout({
                   onClick={() => setUserMenuOpen(!userMenuOpen)}
                   className="flex items-center gap-2 p-2 rounded-lg hover:bg-gray-100 transition-colors"
                 >
-                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary to-secondary flex items-center justify-center">
+                  <div className="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center">
                     <span className="text-white font-semibold text-sm">
                       {userName.charAt(0).toUpperCase()}
                     </span>
@@ -107,7 +107,7 @@ export default function ClientDashboardLayout({
 
                 {/* Dropdown Menu */}
                 {userMenuOpen && (
-                  <div className="absolute right-0 mt-2 w-56 bg-white rounded-xl shadow-xl border border-gray-200 py-2">
+                  <div className="absolute right-0 mt-2 w-56 bg-white rounded-md shadow-md border border-gray-200 py-2">
                     <div className="px-4 py-3 border-b border-gray-100">
                       <p className="text-sm font-medium text-gray-900">{userName}</p>
                       <p className="text-xs text-gray-500 truncate">{profile?.email}</p>
@@ -155,9 +155,9 @@ export default function ClientDashboardLayout({
                   href={item.href}
                   onClick={() => setSidebarOpen(false)}
                   className={`
-                    flex items-center gap-3 px-4 py-3 rounded-lg transition-all
+                    flex items-center gap-3 px-4 py-3 rounded-md transition-all
                     ${isActive 
-                      ? 'bg-gradient-to-r from-primary to-secondary text-white shadow-lg shadow-primary/20' 
+                      ? 'bg-blue-500 text-white' 
                       : 'text-gray-700 hover:bg-gray-50'
                     }
                   `}
@@ -171,15 +171,15 @@ export default function ClientDashboardLayout({
 
           {/* Quick Action Card */}
           <div className="p-4">
-            <div className="bg-gradient-to-br from-primary/10 to-secondary/10 rounded-xl p-4 border border-primary/20">
-              <h3 className="font-semibold text-gray-900 mb-2">Need Help?</h3>
+            <div className="bg-slate-50 rounded-md p-4 border border-border">
+              <h3 className="font-semibold text-gray-900 mb-2 text-sm">Need Help?</h3>
               <p className="text-sm text-gray-600 mb-3">
                 Contact our support team
               </p>
               <Button
                 variant="outline"
                 size="sm"
-                className="w-full border-primary text-primary hover:bg-primary hover:text-white"
+                className="w-full border-blue-500 text-blue-500 hover:bg-blue-500 hover:text-white"
               >
                 Contact Support
               </Button>

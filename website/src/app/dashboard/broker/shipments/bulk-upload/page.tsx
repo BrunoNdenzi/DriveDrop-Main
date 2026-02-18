@@ -195,7 +195,7 @@ Jane Smith,jane@example.com,555-5678,789 Pine St,Miami,FL,33101,321 Elm St,Chica
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
@@ -206,7 +206,7 @@ Jane Smith,jane@example.com,555-5678,789 Pine St,Miami,FL,33101,321 Elm St,Chica
             </Button>
           </Link>
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">Bulk Upload Shipments</h1>
+            <h1 className="text-lg font-semibold text-gray-900">Bulk Upload Shipments</h1>
             <p className="text-gray-600 mt-1">Upload multiple shipments at once using a CSV file</p>
           </div>
         </div>
@@ -214,9 +214,9 @@ Jane Smith,jane@example.com,555-5678,789 Pine St,Miami,FL,33101,321 Elm St,Chica
 
       {/* Instructions */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="bg-blue-50 border border-blue-200 rounded-xl p-6">
+        <div className="bg-blue-50 border border-blue-200 rounded-md p-4">
           <div className="flex items-center gap-3 mb-3">
-            <div className="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center text-white font-bold">
+            <div className="w-10 h-10 bg-blue-600 rounded-md flex items-center justify-center text-white font-bold">
               1
             </div>
             <h3 className="font-semibold text-gray-900">Download Template</h3>
@@ -234,9 +234,9 @@ Jane Smith,jane@example.com,555-5678,789 Pine St,Miami,FL,33101,321 Elm St,Chica
           </Button>
         </div>
 
-        <div className="bg-purple-50 border border-purple-200 rounded-xl p-6">
+        <div className="bg-purple-50 border border-purple-200 rounded-md p-4">
           <div className="flex items-center gap-3 mb-3">
-            <div className="w-10 h-10 bg-purple-600 rounded-lg flex items-center justify-center text-white font-bold">
+            <div className="w-10 h-10 bg-purple-600 rounded-md flex items-center justify-center text-white font-bold">
               2
             </div>
             <h3 className="font-semibold text-gray-900">Fill Your Data</h3>
@@ -246,9 +246,9 @@ Jane Smith,jane@example.com,555-5678,789 Pine St,Miami,FL,33101,321 Elm St,Chica
           </p>
         </div>
 
-        <div className="bg-green-50 border border-green-200 rounded-xl p-6">
+        <div className="bg-green-50 border border-green-200 rounded-md p-4">
           <div className="flex items-center gap-3 mb-3">
-            <div className="w-10 h-10 bg-green-600 rounded-lg flex items-center justify-center text-white font-bold">
+            <div className="w-10 h-10 bg-green-600 rounded-md flex items-center justify-center text-white font-bold">
               3
             </div>
             <h3 className="font-semibold text-gray-900">Upload CSV</h3>
@@ -260,7 +260,7 @@ Jane Smith,jane@example.com,555-5678,789 Pine St,Miami,FL,33101,321 Elm St,Chica
       </div>
 
       {/* Upload Section */}
-      <div className="bg-white rounded-xl border border-gray-200 p-8">
+      <div className="bg-white rounded-md border border-gray-200 p-4">
         <div className="max-w-2xl mx-auto">
           <input
             ref={fileInputRef}
@@ -273,9 +273,9 @@ Jane Smith,jane@example.com,555-5678,789 Pine St,Miami,FL,33101,321 Elm St,Chica
           {!file ? (
             <div
               onClick={() => fileInputRef.current?.click()}
-              className="border-2 border-dashed border-gray-300 rounded-xl p-12 text-center cursor-pointer hover:border-blue-500 hover:bg-blue-50 transition-colors"
+              className="border border-dashed border-gray-300 rounded-md p-4 text-center cursor-pointer hover:border-blue-500 hover:bg-blue-50 transition-colors"
             >
-              <FileSpreadsheet className="h-16 w-16 text-gray-400 mx-auto mb-4" />
+              <FileSpreadsheet className="h-8 w-8 text-gray-400 mx-auto mb-4" />
               <h3 className="text-lg font-semibold text-gray-900 mb-2">
                 Click to upload CSV file
               </h3>
@@ -285,9 +285,9 @@ Jane Smith,jane@example.com,555-5678,789 Pine St,Miami,FL,33101,321 Elm St,Chica
             </div>
           ) : (
             <div className="space-y-4">
-              <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+              <div className="flex items-center justify-between p-4 bg-gray-50 rounded-md">
                 <div className="flex items-center gap-3">
-                  <FileSpreadsheet className="h-8 w-8 text-blue-600" />
+                  <FileSpreadsheet className="h-5 w-5 text-blue-600" />
                   <div>
                     <p className="font-medium text-gray-900">{file.name}</p>
                     <p className="text-sm text-gray-600">{(file.size / 1024).toFixed(2)} KB</p>
@@ -306,7 +306,7 @@ Jane Smith,jane@example.com,555-5678,789 Pine St,Miami,FL,33101,321 Elm St,Chica
               </div>
 
               {preview.length > 0 && (
-                <div className="border border-gray-200 rounded-lg overflow-hidden">
+                <div className="border border-gray-200 rounded-md overflow-hidden">
                   <div className="bg-gray-50 px-4 py-2 border-b border-gray-200">
                     <h4 className="font-semibold text-gray-900">Preview (First 5 rows)</h4>
                   </div>
@@ -340,7 +340,7 @@ Jane Smith,jane@example.com,555-5678,789 Pine St,Miami,FL,33101,321 Elm St,Chica
               <Button
                 onClick={handleUpload}
                 disabled={uploading}
-                className="w-full bg-blue-600 hover:bg-blue-700"
+                className="w-full bg-teal-500 hover:bg-teal-500"
               >
                 {uploading ? (
                   <>
@@ -361,25 +361,25 @@ Jane Smith,jane@example.com,555-5678,789 Pine St,Miami,FL,33101,321 Elm St,Chica
 
       {/* Results */}
       {result && (
-        <div className="bg-white rounded-xl border border-gray-200 p-6">
+        <div className="bg-white rounded-md border border-gray-200 p-4">
           <h3 className="text-lg font-semibold text-gray-900 mb-4">Upload Results</h3>
           
           <div className="grid grid-cols-2 gap-4 mb-6">
-            <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+            <div className="bg-green-50 border border-green-200 rounded-md p-4">
               <div className="flex items-center gap-3">
-                <CheckCircle className="h-8 w-8 text-green-600" />
+                <CheckCircle className="h-5 w-5 text-green-600" />
                 <div>
-                  <p className="text-2xl font-bold text-green-600">{result.success}</p>
+                  <p className="text-sm font-semibold text-green-600">{result.success}</p>
                   <p className="text-sm text-gray-600">Successfully Uploaded</p>
                 </div>
               </div>
             </div>
 
-            <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+            <div className="bg-red-50 border border-red-200 rounded-md p-4">
               <div className="flex items-center gap-3">
-                <XCircle className="h-8 w-8 text-red-600" />
+                <XCircle className="h-5 w-5 text-red-600" />
                 <div>
-                  <p className="text-2xl font-bold text-red-600">{result.failed}</p>
+                  <p className="text-sm font-semibold text-red-600">{result.failed}</p>
                   <p className="text-sm text-gray-600">Failed</p>
                 </div>
               </div>
@@ -394,7 +394,7 @@ Jane Smith,jane@example.com,555-5678,789 Pine St,Miami,FL,33101,321 Elm St,Chica
               </h4>
               <div className="max-h-60 overflow-y-auto space-y-2">
                 {result.errors.map((error, idx) => (
-                  <div key={idx} className="bg-red-50 border border-red-200 rounded-lg p-3">
+                  <div key={idx} className="bg-red-50 border border-red-200 rounded-md p-3">
                     <p className="text-sm font-medium text-red-900">Row {error.row}</p>
                     <p className="text-sm text-red-700">{error.error}</p>
                   </div>
@@ -406,7 +406,7 @@ Jane Smith,jane@example.com,555-5678,789 Pine St,Miami,FL,33101,321 Elm St,Chica
           <div className="flex gap-3 mt-6">
             <Button
               onClick={() => router.push('/dashboard/broker/shipments')}
-              className="flex-1 bg-blue-600 hover:bg-blue-700"
+              className="flex-1 bg-teal-500 hover:bg-teal-500"
             >
               View All Shipments
             </Button>
@@ -426,7 +426,7 @@ Jane Smith,jane@example.com,555-5678,789 Pine St,Miami,FL,33101,321 Elm St,Chica
       )}
 
       {/* Required Fields Info */}
-      <div className="bg-gray-50 border border-gray-200 rounded-xl p-6">
+      <div className="bg-gray-50 border border-gray-200 rounded-md p-4">
         <h3 className="font-semibold text-gray-900 mb-3">Required CSV Fields</h3>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
           <div>

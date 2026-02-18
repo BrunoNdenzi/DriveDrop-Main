@@ -285,7 +285,7 @@ export default function ClientChatPage() {
 
   if (!profile) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
+      <div className="flex items-center justify-center min-h-[300px]">
         <div className="text-center">
           <p className="text-gray-600">Please log in to view messages</p>
         </div>
@@ -294,7 +294,7 @@ export default function ClientChatPage() {
   }
 
   return (
-    <div className="flex flex-col h-screen bg-gray-50">
+    <div className="flex flex-col h-full bg-gray-50">
       {/* Header */}
       <div className="bg-white border-b border-gray-200 p-4">
         <div className="max-w-4xl mx-auto flex items-center justify-between">
@@ -303,10 +303,10 @@ export default function ClientChatPage() {
               onClick={() => router.push('/dashboard/client/messages')}
               className="text-gray-600 hover:text-gray-900"
             >
-              <ArrowLeft className="h-6 w-6" />
+              <ArrowLeft className="h-5 w-5" />
             </button>
             <div>
-              <h1 className="text-xl font-semibold text-gray-900">
+              <h1 className="text-sm font-semibold text-gray-900">
                 {otherUserName || 'Driver'}
               </h1>
               {shipment && (
@@ -316,9 +316,9 @@ export default function ClientChatPage() {
           </div>
           <button
             onClick={() => router.push(`/dashboard/client/shipments/${shipmentId}`)}
-            className="text-teal-600 hover:text-teal-700"
+            className="text-blue-500 hover:text-blue-600"
           >
-            <Info className="h-6 w-6" />
+            <Info className="h-5 w-5" />
           </button>
         </div>
       </div>
@@ -328,9 +328,9 @@ export default function ClientChatPage() {
         <div className="max-w-4xl mx-auto space-y-4">
           {/* Loading State */}
           {loading && (
-            <div className="flex items-center justify-center py-12">
+            <div className="flex items-center justify-center py-8">
               <div className="text-center">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-teal-600 mx-auto mb-4"></div>
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto mb-4"></div>
                 <p className="text-gray-600">Loading messages...</p>
               </div>
             </div>
@@ -338,7 +338,7 @@ export default function ClientChatPage() {
 
           {/* Error State */}
           {error && !loading && (
-            <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+            <div className="bg-red-50 border border-red-200 rounded-md p-4">
               <p className="text-red-800 text-sm">{error}</p>
             </div>
           )}
@@ -354,9 +354,9 @@ export default function ClientChatPage() {
                   className={`flex ${isOwnMessage ? 'justify-end' : 'justify-start'}`}
                 >
                   <div
-                    className={`max-w-md px-4 py-2 rounded-lg ${
+                    className={`max-w-md px-4 py-2 rounded-md ${
                       isOwnMessage
-                        ? 'bg-teal-600 text-white'
+                        ? 'bg-blue-500 text-white'
                         : 'bg-white text-gray-900 border border-gray-200'
                     }`}
                   >
@@ -365,7 +365,7 @@ export default function ClientChatPage() {
                     </p>
                     <p
                       className={`text-xs mt-1 ${
-                        isOwnMessage ? 'text-teal-100' : 'text-gray-500'
+                        isOwnMessage ? 'text-blue-100' : 'text-gray-500'
                       }`}
                     >
                       {formatTime(message.created_at)}
@@ -378,9 +378,9 @@ export default function ClientChatPage() {
 
           {/* Empty State */}
           {!loading && messages.length === 0 && (
-            <div className="text-center py-12">
-              <Package className="h-16 w-16 text-gray-400 mx-auto mb-4" />
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">
+            <div className="text-center py-8">
+              <Package className="h-10 w-10 text-gray-400 mx-auto mb-4" />
+              <h3 className="text-sm font-semibold text-gray-900 mb-2">
                 No Messages Yet
               </h3>
               <p className="text-gray-600">
@@ -398,7 +398,7 @@ export default function ClientChatPage() {
       <div className="bg-white border-t border-gray-200 p-4">
         <div className="max-w-4xl mx-auto">
           {shipment && !shipment.driver_id ? (
-            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 text-center">
+            <div className="bg-yellow-50 border border-yellow-200 rounded-md p-4 text-center">
               <p className="text-yellow-800 text-sm">
                 This shipment has not been assigned to a driver yet. Messaging
                 will be enabled once a driver accepts.
@@ -418,7 +418,7 @@ export default function ClientChatPage() {
               <Button
                 type="submit"
                 disabled={!messageText.trim() || sending}
-                className="bg-teal-600 hover:bg-teal-700 text-white"
+                className="bg-blue-500 hover:bg-blue-600 text-white"
               >
                 {sending ? (
                   <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>

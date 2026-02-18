@@ -48,8 +48,8 @@ export default function BrokerDashboardLayout({
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-primary/5">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      <div className="min-h-screen flex items-center justify-center bg-[hsl(var(--surface-field))]">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-teal-500"></div>
       </div>
     )
   }
@@ -59,7 +59,7 @@ export default function BrokerDashboardLayout({
     : profile?.email?.split('@')[0] || 'Broker'
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
+    <div className="min-h-screen bg-[hsl(var(--surface-field))]">
       {/* Header */}
       <header className="bg-white border-b border-gray-200 sticky top-0 z-40">
         <div className="px-4 sm:px-6 lg:px-8">
@@ -85,9 +85,9 @@ export default function BrokerDashboardLayout({
             </div>
 
             {/* Center - Broker Badge */}
-            <div className="hidden md:flex items-center gap-2 px-4 py-2 rounded-full bg-gradient-to-r from-blue-50 to-blue-100 border border-blue-200">
-              <div className="w-2 h-2 rounded-full bg-blue-600 animate-pulse"></div>
-              <span className="text-sm font-semibold text-blue-700">Broker Portal</span>
+            <div className="hidden md:flex items-center gap-2 px-4 py-2 rounded-md bg-teal-50 border border-teal-200">
+              <div className="w-2 h-2 rounded-full bg-teal-500"></div>
+              <span className="text-sm font-semibold text-teal-700">Broker Portal</span>
             </div>
 
             {/* Right Side Actions */}
@@ -101,7 +101,7 @@ export default function BrokerDashboardLayout({
                   onClick={() => setUserMenuOpen(!userMenuOpen)}
                   className="flex items-center gap-2 p-2 rounded-lg hover:bg-gray-100 transition-colors"
                 >
-                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-600 to-blue-700 flex items-center justify-center">
+                  <div className="w-8 h-8 rounded-full bg-teal-500 flex items-center justify-center">
                     <span className="text-white font-semibold text-sm">
                       {userName.charAt(0).toUpperCase()}
                     </span>
@@ -114,12 +114,12 @@ export default function BrokerDashboardLayout({
 
                 {/* Dropdown Menu */}
                 {userMenuOpen && (
-                  <div className="absolute right-0 mt-2 w-56 bg-white rounded-xl shadow-xl border border-gray-200 py-2">
+                  <div className="absolute right-0 mt-2 w-56 bg-white rounded-md shadow-md border border-gray-200 py-2">
                     <div className="px-4 py-3 border-b border-gray-100">
                       <p className="text-sm font-medium text-gray-900">{userName}</p>
                       <p className="text-xs text-gray-500 truncate">{profile?.email}</p>
                       <div className="flex items-center gap-2 mt-2">
-                        <div className="w-2 h-2 rounded-full bg-blue-600"></div>
+                        <div className="w-2 h-2 rounded-full bg-teal-500"></div>
                         <span className="text-xs text-gray-600">Broker Account</span>
                       </div>
                     </div>
@@ -167,9 +167,9 @@ export default function BrokerDashboardLayout({
                   href={item.href}
                   onClick={() => setSidebarOpen(false)}
                   className={`
-                    flex items-center gap-3 px-4 py-3 rounded-lg transition-all
+                    flex items-center gap-3 px-4 py-3 rounded-md transition-all
                     ${isActive 
-                      ? 'bg-gradient-to-r from-blue-600 to-blue-700 text-white shadow-lg shadow-blue-600/20' 
+                      ? 'bg-teal-500 text-white' 
                       : 'text-gray-700 hover:bg-gray-50'
                     }
                   `}
@@ -183,27 +183,27 @@ export default function BrokerDashboardLayout({
 
           {/* Revenue Widget */}
           <div className="p-4">
-            <div className="bg-gradient-to-br from-green-50 to-emerald-50 rounded-xl p-4 border border-green-200">
+            <div className="bg-slate-50 rounded-md p-4 border border-border">
               <div className="flex items-center gap-2 mb-2">
-                <TrendingUp className="h-5 w-5 text-green-600" />
-                <h3 className="font-semibold text-gray-900">This Month</h3>
+                <TrendingUp className="h-5 w-5 text-teal-500" />
+                <h3 className="font-semibold text-gray-900 text-sm">This Month</h3>
               </div>
-              <p className="text-3xl font-bold text-green-600 mb-1">$0.00</p>
+              <p className="text-3xl font-bold text-teal-500 mb-1">$0.00</p>
               <p className="text-xs text-gray-600">0 loads completed</p>
             </div>
           </div>
 
           {/* Quick Help */}
           <div className="p-4">
-            <div className="bg-gradient-to-br from-primary/10 to-secondary/10 rounded-xl p-4 border border-primary/20">
-              <h3 className="font-semibold text-gray-900 mb-2">Need Help?</h3>
+            <div className="bg-slate-50 rounded-md p-4 border border-border">
+              <h3 className="font-semibold text-gray-900 mb-2 text-sm">Need Help?</h3>
               <p className="text-sm text-gray-600 mb-3">
                 Contact broker support
               </p>
               <Button
                 variant="outline"
                 size="sm"
-                className="w-full border-blue-600 text-blue-600 hover:bg-blue-600 hover:text-white"
+                className="w-full border-teal-500 text-teal-600 hover:bg-teal-500 hover:text-white"
               >
                 Contact Support
               </Button>

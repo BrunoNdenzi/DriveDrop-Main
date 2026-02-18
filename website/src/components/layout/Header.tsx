@@ -24,8 +24,8 @@ export default function Header() {
     <header 
       className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
         isScrolled 
-          ? 'glass border-b border-white/20 shadow-lg' 
-          : 'bg-transparent'
+          ? 'bg-white/95 backdrop-blur-xl border-b border-border shadow-sm' 
+          : 'bg-slate-950'
       }`}
     >
       <div className="container">
@@ -42,34 +42,41 @@ export default function Header() {
                 alt="DriveDrop" 
                 width={180} 
                 height={46}
-                className="h-10 w-auto group-hover:scale-105 transition-transform"
+                className={`h-10 w-auto group-hover:scale-105 transition-all ${
+                  isScrolled ? '' : 'brightness-0 invert'
+                }`}
               />
             </div>
           </Link>
 
           {/* Centered Navigation with floating effect */}
           <nav className="hidden lg:flex items-center gap-1 absolute left-1/2 -translate-x-1/2">
-            <div className="flex items-center gap-1 px-2 py-2 rounded-full glass-nav">
+            <div className={`flex items-center gap-1 px-2 py-2 rounded-full transition-all duration-300 ${
+              isScrolled ? 'bg-slate-100/80 border border-border' : 'bg-white/10 border border-white/10'
+            }`}>
               <Link 
                 href="/#quote" 
-                className="nav-link group"
+                className={`relative px-4 py-2.5 text-sm font-medium rounded-full transition-all duration-200 ${
+                  isScrolled ? 'text-foreground/80 hover:text-primary hover:bg-primary/5' : 'text-white/80 hover:text-white hover:bg-white/10'
+                }`}
               >
-                <span className="relative z-10">Get Quote</span>
-                <div className="absolute inset-0 rounded-full bg-primary/10 scale-0 group-hover:scale-100 transition-transform" />
+                Get Quote
               </Link>
               <Link 
                 href="/drivers/register" 
-                className="nav-link group"
+                className={`relative px-4 py-2.5 text-sm font-medium rounded-full transition-all duration-200 ${
+                  isScrolled ? 'text-foreground/80 hover:text-primary hover:bg-primary/5' : 'text-white/80 hover:text-white hover:bg-white/10'
+                }`}
               >
-                <span className="relative z-10">Become a Driver</span>
-                <div className="absolute inset-0 rounded-full bg-primary/10 scale-0 group-hover:scale-100 transition-transform" />
+                Become a Driver
               </Link>
               <Link 
                 href="/login?redirect=/dashboard/client/track" 
-                className="nav-link group"
+                className={`relative px-4 py-2.5 text-sm font-medium rounded-full transition-all duration-200 ${
+                  isScrolled ? 'text-foreground/80 hover:text-primary hover:bg-primary/5' : 'text-white/80 hover:text-white hover:bg-white/10'
+                }`}
               >
-                <span className="relative z-10">Track Shipment</span>
-                <div className="absolute inset-0 rounded-full bg-primary/10 scale-0 group-hover:scale-100 transition-transform" />
+                Track Shipment
               </Link>
             </div>
           </nav>
@@ -79,7 +86,11 @@ export default function Header() {
             <Button 
               asChild 
               variant="ghost" 
-              className="text-foreground/80 hover:text-primary hover:bg-primary/5 group"
+              className={`group transition-all duration-300 ${
+                isScrolled 
+                  ? 'text-foreground/80 hover:text-primary hover:bg-primary/5' 
+                  : 'text-white/80 hover:text-white hover:bg-white/10'
+              }`}
             >
               <Link href="/login">
                 <LogIn className="w-4 h-4 mr-2 group-hover:rotate-12 transition-transform" />
@@ -100,16 +111,18 @@ export default function Header() {
 
           {/* Mobile Menu Button with animation */}
           <button
-            className="lg:hidden p-2 hover:bg-primary/10 rounded-xl transition-all relative group"
+            className={`lg:hidden p-2 rounded-xl transition-all relative group ${
+              isScrolled ? 'hover:bg-primary/10' : 'hover:bg-white/10'
+            }`}
             onClick={() => setIsMenuOpen(!isMenuOpen)}
             aria-label="Toggle menu"
           >
             <div className="absolute inset-0 bg-gradient-to-r from-primary/20 to-secondary/20 rounded-xl blur opacity-0 group-hover:opacity-100 transition-opacity" />
             <div className="relative">
               {isMenuOpen ? (
-                <X className="h-6 w-6 text-primary animate-spin-in" />
+                <X className={`h-6 w-6 ${isScrolled ? 'text-primary' : 'text-white'} animate-spin-in`} />
               ) : (
-                <Menu className="h-6 w-6 text-primary" />
+                <Menu className={`h-6 w-6 ${isScrolled ? 'text-primary' : 'text-white'}`} />
               )}
             </div>
           </button>

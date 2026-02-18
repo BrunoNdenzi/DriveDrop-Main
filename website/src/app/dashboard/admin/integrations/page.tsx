@@ -163,12 +163,12 @@ export default function IntegrationsPage() {
   };
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-4 space-y-4">
       <div className="flex justify-between items-center">
-        <h1 className="text-3xl font-bold">Integration Management</h1>
+        <h1 className="text-lg font-semibold">Integration Management</h1>
         <button
           onClick={loadIntegrations}
-          className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
+          className="px-4 py-2 bg-purple-500 text-white rounded-md hover:bg-purple-600 transition"
         >
           🔄 Refresh
         </button>
@@ -176,23 +176,23 @@ export default function IntegrationsPage() {
 
       {loading ? (
         <div className="text-center py-12">
-          <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+          <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-purple-500"></div>
           <p className="mt-4 text-gray-600">Loading integrations...</p>
         </div>
       ) : integrations.length === 0 ? (
-        <div className="text-center py-12 bg-gray-50 rounded-lg">
+        <div className="text-center py-12 bg-gray-50 rounded-md">
           <p className="text-gray-500">No integrations configured yet</p>
           <p className="text-sm text-gray-400 mt-2">Commercial accounts can set up integrations via API</p>
         </div>
       ) : (
-        <div className="grid lg:grid-cols-2 gap-6">
+        <div className="grid lg:grid-cols-2 gap-4">
           {/* Integrations List */}
           <div className="space-y-4">
             {integrations.map((integration) => (
               <div
                 key={integration.id}
-                className={`bg-white rounded-lg shadow-md p-5 border-2 cursor-pointer transition ${
-                  selectedIntegration === integration.id ? 'border-blue-500' : 'border-gray-200 hover:border-blue-300'
+                className={`bg-white rounded-md p-5 border-2 cursor-pointer transition ${
+                  selectedIntegration === integration.id ? 'border-purple-500' : 'border-gray-200 hover:border-purple-300'
                 }`}
                 onClick={() => setSelectedIntegration(integration.id)}
               >
@@ -200,7 +200,7 @@ export default function IntegrationsPage() {
                   <div className="flex items-center gap-3">
                     <span className="text-3xl">{getTypeIcon(integration.integration_type)}</span>
                     <div>
-                      <h3 className="font-bold text-lg">{integration.integration_name}</h3>
+                      <h3 className="font-semibold text-sm">{integration.integration_name}</h3>
                       <p className="text-sm text-gray-600">
                         {integration.commercial_account?.company_name || 'Unknown Account'}
                       </p>
@@ -243,7 +243,7 @@ export default function IntegrationsPage() {
                       testIntegration(integration.id);
                     }}
                     disabled={testing === integration.id}
-                    className="flex-1 px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition disabled:opacity-50 text-sm"
+                    className="flex-1 px-3 py-2 bg-purple-500 text-white rounded-md hover:bg-purple-600 transition disabled:opacity-50 text-sm"
                   >
                     {testing === integration.id ? '⏳ Testing...' : '🧪 Test'}
                   </button>
@@ -252,7 +252,7 @@ export default function IntegrationsPage() {
                       e.stopPropagation();
                       syncIntegration(integration.id);
                     }}
-                    className="flex-1 px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition text-sm"
+                    className="flex-1 px-3 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition text-sm"
                   >
                     ▶️ Sync Now
                   </button>
@@ -262,8 +262,8 @@ export default function IntegrationsPage() {
           </div>
 
           {/* Logs Panel */}
-          <div className="bg-white rounded-lg shadow-md p-5 border border-gray-200 h-fit sticky top-6">
-            <h2 className="text-xl font-bold mb-4">Integration Logs</h2>
+          <div className="bg-white rounded-md p-5 border border-gray-200 h-fit sticky top-6">
+            <h2 className="text-sm font-semibold mb-4">Integration Logs</h2>
             {selectedIntegration ? (
               <div className="space-y-2 max-h-[600px] overflow-y-auto">
                 {logs.length === 0 ? (
@@ -272,7 +272,7 @@ export default function IntegrationsPage() {
                   logs.map((log) => (
                     <div
                       key={log.id}
-                      className={`p-3 rounded-lg text-sm ${
+                      className={`p-3 rounded-md text-sm ${
                         log.log_type === 'error'
                           ? 'bg-red-50 border border-red-200'
                           : log.log_type === 'sync'

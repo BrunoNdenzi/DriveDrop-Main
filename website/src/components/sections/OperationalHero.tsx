@@ -2,87 +2,67 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
-import { ArrowRight, CheckCircle } from 'lucide-react'
+import { ArrowRight } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { StatusBadge } from '@/components/ui/StatusBadge'
 import SignUpRoleModal from '@/components/auth/SignUpRoleModal'
 
 export default function OperationalHero() {
   const [showSignUpModal, setShowSignUpModal] = useState(false)
 
   return (
-    <section className="relative bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 text-white py-16 overflow-hidden">
-      {/* Background Pattern */}
-      <div className="absolute inset-0 opacity-5">
-        <div className="absolute inset-0" style={{
-          backgroundImage: 'linear-gradient(rgba(255,255,255,0.1) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.1) 1px, transparent 1px)',
-          backgroundSize: '50px 50px'
-        }} />
+    <section className="bg-slate-950 border-b border-slate-800">
+      {/* Telemetry bar — StatusBadge integrated into first metric cell */}
+      <div className="flex items-stretch border-b border-slate-800 bg-slate-900">
+        {/* First cell: System Online + Active Shipments */}
+        <div className="flex-1 min-w-[140px] flex flex-col items-center justify-center px-4 py-3">
+          <StatusBadge variant="success" label="System Online" size="sm" className="!bg-white/10 !border-white/20 !text-emerald-400" />
+          <span className="text-lg font-semibold tabular-nums text-white mt-1">898</span>
+        </div>
+        {[
+          { label: 'On-Time Rate', value: '98.2%' },
+          { label: 'Delayed', value: '3' },
+          { label: 'Capacity Utilization', value: '74%' },
+          { label: '24h Throughput', value: '156' },
+        ].map((metric) => (
+          <div key={metric.label} className="flex-1 min-w-[120px] flex flex-col items-center justify-center px-4 py-3 border-l border-slate-800">
+            <span className="text-xs font-medium text-slate-400 uppercase tracking-wider">{metric.label}</span>
+            <span className="text-lg font-semibold tabular-nums text-white">{metric.value}</span>
+          </div>
+        ))}
       </div>
 
-      <div className="container relative">
-        <div className="max-w-4xl mx-auto text-center">
-          {/* System Status Badge */}
-          <div className="inline-flex items-center gap-2 bg-teal-500/10 border border-teal-500/30 rounded-full px-4 py-2 mb-6">
-            <div className="w-2 h-2 bg-teal-400 rounded-full animate-pulse" />
-            <span className="text-sm font-semibold text-teal-300">Live System • 898 Active Loads</span>
-          </div>
-          
-          {/* Main Headline */}
-          <h1 className="text-5xl md:text-6xl font-bold mb-6 leading-tight">
-            Ship Vehicles Faster<br />with AI-Powered Logistics
+      {/* Primary Content */}
+      <div className="px-6 py-8">
+        <div className="max-w-full">
+          <h1 className="text-2xl font-bold text-white tracking-tight mb-2">
+            Vehicle Logistics Operations
           </h1>
-          
-          <p className="text-xl text-gray-300 mb-8 leading-relaxed max-w-3xl mx-auto">
-            The only platform combining <span className="text-teal-400 font-semibold">multi-broker integration</span>, <span className="text-teal-400 font-semibold">AI dispatch</span>, and <span className="text-teal-400 font-semibold">real-time tracking</span> across Texas
+
+          <p className="text-sm text-slate-300 mb-5 max-w-xl">
+            Multi-broker dispatch, AI routing, and real-time shipment tracking — Carolina operations.
           </p>
 
-          {/* Key Benefits */}
-          <div className="flex flex-wrap justify-center gap-4 mb-8">
-            {['Instant quotes', 'Live GPS tracking', 'AI route optimization', 'Broker network sync'].map((benefit) => (
-              <div key={benefit} className="flex items-center gap-2 bg-white/5 border border-white/10 rounded-full px-4 py-2">
-                <CheckCircle className="h-4 w-4 text-teal-400" />
-                <span className="text-sm font-medium text-gray-200">{benefit}</span>
-              </div>
-            ))}
-          </div>
-          
           {/* CTAs */}
-          <div className="flex flex-wrap justify-center gap-4">
-            <Button 
-              size="lg" 
-              className="gap-2 bg-teal-500 hover:bg-teal-600 text-white text-base px-8 py-6"
+          <div className="flex flex-wrap gap-3">
+            <Button
+              size="default"
+              className="gap-2 bg-primary hover:bg-primary/90 text-white"
               onClick={() => setShowSignUpModal(true)}
             >
-              Sign Up Now
-              <ArrowRight className="h-5 w-5" />
+              Create Account
+              <ArrowRight className="h-4 w-4" />
             </Button>
             <Link href="/#quote">
-              <Button size="lg" variant="outline" className="gap-2 border-2 border-white/30 text-white hover:bg-white/10 text-base px-8 py-6">
-                Get Instant Quote
-                <ArrowRight className="h-5 w-5" />
+              <Button size="default" className="gap-2 bg-slate-700 hover:bg-slate-600 text-white border border-slate-600">
+                Request Quote
+                <ArrowRight className="h-4 w-4" />
               </Button>
             </Link>
           </div>
-
-          {/* Sign Up Role Modal */}
-          <SignUpRoleModal open={showSignUpModal} onOpenChange={setShowSignUpModal} />
-
-          {/* Social Proof Stats */}
-          <div className="grid grid-cols-3 gap-6 mt-12 pt-12 border-t border-white/10">
-            <div>
-              <div className="text-3xl font-bold text-teal-400 mb-1">12,500+</div>
-              <div className="text-sm text-gray-400">Vehicles Shipped</div>
-            </div>
-            <div>
-              <div className="text-3xl font-bold text-teal-400 mb-1">98.2%</div>
-              <div className="text-sm text-gray-400">On-Time Delivery</div>
-            </div>
-            <div>
-              <div className="text-3xl font-bold text-teal-400 mb-1">247</div>
-              <div className="text-sm text-gray-400">Active Carriers</div>
-            </div>
-          </div>
         </div>
+
+        <SignUpRoleModal open={showSignUpModal} onOpenChange={setShowSignUpModal} />
       </div>
     </section>
   )

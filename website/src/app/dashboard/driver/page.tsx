@@ -187,139 +187,125 @@ export default function DriverDashboardPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500"></div>
+      <div className="flex items-center justify-center py-12">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-amber-500"></div>
       </div>
     )
   }
 
   return (
-    <div className="space-y-6" id="driver-dashboard">
+    <div className="space-y-4" id="driver-dashboard">
       {/* Welcome Header */}
-      <div className="bg-gradient-to-r from-orange-500 to-orange-600 rounded-2xl p-8 text-white" data-tour="driver-status">
-        <h1 className="text-3xl font-bold mb-2">
-          Welcome back, {profile?.first_name || 'Driver'}! 🚚
-        </h1>
-        <p className="text-white/90 mb-6">
-          {availableJobs.length} new job{availableJobs.length !== 1 ? 's' : ''} available in your area
-        </p>
-        <div className="flex flex-wrap gap-4">
-          <div className="bg-white/20 backdrop-blur-sm rounded-lg px-4 py-2">
-            <p className="text-xs text-white/80">Today's Earnings</p>
-            <p className="text-2xl font-bold">${stats.todayEarnings.toFixed(2)}</p>
-          </div>
-          <div className="bg-white/20 backdrop-blur-sm rounded-lg px-4 py-2">
-            <p className="text-xs text-white/80">Active Deliveries</p>
-            <p className="text-2xl font-bold">{activeDeliveries.length}</p>
-          </div>
+      <div className="flex items-center justify-between" data-tour="driver-status">
+        <div>
+          <h1 className="text-lg font-bold text-gray-900">
+            Welcome back, {profile?.first_name || 'Driver'}
+          </h1>
+          <p className="text-xs text-gray-500">
+            {availableJobs.length} new job{availableJobs.length !== 1 ? 's' : ''} available in your area
+          </p>
         </div>
+        <Link href="/dashboard/driver/jobs">
+          <Button size="sm" className="h-8 text-xs bg-amber-500 hover:bg-amber-600 text-white">
+            Browse Jobs
+          </Button>
+        </Link>
       </div>
 
       {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <div className="bg-white rounded-xl p-6 border border-gray-200 hover:shadow-lg transition-shadow" data-tour="earnings">
-          <div className="flex items-center justify-between mb-4">
-            <div className="p-3 bg-green-50 rounded-lg">
-              <DollarSign className="h-6 w-6 text-green-600" />
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <div className="bg-white rounded-md p-4 border border-gray-200" data-tour="earnings">
+          <div className="flex items-center gap-2 mb-2">
+            <div className="p-1.5 bg-green-50 rounded-md">
+              <DollarSign className="h-4 w-4 text-green-600" />
             </div>
-            <TrendingUp className="h-5 w-5 text-green-500" />
+            <p className="text-xs text-gray-500">Week Earnings</p>
           </div>
-          <p className="text-gray-600 text-sm mb-1">Week Earnings</p>
-          <h3 className="text-3xl font-bold text-gray-900">${stats.weekEarnings.toFixed(2)}</h3>
+          <h3 className="text-xl font-bold text-gray-900">${stats.weekEarnings.toFixed(2)}</h3>
         </div>
 
-        <div className="bg-white rounded-xl p-6 border border-gray-200 hover:shadow-lg transition-shadow">
-          <div className="flex items-center justify-between mb-4">
-            <div className="p-3 bg-orange-50 rounded-lg">
-              <Truck className="h-6 w-6 text-orange-600" />
+        <div className="bg-white rounded-md p-4 border border-gray-200">
+          <div className="flex items-center gap-2 mb-2">
+            <div className="p-1.5 bg-amber-50 rounded-md">
+              <Truck className="h-4 w-4 text-amber-600" />
             </div>
+            <p className="text-xs text-gray-500">Active Deliveries</p>
           </div>
-          <p className="text-gray-600 text-sm mb-1">Active Deliveries</p>
-          <h3 className="text-3xl font-bold text-gray-900">{activeDeliveries.length}</h3>
+          <h3 className="text-xl font-bold text-gray-900">{activeDeliveries.length}</h3>
         </div>
 
-        <div className="bg-white rounded-xl p-6 border border-gray-200 hover:shadow-lg transition-shadow">
-          <div className="flex items-center justify-between mb-4">
-            <div className="p-3 bg-blue-50 rounded-lg">
-              <CheckCircle className="h-6 w-6 text-blue-600" />
+        <div className="bg-white rounded-md p-4 border border-gray-200">
+          <div className="flex items-center gap-2 mb-2">
+            <div className="p-1.5 bg-blue-50 rounded-md">
+              <CheckCircle className="h-4 w-4 text-blue-600" />
             </div>
+            <p className="text-xs text-gray-500">Total Deliveries</p>
           </div>
-          <p className="text-gray-600 text-sm mb-1">Total Deliveries</p>
-          <h3 className="text-3xl font-bold text-gray-900">{stats.totalDeliveries}</h3>
+          <h3 className="text-xl font-bold text-gray-900">{stats.totalDeliveries}</h3>
         </div>
 
-        <div className="bg-white rounded-xl p-6 border border-gray-200 hover:shadow-lg transition-shadow">
-          <div className="flex items-center justify-between mb-4">
-            <div className="p-3 bg-yellow-50 rounded-lg">
-              <Star className="h-6 w-6 text-yellow-600" />
+        <div className="bg-white rounded-md p-4 border border-gray-200">
+          <div className="flex items-center gap-2 mb-2">
+            <div className="p-1.5 bg-yellow-50 rounded-md">
+              <Star className="h-4 w-4 text-yellow-600" />
             </div>
+            <p className="text-xs text-gray-500">Driver Rating</p>
           </div>
-          <p className="text-gray-600 text-sm mb-1">Driver Rating</p>
-          <h3 className="text-3xl font-bold text-gray-900">{stats.rating.toFixed(1)}</h3>
+          <h3 className="text-xl font-bold text-gray-900">{stats.rating.toFixed(1)}</h3>
         </div>
       </div>
 
       {/* Active Deliveries */}
       {activeDeliveries.length > 0 && (
-        <div className="bg-white rounded-xl border border-gray-200" data-tour="active-deliveries">
-          <div className="p-6 border-b border-gray-200">
-            <div className="flex items-center justify-between">
-              <h2 className="text-xl font-bold text-gray-900">Active Deliveries</h2>
-              <Link href="/dashboard/driver/active">
-                <Button variant="ghost" size="sm">
-                  View All
-                  <ArrowRight className="h-4 w-4 ml-2" />
-                </Button>
-              </Link>
-            </div>
+        <div className="bg-white rounded-md border border-gray-200" data-tour="active-deliveries">
+          <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
+            <h2 className="text-sm font-semibold text-gray-900">Active Deliveries</h2>
+            <Link href="/dashboard/driver/active">
+              <Button variant="ghost" size="sm" className="h-7 text-xs">
+                View All
+                <ArrowRight className="h-3 w-3 ml-1" />
+              </Button>
+            </Link>
           </div>
 
-          <div className="divide-y divide-gray-200">
+          <div className="divide-y divide-gray-100">
             {activeDeliveries.map((delivery) => (
-              <div key={delivery.id} className="p-6">
-                <div className="flex items-start justify-between mb-4">
+              <div key={delivery.id} className="px-4 py-3">
+                <div className="flex items-start justify-between mb-2">
                   <div className="flex-1">
-                    <div className="flex items-center gap-3 mb-3">
-                      <span className={`
-                        px-3 py-1 rounded-full text-xs font-medium
-                        ${delivery.status === 'in_transit' 
-                          ? 'bg-blue-100 text-blue-700' 
-                          : 'bg-orange-100 text-orange-700'
-                        }
-                      `}>
-                        {delivery.status === 'in_transit' ? 'In Transit' : 'Ready for Pickup'}
-                      </span>
-                    </div>
-                    <div className="space-y-2">
-                      <div className="flex items-start gap-2">
-                        <MapPin className="h-4 w-4 text-green-600 mt-0.5 flex-shrink-0" />
-                        <div className="text-sm">
-                          <p className="font-medium text-gray-900">Pickup</p>
-                          <p className="text-gray-600">{delivery.pickup_address}</p>
-                        </div>
+                    <span className={`
+                      inline-block px-2 py-0.5 rounded text-[10px] font-medium mb-2
+                      ${delivery.status === 'in_transit' 
+                        ? 'bg-blue-100 text-blue-700' 
+                        : 'bg-amber-100 text-amber-700'
+                      }
+                    `}>
+                      {delivery.status === 'in_transit' ? 'In Transit' : 'Ready for Pickup'}
+                    </span>
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-1.5 text-xs">
+                        <MapPin className="h-3 w-3 text-green-600 flex-shrink-0" />
+                        <span className="text-gray-600 truncate">{delivery.pickup_address}</span>
                       </div>
-                      <div className="flex items-start gap-2">
-                        <MapPin className="h-4 w-4 text-red-600 mt-0.5 flex-shrink-0" />
-                        <div className="text-sm">
-                          <p className="font-medium text-gray-900">Delivery</p>
-                          <p className="text-gray-600">{delivery.delivery_address}</p>
-                        </div>
+                      <div className="flex items-center gap-1.5 text-xs">
+                        <MapPin className="h-3 w-3 text-red-600 flex-shrink-0" />
+                        <span className="text-gray-600 truncate">{delivery.delivery_address}</span>
                       </div>
                     </div>
                   </div>
-                  <div className="text-right ml-4">
-                    <p className="text-2xl font-bold text-green-600">
+                  <div className="text-right ml-3">
+                    <p className="text-sm font-bold text-green-600">
                       ${delivery.estimated_price?.toFixed(2) || '0.00'}
                     </p>
-                    <p className="text-xs text-gray-500 mt-1">
-                      {delivery.distance || 0} miles
+                    <p className="text-[10px] text-gray-400">
+                      {delivery.distance || 0} mi
                     </p>
                   </div>
                 </div>
                 <Link href={`/dashboard/driver/active?id=${delivery.id}`}>
-                  <Button className="w-full bg-orange-500 hover:bg-orange-600">
+                  <Button size="sm" className="w-full h-7 text-xs bg-amber-500 hover:bg-amber-600">
                     View Details
-                    <ArrowRight className="h-4 w-4 ml-2" />
+                    <ArrowRight className="h-3 w-3 ml-1" />
                   </Button>
                 </Link>
               </div>
@@ -329,85 +315,77 @@ export default function DriverDashboardPage() {
       )}
 
       {/* Available Jobs */}
-      <div className="bg-white rounded-xl border border-gray-200" data-tour="available-jobs">
-        <div className="p-6 border-b border-gray-200">
-          <div className="flex items-center justify-between">
-            <h2 className="text-xl font-bold text-gray-900">Available Jobs</h2>
-            <Link href="/dashboard/driver/jobs">
-              <Button variant="ghost" size="sm">
-                View All
-                <ArrowRight className="h-4 w-4 ml-2" />
-              </Button>
-            </Link>
-          </div>
+      <div className="bg-white rounded-md border border-gray-200" data-tour="available-jobs">
+        <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
+          <h2 className="text-sm font-semibold text-gray-900">Available Jobs</h2>
+          <Link href="/dashboard/driver/jobs">
+            <Button variant="ghost" size="sm" className="h-7 text-xs">
+              View All
+              <ArrowRight className="h-3 w-3 ml-1" />
+            </Button>
+          </Link>
         </div>
 
         {availableJobs.length === 0 ? (
-          <div className="p-12 text-center">
-            <div className="inline-flex items-center justify-center w-16 h-16 bg-gray-100 rounded-full mb-4">
-              <Package className="h-8 w-8 text-gray-400" />
-            </div>
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">
+          <div className="p-8 text-center">
+            <Package className="h-10 w-10 text-gray-300 mx-auto mb-3" />
+            <h3 className="text-sm font-semibold text-gray-900 mb-1">
               No jobs available
             </h3>
-            <p className="text-gray-600">
+            <p className="text-xs text-gray-500">
               Check back later for new delivery opportunities
             </p>
           </div>
         ) : (
-          <div className="divide-y divide-gray-200">
+          <div className="divide-y divide-gray-100">
             {availableJobs.map((job) => (
-              <div key={job.id} className="p-6">
-                <div className="flex items-start justify-between mb-4">
+              <div key={job.id} className="px-4 py-3">
+                <div className="flex items-start justify-between mb-2">
                   <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-3">
-                      <Clock className="h-4 w-4 text-gray-500" />
-                      <span className="text-sm text-gray-600">
+                    <div className="flex items-center gap-1.5 mb-1.5">
+                      <Clock className="h-3 w-3 text-gray-400" />
+                      <span className="text-[10px] text-gray-400">
                         Posted {new Date(job.created_at).toLocaleDateString()}
                       </span>
                     </div>
-                    <div className="space-y-2">
-                      <div className="flex items-start gap-2">
-                        <MapPin className="h-4 w-4 text-green-600 mt-0.5 flex-shrink-0" />
-                        <div className="text-sm">
-                          <p className="font-medium text-gray-900">Pickup</p>
-                          <p className="text-gray-600">{job.pickup_address}</p>
-                        </div>
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-1.5 text-xs">
+                        <MapPin className="h-3 w-3 text-green-600 flex-shrink-0" />
+                        <span className="text-gray-600 truncate">{job.pickup_address}</span>
                       </div>
-                      <div className="flex items-start gap-2">
-                        <MapPin className="h-4 w-4 text-red-600 mt-0.5 flex-shrink-0" />
-                        <div className="text-sm">
-                          <p className="font-medium text-gray-900">Delivery</p>
-                          <p className="text-gray-600">{job.delivery_address}</p>
-                        </div>
+                      <div className="flex items-center gap-1.5 text-xs">
+                        <MapPin className="h-3 w-3 text-red-600 flex-shrink-0" />
+                        <span className="text-gray-600 truncate">{job.delivery_address}</span>
                       </div>
                     </div>
                   </div>
-                  <div className="text-right ml-4">
-                    <p className="text-sm text-gray-600 mb-1">Your Earnings (90%)</p>
-                    <p className="text-3xl font-bold text-green-600">
+                  <div className="text-right ml-3">
+                    <p className="text-[10px] text-gray-400">Earnings (90%)</p>
+                    <p className="text-sm font-bold text-green-600">
                       ${((job.estimated_price || 0) * 0.9).toFixed(2)}
                     </p>
-                    <p className="text-xs text-gray-500 mt-1">
-                      Total: ${job.estimated_price?.toFixed(2) || '0.00'} • {job.distance || 0} miles
+                    <p className="text-[10px] text-gray-400">
+                      ${job.estimated_price?.toFixed(2) || '0.00'} • {job.distance || 0} mi
                     </p>
                   </div>
                 </div>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-2 gap-2">
                   <Link href={`/dashboard/driver/jobs/${job.id}`} className="w-full">
                     <Button 
                       variant="outline"
-                      className="w-full"
+                      size="sm"
+                      className="w-full h-7 text-xs"
                     >
-                      View Details
+                      Details
                     </Button>
                   </Link>
                   <Button 
                     onClick={() => handleAcceptJob(job.id)}
                     disabled={acceptingJobId === job.id}
-                    className="w-full bg-primary hover:bg-secondary"
+                    size="sm"
+                    className="w-full h-7 text-xs bg-amber-500 hover:bg-amber-600 text-white"
                   >
-                    {acceptingJobId === job.id ? 'Applying...' : 'Apply for Job'}
+                    {acceptingJobId === job.id ? 'Applying...' : 'Apply'}
                   </Button>
                 </div>
               </div>
@@ -416,44 +394,36 @@ export default function DriverDashboardPage() {
         )}
       </div>
 
-      {/* Performance Tips */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl p-6 border border-blue-200">
-          <div className="flex items-start gap-4">
-            <div className="p-3 bg-blue-500 rounded-lg">
-              <TrendingUp className="h-6 w-6 text-white" />
-            </div>
-            <div>
-              <h3 className="font-semibold text-gray-900 mb-2">Boost Your Earnings</h3>
-              <p className="text-sm text-gray-700 mb-3">
-                Complete more deliveries during peak hours to earn bonuses
-              </p>
-              <Link href="/dashboard/driver/earnings">
-                <Button variant="outline" size="sm" className="border-blue-500 text-blue-700 hover:bg-blue-500 hover:text-white">
-                  View Earnings
-                </Button>
-              </Link>
-            </div>
+      {/* Quick Links */}
+      <div className="grid grid-cols-2 gap-3">
+        <div className="bg-blue-50 rounded-md p-3 border border-blue-100">
+          <div className="flex items-center gap-2 mb-1">
+            <TrendingUp className="h-4 w-4 text-blue-600" />
+            <h3 className="text-xs font-semibold text-gray-900">Boost Earnings</h3>
           </div>
+          <p className="text-[10px] text-gray-500 mb-2">
+            Complete deliveries during peak hours for bonuses
+          </p>
+          <Link href="/dashboard/driver/earnings">
+            <Button variant="outline" size="sm" className="h-6 text-[10px] border-blue-300 text-blue-700">
+              View Earnings
+            </Button>
+          </Link>
         </div>
 
-        <div className="bg-gradient-to-br from-yellow-50 to-yellow-100 rounded-xl p-6 border border-yellow-200">
-          <div className="flex items-start gap-4">
-            <div className="p-3 bg-yellow-500 rounded-lg">
-              <AlertCircle className="h-6 w-6 text-white" />
-            </div>
-            <div>
-              <h3 className="font-semibold text-gray-900 mb-2">Documents Needed</h3>
-              <p className="text-sm text-gray-700 mb-3">
-                Keep your documents up to date to continue receiving jobs
-              </p>
-              <Link href="/dashboard/driver/documents">
-                <Button variant="outline" size="sm" className="border-yellow-600 text-yellow-700 hover:bg-yellow-500 hover:text-white">
-                  Upload Documents
-                </Button>
-              </Link>
-            </div>
+        <div className="bg-amber-50 rounded-md p-3 border border-amber-100">
+          <div className="flex items-center gap-2 mb-1">
+            <AlertCircle className="h-4 w-4 text-amber-600" />
+            <h3 className="text-xs font-semibold text-gray-900">Documents</h3>
           </div>
+          <p className="text-[10px] text-gray-500 mb-2">
+            Keep documents up to date to receive jobs
+          </p>
+          <Link href="/dashboard/driver/documents">
+            <Button variant="outline" size="sm" className="h-6 text-[10px] border-amber-300 text-amber-700">
+              Upload Docs
+            </Button>
+          </Link>
         </div>
       </div>
 

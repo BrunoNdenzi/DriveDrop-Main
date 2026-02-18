@@ -30,18 +30,47 @@
     --accent: 174 64% 60%; /* Light Teal */
     --accent-foreground: 200 48% 16%;
     
-    /* Status Colors */
+    /* Status Colors — Enterprise Operations */
     --destructive: 4 90% 58%; /* #F44336 */
     --destructive-foreground: 0 0% 100%;
-    --success: 122 39% 49%; /* #4CAF50 */
-    --warning: 33 100% 50%; /* #FF9800 */
-    --info: 207 90% 54%; /* #2196F3 */
+    --success: 145 63% 42%; /* #12B76A */
+    --success-foreground: 0 0% 100%;
+    --warning: 28 97% 50%; /* #F79009 */
+    --warning-foreground: 0 0% 100%;
+    --info: 198 93% 48%; /* #0EA5E9 */
+    --info-foreground: 0 0% 100%;
+
+    /* Status background tints */
+    --status-success-bg: 145 72% 95%;
+    --status-warning-bg: 45 100% 95%;
+    --status-error-bg: 4 100% 97%;
+    --status-info-bg: 198 100% 97%;
+    --status-neutral-bg: 210 20% 97%;
+
+    /* Role Colors — Functional identity per user type */
+    --role-shipper: 217 91% 60%;       /* blue-500  — #3B82F6 */
+    --role-shipper-bg: 214 95% 97%;    /* blue-50 tint */
+    --role-shipper-border: 214 87% 85%;/* blue-200 */
+    --role-carrier: 38 92% 50%;        /* amber-500 — #F59E0B */
+    --role-carrier-bg: 48 100% 96%;    /* amber-50 tint */
+    --role-carrier-border: 48 96% 78%; /* amber-200 */
+    --role-broker: 172 66% 50%;        /* teal-500  — #14B8A6 */
+    --role-broker-bg: 166 76% 97%;     /* teal-50 tint */
+    --role-broker-border: 170 55% 81%; /* teal-200 */
+    --role-admin: 271 81% 56%;         /* purple-500 — #8B5CF6 */
+    --role-admin-bg: 270 100% 98%;     /* purple-50 tint */
+    --role-admin-border: 269 80% 86%;  /* purple-200 */
+
+    /* Surface Depth Tiers */
+    --surface-field: 210 40% 98%;      /* slate-50 / page bg behind cards */
+    --surface-card: 0 0% 100%;         /* white — interactive panels */
+    --surface-inset: 210 40% 96%;      /* slate-100 — input wells, tab bars */
     
-    /* UI Elements */
-    --border: 200 18% 92%; /* #E1E8ED */
+    /* UI Elements — Enterprise */
+    --border: 200 18% 88%;
     --input: 200 18% 92%;
-    --ring: 174 100% 36%; /* DriveDrop Teal */
-    --radius: 0.75rem;
+    --ring: 174 100% 36%;
+    --radius: 0.375rem; /* 6px — enterprise-tight corners */
   }
 
   .dark {
@@ -84,33 +113,43 @@
     max-width: 1280px;
   }
 
-  /* Glassmorphism effect */
+  /* ======================================================================
+     DEPRECATED — Enterprise Operations Design Constitution
+     The following decorative classes will be removed in Phase 7.
+     Do not use in new code. Use structural, state-driven alternatives.
+     ====================================================================== */
+
+  /* @deprecated — No glassmorphism in enterprise ops UI */
   .glass {
     @apply bg-white/80 backdrop-blur-xl border border-white/20 shadow-xl;
   }
   
+  /* @deprecated */
   .glass-dark {
     @apply bg-gray-900/80 backdrop-blur-xl border border-gray-800/20 shadow-xl;
   }
   
+  /* @deprecated */
   .glass-nav {
     @apply bg-white/60 backdrop-blur-2xl border border-white/20 shadow-lg;
   }
 
-  /* Gradient backgrounds */
+  /* @deprecated — No decorative gradients in enterprise ops UI */
   .gradient-primary {
     background: linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(var(--accent)) 100%);
   }
   
+  /* @deprecated */
   .gradient-secondary {
     background: linear-gradient(135deg, hsl(var(--secondary)) 0%, hsl(var(--drivedrop-orange-light)) 100%);
   }
   
-  /* Nav link styles */
+  /* @deprecated — No nav link pill styles */
   .nav-link {
     @apply relative px-4 py-2.5 text-sm font-medium text-foreground/80 hover:text-primary transition-all duration-200 rounded-full;
   }
   
+  /* @deprecated — No gradient mesh in enterprise ops */
   .gradient-mesh {
     background: 
       radial-gradient(at 40% 20%, hsl(var(--primary) / 0.3) 0px, transparent 50%),
@@ -121,7 +160,7 @@
       radial-gradient(at 80% 100%, hsl(var(--secondary) / 0.2) 0px, transparent 50%);
   }
 
-  /* Animated gradient border */
+  /* @deprecated — No animated gradient borders */
   .gradient-border {
     position: relative;
     background: white;
@@ -139,7 +178,7 @@
     mask-composite: exclude;
   }
 
-  /* Smooth hover effects */
+  /* @deprecated — No hover-lift effects in enterprise ops */
   .hover-lift {
     @apply transition-all duration-300 ease-out;
   }
@@ -161,21 +200,50 @@
   .custom-scrollbar::-webkit-scrollbar-thumb {
     @apply bg-primary/50 rounded-lg hover:bg-primary/70;
   }
+
+  /* ======================================================================
+     ENTERPRISE OPERATIONS — Structural Utility Classes
+     ====================================================================== */
+
+  /* Status badge backgrounds */
+  .status-success { @apply bg-[hsl(var(--status-success-bg))] text-[hsl(145,63%,30%)] border border-[hsl(145,63%,42%/0.3)]; }
+  .status-warning { @apply bg-[hsl(var(--status-warning-bg))] text-[hsl(28,80%,30%)] border border-[hsl(28,97%,50%/0.3)]; }
+  .status-error   { @apply bg-[hsl(var(--status-error-bg))] text-[hsl(4,70%,30%)] border border-[hsl(4,90%,58%/0.3)]; }
+  .status-info    { @apply bg-[hsl(var(--status-info-bg))] text-[hsl(198,80%,30%)] border border-[hsl(198,93%,48%/0.3)]; }
+  .status-neutral { @apply bg-[hsl(var(--status-neutral-bg))] text-[hsl(210,10%,40%)] border border-[hsl(210,20%,80%)]; }
+
+  /* Data table */
+  .ops-table { @apply w-full text-sm border-collapse; }
+  .ops-table th { @apply text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider px-3 py-2 border-b border-border bg-muted/50; }
+  .ops-table td { @apply px-3 py-2 border-b border-border text-foreground; }
+  .ops-table tr:hover td { @apply bg-muted/30; }
+
+  /* Metric strip */
+  .ops-metric-strip { @apply flex flex-wrap gap-4 p-4 border-b border-border bg-card; }
+  .ops-metric { @apply flex flex-col; }
+  .ops-metric-label { @apply text-xs font-medium text-muted-foreground uppercase tracking-wider; }
+  .ops-metric-value { @apply text-lg font-semibold text-foreground tabular-nums; }
+
+  /* Page header */
+  .ops-page-header { @apply flex items-center justify-between px-6 py-4 border-b border-border bg-card; }
+  .ops-page-title { @apply text-xl font-semibold text-foreground tracking-tight; }
+  .ops-page-subtitle { @apply text-sm text-muted-foreground; }
 }
 
 @layer utilities {
-  /* Text gradients */
+  /* @deprecated — No text gradients in enterprise ops */
   .text-gradient {
     @apply bg-clip-text text-transparent;
     background-image: linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(var(--accent)) 100%);
   }
   
+  /* @deprecated — No text gradient secondaries */
   .text-gradient-secondary {
     @apply bg-clip-text text-transparent;
     background-image: linear-gradient(135deg, hsl(var(--secondary)) 0%, hsl(var(--drivedrop-orange-light)) 100%);
   }
 
-  /* Animation utilities */
+  /* @deprecated — No float animation in enterprise ops */
   .animate-float {
     animation: float 6s ease-in-out infinite;
   }

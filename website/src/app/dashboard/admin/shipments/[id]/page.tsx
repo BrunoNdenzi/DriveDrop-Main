@@ -236,18 +236,18 @@ export default function AdminShipmentDetailPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600"></div>
+      <div className="py-12 bg-gray-50 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600"></div>
       </div>
     )
   }
 
   if (!shipment) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="py-12 bg-gray-50 flex items-center justify-center">
         <div className="text-center">
-          <AlertCircle className="h-16 w-16 text-red-500 mx-auto mb-4" />
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">Shipment Not Found</h2>
+          <AlertCircle className="h-10 w-10 text-red-500 mx-auto mb-4" />
+          <h2 className="text-lg font-semibold text-gray-900 mb-2">Shipment Not Found</h2>
           <Link href="/dashboard/admin/shipments">
             <Button>Back to Shipments</Button>
           </Link>
@@ -257,10 +257,10 @@ export default function AdminShipmentDetailPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="bg-gray-50">
       {/* Header */}
       <div className="bg-white border-b">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        <div className="px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
               <Link href="/dashboard/admin/shipments">
@@ -270,7 +270,7 @@ export default function AdminShipmentDetailPage() {
                 </Button>
               </Link>
               <div>
-                <h1 className="text-2xl font-bold text-gray-900">{shipment.title}</h1>
+                <h1 className="text-lg font-semibold text-gray-900">{shipment.title}</h1>
                 <p className="text-sm text-gray-600">Shipment ID: {shipment.id.slice(0, 8)}</p>
               </div>
             </div>
@@ -281,13 +281,13 @@ export default function AdminShipmentDetailPage() {
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="px-4 sm:px-6 lg:px-8 py-4">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
           {/* Main Content */}
-          <div className="lg:col-span-2 space-y-6">
+          <div className="lg:col-span-2 space-y-4">
             {/* Vehicle Information */}
-            <div className="bg-white rounded-lg shadow-sm border p-6">
-              <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+            <div className="bg-white rounded-md border p-4">
+              <h2 className="text-xs font-semibold uppercase tracking-wide text-gray-900 mb-4 flex items-center gap-2">
                 <Truck className="h-5 w-5" />
                 Vehicle Information
               </h2>
@@ -322,14 +322,14 @@ export default function AdminShipmentDetailPage() {
             </div>
 
             {/* Route Information */}
-            <div className="bg-white rounded-lg shadow-sm border p-6">
-              <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+            <div className="bg-white rounded-md border p-4">
+              <h2 className="text-xs font-semibold uppercase tracking-wide text-gray-900 mb-4 flex items-center gap-2">
                 <MapPin className="h-5 w-5" />
                 Route Details
               </h2>
               <div className="space-y-4">
                 <div className="flex items-start gap-3">
-                  <div className="p-2 bg-green-50 rounded-lg">
+                  <div className="p-2 bg-green-50 rounded-md">
                     <MapPin className="h-5 w-5 text-green-600" />
                   </div>
                   <div className="flex-1">
@@ -346,7 +346,7 @@ export default function AdminShipmentDetailPage() {
                 </div>
                 <div className="border-l-2 border-dashed border-gray-300 ml-4 pl-8 h-8"></div>
                 <div className="flex items-start gap-3">
-                  <div className="p-2 bg-blue-50 rounded-lg">
+                  <div className="p-2 bg-blue-50 rounded-md">
                     <Navigation className="h-5 w-5 text-blue-600" />
                   </div>
                   <div className="flex-1">
@@ -366,7 +366,7 @@ export default function AdminShipmentDetailPage() {
 
             {/* Special Instructions */}
             {shipment.special_instructions && (
-              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+              <div className="bg-yellow-50 border border-yellow-200 rounded-md p-4">
                 <h3 className="text-sm font-semibold text-yellow-900 mb-2 flex items-center gap-2">
                   <AlertCircle className="h-4 w-4" />
                   Special Instructions
@@ -377,18 +377,18 @@ export default function AdminShipmentDetailPage() {
 
             {/* Description */}
             {shipment.description && (
-              <div className="bg-white rounded-lg shadow-sm border p-6">
-                <h2 className="text-lg font-semibold text-gray-900 mb-3">Description</h2>
+              <div className="bg-white rounded-md border p-4">
+                <h2 className="text-xs font-semibold uppercase tracking-wide text-gray-900 mb-3">Description</h2>
                 <p className="text-gray-600">{shipment.description}</p>
               </div>
             )}
           </div>
 
           {/* Sidebar */}
-          <div className="space-y-6">
+          <div className="space-y-4">
             {/* Pricing Information */}
-            <div className="bg-white rounded-lg shadow-sm border p-6">
-              <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+            <div className="bg-white rounded-md border p-4">
+              <h2 className="text-xs font-semibold uppercase tracking-wide text-gray-900 mb-4 flex items-center gap-2">
                 <DollarSign className="h-5 w-5" />
                 Pricing
               </h2>
@@ -420,8 +420,8 @@ export default function AdminShipmentDetailPage() {
 
             {/* Client Information */}
             {shipment.client && (
-              <div className="bg-white rounded-lg shadow-sm border p-6">
-                <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+              <div className="bg-white rounded-md border p-4">
+                <h2 className="text-xs font-semibold uppercase tracking-wide text-gray-900 mb-4 flex items-center gap-2">
                   <User className="h-5 w-5" />
                   Client
                 </h2>
@@ -454,8 +454,8 @@ export default function AdminShipmentDetailPage() {
 
             {/* Driver Information or Assignment */}
             {shipment.driver ? (
-              <div className="bg-white rounded-lg shadow-sm border p-6">
-                <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+              <div className="bg-white rounded-md border p-4">
+                <h2 className="text-xs font-semibold uppercase tracking-wide text-gray-900 mb-4 flex items-center gap-2">
                   <Truck className="h-5 w-5" />
                   Assigned Driver
                 </h2>
@@ -485,13 +485,13 @@ export default function AdminShipmentDetailPage() {
                 </div>
               </div>
             ) : (
-              <div className="bg-white rounded-lg shadow-sm border p-6">
-                <h2 className="text-lg font-semibold text-gray-900 mb-4">Assign Driver</h2>
+              <div className="bg-white rounded-md border p-4">
+                <h2 className="text-xs font-semibold uppercase tracking-wide text-gray-900 mb-4">Assign Driver</h2>
                 <div className="space-y-4">
                   <select
                     value={selectedDriver}
                     onChange={(e) => setSelectedDriver(e.target.value)}
-                    className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500"
+                    className="w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-purple-500"
                   >
                     <option value="">Select a driver...</option>
                     {availableDrivers.map((driver) => (
@@ -512,8 +512,8 @@ export default function AdminShipmentDetailPage() {
             )}
 
             {/* Timeline */}
-            <div className="bg-white rounded-lg shadow-sm border p-6">
-              <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+            <div className="bg-white rounded-md border p-4">
+              <h2 className="text-xs font-semibold uppercase tracking-wide text-gray-900 mb-4 flex items-center gap-2">
                 <Clock className="h-5 w-5" />
                 Timeline
               </h2>
@@ -532,7 +532,7 @@ export default function AdminShipmentDetailPage() {
             </div>
 
             {/* Quick Actions */}
-            <div className="bg-gray-50 rounded-lg border p-4">
+            <div className="bg-gray-50 rounded-md border p-4">
               <h3 className="text-sm font-semibold text-gray-900 mb-3">Quick Actions</h3>
               <div className="space-y-2">
                 <Link href={`/dashboard/admin/map`}>

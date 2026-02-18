@@ -182,165 +182,154 @@ export default function AdminDashboardPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600"></div>
+      <div className="flex items-center justify-center py-12">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-500"></div>
       </div>
     )
   }
 
   return (
-    <div className="space-y-6" id="admin-dashboard">
+    <div className="space-y-4" id="admin-dashboard">
       {/* Welcome Header */}
-      <div className="bg-gradient-to-r from-purple-600 to-purple-700 rounded-2xl p-8 text-white" data-tour="analytics">
-        <h1 className="text-3xl font-bold mb-2">
-          Admin Dashboard 🛡️
-        </h1>
-        <p className="text-white/90 mb-6">
-          Monitor and manage DriveDrop
-        </p>
-        <div className="flex flex-wrap gap-4">
-          <div className="bg-white/20 backdrop-blur-sm rounded-lg px-4 py-2">
-            <p className="text-xs text-white/80">Total Revenue</p>
-            <p className="text-2xl font-bold">${stats.totalRevenue.toFixed(2)}</p>
-          </div>
-          <div className="bg-white/20 backdrop-blur-sm rounded-lg px-4 py-2">
-            <p className="text-xs text-white/80">Active Shipments</p>
-            <p className="text-2xl font-bold">{stats.activeShipments}</p>
-          </div>
-          <div className="bg-white/20 backdrop-blur-sm rounded-lg px-4 py-2">
-            <p className="text-xs text-white/80">Pending Applications</p>
-            <p className="text-2xl font-bold">{stats.pendingApplications}</p>
-          </div>
+      <div className="flex items-center justify-between" data-tour="analytics">
+        <div>
+          <h1 className="text-lg font-bold text-gray-900">
+            Admin Dashboard
+          </h1>
+          <p className="text-xs text-gray-500">
+            Monitor and manage DriveDrop
+          </p>
         </div>
+        <Link href="/dashboard/admin/applications">
+          <Button size="sm" className="h-8 text-xs bg-purple-500 hover:bg-purple-600 text-white">
+            Review Applications
+            {stats.pendingApplications > 0 && (
+              <span className="ml-1.5 bg-white/20 px-1.5 py-0.5 rounded text-[10px]">{stats.pendingApplications}</span>
+            )}
+          </Button>
+        </Link>
       </div>
 
       {/* Key Metrics Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <div className="bg-white rounded-xl p-6 border border-gray-200 hover:shadow-lg transition-shadow">
-          <div className="flex items-center justify-between mb-4">
-            <div className="p-3 bg-blue-50 rounded-lg">
-              <Users className="h-6 w-6 text-blue-600" />
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <div className="bg-white rounded-md p-4 border border-gray-200">
+          <div className="flex items-center gap-2 mb-2">
+            <div className="p-1.5 bg-purple-50 rounded-md">
+              <Users className="h-4 w-4 text-purple-600" />
             </div>
-            <TrendingUp className="h-5 w-5 text-green-500" />
+            <p className="text-xs text-gray-500">Total Users</p>
           </div>
-          <p className="text-gray-600 text-sm mb-1">Total Users</p>
-          <h3 className="text-3xl font-bold text-gray-900">{stats.totalUsers}</h3>
-          <p className="text-xs text-gray-500 mt-2">
+          <h3 className="text-xl font-bold text-gray-900">{stats.totalUsers}</h3>
+          <p className="text-[10px] text-gray-400 mt-1">
             {stats.totalClients} clients, {stats.totalDrivers} drivers
           </p>
         </div>
 
-        <div className="bg-white rounded-xl p-6 border border-gray-200 hover:shadow-lg transition-shadow">
-          <div className="flex items-center justify-between mb-4">
-            <div className="p-3 bg-orange-50 rounded-lg">
-              <Package className="h-6 w-6 text-orange-600" />
+        <div className="bg-white rounded-md p-4 border border-gray-200">
+          <div className="flex items-center gap-2 mb-2">
+            <div className="p-1.5 bg-purple-50 rounded-md">
+              <Package className="h-4 w-4 text-purple-600" />
             </div>
+            <p className="text-xs text-gray-500">Shipments</p>
           </div>
-          <p className="text-gray-600 text-sm mb-1">Total Shipments</p>
-          <h3 className="text-3xl font-bold text-gray-900">{stats.totalShipments}</h3>
-          <p className="text-xs text-gray-500 mt-2">
+          <h3 className="text-xl font-bold text-gray-900">{stats.totalShipments}</h3>
+          <p className="text-[10px] text-gray-400 mt-1">
             {stats.activeShipments} active
           </p>
         </div>
 
-        <div className="bg-white rounded-xl p-6 border border-gray-200 hover:shadow-lg transition-shadow">
-          <div className="flex items-center justify-between mb-4">
-            <div className="p-3 bg-green-50 rounded-lg">
-              <DollarSign className="h-6 w-6 text-green-600" />
+        <div className="bg-white rounded-md p-4 border border-gray-200">
+          <div className="flex items-center gap-2 mb-2">
+            <div className="p-1.5 bg-green-50 rounded-md">
+              <DollarSign className="h-4 w-4 text-green-600" />
             </div>
-            <TrendingUp className="h-5 w-5 text-green-500" />
+            <p className="text-xs text-gray-500">Revenue</p>
           </div>
-          <p className="text-gray-600 text-sm mb-1">Total Revenue</p>
-          <h3 className="text-3xl font-bold text-gray-900">
+          <h3 className="text-xl font-bold text-gray-900">
             ${stats.totalRevenue.toFixed(0)}
           </h3>
-          <p className="text-xs text-gray-500 mt-2">
-            From {stats.completedShipments} completed deliveries
+          <p className="text-[10px] text-gray-400 mt-1">
+            {stats.completedShipments} completed
           </p>
         </div>
 
-        <div className="bg-white rounded-xl p-6 border border-gray-200 hover:shadow-lg transition-shadow">
-          <div className="flex items-center justify-between mb-4">
-            <div className="p-3 bg-purple-50 rounded-lg">
-              <UserCheck className="h-6 w-6 text-purple-600" />
+        <div className="bg-white rounded-md p-4 border border-gray-200">
+          <div className="flex items-center gap-2 mb-2">
+            <div className="p-1.5 bg-amber-50 rounded-md">
+              <UserCheck className="h-4 w-4 text-amber-600" />
             </div>
-            {stats.pendingApplications > 0 && (
-              <AlertCircle className="h-5 w-5 text-orange-500" />
-            )}
+            <p className="text-xs text-gray-500">Applications</p>
           </div>
-          <p className="text-gray-600 text-sm mb-1">Driver Applications</p>
-          <h3 className="text-3xl font-bold text-gray-900">{stats.pendingApplications}</h3>
-          <p className="text-xs text-gray-500 mt-2">Pending review</p>
+          <h3 className="text-xl font-bold text-gray-900">{stats.pendingApplications}</h3>
+          <p className="text-[10px] text-gray-400 mt-1">Pending review</p>
         </div>
       </div>
 
       {/* Action Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-3 gap-3">
         <Link
           href="/dashboard/admin/applications"
-          className="bg-white rounded-xl p-6 border-2 border-dashed border-orange-300 hover:border-orange-500 hover:bg-orange-50 transition-all group"
+          className="bg-white rounded-md p-3 border border-gray-200 hover:border-purple-300 transition-colors"
           data-tour="driver-management"
         >
-          <div className="flex items-center justify-between mb-3">
-            <div className="p-3 bg-orange-50 rounded-lg group-hover:bg-orange-500 group-hover:text-white transition-colors">
-              <UserCheck className="h-6 w-6 text-orange-600 group-hover:text-white" />
+          <div className="flex items-center gap-2 mb-1.5">
+            <div className="p-1.5 bg-purple-50 rounded-md">
+              <UserCheck className="h-4 w-4 text-purple-600" />
             </div>
             {stats.pendingApplications > 0 && (
-              <span className="bg-orange-500 text-white text-xs font-bold px-2 py-1 rounded-full">
+              <span className="bg-purple-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded">
                 {stats.pendingApplications}
               </span>
             )}
           </div>
-          <h3 className="font-semibold text-gray-900 mb-1">Review Applications</h3>
-          <p className="text-sm text-gray-600">
-            {stats.pendingApplications} driver applications waiting
+          <h3 className="text-xs font-semibold text-gray-900">Review Applications</h3>
+          <p className="text-[10px] text-gray-500">
+            {stats.pendingApplications} waiting
           </p>
         </Link>
 
         <Link
           href="/dashboard/admin/shipments"
-          className="bg-white rounded-xl p-6 border-2 border-dashed border-blue-300 hover:border-blue-500 hover:bg-blue-50 transition-all group"
+          className="bg-white rounded-md p-3 border border-gray-200 hover:border-purple-300 transition-colors"
           data-tour="shipments-overview"
         >
-          <div className="flex items-center justify-between mb-3">
-            <div className="p-3 bg-blue-50 rounded-lg group-hover:bg-blue-500 group-hover:text-white transition-colors">
-              <Package className="h-6 w-6 text-blue-600 group-hover:text-white" />
+          <div className="flex items-center gap-2 mb-1.5">
+            <div className="p-1.5 bg-purple-50 rounded-md">
+              <Package className="h-4 w-4 text-purple-600" />
             </div>
           </div>
-          <h3 className="font-semibold text-gray-900 mb-1">Manage Shipments</h3>
-          <p className="text-sm text-gray-600">
-            {stats.activeShipments} active shipments
+          <h3 className="text-xs font-semibold text-gray-900">Manage Shipments</h3>
+          <p className="text-[10px] text-gray-500">
+            {stats.activeShipments} active
           </p>
         </Link>
 
         <Link
           href="/dashboard/admin/reports"
-          className="bg-white rounded-xl p-6 border-2 border-dashed border-green-300 hover:border-green-500 hover:bg-green-50 transition-all group"
+          className="bg-white rounded-md p-3 border border-gray-200 hover:border-purple-300 transition-colors"
         >
-          <div className="flex items-center justify-between mb-3">
-            <div className="p-3 bg-green-50 rounded-lg group-hover:bg-green-500 group-hover:text-white transition-colors">
-              <BarChart3 className="h-6 w-6 text-green-600 group-hover:text-white" />
+          <div className="flex items-center gap-2 mb-1.5">
+            <div className="p-1.5 bg-purple-50 rounded-md">
+              <BarChart3 className="h-4 w-4 text-purple-600" />
             </div>
           </div>
-          <h3 className="font-semibold text-gray-900 mb-1">View Reports</h3>
-          <p className="text-sm text-gray-600">
-            Analytics and insights
+          <h3 className="text-xs font-semibold text-gray-900">View Reports</h3>
+          <p className="text-[10px] text-gray-500">
+            Analytics & insights
           </p>
         </Link>
       </div>
 
       {/* Recent Activity & Quick Stats */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {/* Recent Activity */}
-        <div className="bg-white rounded-xl border border-gray-200">
-          <div className="p-6 border-b border-gray-200">
-            <div className="flex items-center justify-between">
-              <h2 className="text-xl font-bold text-gray-900">Recent Activity</h2>
-              <Button variant="ghost" size="sm">
-                View All
-                <ArrowRight className="h-4 w-4 ml-2" />
-              </Button>
-            </div>
+        <div className="bg-white rounded-md border border-gray-200">
+          <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
+            <h2 className="text-sm font-semibold text-gray-900">Recent Activity</h2>
+            <Button variant="ghost" size="sm" className="h-7 text-xs">
+              View All
+              <ArrowRight className="h-3 w-3 ml-1" />
+            </Button>
           </div>
 
           <div className="divide-y divide-gray-200">
@@ -373,21 +362,21 @@ export default function AdminDashboardPage() {
         </div>
 
         {/* System Overview */}
-        <div className="bg-white rounded-xl border border-gray-200">
-          <div className="p-6 border-b border-gray-200">
-            <h2 className="text-xl font-bold text-gray-900">System Overview</h2>
+        <div className="bg-white rounded-md border border-gray-200">
+          <div className="px-4 py-3 border-b border-gray-100">
+            <h2 className="text-sm font-semibold text-gray-900">System Overview</h2>
           </div>
 
-          <div className="p-6 space-y-4">
+          <div className="p-4 space-y-3">
             {/* Clients */}
             <div>
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-sm font-medium text-gray-700">Active Clients</span>
-                <span className="text-sm font-bold text-gray-900">{stats.totalClients}</span>
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-xs text-gray-600">Active Clients</span>
+                <span className="text-xs font-bold text-gray-900">{stats.totalClients}</span>
               </div>
-              <div className="w-full bg-gray-200 rounded-full h-2">
+              <div className="w-full bg-gray-100 rounded-full h-1.5">
                 <div 
-                  className="bg-gradient-to-r from-primary to-secondary h-2 rounded-full"
+                  className="bg-purple-500 h-1.5 rounded-full"
                   style={{ width: `${Math.min((stats.totalClients / 100) * 100, 100)}%` }}
                 ></div>
               </div>
@@ -395,13 +384,13 @@ export default function AdminDashboardPage() {
 
             {/* Drivers */}
             <div>
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-sm font-medium text-gray-700">Active Drivers</span>
-                <span className="text-sm font-bold text-gray-900">{stats.totalDrivers}</span>
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-xs text-gray-600">Active Drivers</span>
+                <span className="text-xs font-bold text-gray-900">{stats.totalDrivers}</span>
               </div>
-              <div className="w-full bg-gray-200 rounded-full h-2">
+              <div className="w-full bg-gray-100 rounded-full h-1.5">
                 <div 
-                  className="bg-gradient-to-r from-orange-500 to-orange-600 h-2 rounded-full"
+                  className="bg-amber-500 h-1.5 rounded-full"
                   style={{ width: `${Math.min((stats.totalDrivers / 50) * 100, 100)}%` }}
                 ></div>
               </div>
@@ -409,17 +398,17 @@ export default function AdminDashboardPage() {
 
             {/* Completion Rate */}
             <div>
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-sm font-medium text-gray-700">Completion Rate</span>
-                <span className="text-sm font-bold text-gray-900">
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-xs text-gray-600">Completion Rate</span>
+                <span className="text-xs font-bold text-gray-900">
                   {stats.totalShipments > 0 
                     ? ((stats.completedShipments / stats.totalShipments) * 100).toFixed(1)
                     : 0}%
                 </span>
               </div>
-              <div className="w-full bg-gray-200 rounded-full h-2">
+              <div className="w-full bg-gray-100 rounded-full h-1.5">
                 <div 
-                  className="bg-gradient-to-r from-green-500 to-green-600 h-2 rounded-full"
+                  className="bg-green-500 h-1.5 rounded-full"
                   style={{ 
                     width: stats.totalShipments > 0 
                       ? `${(stats.completedShipments / stats.totalShipments) * 100}%`
@@ -430,16 +419,16 @@ export default function AdminDashboardPage() {
             </div>
 
             {/* Quick Links */}
-            <div className="pt-4 space-y-2">
+            <div className="pt-2 space-y-1.5">
               <Link href="/dashboard/admin/users">
-                <Button variant="outline" className="w-full justify-start" size="sm" data-tour="user-management">
-                  <Users className="h-4 w-4 mr-2" />
+                <Button variant="outline" className="w-full justify-start h-7 text-xs" size="sm" data-tour="user-management">
+                  <Users className="h-3 w-3 mr-1.5" />
                   Manage Users
                 </Button>
               </Link>
               <Link href="/dashboard/admin/pricing">
-                <Button variant="outline" className="w-full justify-start" size="sm" data-tour="pricing-config">
-                  <DollarSign className="h-4 w-4 mr-2" />
+                <Button variant="outline" className="w-full justify-start h-7 text-xs" size="sm" data-tour="pricing-config">
+                  <DollarSign className="h-3 w-3 mr-1.5" />
                   Configure Pricing
                 </Button>
               </Link>
@@ -448,28 +437,21 @@ export default function AdminDashboardPage() {
         </div>
       </div>
 
-      {/* Alert Cards */}
+      {/* Alert */}
       {stats.pendingApplications > 0 && (
-        <div className="bg-orange-50 border border-orange-200 rounded-xl p-6">
-          <div className="flex items-start gap-4">
-            <div className="p-3 bg-orange-500 rounded-lg">
-              <AlertCircle className="h-6 w-6 text-white" />
-            </div>
-            <div className="flex-1">
-              <h3 className="font-semibold text-gray-900 mb-1">
-                Action Required: Pending Driver Applications
-              </h3>
-              <p className="text-sm text-gray-700 mb-3">
-                You have {stats.pendingApplications} driver application{stats.pendingApplications !== 1 ? 's' : ''} waiting for review
-              </p>
-              <Link href="/dashboard/admin/applications">
-                <Button size="sm" className="bg-orange-500 hover:bg-orange-600">
-                  Review Applications
-                  <ArrowRight className="h-4 w-4 ml-2" />
-                </Button>
-              </Link>
-            </div>
+        <div className="bg-amber-50 border border-amber-200 rounded-md p-3 flex items-center gap-3">
+          <AlertCircle className="h-4 w-4 text-amber-600 flex-shrink-0" />
+          <div className="flex-1">
+            <p className="text-xs font-medium text-gray-900">
+              {stats.pendingApplications} driver application{stats.pendingApplications !== 1 ? 's' : ''} pending review
+            </p>
           </div>
+          <Link href="/dashboard/admin/applications">
+            <Button size="sm" className="h-7 text-xs bg-amber-500 hover:bg-amber-600">
+              Review
+              <ArrowRight className="h-3 w-3 ml-1" />
+            </Button>
+          </Link>
         </div>
       )}
 

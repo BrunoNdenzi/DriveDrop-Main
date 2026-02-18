@@ -88,7 +88,7 @@ export function OnboardingChecklist({ userRole }: OnboardingChecklistProps) {
   const percentage = Math.round((completedCount / totalCount) * 100);
 
   return (
-    <div className="bg-white rounded-lg shadow-md border border-gray-200 p-6 mb-6">
+    <div className="bg-white rounded-md border border-gray-200 p-4 mb-6">
       <div className="flex items-start justify-between mb-4">
         <div className="flex-1">
           <h3 className="text-lg font-semibold text-gray-900">
@@ -133,7 +133,7 @@ export function OnboardingChecklist({ userRole }: OnboardingChecklistProps) {
           return (
             <div
               key={item.key}
-              className={`flex items-start gap-3 p-3 rounded-lg transition-all ${
+              className={`flex items-start gap-3 p-3 rounded-md transition-all ${
                 isCompleted 
                   ? 'bg-green-50 border border-green-200' 
                   : 'bg-gray-50 border border-gray-200 hover:bg-gray-100'
@@ -168,7 +168,7 @@ export function OnboardingChecklist({ userRole }: OnboardingChecklistProps) {
 
       {/* Completion Message */}
       {percentage === 100 && (
-        <div className="mt-4 p-4 bg-green-50 border border-green-200 rounded-lg">
+        <div className="mt-4 p-4 bg-green-50 border border-green-200 rounded-md">
           <p className="text-sm font-medium text-green-900 text-center">
             🎉 Congratulations! You've completed all onboarding steps!
           </p>

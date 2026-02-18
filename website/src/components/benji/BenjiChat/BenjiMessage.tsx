@@ -35,9 +35,9 @@ export const BenjiMessage = ({
       <div
         className={`flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center ${
           isUser
-            ? 'bg-gradient-to-br from-gray-400 to-gray-600'
-            : 'bg-gradient-to-br from-teal-500 to-purple-600'
-        } shadow-lg`}
+            ? 'bg-gray-500'
+            : 'bg-blue-500'
+        }`}
       >
         {isUser ? (
           <User className="w-5 h-5 text-white" />
@@ -49,10 +49,10 @@ export const BenjiMessage = ({
       {/* Message Content */}
       <div className={`flex-1 ${isUser ? 'flex flex-col items-end' : ''}`}>
         <div
-          className={`rounded-2xl px-4 py-3 max-w-[80%] ${
+          className={`rounded-md px-4 py-3 max-w-[80%] ${
             isUser
-              ? 'bg-gradient-to-r from-teal-600 to-teal-700 text-white'
-              : 'bg-white border border-gray-200 text-gray-800 shadow-sm'
+              ? 'bg-blue-500 text-white'
+              : 'bg-white border border-gray-200 text-gray-800'
           }`}
         >
           <p className="text-sm leading-relaxed whitespace-pre-wrap">{content}</p>
@@ -63,7 +63,7 @@ export const BenjiMessage = ({
               <span className="mr-1">Confidence:</span>
               <div className="w-20 h-1.5 bg-gray-200 rounded-full overflow-hidden">
                 <div
-                  className="h-full bg-gradient-to-r from-teal-500 to-purple-600"
+                  className="h-full bg-blue-500"
                   style={{ width: `${confidence * 100}%` }}
                 />
               </div>
@@ -79,7 +79,7 @@ export const BenjiMessage = ({
               <button
                 key={idx}
                 onClick={() => onSuggestionClick?.(suggestion)}
-                className="px-3 py-1.5 text-xs bg-white border border-teal-200 text-teal-700 rounded-full hover:bg-teal-50 hover:border-teal-300 transition-all shadow-sm"
+                className="px-3 py-1.5 text-xs bg-white border border-blue-200 text-blue-700 rounded-full hover:bg-blue-50 hover:border-blue-300 transition-all"
               >
                 {suggestion}
               </button>

@@ -176,7 +176,7 @@ export default function PayoutsPage() {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-teal-500 mx-auto"></div>
           <p className="mt-4 text-gray-600">Loading payouts...</p>
         </div>
       </div>
@@ -184,82 +184,75 @@ export default function PayoutsPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {/* Header */}
-      <div className="bg-gradient-to-r from-green-600 to-emerald-700 rounded-2xl p-8 text-white">
+      <div className="border border-gray-200 rounded-md p-4">
         <div className="flex items-center justify-between flex-wrap gap-4">
           <div>
-            <h1 className="text-3xl font-bold mb-2">Payouts & Earnings</h1>
-            <p className="text-green-100">
+            <h1 className="text-lg font-semibold text-gray-900">Payouts & Earnings</h1>
+            <p className="text-xs text-gray-500">
               Manage your broker commissions and payment methods
             </p>
           </div>
           <div className="flex gap-3">
             <Button
               onClick={() => setShowRequestPayoutModal(true)}
-              className="bg-white text-green-600 hover:bg-green-50"
+              className="bg-teal-500 hover:bg-teal-600 text-white"
             >
               <Send className="h-4 w-4 mr-2" />
               Request Payout
-            </Button>
-            <Button
-              onClick={() => router.push('/dashboard/broker')}
-              variant="outline"
-              className="bg-white/10 border-white/30 text-white hover:bg-white/20"
-            >
-              ← Back
             </Button>
           </div>
         </div>
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <div className="bg-white rounded-xl border border-gray-200 p-6">
-          <div className="flex items-center justify-between mb-4">
-            <div className="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center">
-              <DollarSign className="h-6 w-6 text-green-600" />
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="bg-white rounded-md border border-gray-200 p-4">
+          <div className="flex items-center justify-between mb-3">
+            <div className="w-9 h-9 bg-green-100 rounded-md flex items-center justify-center">
+              <DollarSign className="h-5 w-5 text-green-600" />
             </div>
             <TrendingUp className="h-5 w-5 text-green-600" />
           </div>
           <h3 className="text-sm font-medium text-gray-600 mb-1">Total Earnings</h3>
-          <p className="text-2xl font-bold text-gray-900">${stats.totalEarnings.toLocaleString()}</p>
+          <p className="text-xl font-bold text-gray-900">${stats.totalEarnings.toLocaleString()}</p>
           <p className="text-xs text-gray-500 mt-1">{stats.completedPayouts} completed payouts</p>
         </div>
 
-        <div className="bg-white rounded-xl border border-gray-200 p-6">
-          <div className="flex items-center justify-between mb-4">
-            <div className="w-12 h-12 bg-yellow-100 rounded-xl flex items-center justify-center">
-              <Clock className="h-6 w-6 text-yellow-600" />
+        <div className="bg-white rounded-md border border-gray-200 p-4">
+          <div className="flex items-center justify-between mb-3">
+            <div className="w-9 h-9 bg-yellow-100 rounded-md flex items-center justify-center">
+              <Clock className="h-5 w-5 text-yellow-600" />
             </div>
           </div>
           <h3 className="text-sm font-medium text-gray-600 mb-1">Pending Payouts</h3>
-          <p className="text-2xl font-bold text-gray-900">${stats.pendingPayouts.toLocaleString()}</p>
+          <p className="text-xl font-bold text-gray-900">${stats.pendingPayouts.toLocaleString()}</p>
           <p className="text-xs text-gray-500 mt-1">Awaiting processing</p>
         </div>
 
-        <div className="bg-white rounded-xl border border-gray-200 p-6">
-          <div className="flex items-center justify-between mb-4">
-            <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center">
-              <BarChart3 className="h-6 w-6 text-blue-600" />
+        <div className="bg-white rounded-md border border-gray-200 p-4">
+          <div className="flex items-center justify-between mb-3">
+            <div className="w-9 h-9 bg-blue-100 rounded-md flex items-center justify-center">
+              <BarChart3 className="h-5 w-5 text-blue-600" />
             </div>
           </div>
           <h3 className="text-sm font-medium text-gray-600 mb-1">Avg Commission</h3>
-          <p className="text-2xl font-bold text-gray-900">${stats.avgCommission.toFixed(0)}</p>
+          <p className="text-xl font-bold text-gray-900">${stats.avgCommission.toFixed(0)}</p>
           <p className="text-xs text-gray-500 mt-1">Per shipment</p>
         </div>
 
-        <div className="bg-white rounded-xl border border-gray-200 p-6">
-          <div className="flex items-center justify-between mb-4">
-            <div className="w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center">
-              <Wallet className="h-6 w-6 text-purple-600" />
+        <div className="bg-white rounded-md border border-gray-200 p-4">
+          <div className="flex items-center justify-between mb-3">
+            <div className="w-9 h-9 bg-purple-100 rounded-md flex items-center justify-center">
+              <Wallet className="h-5 w-5 text-purple-600" />
             </div>
           </div>
           <h3 className="text-sm font-medium text-gray-600 mb-1">Payment Method</h3>
           <p className="text-sm font-semibold text-gray-900">{'Not set'}</p>
           <button
             onClick={() => setShowPaymentMethodModal(true)}
-            className="text-xs text-blue-600 hover:text-blue-700 mt-1"
+            className="text-xs text-teal-600 hover:text-teal-700 mt-1"
           >
             Update method →
           </button>
@@ -267,7 +260,7 @@ export default function PayoutsPage() {
       </div>
 
       {/* Filters & Search */}
-      <div className="bg-white rounded-xl border border-gray-200 p-6">
+      <div className="bg-white rounded-md border border-gray-200 p-4">
         <div className="flex flex-col lg:flex-row gap-4">
           {/* Search */}
           <div className="flex-1">
@@ -278,7 +271,7 @@ export default function PayoutsPage() {
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 placeholder="Search by payout ID or location..."
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full pl-9 pr-3 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-teal-500 focus:border-transparent"
               />
             </div>
           </div>
@@ -289,9 +282,9 @@ export default function PayoutsPage() {
               <button
                 key={status}
                 onClick={() => setFilter(status as any)}
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
                   filter === status
-                    ? 'bg-blue-600 text-white'
+                    ? 'bg-teal-500 text-white'
                     : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                 }`}
               >
@@ -304,7 +297,7 @@ export default function PayoutsPage() {
           <select
             value={dateRange}
             onChange={(e) => setDateRange(e.target.value as any)}
-            className="border border-gray-300 rounded-lg py-2 px-4 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            className="border border-gray-300 rounded-md py-1.5 px-3 text-sm focus:outline-none focus:ring-1 focus:ring-teal-500 focus:border-transparent"
           >
             <option value="7d">Last 7 days</option>
             <option value="30d">Last 30 days</option>
@@ -325,30 +318,30 @@ export default function PayoutsPage() {
       </div>
 
       {/* Payouts Table */}
-      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+      <div className="bg-white rounded-md border border-gray-200 overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead className="bg-gray-50 border-b border-gray-200">
               <tr>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
                   Date
                 </th>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
                   Payout ID
                 </th>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
                   Route
                 </th>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
                   Carrier
                 </th>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
                   Commission
                 </th>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
                   Status
                 </th>
-                <th className="px-6 py-4 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider">
                   Actions
                 </th>
               </tr>
@@ -356,9 +349,9 @@ export default function PayoutsPage() {
             <tbody className="divide-y divide-gray-200">
               {filteredPayouts.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="px-6 py-12 text-center">
+                  <td colSpan={7} className="px-4 py-8 text-center">
                     <div className="flex flex-col items-center">
-                      <DollarSign className="h-12 w-12 text-gray-400 mb-3" />
+                      <DollarSign className="h-8 w-8 text-gray-400 mb-3" />
                       <h3 className="text-sm font-medium text-gray-900 mb-1">No payouts found</h3>
                       <p className="text-sm text-gray-500">
                         {searchTerm || filter !== 'all' ? 'Try adjusting your filters' : 'Complete shipments to earn commissions'}
@@ -369,7 +362,7 @@ export default function PayoutsPage() {
               ) : (
                 filteredPayouts.map((payout) => (
                   <tr key={payout.id} className="hover:bg-gray-50 transition-colors">
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    <td className="px-4 py-3 whitespace-nowrap">
                       <div className="text-sm text-gray-900">
                         {new Date(payout.created_at).toLocaleDateString()}
                       </div>
@@ -377,7 +370,7 @@ export default function PayoutsPage() {
                         {new Date(payout.created_at).toLocaleTimeString()}
                       </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    <td className="px-4 py-3 whitespace-nowrap">
                       <div className="flex items-center">
                         <FileText className="h-4 w-4 text-gray-400 mr-2" />
                         <span className="text-sm font-mono text-gray-900">
@@ -385,7 +378,7 @@ export default function PayoutsPage() {
                         </span>
                       </div>
                     </td>
-                    <td className="px-6 py-4">
+                    <td className="px-4 py-3">
                       <div className="text-sm text-gray-900">
                         {payout.load_board?.shipment?.pickup_city || 'N/A'}, {payout.load_board?.shipment?.pickup_state || ''}
                       </div>
@@ -394,12 +387,12 @@ export default function PayoutsPage() {
                         {payout.load_board?.shipment?.delivery_city || 'N/A'}, {payout.load_board?.shipment?.delivery_state || ''}
                       </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    <td className="px-4 py-3 whitespace-nowrap">
                       <div className="text-sm text-gray-900">
                         {payout.shipment?.carrier?.full_name || 'N/A'}
                       </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    <td className="px-4 py-3 whitespace-nowrap">
                       <div className="text-sm font-semibold text-gray-900">
                         ${(payout.payout_amount || 0).toLocaleString()}
                       </div>
@@ -410,19 +403,19 @@ export default function PayoutsPage() {
                         </div>
                       )}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    <td className="px-4 py-3 whitespace-nowrap">
                       <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium border ${getStatusColor(payout.payout_status)}`}>
                         {getStatusIcon(payout.payout_status)}
                         {payout.payout_status.charAt(0).toUpperCase() + payout.payout_status.slice(1)}
                       </span>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                    <td className="px-4 py-3 whitespace-nowrap text-right text-sm font-medium">
                       <button
                         onClick={() => {
                           setSelectedPayout(payout);
                           setShowDetailsModal(true);
                         }}
-                        className="text-blue-600 hover:text-blue-700 inline-flex items-center"
+                        className="text-teal-600 hover:text-teal-700 inline-flex items-center"
                       >
                         <Eye className="h-4 w-4 mr-1" />
                         Details
@@ -439,12 +432,12 @@ export default function PayoutsPage() {
       {/* Payment Method Modal */}
       {showPaymentMethodModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl max-w-md w-full p-6">
-            <div className="flex items-center justify-between mb-6">
-              <h3 className="text-xl font-bold text-gray-900">Update Payment Method</h3>
+          <div className="bg-white rounded-md max-w-md w-full p-4">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-sm font-semibold text-gray-900">Update Payment Method</h3>
               <button
                 onClick={() => setShowPaymentMethodModal(false)}
-                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                className="p-2 hover:bg-gray-100 rounded-md transition-colors"
               >
                 <X className="h-5 w-5 text-gray-500" />
               </button>
@@ -455,7 +448,7 @@ export default function PayoutsPage() {
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Payment Method
                 </label>
-                <select className="w-full border border-gray-300 rounded-lg py-2 px-3 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <select className="w-full border border-gray-300 rounded-md py-2 px-3 focus:outline-none focus:ring-1 focus:ring-teal-500">
                   <option value="">Select method</option>
                   <option value="bank_transfer">Bank Transfer (ACH)</option>
                   <option value="wire">Wire Transfer</option>
@@ -470,7 +463,7 @@ export default function PayoutsPage() {
                 <input
                   type="text"
                   placeholder="Enter account number"
-                  className="w-full border border-gray-300 rounded-lg py-2 px-3 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full border border-gray-300 rounded-md py-2 px-3 focus:outline-none focus:ring-1 focus:ring-teal-500"
                 />
               </div>
 
@@ -481,7 +474,7 @@ export default function PayoutsPage() {
                 <input
                   type="text"
                   placeholder="Enter routing number"
-                  className="w-full border border-gray-300 rounded-lg py-2 px-3 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full border border-gray-300 rounded-md py-2 px-3 focus:outline-none focus:ring-1 focus:ring-teal-500"
                 />
               </div>
 
@@ -497,7 +490,7 @@ export default function PayoutsPage() {
                   onClick={() => {
                     setShowPaymentMethodModal(false);
                   }}
-                  className="flex-1 bg-blue-600 hover:bg-blue-700 text-white"
+                  className="flex-1 bg-teal-500 hover:bg-teal-600 text-white"
                 >
                   Save Method
                 </Button>
@@ -510,21 +503,21 @@ export default function PayoutsPage() {
       {/* Request Payout Modal */}
       {showRequestPayoutModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl max-w-md w-full p-6">
-            <div className="flex items-center justify-between mb-6">
-              <h3 className="text-xl font-bold text-gray-900">Request Payout</h3>
+          <div className="bg-white rounded-md max-w-md w-full p-4">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-sm font-semibold text-gray-900">Request Payout</h3>
               <button
                 onClick={() => setShowRequestPayoutModal(false)}
-                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                className="p-2 hover:bg-gray-100 rounded-md transition-colors"
               >
                 <X className="h-5 w-5 text-gray-500" />
               </button>
             </div>
 
             <div className="space-y-4">
-              <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+              <div className="bg-green-50 border border-green-200 rounded-md p-4">
                 <p className="text-sm font-medium text-green-900 mb-1">Available Balance</p>
-                <p className="text-3xl font-bold text-green-600">${stats.pendingPayouts.toLocaleString()}</p>
+                <p className="text-xl font-bold text-green-600">${stats.pendingPayouts.toLocaleString()}</p>
               </div>
 
               <div>
@@ -537,7 +530,7 @@ export default function PayoutsPage() {
                     type="number"
                     placeholder="0.00"
                     max={stats.pendingPayouts}
-                    className="w-full pl-8 pr-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full pl-8 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-teal-500"
                   />
                 </div>
                 <p className="text-xs text-gray-500 mt-1">
@@ -549,7 +542,7 @@ export default function PayoutsPage() {
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Payment Method
                 </label>
-                <div className="flex items-center gap-2 p-3 bg-gray-50 rounded-lg border border-gray-200">
+                <div className="flex items-center gap-2 p-3 bg-gray-50 rounded-md border border-gray-200">
                   <CreditCard className="h-5 w-5 text-gray-400" />
                   <span className="text-sm text-gray-700">
                     {'No payment method set'}
@@ -557,7 +550,7 @@ export default function PayoutsPage() {
                 </div>
               </div>
 
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+              <div className="bg-blue-50 border border-blue-200 rounded-md p-4">
                 <p className="text-xs text-blue-800">
                   <strong>Processing Time:</strong> Payouts are typically processed within 3-5 business days.
                 </p>
@@ -588,23 +581,23 @@ export default function PayoutsPage() {
       {/* Payout Details Modal */}
       {showDetailsModal && selectedPayout && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl max-w-2xl w-full p-6 max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between mb-6">
-              <h3 className="text-xl font-bold text-gray-900">Payout Details</h3>
+          <div className="bg-white rounded-md max-w-2xl w-full p-4 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-sm font-semibold text-gray-900">Payout Details</h3>
               <button
                 onClick={() => {
                   setShowDetailsModal(false);
                   setSelectedPayout(null);
                 }}
-                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                className="p-2 hover:bg-gray-100 rounded-md transition-colors"
               >
                 <X className="h-5 w-5 text-gray-500" />
               </button>
             </div>
 
-            <div className="space-y-6">
+            <div className="space-y-4">
               {/* Status Banner */}
-              <div className={`rounded-lg p-4 border ${getStatusColor(selectedPayout.payout_status)}`}>
+              <div className={`rounded-md p-4 border ${getStatusColor(selectedPayout.payout_status)}`}>
                 <div className="flex items-center gap-2">
                   {getStatusIcon(selectedPayout.payout_status)}
                   <span className="font-semibold">
@@ -644,7 +637,7 @@ export default function PayoutsPage() {
               {selectedPayout.load_board?.shipment && (
                 <div>
                   <h4 className="text-sm font-semibold text-gray-900 mb-3">Shipment Details</h4>
-                  <div className="bg-gray-50 rounded-lg p-4">
+                  <div className="bg-gray-50 rounded-md p-4">
                     <div className="flex items-center justify-between mb-2">
                       <div className="flex items-center gap-2">
                         <div className="w-2 h-2 bg-green-500 rounded-full"></div>
@@ -672,7 +665,7 @@ export default function PayoutsPage() {
               {selectedPayout.shipment?.carrier && (
                 <div>
                   <h4 className="text-sm font-semibold text-gray-900 mb-3">Carrier Information</h4>
-                  <div className="bg-gray-50 rounded-lg p-4">
+                  <div className="bg-gray-50 rounded-md p-4">
                     <p className="text-sm font-medium text-gray-900">
                       {selectedPayout.shipment.carrier.full_name}
                     </p>
@@ -696,7 +689,7 @@ export default function PayoutsPage() {
                   onClick={() => {
                     console.log('Download receipt');
                   }}
-                  className="flex-1 bg-blue-600 hover:bg-blue-700 text-white"
+                  className="flex-1 bg-teal-500 hover:bg-teal-600 text-white"
                 >
                   <Download className="h-4 w-4 mr-2" />
                   Download Receipt

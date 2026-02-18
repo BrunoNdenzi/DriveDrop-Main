@@ -60,8 +60,8 @@ export default function AdminDashboardLayout({
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-purple-50 to-primary/5">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600"></div>
+      <div className="min-h-screen flex items-center justify-center bg-[hsl(var(--surface-field))]">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-500"></div>
       </div>
     )
   }
@@ -71,7 +71,7 @@ export default function AdminDashboardLayout({
     : profile?.email?.split('@')[0] || 'Admin'
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
+    <div className="min-h-screen bg-[hsl(var(--surface-field))]">
       {/* Header */}
       <header className="bg-white border-b border-gray-200 sticky top-0 z-40">
         <div className="px-4 sm:px-6 lg:px-8">
@@ -93,7 +93,7 @@ export default function AdminDashboardLayout({
                   height={30}
                   className="h-8 w-auto"
                 />
-                <span className="hidden md:flex items-center gap-2 px-3 py-1 bg-purple-50 border border-purple-200 rounded-full">
+                <span className="hidden md:flex items-center gap-2 px-3 py-1 bg-purple-50 border border-purple-200 rounded-md">
                   <Shield className="h-3 w-3 text-purple-600" />
                   <span className="text-xs font-semibold text-purple-600">Admin</span>
                 </span>
@@ -111,7 +111,7 @@ export default function AdminDashboardLayout({
                   onClick={() => setUserMenuOpen(!userMenuOpen)}
                   className="flex items-center gap-2 p-2 rounded-lg hover:bg-gray-100 transition-colors"
                 >
-                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-purple-500 to-purple-700 flex items-center justify-center">
+                  <div className="w-8 h-8 rounded-full bg-purple-500 flex items-center justify-center">
                     <span className="text-white font-semibold text-sm">
                       {userName.charAt(0).toUpperCase()}
                     </span>
@@ -124,7 +124,7 @@ export default function AdminDashboardLayout({
 
                 {/* Dropdown Menu */}
                 {userMenuOpen && (
-                  <div className="absolute right-0 mt-2 w-56 bg-white rounded-xl shadow-xl border border-gray-200 py-2">
+                  <div className="absolute right-0 mt-2 w-56 bg-white rounded-md shadow-md border border-gray-200 py-2">
                     <div className="px-4 py-3 border-b border-gray-100">
                       <p className="text-sm font-medium text-gray-900">{userName}</p>
                       <p className="text-xs text-gray-500 truncate">{profile?.email}</p>
@@ -183,9 +183,9 @@ export default function AdminDashboardLayout({
                   href={item.href}
                   onClick={() => setSidebarOpen(false)}
                   className={`
-                    flex items-center gap-3 px-4 py-3 rounded-lg transition-all
+                    flex items-center gap-3 px-4 py-3 rounded-md transition-all
                     ${isActive 
-                      ? 'bg-gradient-to-r from-purple-600 to-purple-700 text-white shadow-lg shadow-purple-600/20' 
+                      ? 'bg-purple-500 text-white' 
                       : 'text-gray-700 hover:bg-gray-50'
                     }
                   `}
@@ -199,9 +199,9 @@ export default function AdminDashboardLayout({
 
           {/* System Status Widget */}
           <div className="p-4">
-            <div className="bg-gradient-to-br from-green-50 to-emerald-50 rounded-xl p-4 border border-green-200">
+            <div className="bg-slate-50 rounded-md p-4 border border-border">
               <div className="flex items-center gap-2 mb-2">
-                <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                <div className="w-2 h-2 bg-green-500 rounded-full"></div>
                 <h3 className="font-semibold text-gray-900 text-sm">System Status</h3>
               </div>
               <p className="text-xs text-gray-600 mb-2">All systems operational</p>
@@ -220,7 +220,7 @@ export default function AdminDashboardLayout({
 
           {/* Quick Actions */}
           <div className="p-4">
-            <div className="bg-gradient-to-br from-primary/10 to-secondary/10 rounded-xl p-4 border border-primary/20">
+            <div className="bg-slate-50 rounded-md p-4 border border-border">
               <h3 className="font-semibold text-gray-900 mb-3 text-sm">Quick Actions</h3>
               <div className="space-y-2">
                 <Link href="/dashboard/admin/applications">

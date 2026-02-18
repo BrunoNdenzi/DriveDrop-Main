@@ -160,7 +160,7 @@ export default function LoadBoardPage() {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-teal-500 mx-auto"></div>
           <p className="mt-4 text-gray-600">Loading available loads...</p>
         </div>
       </div>
@@ -168,20 +168,19 @@ export default function LoadBoardPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {/* Header */}
-      <div className="bg-gradient-to-r from-blue-600 to-blue-700 rounded-2xl p-8 text-white">
+      <div>
         <div className="flex items-center justify-between flex-wrap gap-4">
           <div>
-            <h1 className="text-3xl font-bold mb-2">Load Board</h1>
-            <p className="text-blue-100">
+            <h1 className="text-lg font-semibold text-gray-900">Load Board</h1>
+            <p className="text-xs text-gray-500">
               {filteredLoads.length} available shipment{filteredLoads.length !== 1 ? 's' : ''} • Find profitable loads for your carrier network
             </p>
           </div>
           <Button
             variant="outline"
             onClick={() => router.push('/dashboard/broker')}
-            className="bg-white/10 border-white/30 text-white hover:bg-white/20"
           >
             ← Back to Dashboard
           </Button>
@@ -189,15 +188,15 @@ export default function LoadBoardPage() {
       </div>
 
       {error && (
-        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl">
+        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-md">
           {error}
         </div>
       )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
           {/* Filters Sidebar */}
           <div className="lg:col-span-1">
-            <div className="bg-white rounded-xl border border-gray-200 p-6 sticky top-6">
+            <div className="bg-white rounded-md border border-gray-200 p-4 sticky top-6">
               <div className="flex items-center justify-between mb-6">
                 <div className="flex items-center gap-2">
                   <Filter className="h-5 w-5 text-blue-600" />
@@ -223,7 +222,7 @@ export default function LoadBoardPage() {
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                     placeholder="City, vehicle..."
-                    className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent"
                   />
                 </div>
               </div>
@@ -236,7 +235,7 @@ export default function LoadBoardPage() {
                 <select
                   value={sortBy}
                   onChange={(e) => setSortBy(e.target.value as any)}
-                  className="w-full border border-gray-300 rounded-lg py-2 px-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full border border-gray-300 rounded-md py-2 px-3 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent"
                 >
                   <option value="date">Newest First</option>
                   <option value="price">Highest Price</option>
@@ -257,7 +256,7 @@ export default function LoadBoardPage() {
                   onChange={(e) => setFilters(prev => ({ ...prev, pickup_state: e.target.value }))}
                   placeholder="CA"
                   maxLength={2}
-                  className="w-full border border-gray-300 rounded-lg py-2 px-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent uppercase"
+                  className="w-full border border-gray-300 rounded-md py-2 px-3 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent uppercase"
                 />
               </div>
 
@@ -272,7 +271,7 @@ export default function LoadBoardPage() {
                   onChange={(e) => setFilters(prev => ({ ...prev, delivery_state: e.target.value }))}
                   placeholder="NY"
                   maxLength={2}
-                  className="w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full border border-gray-300 rounded-md py-2 px-3 focus:outline-none focus:ring-teal-500 focus:border-teal-500"
                 />
               </div>
 
@@ -284,7 +283,7 @@ export default function LoadBoardPage() {
                 <select
                   value={filters.vehicle_type}
                   onChange={(e) => setFilters(prev => ({ ...prev, vehicle_type: e.target.value }))}
-                  className="w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full border border-gray-300 rounded-md py-2 px-3 focus:outline-none focus:ring-teal-500 focus:border-teal-500"
                 >
                   <option value="">All Types</option>
                   <option value="sedan">Sedan</option>
@@ -306,14 +305,14 @@ export default function LoadBoardPage() {
                     value={filters.min_price || ''}
                     onChange={(e) => setFilters(prev => ({ ...prev, min_price: e.target.value ? parseFloat(e.target.value) : undefined }))}
                     placeholder="Min"
-                    className="w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full border border-gray-300 rounded-md py-2 px-3 focus:outline-none focus:ring-teal-500 focus:border-teal-500"
                   />
                   <input
                     type="number"
                     value={filters.max_price || ''}
                     onChange={(e) => setFilters(prev => ({ ...prev, max_price: e.target.value ? parseFloat(e.target.value) : undefined }))}
                     placeholder="Max"
-                    className="w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full border border-gray-300 rounded-md py-2 px-3 focus:outline-none focus:ring-teal-500 focus:border-teal-500"
                   />
                 </div>
               </div>
@@ -323,9 +322,9 @@ export default function LoadBoardPage() {
           {/* Loads List */}
           <div className="lg:col-span-3">
             {filteredLoads.length === 0 ? (
-              <div className="bg-white rounded-lg shadow p-12 text-center">
+              <div className="bg-white rounded-md border border-gray-200 p-8 text-center">
                 <svg
-                  className="mx-auto h-12 w-12 text-gray-400"
+                  className="mx-auto h-8 w-8 text-gray-400"
                   fill="none"
                   viewBox="0 0 24 24"
                   stroke="currentColor"
@@ -349,7 +348,7 @@ export default function LoadBoardPage() {
                 {filteredLoads.map((load) => (
                   <div
                     key={load.id}
-                    className="bg-white rounded-lg shadow hover:shadow-md transition-shadow p-6"
+                    className="bg-white rounded-md border border-gray-200 p-4"
                   >
                     <div className="flex items-start justify-between">
                       <div className="flex-1">
@@ -370,7 +369,7 @@ export default function LoadBoardPage() {
                           </div>
                           
                           <div className="flex-shrink-0">
-                            <svg className="h-6 w-6 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <svg className="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
                             </svg>
                           </div>
@@ -437,7 +436,7 @@ export default function LoadBoardPage() {
                       {/* Price & Actions */}
                       <div className="ml-6 flex flex-col items-end space-y-3">
                         <div className="text-right">
-                          <p className="text-2xl font-bold text-green-600">
+                          <p className="text-lg font-bold text-green-600">
                             ${load.suggested_carrier_payout?.toLocaleString() || 'N/A'}
                           </p>
                           <p className="text-xs text-gray-500">Suggested Carrier Payout</p>
@@ -452,13 +451,13 @@ export default function LoadBoardPage() {
                           <button
                             onClick={() => handlePlaceBid(load.id)}
                             disabled={broker?.verification_status !== 'verified'}
-                            className="inline-flex justify-center items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                            className="inline-flex justify-center items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-teal-500 hover:bg-teal-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-teal-500 disabled:opacity-50 disabled:cursor-not-allowed"
                           >
                             Place Bid
                           </button>
                           <button
                             onClick={() => handleViewDetails(load.id)}
-                            className="inline-flex justify-center items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                            className="inline-flex justify-center items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-teal-500"
                           >
                             View Details
                           </button>

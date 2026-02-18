@@ -227,9 +227,9 @@ export default function DriverDocumentsPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
+      <div className="flex items-center justify-center py-12">
         <div className="text-center">
-          <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4 text-blue-600" />
+          <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4 text-amber-500" />
           <p className="text-gray-600">Loading documents...</p>
         </div>
       </div>
@@ -237,7 +237,7 @@ export default function DriverDocumentsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-20">
+    <div className="bg-gray-50 pb-20">
       {/* Header */}
       <div className="bg-white border-b sticky top-0 z-10">
         <div className="max-w-6xl mx-auto px-4 py-4">
@@ -250,13 +250,13 @@ export default function DriverDocumentsPage() {
                 <ChevronLeft className="w-6 h-6" />
               </OptimizedLink>
               <div>
-                <h1 className="text-xl font-bold text-gray-900">Documents</h1>
+                <h1 className="text-sm font-semibold text-gray-900">Documents</h1>
                 <p className="text-sm text-gray-600">Upload and manage your documents</p>
               </div>
             </div>
             <button
               onClick={() => setShowUploadForm(!showUploadForm)}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center space-x-2"
+              className="px-4 py-2 bg-amber-500 text-white rounded-md hover:bg-amber-600 flex items-center space-x-2"
             >
               <Upload className="w-4 h-4" />
               <span>Upload Document</span>
@@ -265,10 +265,10 @@ export default function DriverDocumentsPage() {
         </div>
       </div>
 
-      <div className="max-w-6xl mx-auto px-4 py-6 space-y-6">
+      <div className="max-w-6xl mx-auto px-4 py-6 space-y-4">
         {/* Status Alert */}
         {!hasRequiredDocuments() && (
-          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+          <div className="bg-yellow-50 border border-yellow-200 rounded-md p-4">
             <div className="flex items-start space-x-3">
               <AlertTriangle className="w-5 h-5 text-yellow-600 mt-0.5" />
               <div className="flex-1">
@@ -283,9 +283,9 @@ export default function DriverDocumentsPage() {
 
         {/* Upload Form */}
         {showUploadForm && (
-          <div className="bg-white rounded-lg border p-6">
+          <div className="bg-white rounded-md border p-4">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold text-gray-900">Upload New Document</h2>
+              <h2 className="text-xs font-semibold uppercase tracking-wide text-gray-900">Upload New Document</h2>
               <button
                 onClick={() => setShowUploadForm(false)}
                 className="text-gray-400 hover:text-gray-600"
@@ -302,7 +302,7 @@ export default function DriverDocumentsPage() {
                 <select
                   value={selectedType}
                   onChange={(e) => setSelectedType(e.target.value)}
-                  className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full px-3 py-2 border rounded-md focus:ring-1 focus:ring-amber-500 focus:border-transparent"
                 >
                   <option value="">Select document type</option>
                   {DOCUMENT_TYPES.map(type => (
@@ -321,7 +321,7 @@ export default function DriverDocumentsPage() {
                   type="file"
                   accept=".pdf,.jpg,.jpeg,.png"
                   onChange={handleFileSelect}
-                  className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border rounded-md focus:ring-1 focus:ring-amber-500"
                 />
                 {selectedFile && (
                   <p className="text-sm text-gray-600 mt-1">
@@ -340,7 +340,7 @@ export default function DriverDocumentsPage() {
                     value={expiryDate}
                     onChange={(e) => setExpiryDate(e.target.value)}
                     min={new Date().toISOString().split('T')[0]}
-                    className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 border rounded-md focus:ring-1 focus:ring-amber-500"
                   />
                 </div>
               )}
@@ -348,7 +348,7 @@ export default function DriverDocumentsPage() {
               <button
                 onClick={handleUpload}
                 disabled={uploading || !selectedFile || !selectedType}
-                className="w-full bg-blue-600 text-white py-3 rounded-lg hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed font-medium flex items-center justify-center space-x-2"
+                className="w-full bg-amber-500 text-white py-3 rounded-md hover:bg-amber-600 disabled:bg-gray-300 disabled:cursor-not-allowed font-medium flex items-center justify-center space-x-2"
               >
                 {uploading ? (
                   <>
@@ -372,7 +372,7 @@ export default function DriverDocumentsPage() {
           const hasApproved = typeDocs.some(d => d.status === 'approved' && !isDocumentExpired(d.expiry_date))
 
           return (
-            <div key={type.value} className="bg-white rounded-lg border">
+            <div key={type.value} className="bg-white rounded-md border">
               <div className="p-4 border-b">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center space-x-3">
@@ -404,7 +404,7 @@ export default function DriverDocumentsPage() {
                     {typeDocs.map(doc => {
                       const expired = isDocumentExpired(doc.expiry_date)
                       return (
-                        <div key={doc.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                        <div key={doc.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-md">
                           <div className="flex-1">
                             <div className="flex items-center space-x-2">
                               <p className="font-medium text-gray-900">{doc.file_name}</p>
@@ -434,14 +434,14 @@ export default function DriverDocumentsPage() {
                               href={doc.file_url}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg"
+                              className="p-2 text-amber-500 hover:bg-amber-50 rounded-md"
                               title="View document"
                             >
                               <Eye className="w-4 h-4" />
                             </a>
                             <button
                               onClick={() => deleteDocument(doc.id, doc.file_url)}
-                              className="p-2 text-red-600 hover:bg-red-50 rounded-lg"
+                              className="p-2 text-red-600 hover:bg-red-50 rounded-md"
                               title="Delete document"
                             >
                               <X className="w-4 h-4" />
@@ -453,7 +453,7 @@ export default function DriverDocumentsPage() {
                   </div>
                 ) : (
                   <div className="text-center py-8">
-                    <FileText className="w-12 h-12 text-gray-400 mx-auto mb-2" />
+                    <FileText className="w-8 h-8 text-gray-400 mx-auto mb-2" />
                     <p className="text-gray-600">No {type.label.toLowerCase()} uploaded</p>
                     <p className="text-sm text-gray-500 mt-1">
                       Click "Upload Document" to add your {type.label.toLowerCase()}
@@ -466,15 +466,15 @@ export default function DriverDocumentsPage() {
         })}
 
         {documents.length === 0 && (
-          <div className="bg-white rounded-lg border p-12 text-center">
-            <FileText className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">No Documents Uploaded</h3>
+          <div className="bg-white rounded-md border p-12 text-center">
+            <FileText className="w-10 h-10 text-gray-400 mx-auto mb-4" />
+            <h3 className="text-sm font-semibold text-gray-900 mb-2">No Documents Uploaded</h3>
             <p className="text-gray-600 mb-4">
               Upload your required documents to start receiving delivery jobs
             </p>
             <button
               onClick={() => setShowUploadForm(true)}
-              className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 inline-flex items-center space-x-2"
+              className="px-6 py-3 bg-amber-500 text-white rounded-md hover:bg-amber-600 inline-flex items-center space-x-2"
             >
               <Upload className="w-4 h-4" />
               <span>Upload Your First Document</span>

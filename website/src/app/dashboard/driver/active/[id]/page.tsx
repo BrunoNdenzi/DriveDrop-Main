@@ -160,9 +160,9 @@ export default function DriverShipmentDetailPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="py-12 flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-teal-600 mx-auto mb-4"></div>
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-amber-500 mx-auto mb-4"></div>
           <p className="text-gray-600">Loading shipment details...</p>
         </div>
       </div>
@@ -171,9 +171,9 @@ export default function DriverShipmentDetailPage() {
 
   if (!shipment) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-[300px] flex items-center justify-center">
         <div className="text-center">
-          <Package className="h-16 w-16 text-gray-300 mx-auto mb-4" />
+          <Package className="h-10 w-10 text-gray-300 mx-auto mb-4" />
           <h3 className="text-lg font-semibold text-gray-900 mb-2">Shipment Not Found</h3>
           <Link href="/dashboard/driver/active">
             <Button variant="outline">Back to Active Deliveries</Button>
@@ -187,11 +187,10 @@ export default function DriverShipmentDetailPage() {
   const currentStatusIndex = getCurrentStatusIndex()
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="space-y-4">
       {/* Header */}
-      <div className="bg-white border-b shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
+      <div className="bg-white border-b">
+          <div className="flex items-center justify-between py-2">
             <div className="flex items-center gap-4">
               <Link href="/dashboard/driver/active">
                 <Button variant="ghost" size="sm">
@@ -200,20 +199,19 @@ export default function DriverShipmentDetailPage() {
                 </Button>
               </Link>
               <div>
-                <h1 className="text-xl font-bold text-gray-900">{shipment.title}</h1>
+                <h1 className="text-sm font-semibold text-gray-900">{shipment.title}</h1>
                 <p className="text-sm text-gray-600">Shipment ID: {shipment.id.slice(0, 8)}</p>
               </div>
             </div>
           </div>
-        </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="py-4">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
           {/* Main Content */}
-          <div className="lg:col-span-2 space-y-6">
+          <div className="lg:col-span-2 space-y-4">
             {/* Status Progress */}
-            <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
+            <div className="bg-white rounded-md p-4 border border-gray-200">
               <h2 className="text-lg font-semibold mb-4">Delivery Progress</h2>
               <div className="space-y-4">
                 {STATUS_FLOW.map((status, index) => {
@@ -249,11 +247,11 @@ export default function DriverShipmentDetailPage() {
 
               {/* Next Action Button */}
               {nextStatus && (
-                <div className="mt-6 pt-6 border-t">
+                <div className="mt-4 pt-4 border-t">
                   <Button
                     onClick={() => updateStatus(nextStatus.value)}
                     disabled={updating}
-                    className="w-full bg-teal-600 hover:bg-teal-700"
+                    className="w-full bg-amber-500 hover:bg-amber-600"
                     size="lg"
                   >
                     {updating ? (
@@ -273,10 +271,10 @@ export default function DriverShipmentDetailPage() {
             </div>
 
             {/* Pickup Location */}
-            <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
+            <div className="bg-white rounded-md p-4 border border-gray-200">
               <div className="flex items-start justify-between mb-4">
                 <div className="flex items-center gap-3">
-                  <div className="p-2 bg-blue-100 rounded-lg">
+                  <div className="p-2 bg-blue-100 rounded-md">
                     <MapPin className="h-5 w-5 text-blue-600" />
                   </div>
                   <div>
@@ -299,10 +297,10 @@ export default function DriverShipmentDetailPage() {
             </div>
 
             {/* Delivery Location */}
-            <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
+            <div className="bg-white rounded-md p-4 border border-gray-200">
               <div className="flex items-start justify-between mb-4">
                 <div className="flex items-center gap-3">
-                  <div className="p-2 bg-green-100 rounded-lg">
+                  <div className="p-2 bg-green-100 rounded-md">
                     <MapPin className="h-5 w-5 text-green-600" />
                   </div>
                   <div>
@@ -323,7 +321,7 @@ export default function DriverShipmentDetailPage() {
             </div>
 
             {/* Vehicle Details */}
-            <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
+            <div className="bg-white rounded-md p-4 border border-gray-200">
               <h3 className="font-semibold text-gray-900 mb-4">Vehicle Details</h3>
               <div className="grid grid-cols-2 gap-4">
                 <div>
@@ -349,19 +347,19 @@ export default function DriverShipmentDetailPage() {
           </div>
 
           {/* Sidebar */}
-          <div className="space-y-6">
+          <div className="space-y-4">
             {/* Earnings */}
-            <div className="bg-gradient-to-br from-teal-500 to-teal-600 rounded-xl p-6 text-white shadow-lg">
+            <div className="bg-amber-500 text-white rounded-md p-4">
               <div className="flex items-center gap-2 mb-2">
                 <DollarSign className="h-5 w-5" />
                 <h3 className="font-semibold">Your Earnings</h3>
               </div>
-              <p className="text-3xl font-bold">${shipment.estimated_price.toFixed(2)}</p>
-              <p className="text-teal-100 text-sm mt-1">Payment on delivery</p>
+              <p className="text-lg font-bold">${shipment.estimated_price.toFixed(2)}</p>
+              <p className="text-amber-100 text-sm mt-1">Payment on delivery</p>
             </div>
 
             {/* Client Info */}
-            <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
+            <div className="bg-white rounded-md p-4 border border-gray-200">
               <h3 className="font-semibold text-gray-900 mb-4">Client Information</h3>
               <div className="space-y-3">
                 <div className="flex items-center gap-3">
@@ -380,7 +378,7 @@ export default function DriverShipmentDetailPage() {
                       <p className="text-sm text-gray-500">Phone</p>
                       <a
                         href={`tel:${shipment.client.phone}`}
-                        className="font-medium text-teal-600 hover:text-teal-700"
+                        className="font-medium text-amber-500 hover:text-amber-600"
                       >
                         {shipment.client.phone}
                       </a>
@@ -391,7 +389,7 @@ export default function DriverShipmentDetailPage() {
             </div>
 
             {/* Timestamps */}
-            <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
+            <div className="bg-white rounded-md p-4 border border-gray-200">
               <h3 className="font-semibold text-gray-900 mb-4">Timeline</h3>
               <div className="space-y-3">
                 {shipment.driver_arrival_time && (

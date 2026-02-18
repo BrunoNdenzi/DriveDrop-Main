@@ -492,15 +492,15 @@ export default function AdminMapPage() {
 
   if (authLoading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-teal-500"></div>
+      <div className="flex items-center justify-center py-12">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-teal-500"></div>
       </div>
     )
   }
 
   if (!profile) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
+      <div className="flex items-center justify-center py-12">
         <div className="text-center">
           <p className="text-red-600 mb-2">Unable to load profile</p>
           <p className="text-sm text-gray-600">Please refresh the page or try logging in again</p>
@@ -511,7 +511,7 @@ export default function AdminMapPage() {
 
   if (profile.role !== 'admin') {
     return (
-      <div className="flex items-center justify-center min-h-screen">
+      <div className="flex items-center justify-center py-12">
         <div className="text-center">
           <p className="text-red-600 mb-2">Access denied. Admin only.</p>
           <p className="text-sm text-gray-600">Your role: {profile.role}</p>
@@ -523,33 +523,33 @@ export default function AdminMapPage() {
   return (
     <div className="h-screen flex flex-col bg-gray-50">
       {/* Compact Top Bar */}
-      <div className="bg-white border-b shadow-sm">
-        <div className="px-6 py-3">
+      <div className="bg-white border-b">
+        <div className="px-4 py-3">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-6">
+            <div className="flex items-center gap-4">
               <div>
-                <h1 className="text-xl font-bold text-gray-900">Live Map</h1>
+                <h1 className="text-sm font-semibold text-gray-900">Live Map</h1>
                 <p className="text-xs text-gray-600">Real-time tracking</p>
               </div>
 
               {/* Compact Stats */}
               <div className="flex items-center gap-4">
-                <div className="flex items-center gap-2 bg-blue-50 px-3 py-1.5 rounded-lg">
+                <div className="flex items-center gap-2 bg-blue-50 px-3 py-1.5 rounded-md">
                   <Truck className="h-4 w-4 text-blue-600" />
                   <span className="text-sm font-semibold text-blue-900">{stats.totalDrivers}</span>
                   <span className="text-xs text-blue-600">drivers</span>
                 </div>
-                <div className="flex items-center gap-2 bg-green-50 px-3 py-1.5 rounded-lg">
+                <div className="flex items-center gap-2 bg-green-50 px-3 py-1.5 rounded-md">
                   <TrendingUp className="h-4 w-4 text-green-600" />
                   <span className="text-sm font-semibold text-green-900">{stats.activeDrivers}</span>
                   <span className="text-xs text-green-600">active</span>
                 </div>
-                <div className="flex items-center gap-2 bg-purple-50 px-3 py-1.5 rounded-lg">
+                <div className="flex items-center gap-2 bg-purple-50 px-3 py-1.5 rounded-md">
                   <Package className="h-4 w-4 text-purple-600" />
                   <span className="text-sm font-semibold text-purple-900">{stats.totalShipments}</span>
                   <span className="text-xs text-purple-600">shipments</span>
                 </div>
-                <div className="flex items-center gap-2 bg-orange-50 px-3 py-1.5 rounded-lg">
+                <div className="flex items-center gap-2 bg-orange-50 px-3 py-1.5 rounded-md">
                   <Navigation className="h-4 w-4 text-orange-600" />
                   <span className="text-sm font-semibold text-orange-900">{stats.inTransit}</span>
                   <span className="text-xs text-orange-600">in transit</span>
@@ -599,7 +599,7 @@ export default function AdminMapPage() {
           <div ref={mapRef} className="w-full h-full" />
 
           {/* Floating Controls Panel - Top Left */}
-          <div className="absolute top-4 left-4 bg-white rounded-lg shadow-xl border p-4 max-w-xs z-10">
+          <div className="absolute top-4 left-4 bg-white rounded-md shadow-xl border p-4 max-w-xs z-10">
             <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
               <Layers className="h-4 w-4" />
               Map Controls
@@ -713,7 +713,7 @@ export default function AdminMapPage() {
 
           {/* Search Box - Top Center */}
           <div className="absolute top-4 left-1/2 transform -translate-x-1/2 w-96 z-10">
-            <div className="bg-white rounded-lg shadow-xl border p-2">
+            <div className="bg-white rounded-md shadow-xl border p-2">
               <div className="flex items-center gap-2">
                 <Search className="h-5 w-5 text-gray-400" />
                 <input
@@ -766,10 +766,10 @@ export default function AdminMapPage() {
 
           {/* Selected Shipment Detail Panel - Top Right */}
           {selectedShipment && (
-            <div className="absolute top-4 right-4 w-96 bg-white rounded-lg shadow-xl border z-10">
+            <div className="absolute top-4 right-4 w-96 bg-white rounded-md shadow-xl border z-10">
               <div className="p-4">
                 <div className="flex items-start justify-between mb-3">
-                  <h3 className="font-semibold text-gray-900 text-lg">Shipment Details</h3>
+                  <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-900">Shipment Details</h3>
                   <button
                     onClick={() => setSelectedShipment(null)}
                     className="text-gray-400 hover:text-gray-600 p-1"
@@ -786,7 +786,7 @@ export default function AdminMapPage() {
                     </p>
                   </div>
 
-                  <div className="space-y-3 bg-gray-50 rounded-lg p-3">
+                  <div className="space-y-3 bg-gray-50 rounded-md p-3">
                     <div className="flex items-start gap-2">
                       <MapPin className="h-4 w-4 text-green-500 mt-1 flex-shrink-0" />
                       <div className="flex-1 min-w-0">
@@ -831,7 +831,7 @@ export default function AdminMapPage() {
 
           {/* Selected Driver Panel - Bottom Right */}
           {selectedDriver && (
-            <div className="absolute bottom-4 right-4 w-80 bg-white rounded-lg shadow-xl border z-10">
+            <div className="absolute bottom-4 right-4 w-80 bg-white rounded-md shadow-xl border z-10">
               <div className="p-4">
                 <div className="flex items-start justify-between mb-3">
                   <h3 className="font-semibold text-gray-900">Driver Info</h3>
@@ -870,8 +870,8 @@ export default function AdminMapPage() {
           )}
 
           {/* Legend - Bottom Center */}
-          <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 bg-white rounded-lg shadow-lg border px-4 py-2 z-10">
-            <div className="flex items-center gap-6 text-xs">
+          <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 bg-white rounded-md border px-4 py-2 z-10">
+            <div className="flex items-center gap-4 text-xs">
               <div className="flex items-center gap-2">
                 <div className="w-3 h-3 rounded-full bg-blue-500 border-2 border-white shadow"></div>
                 <span>Driver</span>

@@ -129,31 +129,31 @@ export default function CompletedShipmentsPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500"></div>
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-amber-500"></div>
       </div>
     )
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Completed Shipments</h1>
+          <h1 className="text-lg font-semibold text-gray-900">Completed Shipments</h1>
           <p className="text-gray-600 mt-1">View your delivery history and earnings</p>
         </div>
 
         {/* Time Filter */}
         <div className="flex items-center gap-2">
           <span className="text-sm text-gray-600 font-medium">Filter:</span>
-          <div className="bg-white rounded-lg border border-gray-200 p-1 inline-flex">
+          <div className="bg-white rounded-md border border-gray-200 p-1 inline-flex">
             {(['30days', '3months', '1year', 'all'] as const).map((filter) => (
               <button
                 key={filter}
                 onClick={() => setTimeFilter(filter)}
                 className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
                   timeFilter === filter
-                    ? 'bg-orange-500 text-white'
+                    ? 'bg-amber-500 text-white'
                     : 'text-gray-600 hover:text-gray-900'
                 }`}
               >
@@ -166,31 +166,31 @@ export default function CompletedShipmentsPage() {
 
       {/* Stats */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="bg-gradient-to-br from-green-500 to-green-600 rounded-xl p-6 text-white">
+        <div className="bg-white border rounded-md p-4">
           <div className="flex items-center gap-2 mb-2">
-            <DollarSign className="h-5 w-5" />
-            <p className="text-sm font-medium opacity-90">Total Earnings</p>
+            <DollarSign className="h-5 w-5 text-green-600" />
+            <p className="text-sm font-medium text-gray-600">Total Earnings</p>
           </div>
-          <p className="text-3xl font-bold">${totalEarnings.toFixed(2)}</p>
-          <p className="text-sm opacity-75 mt-1">From {totalDeliveries} deliveries</p>
+          <p className="text-lg font-bold text-green-600">${totalEarnings.toFixed(2)}</p>
+          <p className="text-sm text-gray-500 mt-1">From {totalDeliveries} deliveries</p>
         </div>
 
-        <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl p-6 text-white">
+        <div className="bg-white border rounded-md p-4">
           <div className="flex items-center gap-2 mb-2">
-            <CheckCircle className="h-5 w-5" />
-            <p className="text-sm font-medium opacity-90">Completed Deliveries</p>
+            <CheckCircle className="h-5 w-5 text-blue-600" />
+            <p className="text-sm font-medium text-gray-600">Completed Deliveries</p>
           </div>
-          <p className="text-3xl font-bold">{totalDeliveries}</p>
-          <p className="text-sm opacity-75 mt-1">{getTimeFilterLabel(timeFilter)}</p>
+          <p className="text-lg font-bold text-blue-600">{totalDeliveries}</p>
+          <p className="text-sm text-gray-500 mt-1">{getTimeFilterLabel(timeFilter)}</p>
         </div>
 
-        <div className="bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl p-6 text-white">
+        <div className="bg-white border rounded-md p-4">
           <div className="flex items-center gap-2 mb-2">
-            <Truck className="h-5 w-5" />
-            <p className="text-sm font-medium opacity-90">Total Miles Driven</p>
+            <Truck className="h-5 w-5 text-purple-600" />
+            <p className="text-sm font-medium text-gray-600">Total Miles Driven</p>
           </div>
-          <p className="text-3xl font-bold">{totalMiles.toLocaleString()}</p>
-          <p className="text-sm opacity-75 mt-1">
+          <p className="text-lg font-bold text-purple-600">{totalMiles.toLocaleString()}</p>
+          <p className="text-sm text-gray-500 mt-1">
             Avg: {totalDeliveries > 0 ? Math.round(totalMiles / totalDeliveries) : 0} miles/delivery
           </p>
         </div>
@@ -199,12 +199,12 @@ export default function CompletedShipmentsPage() {
       {/* Shipments List */}
       <div className="space-y-4">
         {shipments.length === 0 ? (
-          <div className="bg-white rounded-xl p-12 text-center border border-gray-200">
-            <CheckCircle className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+          <div className="bg-white rounded-md p-8 text-center border border-gray-200">
+            <CheckCircle className="h-8 w-8 text-gray-400 mx-auto mb-4" />
             <h3 className="text-lg font-semibold text-gray-900 mb-2">
               No Completed Deliveries Yet
             </h3>
-            <p className="text-gray-600 mb-6">
+            <p className="text-gray-600 mb-4">
               Complete your first delivery to see it here.
             </p>
             <Link href="/dashboard/driver/active">
@@ -213,7 +213,7 @@ export default function CompletedShipmentsPage() {
           </div>
         ) : (
           shipments.map((shipment) => (
-            <div key={shipment.id} className="bg-white rounded-xl p-6 border border-gray-200 hover:shadow-md transition-shadow">
+            <div key={shipment.id} className="bg-white rounded-md p-4 border border-gray-200 transition-shadow">
               <div className="flex items-start justify-between mb-4">
                 <div className="flex-1">
                   {/* Status Badge */}
@@ -267,7 +267,7 @@ export default function CompletedShipmentsPage() {
                 {/* Earnings */}
                 <div className="text-right ml-4">
                   <p className="text-sm text-gray-600">Earnings (90%)</p>
-                  <p className="text-2xl font-bold text-green-600">
+                  <p className="text-lg font-bold text-green-600">
                     ${(shipment.estimated_price * 0.9).toFixed(2)}
                   </p>
                   <p className="text-xs text-gray-500 mt-1">
@@ -277,7 +277,7 @@ export default function CompletedShipmentsPage() {
               </div>
 
               {/* Route */}
-              <div className="space-y-2 mb-4 bg-gray-50 rounded-lg p-4">
+              <div className="space-y-2 mb-4 bg-gray-50 rounded-md p-4">
                 <div className="flex items-start gap-2">
                   <MapPin className="h-4 w-4 text-green-600 mt-0.5 flex-shrink-0" />
                   <div className="text-sm flex-1">
@@ -296,7 +296,7 @@ export default function CompletedShipmentsPage() {
               </div>
 
               {/* Details */}
-              <div className="flex items-center gap-6 text-sm text-gray-600 border-t border-gray-200 pt-4">
+              <div className="flex items-center gap-4 text-sm text-gray-600 border-t border-gray-200 pt-4">
                 <div className="flex items-center gap-1">
                   <Truck className="h-4 w-4" />
                   <span className="font-medium">{shipment.distance} miles</span>
@@ -322,7 +322,7 @@ export default function CompletedShipmentsPage() {
 
       {/* Export Section */}
       {shipments.length > 0 && (
-        <div className="bg-gray-50 rounded-xl p-6 border border-gray-200">
+        <div className="bg-gray-50 rounded-md p-4 border border-gray-200">
           <div className="flex items-center justify-between">
             <div>
               <h3 className="text-lg font-semibold text-gray-900 mb-1">Export Your Records</h3>

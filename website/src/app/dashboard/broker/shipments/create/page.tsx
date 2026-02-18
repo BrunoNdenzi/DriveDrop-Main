@@ -100,7 +100,7 @@ export default function CreateBrokerShipmentPage() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
@@ -111,7 +111,7 @@ export default function CreateBrokerShipmentPage() {
             </Button>
           </Link>
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">Create Shipment</h1>
+            <h1 className="text-lg font-semibold text-gray-900">Create Shipment</h1>
             <p className="text-gray-600 mt-1">Create a new shipment for your client</p>
           </div>
         </div>
@@ -119,7 +119,7 @@ export default function CreateBrokerShipmentPage() {
 
       {/* Error Alert */}
       {error && (
-        <div className="bg-red-50 border border-red-200 rounded-xl p-4">
+        <div className="bg-red-50 border border-red-200 rounded-md p-4">
           <div className="flex items-start gap-3">
             <div className="flex-shrink-0">
               <svg className="h-5 w-5 text-red-600" viewBox="0 0 20 20" fill="currentColor">
@@ -135,7 +135,7 @@ export default function CreateBrokerShipmentPage() {
       )}
 
       {/* Info Box */}
-      <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
+      <div className="bg-blue-50 border border-blue-200 rounded-md p-4">
         <h3 className="text-sm font-semibold text-blue-900 mb-2">📋 Broker Shipment Information</h3>
         <ul className="text-sm text-blue-800 space-y-1">
           <li>• You're creating this shipment on behalf of your client</li>
@@ -146,7 +146,7 @@ export default function CreateBrokerShipmentPage() {
       </div>
 
       {/* Shipment Form */}
-      <div className="bg-white rounded-xl border border-gray-200 p-6">
+      <div className="bg-white rounded-md border border-gray-200 p-4">
         <ShipmentForm 
           onSubmit={handleSubmit} 
           isSubmitting={isSubmitting}

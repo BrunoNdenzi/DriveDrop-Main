@@ -89,7 +89,7 @@ export default function TermsAndConditionsStep({ shipmentData, accepted, onAccep
   const deliveryAmount = (shipmentData.estimatedPrice * 0.80).toFixed(2)
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {/* Header */}
       <div className="text-center">
         <p className="text-gray-600">
@@ -98,7 +98,7 @@ export default function TermsAndConditionsStep({ shipmentData, accepted, onAccep
       </div>
 
       {/* Quote Summary */}
-      <div className="bg-teal-50 border border-teal-200 rounded-lg p-6">
+      <div className="bg-blue-50 border border-blue-200 rounded-md p-4">
         <h3 className="font-semibold text-gray-900 mb-4">Your Shipment Summary</h3>
         <div className="space-y-3">
           <div className="flex justify-between">
@@ -119,10 +119,10 @@ export default function TermsAndConditionsStep({ shipmentData, accepted, onAccep
               {shipmentData.distance} miles
             </span>
           </div>
-          <div className="border-t border-teal-300 pt-3 mt-3">
+          <div className="border-t border-blue-300 pt-3 mt-3">
             <div className="flex justify-between items-center">
               <span className="text-lg font-bold text-gray-900">Total Quote:</span>
-              <span className="text-2xl font-bold text-teal-600">
+              <span className="text-lg font-semibold text-blue-500">
                 ${shipmentData.estimatedPrice.toFixed(2)}
               </span>
             </div>
@@ -131,7 +131,7 @@ export default function TermsAndConditionsStep({ shipmentData, accepted, onAccep
       </div>
 
       {/* Payment Breakdown */}
-      <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
+      <div className="bg-blue-50 border border-blue-200 rounded-md p-4">
         <h3 className="font-semibold text-blue-900 mb-4">Payment Structure</h3>
         <div className="space-y-3">
           <div className="flex items-center justify-between">
@@ -139,7 +139,7 @@ export default function TermsAndConditionsStep({ shipmentData, accepted, onAccep
               <p className="font-semibold text-blue-900">Initial Deposit (20%)</p>
               <p className="text-sm text-blue-700">Charged now to confirm booking</p>
             </div>
-            <span className="text-xl font-bold text-blue-900">${upfrontAmount}</span>
+            <span className="text-sm font-semibold text-blue-900">${upfrontAmount}</span>
           </div>
           <div className="border-t border-blue-300 pt-3">
             <div className="flex items-center justify-between">
@@ -147,7 +147,7 @@ export default function TermsAndConditionsStep({ shipmentData, accepted, onAccep
                 <p className="font-semibold text-blue-900">Final Payment (80%)</p>
                 <p className="text-sm text-blue-700">Charged automatically upon delivery</p>
               </div>
-              <span className="text-xl font-bold text-blue-900">${deliveryAmount}</span>
+              <span className="text-sm font-semibold text-blue-900">${deliveryAmount}</span>
             </div>
           </div>
         </div>
@@ -161,13 +161,13 @@ export default function TermsAndConditionsStep({ shipmentData, accepted, onAccep
           const isExpanded = expandedSections.includes(section.id)
           
           return (
-            <div key={section.id} className="border border-gray-200 rounded-lg overflow-hidden">
+            <div key={section.id} className="border border-gray-200 rounded-md overflow-hidden">
               <button
                 onClick={() => toggleSection(section.id)}
                 className="w-full px-6 py-4 flex items-center justify-between hover:bg-gray-50 transition-colors"
               >
                 <div className="flex items-center gap-3">
-                  <Icon className="h-5 w-5 text-teal-600" />
+                  <Icon className="h-5 w-5 text-blue-500" />
                   <span className="font-semibold text-gray-900">{section.title}</span>
                 </div>
                 <svg
@@ -184,7 +184,7 @@ export default function TermsAndConditionsStep({ shipmentData, accepted, onAccep
                   <ul className="space-y-2">
                     {section.items.map((item, index) => (
                       <li key={index} className="flex items-start gap-2 text-sm text-gray-700">
-                        <Check className="h-4 w-4 text-teal-600 mt-0.5 flex-shrink-0" />
+                        <Check className="h-4 w-4 text-blue-500 mt-0.5 flex-shrink-0" />
                         <span>{item}</span>
                       </li>
                     ))}
@@ -197,27 +197,27 @@ export default function TermsAndConditionsStep({ shipmentData, accepted, onAccep
       </div>
 
       {/* Full Terms Link */}
-      <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+      <div className="bg-gray-50 border border-gray-200 rounded-md p-4">
         <p className="text-sm text-gray-600 text-center">
           For complete terms and conditions, visit our{' '}
-          <a href="/terms" target="_blank" className="text-teal-600 hover:text-teal-700 font-medium underline">
+          <a href="/terms" target="_blank" className="text-blue-500 hover:text-blue-600 font-medium underline">
             Terms of Service
           </a>{' '}
           and{' '}
-          <a href="/privacy" target="_blank" className="text-teal-600 hover:text-teal-700 font-medium underline">
+          <a href="/privacy" target="_blank" className="text-blue-500 hover:text-blue-600 font-medium underline">
             Privacy Policy
           </a>
         </p>
       </div>
 
       {/* Acceptance Checkbox */}
-      <div className="bg-white border-2 border-teal-200 rounded-lg p-6">
+      <div className="bg-white border-2 border-blue-200 rounded-md p-4">
         <label className="flex items-start gap-4 cursor-pointer">
           <input
             type="checkbox"
             checked={accepted}
             onChange={(e) => onAcceptanceUpdate(e.target.checked)}
-            className="mt-1 w-5 h-5 text-teal-600 border-gray-300 rounded focus:ring-teal-500 cursor-pointer"
+            className="mt-1 w-5 h-5 text-blue-500 border-gray-300 rounded focus:ring-blue-500 cursor-pointer"
           />
           <div className="flex-1">
             <p className="font-semibold text-gray-900 mb-1">
@@ -234,7 +234,7 @@ export default function TermsAndConditionsStep({ shipmentData, accepted, onAccep
 
       {/* Warning if not accepted */}
       {!accepted && (
-        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+        <div className="bg-yellow-50 border border-yellow-200 rounded-md p-4">
           <div className="flex items-start gap-3">
             <AlertCircle className="h-5 w-5 text-yellow-600 mt-0.5 flex-shrink-0" />
             <p className="text-sm text-yellow-800">

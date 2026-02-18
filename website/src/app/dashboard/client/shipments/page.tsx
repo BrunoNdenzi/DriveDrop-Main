@@ -234,60 +234,46 @@ export default function MyShipmentsPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="flex items-center justify-center py-12">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-teal-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading shipments...</p>
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto mb-3"></div>
+          <p className="text-sm text-gray-500">Loading shipments...</p>
         </div>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="space-y-4">
       {/* Header */}
-      <div className="bg-white border-b sticky top-0 z-10 shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
-            <div className="flex items-center gap-4">
-              <Link 
-                href="/dashboard/client"
-                className="flex items-center gap-2 text-gray-600 hover:text-gray-900 transition-colors"
-              >
-                <ArrowLeft className="h-5 w-5" />
-                <span className="font-medium">Dashboard</span>
-              </Link>
-              <div className="h-6 w-px bg-gray-300"></div>
-              <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-                <Package className="h-6 w-6 text-teal-600" />
-                My Shipments
-              </h1>
-            </div>
-            <Link href="/dashboard/client/new-shipment">
-              <Button className="bg-teal-600 hover:bg-teal-700">
-                <Package className="h-4 w-4 mr-2" />
-                New Shipment
-              </Button>
-            </Link>
-          </div>
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <Package className="h-5 w-5 text-blue-500" />
+          <h1 className="text-lg font-bold text-gray-900">My Shipments</h1>
         </div>
+        <Link href="/dashboard/client/new-shipment">
+          <Button size="sm" className="bg-blue-500 hover:bg-blue-600 text-white h-8 text-xs">
+            <Package className="h-3 w-3 mr-1" />
+            New Shipment
+          </Button>
+        </Link>
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Tab Navigation (like mobile) */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-2 inline-flex gap-2 mb-6">
+      <div>
+        {/* Tab Navigation */}
+        <div className="bg-white rounded-md border border-gray-200 p-1 inline-flex gap-1 mb-4">
           <button
             onClick={() => setTabFilter('pending')}
-            className={`px-6 py-2.5 rounded-md text-sm font-semibold transition-colors ${
+            className={`px-4 py-1.5 rounded text-xs font-semibold transition-colors ${
               tabFilter === 'pending'
-                ? 'bg-teal-600 text-white'
+                ? 'bg-blue-500 text-white'
                 : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
             }`}
           >
             Pending
             {counts.pending > 0 && (
-              <span className={`ml-2 px-2 py-0.5 rounded-full text-xs font-bold ${
-                tabFilter === 'pending' ? 'bg-teal-700' : 'bg-gray-200 text-gray-700'
+              <span className={`ml-1.5 px-1.5 py-0.5 rounded text-xs font-bold ${
+                tabFilter === 'pending' ? 'bg-blue-600' : 'bg-gray-200 text-gray-700'
               }`}>
                 {counts.pending}
               </span>
@@ -295,16 +281,16 @@ export default function MyShipmentsPage() {
           </button>
           <button
             onClick={() => setTabFilter('active')}
-            className={`px-6 py-2.5 rounded-md text-sm font-semibold transition-colors ${
+            className={`px-4 py-1.5 rounded text-xs font-semibold transition-colors ${
               tabFilter === 'active'
-                ? 'bg-teal-600 text-white'
+                ? 'bg-blue-500 text-white'
                 : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
             }`}
           >
             Active
             {counts.active > 0 && (
-              <span className={`ml-2 px-2 py-0.5 rounded-full text-xs font-bold ${
-                tabFilter === 'active' ? 'bg-teal-700' : 'bg-gray-200 text-gray-700'
+              <span className={`ml-1.5 px-1.5 py-0.5 rounded text-xs font-bold ${
+                tabFilter === 'active' ? 'bg-blue-600' : 'bg-gray-200 text-gray-700'
               }`}>
                 {counts.active}
               </span>
@@ -312,16 +298,16 @@ export default function MyShipmentsPage() {
           </button>
           <button
             onClick={() => setTabFilter('past')}
-            className={`px-6 py-2.5 rounded-md text-sm font-semibold transition-colors ${
+            className={`px-4 py-1.5 rounded text-xs font-semibold transition-colors ${
               tabFilter === 'past'
-                ? 'bg-teal-600 text-white'
+                ? 'bg-blue-500 text-white'
                 : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
             }`}
           >
             Past
             {counts.past > 0 && (
-              <span className={`ml-2 px-2 py-0.5 rounded-full text-xs font-bold ${
-                tabFilter === 'past' ? 'bg-teal-700' : 'bg-gray-200 text-gray-700'
+              <span className={`ml-1.5 px-1.5 py-0.5 rounded text-xs font-bold ${
+                tabFilter === 'past' ? 'bg-blue-600' : 'bg-gray-200 text-gray-700'
               }`}>
                 {counts.past}
               </span>
@@ -330,81 +316,81 @@ export default function MyShipmentsPage() {
         </div>
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+        <div className="grid grid-cols-3 gap-3 mb-4">
+          <div className="bg-white rounded-md border border-gray-200 p-3">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-600 mb-1">Pending</p>
-                <p className="text-3xl font-bold text-yellow-600">{counts.pending}</p>
+                <p className="text-xs text-gray-500 mb-0.5">Pending</p>
+                <p className="text-xl font-bold text-yellow-600">{counts.pending}</p>
               </div>
-              <div className="w-12 h-12 bg-yellow-100 rounded-full flex items-center justify-center">
-                <Clock className="h-6 w-6 text-yellow-600" />
+              <div className="w-8 h-8 bg-yellow-50 rounded-md flex items-center justify-center">
+                <Clock className="h-4 w-4 text-yellow-600" />
               </div>
             </div>
           </div>
 
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+          <div className="bg-white rounded-md border border-gray-200 p-3">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-600 mb-1">Active</p>
-                <p className="text-3xl font-bold text-orange-600">{counts.active}</p>
+                <p className="text-xs text-gray-500 mb-0.5">Active</p>
+                <p className="text-xl font-bold text-blue-600">{counts.active}</p>
               </div>
-              <div className="w-12 h-12 bg-orange-100 rounded-full flex items-center justify-center">
-                <Truck className="h-6 w-6 text-orange-600" />
+              <div className="w-8 h-8 bg-blue-50 rounded-md flex items-center justify-center">
+                <Truck className="h-4 w-4 text-blue-600" />
               </div>
             </div>
           </div>
 
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+          <div className="bg-white rounded-md border border-gray-200 p-3">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-600 mb-1">Past</p>
-                <p className="text-3xl font-bold text-gray-600">{counts.past}</p>
+                <p className="text-xs text-gray-500 mb-0.5">Past</p>
+                <p className="text-xl font-bold text-gray-600">{counts.past}</p>
               </div>
-              <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center">
-                <CheckCircle className="h-6 w-6 text-gray-600" />
+              <div className="w-8 h-8 bg-gray-100 rounded-md flex items-center justify-center">
+                <CheckCircle className="h-4 w-4 text-gray-600" />
               </div>
             </div>
           </div>
         </div>
 
         {/* Search */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 mb-6">
+        <div className="bg-white rounded-md border border-gray-200 p-2 mb-4">
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
             <Input
               type="text"
               placeholder="Search by vehicle, address, or shipment ID..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10"
+              className="pl-9 h-8 text-sm"
             />
           </div>
         </div>
 
         {/* Shipments List */}
         {filteredShipments.length === 0 ? (
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-12 text-center">
-            <Package className="h-16 w-16 text-gray-400 mx-auto mb-4" />
-            <h3 className="text-xl font-semibold text-gray-900 mb-2">
+          <div className="bg-white rounded-md border border-gray-200 p-8 text-center">
+            <Package className="h-10 w-10 text-gray-300 mx-auto mb-3" />
+            <h3 className="text-sm font-semibold text-gray-900 mb-1">
               {shipments.length === 0 ? 'No shipments yet' : `No ${tabFilter} shipments`}
             </h3>
-            <p className="text-gray-600 mb-6">
+            <p className="text-xs text-gray-500 mb-4">
               {shipments.length === 0 
                 ? 'Create your first shipment to get started with vehicle transport.'
                 : `You don't have any ${tabFilter} shipments${searchQuery ? ' matching your search' : ''}.`}
             </p>
             {shipments.length === 0 && (
               <Link href="/dashboard/client/new-shipment">
-                <Button className="bg-teal-600 hover:bg-teal-700">
-                  <Package className="h-4 w-4 mr-2" />
+                <Button size="sm" className="bg-blue-500 hover:bg-blue-600 text-white h-8 text-xs">
+                  <Package className="h-3 w-3 mr-1" />
                   Create New Shipment
                 </Button>
               </Link>
             )}
           </div>
         ) : (
-          <div className="space-y-4">
+          <div className="space-y-3">
             {filteredShipments.map((shipment) => {
               const statusConfig = getStatusConfig(shipment.status)
               const StatusIcon = statusConfig.icon
@@ -412,41 +398,41 @@ export default function MyShipmentsPage() {
               return (
                 <div
                   key={shipment.id}
-                  className="bg-white rounded-lg shadow-sm border border-gray-200 hover:shadow-md transition-shadow"
+                  className="bg-white rounded-md border border-gray-200 hover:border-gray-300 transition-colors"
                 >
-                  <div className="p-6">
-                    <div className="flex items-start justify-between mb-4">
+                  <div className="p-4">
+                    <div className="flex items-start justify-between mb-3">
                       <div className="flex-1">
-                        <div className="flex items-center gap-3 mb-2">
-                          <h3 className="text-lg font-semibold text-gray-900">
+                        <div className="flex items-center gap-2 mb-1">
+                          <h3 className="text-sm font-semibold text-gray-900">
                             {shipment.title}
                           </h3>
-                          <div className={`px-3 py-1 rounded-full text-xs font-medium border flex items-center gap-1.5 ${statusConfig.color}`}>
-                            <div className={`w-2 h-2 rounded-full ${statusConfig.dotColor}`}></div>
+                          <div className={`px-2 py-0.5 rounded text-xs font-medium border flex items-center gap-1 ${statusConfig.color}`}>
+                            <div className={`w-1.5 h-1.5 rounded-full ${statusConfig.dotColor}`}></div>
                             {statusConfig.label}
                           </div>
                         </div>
-                        <p className="text-sm text-gray-600">{shipment.description}</p>
+                        <p className="text-xs text-gray-500">{shipment.description}</p>
                       </div>
                       <div className="text-right">
-                        <p className="text-2xl font-bold text-teal-600">
+                        <p className="text-sm font-bold text-gray-900">
                           ${shipment.estimated_price.toFixed(2)}
                         </p>
-                        <p className="text-xs text-gray-500">Estimated</p>
+                        <p className="text-xs text-gray-400">Estimated</p>
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                    <div className="grid grid-cols-2 gap-3 mb-3">
                       {/* Pickup */}
-                      <div className="flex items-start gap-3">
-                        <div className="w-8 h-8 bg-teal-100 rounded-full flex items-center justify-center flex-shrink-0 mt-1">
-                          <MapPin className="h-4 w-4 text-teal-600" />
+                      <div className="flex items-start gap-2">
+                        <div className="w-6 h-6 bg-blue-50 rounded flex items-center justify-center flex-shrink-0 mt-0.5">
+                          <MapPin className="h-3 w-3 text-blue-500" />
                         </div>
                         <div>
-                          <p className="text-xs font-medium text-gray-500 uppercase mb-1">Pickup</p>
-                          <p className="text-sm text-gray-900">{shipment.pickup_address}</p>
+                          <p className="text-xs font-medium text-gray-400 uppercase">Pickup</p>
+                          <p className="text-xs text-gray-900">{shipment.pickup_address}</p>
                           {shipment.pickup_date && (
-                            <p className="text-xs text-gray-500 mt-1 flex items-center gap-1">
+                            <p className="text-xs text-gray-400 flex items-center gap-1">
                               <Calendar className="h-3 w-3" />
                               {formatDate(shipment.pickup_date)}
                             </p>
@@ -455,27 +441,27 @@ export default function MyShipmentsPage() {
                       </div>
 
                       {/* Delivery */}
-                      <div className="flex items-start gap-3">
-                        <div className="w-8 h-8 bg-orange-100 rounded-full flex items-center justify-center flex-shrink-0 mt-1">
-                          <MapPin className="h-4 w-4 text-orange-600" />
+                      <div className="flex items-start gap-2">
+                        <div className="w-6 h-6 bg-green-50 rounded flex items-center justify-center flex-shrink-0 mt-0.5">
+                          <MapPin className="h-3 w-3 text-green-500" />
                         </div>
                         <div>
-                          <p className="text-xs font-medium text-gray-500 uppercase mb-1">Delivery</p>
-                          <p className="text-sm text-gray-900">{shipment.delivery_address}</p>
+                          <p className="text-xs font-medium text-gray-400 uppercase">Delivery</p>
+                          <p className="text-xs text-gray-900">{shipment.delivery_address}</p>
                         </div>
                       </div>
                     </div>
 
                     {/* Footer */}
-                    <div className="flex items-center justify-between pt-4 border-t border-gray-200">
-                      <div className="flex items-center gap-4 text-sm text-gray-600">
+                    <div className="flex items-center justify-between pt-3 border-t border-gray-100">
+                      <div className="flex items-center gap-3 text-xs text-gray-500">
                         <span className="flex items-center gap-1">
-                          <Calendar className="h-4 w-4" />
+                          <Calendar className="h-3 w-3" />
                           {formatDate(shipment.created_at)}
                         </span>
                         {shipment.driver_id && (
                           <span className="flex items-center gap-1 text-green-600">
-                            <Truck className="h-4 w-4" />
+                            <Truck className="h-3 w-3" />
                             Driver Assigned
                           </span>
                         )}
@@ -485,9 +471,9 @@ export default function MyShipmentsPage() {
                           <Button
                             variant="outline"
                             size="sm"
-                            className="text-teal-600 border-teal-600 hover:bg-teal-50"
+                            className="h-7 text-xs text-blue-600 border-blue-300 hover:bg-blue-50"
                           >
-                            <MessageSquare className="h-4 w-4 mr-2" />
+                            <MessageSquare className="h-3 w-3 mr-1" />
                             Message
                           </Button>
                         )}
@@ -495,11 +481,11 @@ export default function MyShipmentsPage() {
                           <Button
                             variant="outline"
                             size="sm"
-                            className="text-gray-700 hover:bg-gray-50"
+                            className="h-7 text-xs"
                           >
-                            <Eye className="h-4 w-4 mr-2" />
-                            View Details
-                            <ChevronRight className="h-4 w-4 ml-1" />
+                            <Eye className="h-3 w-3 mr-1" />
+                            Details
+                            <ChevronRight className="h-3 w-3 ml-0.5" />
                           </Button>
                         </Link>
                       </div>
@@ -511,9 +497,8 @@ export default function MyShipmentsPage() {
           </div>
         )}
 
-        {/* Results Count */}
         {filteredShipments.length > 0 && (
-          <div className="mt-6 text-center text-sm text-gray-600">
+          <div className="mt-4 text-center text-xs text-gray-400">
             Showing {filteredShipments.length} of {shipments.length} shipment{shipments.length !== 1 ? 's' : ''}
           </div>
         )}

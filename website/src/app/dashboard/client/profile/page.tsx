@@ -69,9 +69,9 @@ export default function ClientProfilePage() {
 
   if (!profile) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="flex items-center justify-center py-12">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-teal-600 mx-auto mb-4"></div>
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto mb-4"></div>
           <p className="text-gray-600">Loading profile...</p>
         </div>
       </div>
@@ -79,35 +79,34 @@ export default function ClientProfilePage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div className="space-y-4">
         {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">My Profile</h1>
-          <p className="text-gray-600 mt-1">Manage your personal information</p>
+        <div className="mb-4">
+          <h1 className="text-lg font-semibold text-gray-900">My Profile</h1>
+          <p className="text-xs text-gray-500">Manage your personal information</p>
         </div>
 
         {/* Profile Picture Section */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
-          <div className="flex items-center gap-6">
+        <div className="bg-white rounded-md border border-gray-200 p-4 mb-4">
+          <div className="flex items-center gap-4">
             <div className="relative">
               {profile.avatar_url ? (
                 <img
                   src={profile.avatar_url}
                   alt={`${profile.first_name} ${profile.last_name}`}
-                  className="h-24 w-24 rounded-full object-cover"
+                  className="h-16 w-16 rounded-full object-cover"
                 />
               ) : (
-                <div className="h-24 w-24 rounded-full bg-teal-100 flex items-center justify-center">
-                  <User className="h-12 w-12 text-teal-600" />
+                <div className="h-16 w-16 rounded-full bg-blue-50 flex items-center justify-center">
+                  <User className="h-8 w-8 text-blue-500" />
                 </div>
               )}
-              <button className="absolute bottom-0 right-0 bg-teal-600 text-white p-2 rounded-full hover:bg-teal-700 transition-colors">
+              <button className="absolute bottom-0 right-0 bg-blue-500 text-white p-2 rounded-full hover:bg-blue-600 transition-colors">
                 <Camera className="h-4 w-4" />
               </button>
             </div>
             <div>
-              <h2 className="text-2xl font-bold text-gray-900">
+              <h2 className="text-sm font-semibold text-gray-900">
                 {profile.first_name} {profile.last_name}
               </h2>
               <p className="text-gray-600">{profile.email}</p>
@@ -127,14 +126,14 @@ export default function ClientProfilePage() {
         </div>
 
         {/* Profile Form */}
-        <form onSubmit={handleSubmit} className="space-y-6">
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-            <h3 className="text-lg font-bold text-gray-900 mb-6">Personal Information</h3>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="bg-white rounded-md border border-gray-200 p-4">
+            <h3 className="text-sm font-semibold text-gray-900 mb-3">Personal Information</h3>
             
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {/* First Name */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-gray-700 mb-1">
                   First Name <span className="text-red-500">*</span>
                 </label>
                 <div className="relative">
@@ -150,7 +149,7 @@ export default function ClientProfilePage() {
 
               {/* Last Name */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-gray-700 mb-1">
                   Last Name <span className="text-red-500">*</span>
                 </label>
                 <div className="relative">
@@ -166,7 +165,7 @@ export default function ClientProfilePage() {
 
               {/* Email */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-gray-700 mb-1">
                   Email <span className="text-red-500">*</span>
                 </label>
                 <div className="relative">
@@ -187,7 +186,7 @@ export default function ClientProfilePage() {
 
               {/* Phone */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-gray-700 mb-1">
                   Phone Number
                 </label>
                 <div className="relative">
@@ -209,14 +208,13 @@ export default function ClientProfilePage() {
             <Button
               type="submit"
               disabled={loading}
-              className="bg-teal-600 hover:bg-teal-700"
+              className="bg-blue-500 hover:bg-blue-600"
             >
               <Save className="h-4 w-4 mr-2" />
               {loading ? 'Saving...' : 'Save Changes'}
             </Button>
           </div>
         </form>
-      </div>
     </div>
   )
 }

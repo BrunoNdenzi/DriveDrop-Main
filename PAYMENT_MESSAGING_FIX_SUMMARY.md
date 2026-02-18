@@ -16,7 +16,7 @@
     client_id: 'd29c8817-a730-4983-ad82-1dd7d20fd883',
     pickup_location: 'POINT(-96.8042882 32.7774686)',
     delivery_location: 'POINT(-117.1235339 32.7679176)',
-    pickup_address: 'Dallas, Texas 75202',
+    pickup_address: 'Dallas, Carolina 75202',
     delivery_address: 'San Diego, California 92116',
     description: 'Transport of 2021 Nissan Altima',
     estimated_price: 1226.41,
@@ -174,7 +174,7 @@ All fields present:
   - pickup_date: "2025-10-14"
   - delivery_date: "2025-10-21"
   - status: "pending"
-  - pickup_address: "Dallas, Texas 75202"
+  - pickup_address: "Dallas, Carolina 75202"
   - delivery_address: "San Diego, California 92116"
 ```
 

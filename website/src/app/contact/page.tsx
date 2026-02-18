@@ -13,6 +13,8 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card'
+import Header from '@/components/layout/Header'
+import Footer from '@/components/layout/Footer'
 
 export default function ContactPage() {
   const [formData, setFormData] = useState({
@@ -66,30 +68,23 @@ export default function ContactPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-background to-muted/20">
-      {/* Header */}
-      <div className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div className="container flex h-16 items-center justify-between">
-          <a href="/" className="flex items-center space-x-2">
-            <span className="text-2xl font-bold">DriveDrop</span>
-          </a>
-        </div>
-      </div>
-
-      {/* Hero Section */}
-      <section className="container py-12 md:py-20">
-        <div className="mx-auto max-w-3xl text-center">
-          <h1 className="text-4xl font-bold tracking-tight sm:text-5xl md:text-6xl">
-            Get in Touch
-          </h1>
-          <p className="mt-4 text-lg text-muted-foreground">
-            Have a question or need assistance? We're here to help!
-          </p>
-        </div>
-      </section>
+    <>
+      <Header />
+      <main className="min-h-screen bg-[hsl(var(--surface-field))] pt-20">
+        {/* Header */}
+        <section className="container py-10">
+          <div className="mx-auto max-w-3xl text-center">
+            <h1 className="text-2xl font-bold tracking-tight">
+              Get in Touch
+            </h1>
+            <p className="mt-2 text-sm text-muted-foreground">
+              Have a question or need assistance? We're here to help.
+            </p>
+          </div>
+        </section>
 
       {/* Contact Content */}
-      <section className="container pb-20">
+      <section className="container pb-16">
         <div className="mx-auto grid max-w-6xl gap-8 md:grid-cols-3">
           {/* Contact Info Cards */}
           <div className="space-y-6">
@@ -97,7 +92,9 @@ export default function ContactPage() {
             <Card>
               <CardHeader>
                 <div className="flex items-center space-x-2">
-                  <Mail className="h-5 w-5 text-primary" />
+                  <div className="inline-flex items-center justify-center w-8 h-8 rounded-md bg-blue-500">
+                    <Mail className="h-4 w-4 text-white" />
+                  </div>
                   <CardTitle className="text-lg">Email Us</CardTitle>
                 </div>
               </CardHeader>
@@ -118,7 +115,9 @@ export default function ContactPage() {
             <Card>
               <CardHeader>
                 <div className="flex items-center space-x-2">
-                  <Phone className="h-5 w-5 text-primary" />
+                  <div className="inline-flex items-center justify-center w-8 h-8 rounded-md bg-blue-500">
+                    <Phone className="h-4 w-4 text-white" />
+                  </div>
                   <CardTitle className="text-lg">Call Us</CardTitle>
                 </div>
               </CardHeader>
@@ -139,7 +138,9 @@ export default function ContactPage() {
             <Card>
               <CardHeader>
                 <div className="flex items-center space-x-2">
-                  <MapPin className="h-5 w-5 text-primary" />
+                  <div className="inline-flex items-center justify-center w-8 h-8 rounded-md bg-blue-500">
+                    <MapPin className="h-4 w-4 text-white" />
+                  </div>
                   <CardTitle className="text-lg">Location</CardTitle>
                 </div>
               </CardHeader>
@@ -256,7 +257,7 @@ export default function ContactPage() {
                   <Button
                     type="submit"
                     size="lg"
-                    className="w-full"
+                    className="w-full bg-blue-500 hover:bg-blue-600 text-white"
                     disabled={status === 'loading'}
                   >
                     {status === 'loading' ? (
@@ -276,6 +277,8 @@ export default function ContactPage() {
           </Card>
         </div>
       </section>
-    </div>
+      </main>
+      <Footer />
+    </>
   )
 }

@@ -285,7 +285,7 @@ export default function DriverChatPage() {
 
   if (!profile) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
+      <div className="flex items-center justify-center min-h-[300px]">
         <div className="text-center">
           <p className="text-gray-600">Please log in to view messages</p>
         </div>
@@ -294,19 +294,19 @@ export default function DriverChatPage() {
   }
 
   return (
-    <div className="flex flex-col h-screen bg-gray-50">
+    <div className="flex flex-col h-full">
       {/* Header */}
       <div className="bg-white border-b border-gray-200 p-4">
-        <div className="max-w-4xl mx-auto flex items-center justify-between">
+        <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
             <button
               onClick={() => router.push('/dashboard/driver/messages')}
               className="text-gray-600 hover:text-gray-900"
             >
-              <ArrowLeft className="h-6 w-6" />
+              <ArrowLeft className="h-5 w-5" />
             </button>
             <div>
-              <h1 className="text-xl font-semibold text-gray-900">
+              <h1 className="text-sm font-semibold text-gray-900">
                 {otherUserName || 'Client'}
               </h1>
               {shipment && (
@@ -316,21 +316,21 @@ export default function DriverChatPage() {
           </div>
           <button
             onClick={() => router.push(`/dashboard/driver/active/${shipmentId}`)}
-            className="text-teal-600 hover:text-teal-700"
+            className="text-amber-500 hover:text-amber-600"
           >
-            <Info className="h-6 w-6" />
+            <Info className="h-5 w-5" />
           </button>
         </div>
       </div>
 
       {/* Messages Area */}
       <div className="flex-1 overflow-y-auto p-4">
-        <div className="max-w-4xl mx-auto space-y-4">
+        <div className="space-y-4">
           {/* Loading State */}
           {loading && (
             <div className="flex items-center justify-center py-12">
               <div className="text-center">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-teal-600 mx-auto mb-4"></div>
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-amber-500 mx-auto mb-4"></div>
                 <p className="text-gray-600">Loading messages...</p>
               </div>
             </div>
@@ -338,7 +338,7 @@ export default function DriverChatPage() {
 
           {/* Error State */}
           {error && !loading && (
-            <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+            <div className="bg-red-50 border border-red-200 rounded-md p-4">
               <p className="text-red-800 text-sm">{error}</p>
             </div>
           )}
@@ -354,9 +354,9 @@ export default function DriverChatPage() {
                   className={`flex ${isOwnMessage ? 'justify-end' : 'justify-start'}`}
                 >
                   <div
-                    className={`max-w-md px-4 py-2 rounded-lg ${
+                    className={`max-w-md px-4 py-2 rounded-md ${
                       isOwnMessage
-                        ? 'bg-teal-600 text-white'
+                        ? 'bg-amber-500 text-white'
                         : 'bg-white text-gray-900 border border-gray-200'
                     }`}
                   >
@@ -365,7 +365,7 @@ export default function DriverChatPage() {
                     </p>
                     <p
                       className={`text-xs mt-1 ${
-                        isOwnMessage ? 'text-teal-100' : 'text-gray-500'
+                        isOwnMessage ? 'text-amber-100' : 'text-gray-500'
                       }`}
                     >
                       {formatTime(message.created_at)}
@@ -378,9 +378,9 @@ export default function DriverChatPage() {
 
           {/* Empty State */}
           {!loading && messages.length === 0 && (
-            <div className="text-center py-12">
-              <Package className="h-16 w-16 text-gray-400 mx-auto mb-4" />
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">
+            <div className="text-center py-8">
+              <Package className="h-10 w-10 text-gray-400 mx-auto mb-4" />
+              <h3 className="text-sm font-semibold text-gray-900 mb-2">
                 No Messages Yet
               </h3>
               <p className="text-gray-600">
@@ -396,7 +396,7 @@ export default function DriverChatPage() {
 
       {/* Message Input */}
       <div className="bg-white border-t border-gray-200 p-4">
-        <div className="max-w-4xl mx-auto">
+        <div>
           <form onSubmit={sendMessage} className="flex items-center gap-2">
             <Input
               type="text"
@@ -410,7 +410,7 @@ export default function DriverChatPage() {
             <Button
               type="submit"
               disabled={!messageText.trim() || sending}
-              className="bg-teal-600 hover:bg-teal-700 text-white"
+              className="bg-amber-500 hover:bg-amber-600 text-white"
             >
               {sending ? (
                 <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>

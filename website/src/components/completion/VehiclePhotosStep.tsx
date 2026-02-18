@@ -67,9 +67,9 @@ export default function VehiclePhotosStep({ shipmentData, photos, onPhotosUpdate
   const requiredCount = REQUIRED_ANGLES.filter(a => a.required).length
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {/* Instructions */}
-      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+      <div className="bg-blue-50 border border-blue-200 rounded-md p-4">
         <div className="flex items-start gap-3">
           <AlertCircle className="h-5 w-5 text-blue-600 mt-0.5 flex-shrink-0" />
           <div className="text-sm text-blue-900">
@@ -85,7 +85,7 @@ export default function VehiclePhotosStep({ shipmentData, photos, onPhotosUpdate
       </div>
 
       {/* Vehicle Info */}
-      <div className="bg-gray-50 rounded-lg p-4">
+      <div className="bg-gray-50 rounded-md p-4">
         <h3 className="font-semibold text-gray-900 mb-2">Vehicle Details:</h3>
         <p className="text-gray-700">
           {shipmentData.vehicleYear} {shipmentData.vehicleMake} {shipmentData.vehicleModel}
@@ -101,17 +101,17 @@ export default function VehiclePhotosStep({ shipmentData, photos, onPhotosUpdate
           <div
             key={angle.id}
             className={`
-              p-3 border-2 rounded-lg transition-all
-              ${angle.required ? 'border-teal-200 bg-teal-50' : 'border-gray-200 bg-gray-50'}
+              p-3 border-2 rounded-md transition-all
+              ${angle.required ? 'border-blue-200 bg-blue-50' : 'border-gray-200 bg-gray-50'}
             `}
           >
             <div className="flex items-center gap-2">
-              <Camera className={`h-4 w-4 ${angle.required ? 'text-teal-600' : 'text-gray-400'}`} />
+              <Camera className={`h-4 w-4 ${angle.required ? 'text-blue-500' : 'text-gray-400'}`} />
               <span className={`text-sm font-medium ${angle.required ? 'text-gray-900' : 'text-gray-600'}`}>
                 {angle.label}
               </span>
               {angle.required && (
-                <span className="text-xs text-teal-600">*</span>
+                <span className="text-xs text-blue-500">*</span>
               )}
             </div>
           </div>
@@ -122,17 +122,17 @@ export default function VehiclePhotosStep({ shipmentData, photos, onPhotosUpdate
       <div
         {...getRootProps()}
         className={`
-          border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-all
+          border-2 border-dashed rounded-md p-4 text-center cursor-pointer transition-all
           ${isDragActive 
-            ? 'border-teal-500 bg-teal-50' 
-            : 'border-gray-300 hover:border-teal-400 hover:bg-gray-50'
+            ? 'border-blue-500 bg-blue-50' 
+            : 'border-gray-300 hover:border-blue-400 hover:bg-gray-50'
           }
         `}
       >
         <input {...getInputProps()} />
-        <Upload className="h-12 w-12 mx-auto mb-4 text-gray-400" />
+        <Upload className="h-8 w-8 mx-auto mb-4 text-gray-400" />
         {isDragActive ? (
-          <p className="text-teal-600 font-medium">Drop photos here...</p>
+          <p className="text-blue-500 font-medium">Drop photos here...</p>
         ) : (
           <>
             <p className="text-gray-900 font-medium mb-2">
@@ -162,7 +162,7 @@ export default function VehiclePhotosStep({ shipmentData, photos, onPhotosUpdate
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             {photos.map((photo, index) => (
               <div key={index} className="relative group">
-                <div className="aspect-square rounded-lg overflow-hidden bg-gray-100 border-2 border-gray-200">
+                <div className="aspect-square rounded-md overflow-hidden bg-gray-100 border-2 border-gray-200">
                   <Image
                     src={photo}
                     alt={`Vehicle photo ${index + 1}`}
@@ -187,7 +187,7 @@ export default function VehiclePhotosStep({ shipmentData, photos, onPhotosUpdate
       )}
 
       {/* Progress Indicator */}
-      <div className="bg-gray-50 rounded-lg p-4">
+      <div className="bg-gray-50 rounded-md p-4">
         <div className="flex items-center justify-between mb-2">
           <span className="text-sm font-medium text-gray-700">Progress:</span>
           <span className="text-sm font-semibold text-gray-900">
@@ -197,7 +197,7 @@ export default function VehiclePhotosStep({ shipmentData, photos, onPhotosUpdate
         <div className="w-full bg-gray-200 rounded-full h-2">
           <div
             className={`h-2 rounded-full transition-all ${
-              photos.length >= requiredCount ? 'bg-green-600' : 'bg-teal-600'
+              photos.length >= requiredCount ? 'bg-green-600' : 'bg-blue-500'
             }`}
             style={{ width: `${Math.min((photos.length / requiredCount) * 100, 100)}%` }}
           />
@@ -206,7 +206,7 @@ export default function VehiclePhotosStep({ shipmentData, photos, onPhotosUpdate
 
       {uploading && (
         <div className="text-center py-4">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-teal-600 mx-auto"></div>
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto"></div>
           <p className="text-sm text-gray-600 mt-2">Uploading photos...</p>
         </div>
       )}

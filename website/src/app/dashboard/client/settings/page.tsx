@@ -80,24 +80,23 @@ export default function ClientSettingsPage() {
   ]
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div className="space-y-4">
         {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">Settings</h1>
-          <p className="text-gray-600 mt-1">Manage your account settings and preferences</p>
+        <div className="mb-4">
+          <h1 className="text-lg font-semibold text-gray-900">Settings</h1>
+          <p className="text-xs text-gray-500">Manage your account settings and preferences</p>
         </div>
 
         {/* Account Info */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
+        <div className="bg-white rounded-md border border-gray-200 p-4 mb-4">
           <div className="flex items-center gap-4">
-            <div className="h-16 w-16 rounded-full bg-teal-100 flex items-center justify-center">
-              <span className="text-2xl font-bold text-teal-600">
+            <div className="h-10 w-10 rounded-full bg-blue-50 flex items-center justify-center">
+              <span className="text-sm font-bold text-blue-500">
                 {profile?.first_name?.[0]}{profile?.last_name?.[0]}
               </span>
             </div>
             <div>
-              <h2 className="text-xl font-bold text-gray-900">
+              <h2 className="text-sm font-semibold text-gray-900">
                 {profile?.first_name} {profile?.last_name}
               </h2>
               <p className="text-gray-600">{profile?.email}</p>
@@ -107,9 +106,9 @@ export default function ClientSettingsPage() {
 
         {/* Settings Sections */}
         {settingsSections.map((section) => (
-          <div key={section.title} className="mb-6">
-            <h3 className="text-lg font-bold text-gray-900 mb-4">{section.title}</h3>
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 divide-y divide-gray-200">
+          <div key={section.title} className="mb-4">
+            <h3 className="text-xs font-semibold text-gray-500 uppercase mb-2">{section.title}</h3>
+            <div className="bg-white rounded-md border border-gray-200 divide-y divide-gray-200">
               {section.items.map((item) => {
                 const Icon = item.icon
                 return (
@@ -119,7 +118,7 @@ export default function ClientSettingsPage() {
                     className="w-full flex items-center justify-between p-4 hover:bg-gray-50 transition-colors"
                   >
                     <div className="flex items-center gap-4">
-                      <div className="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center">
+                      <div className="w-8 h-8 bg-gray-100 rounded-md flex items-center justify-center">
                         <Icon className="h-5 w-5 text-gray-600" />
                       </div>
                       <div className="text-left">
@@ -136,7 +135,7 @@ export default function ClientSettingsPage() {
         ))}
 
         {/* Sign Out */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+        <div className="bg-white rounded-md border border-gray-200 p-4">
           <Button
             onClick={handleSignOut}
             variant="outline"
@@ -148,10 +147,9 @@ export default function ClientSettingsPage() {
         </div>
 
         {/* App Version */}
-        <div className="text-center mt-8 text-sm text-gray-500">
+        <div className="text-center mt-4 text-sm text-gray-500">
           DriveDrop Web v1.0.0
         </div>
-      </div>
     </div>
   )
 }

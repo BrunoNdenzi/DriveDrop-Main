@@ -98,7 +98,7 @@ export default function BenjiLoadRecommendations() {
     return (
       <div className="flex items-center justify-center h-96">
         <div className="text-center">
-          <Loader2 className="h-12 w-12 animate-spin text-teal-600 mx-auto mb-4" />
+          <Loader2 className="h-8 w-8 animate-spin text-amber-500 mx-auto mb-4" />
           <p className="text-lg font-medium text-gray-700">Benji is finding perfect loads for you...</p>
           <p className="text-sm text-gray-500 mt-2">Analyzing routes, earnings, and timing</p>
         </div>
@@ -109,7 +109,7 @@ export default function BenjiLoadRecommendations() {
   if (!recommendations) {
     return (
       <div className="text-center py-12">
-        <Sparkles className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+        <Sparkles className="h-8 w-8 text-gray-400 mx-auto mb-4" />
         <p className="text-gray-600">No recommendations available</p>
         <Button onClick={loadRecommendations} className="mt-4">
           Retry
@@ -121,30 +121,28 @@ export default function BenjiLoadRecommendations() {
   const renderLoadCard = (rec: LoadRecommendation, index: number, priority: 'best' | 'good' | 'consider') => {
     const isExpanded = expandedLoad === rec.load.id
     const priorityStyles = {
-      best: 'border-green-500 bg-gradient-to-br from-green-50 to-teal-50',
-      good: 'border-teal-300 bg-white',
+      best: 'border-green-500 bg-green-50',
+      good: 'border-amber-300 bg-white',
       consider: 'border-gray-300 bg-white'
     }
 
     const priorityBadge = {
       best: { bg: 'bg-green-500', text: 'Best Match', icon: '⭐' },
-      good: { bg: 'bg-teal-500', text: 'Good Match', icon: '✅' },
+      good: { bg: 'bg-amber-500', text: 'Good Match', icon: '✅' },
       consider: { bg: 'bg-gray-500', text: 'Consider', icon: '💡' }
     }
 
     return (
       <div
         key={rec.load.id}
-        className={`border-2 rounded-xl p-6 transition-all ${priorityStyles[priority]} ${
-          isExpanded ? 'shadow-lg' : 'shadow-md hover:shadow-lg'
-        }`}
+        className={`border-2 rounded-md p-4 transition-all ${priorityStyles[priority]}`}
       >
         {/* Header */}
         <div className="flex items-start justify-between mb-4">
           <div className="flex-1">
             <div className="flex items-center gap-3 mb-2">
               {priority === 'best' && (
-                <div className="flex items-center justify-center w-10 h-10 rounded-full bg-gradient-to-br from-green-500 to-teal-600 text-white font-bold">
+                <div className="flex items-center justify-center w-10 h-10 rounded-full bg-green-500 text-white font-bold">
                   {index + 1}
                 </div>
               )}
@@ -166,7 +164,7 @@ export default function BenjiLoadRecommendations() {
 
           {/* Earnings Badge */}
           <div className="text-right">
-            <div className="text-2xl font-bold text-green-600">
+            <div className="text-lg font-bold text-green-600">
               ${rec.estimated_earnings}
             </div>
             <div className="text-xs text-gray-600">You earn</div>
@@ -175,7 +173,7 @@ export default function BenjiLoadRecommendations() {
 
         {/* Vehicle Info */}
         {rec.load.vehicle_make && (
-          <div className="mb-4 p-3 bg-white rounded-lg border border-gray-200">
+          <div className="mb-4 p-3 bg-white rounded-md border border-gray-200">
             <div className="text-sm font-medium text-gray-900">
               🚗 {rec.load.vehicle_year} {rec.load.vehicle_make} {rec.load.vehicle_model}
             </div>
@@ -189,7 +187,7 @@ export default function BenjiLoadRecommendations() {
             <div className="flex-1">
               <div className="text-sm font-medium text-gray-900">Pickup</div>
               <div className="text-sm text-gray-600">{rec.load.pickup_address}</div>
-              <div className="text-xs text-teal-600 mt-1">
+              <div className="text-xs text-amber-500 mt-1">
                 📍 {rec.distance_to_pickup} miles from your location
               </div>
             </div>
@@ -215,7 +213,7 @@ export default function BenjiLoadRecommendations() {
           <div className="space-y-1">
             {rec.reasons.map((reason, i) => (
               <div key={i} className="text-sm text-gray-700 flex items-center gap-2">
-                <CheckCircle className="h-4 w-4 text-teal-600 flex-shrink-0" />
+                <CheckCircle className="h-4 w-4 text-amber-500 flex-shrink-0" />
                 {reason}
               </div>
             ))}
@@ -226,7 +224,7 @@ export default function BenjiLoadRecommendations() {
         <div className="flex gap-3">
           <Button
             onClick={() => acceptLoad(rec.load.id)}
-            className="flex-1 bg-gradient-to-r from-teal-600 to-teal-700 hover:from-teal-700 hover:to-teal-800 text-white"
+            className="flex-1 bg-amber-500 hover:bg-amber-600 text-white"
           >
             <Zap className="mr-2 h-4 w-4" />
             Accept Load
@@ -263,16 +261,16 @@ export default function BenjiLoadRecommendations() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {/* Header */}
-      <div className="bg-gradient-to-r from-teal-600 to-purple-600 rounded-xl p-6 text-white">
+      <div className="bg-amber-500 rounded-md p-4 text-white">
         <div className="flex items-center justify-between">
           <div>
             <div className="flex items-center gap-3 mb-2">
               <Sparkles className="h-8 w-8" />
-              <h2 className="text-2xl font-bold">Benji's Recommendations</h2>
+              <h2 className="text-lg font-semibold">Benji's Recommendations</h2>
             </div>
-            <p className="text-teal-100">
+            <p className="text-amber-100">
               AI-powered load matching just for you
             </p>
           </div>
@@ -289,19 +287,19 @@ export default function BenjiLoadRecommendations() {
 
         {/* Stats */}
         <div className="grid grid-cols-3 gap-4 mt-4">
-          <div className="bg-white/10 backdrop-blur rounded-lg p-3">
-            <div className="text-teal-200 text-xs font-medium">Available Loads</div>
-            <div className="text-2xl font-bold">{recommendations.total_available}</div>
+          <div className="bg-white/10 backdrop-blur rounded-md p-3">
+            <div className="text-amber-200 text-xs font-medium">Available Loads</div>
+            <div className="text-lg font-bold">{recommendations.total_available}</div>
           </div>
-          <div className="bg-white/10 backdrop-blur rounded-lg p-3">
-            <div className="text-teal-200 text-xs font-medium">Top Match</div>
-            <div className="text-2xl font-bold">
+          <div className="bg-white/10 backdrop-blur rounded-md p-3">
+            <div className="text-amber-200 text-xs font-medium">Top Match</div>
+            <div className="text-lg font-bold">
               {recommendations.best_match ? `${recommendations.best_match.match_score}%` : 'N/A'}
             </div>
           </div>
-          <div className="bg-white/10 backdrop-blur rounded-lg p-3">
-            <div className="text-teal-200 text-xs font-medium">Potential Earnings</div>
-            <div className="text-2xl font-bold">
+          <div className="bg-white/10 backdrop-blur rounded-md p-3">
+            <div className="text-amber-200 text-xs font-medium">Potential Earnings</div>
+            <div className="text-lg font-bold">
               $
               {([recommendations.best_match, ...recommendations.good_matches]
                 .filter(Boolean)
@@ -313,7 +311,7 @@ export default function BenjiLoadRecommendations() {
 
       {/* Insights */}
       {recommendations.personalized_insights.length > 0 && (
-        <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
+        <div className="bg-blue-50 border border-blue-200 rounded-md p-4">
           <div className="flex items-start gap-3">
             <TrendingUp className="h-5 w-5 text-blue-600 flex-shrink-0 mt-0.5" />
             <div className="flex-1">
@@ -369,8 +367,8 @@ export default function BenjiLoadRecommendations() {
       {!recommendations.best_match && 
        recommendations.good_matches.length === 0 && 
        recommendations.consider.length === 0 && (
-        <div className="text-center py-12 bg-gray-50 rounded-xl">
-          <Clock className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+        <div className="text-center py-12 bg-gray-50 rounded-md">
+          <Clock className="h-8 w-8 text-gray-400 mx-auto mb-4" />
           <p className="text-lg font-medium text-gray-900">No loads available right now</p>
           <p className="text-gray-600 mt-2">Check back soon for new opportunities!</p>
           <Button onClick={loadRecommendations} className="mt-4">

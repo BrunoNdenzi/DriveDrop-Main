@@ -181,35 +181,36 @@ export default function DriverMessagesPage() {
   }
 
   return (
-    <div className="p-6 max-w-4xl mx-auto">
+    <div className="space-y-4">
       {/* Header */}
-      <div className="mb-6">
-        <div className="flex items-center gap-3 mb-2">
-          <MessageSquare className="h-8 w-8 text-teal-600" />
-          <h1 className="text-3xl font-bold text-gray-900">Messages</h1>
+      <div>
+        <div className="flex items-center gap-2 mb-1">
+          <MessageSquare className="h-5 w-5 text-amber-500" />
+          <h1 className="text-lg font-bold text-gray-900">Messages</h1>
         </div>
-        <p className="text-gray-600">
+        <p className="text-xs text-gray-500">
           Chat with clients about your deliveries
         </p>
       </div>
 
       {/* Loading State */}
       {loading && (
-        <div className="flex items-center justify-center py-12">
+        <div className="flex items-center justify-center py-8">
           <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-teal-600 mx-auto mb-4"></div>
-            <p className="text-gray-600">Loading conversations...</p>
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-amber-500 mx-auto mb-3"></div>
+            <p className="text-xs text-gray-500">Loading conversations...</p>
           </div>
         </div>
       )}
 
       {/* Error State */}
       {error && !loading && (
-        <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
-          <p className="text-red-800 text-sm">{error}</p>
+        <div className="bg-red-50 border border-red-200 rounded-md p-3 mb-4">
+          <p className="text-red-800 text-xs">{error}</p>
           <Button
             onClick={loadConversations}
-            className="mt-2 bg-red-600 hover:bg-red-700 text-white"
+            size="sm"
+            className="mt-2 h-7 text-xs bg-red-600 hover:bg-red-700 text-white"
           >
             Try Again
           </Button>
@@ -218,19 +219,20 @@ export default function DriverMessagesPage() {
 
       {/* Empty State */}
       {!loading && !error && conversations.length === 0 && (
-        <div className="text-center py-12 bg-gray-50 rounded-lg">
-          <MessageSquare className="h-16 w-16 text-gray-400 mx-auto mb-4" />
-          <h3 className="text-lg font-semibold text-gray-900 mb-2">
+        <div className="text-center py-8 bg-white rounded-md border border-gray-200">
+          <MessageSquare className="h-10 w-10 text-gray-300 mx-auto mb-3" />
+          <h3 className="text-sm font-semibold text-gray-900 mb-1">
             No Conversations Yet
           </h3>
-          <p className="text-gray-600 mb-4">
+          <p className="text-xs text-gray-500 mb-3">
             Messages will appear here once you accept deliveries
           </p>
           <Button
             onClick={() => router.push('/dashboard/driver')}
-            className="bg-teal-600 hover:bg-teal-700 text-white"
+            size="sm"
+            className="h-8 text-xs bg-amber-500 hover:bg-amber-600 text-white"
           >
-            <Package className="h-4 w-4 mr-2" />
+            <Package className="h-3 w-3 mr-1" />
             Browse Available Jobs
           </Button>
         </div>
@@ -238,13 +240,13 @@ export default function DriverMessagesPage() {
 
       {/* Conversations List */}
       {!loading && !error && conversations.length > 0 && (
-        <div className="bg-white rounded-lg shadow divide-y divide-gray-200">
+        <div className="bg-white rounded-md border border-gray-200 divide-y divide-gray-100">
           {conversations.map((conversation) => {
             return (
               <button
                 key={conversation.shipment_id}
                 onClick={() => navigateToChat(conversation)}
-                className="w-full p-4 hover:bg-gray-50 transition-colors text-left flex items-center gap-4"
+                className="w-full px-4 py-3 hover:bg-gray-50 transition-colors text-left flex items-center gap-3"
               >
                 {/* Avatar */}
                 <div className="flex-shrink-0">
@@ -252,11 +254,11 @@ export default function DriverMessagesPage() {
                     <img
                       src={conversation.client_avatar}
                       alt={conversation.client_name}
-                      className="w-12 h-12 rounded-full object-cover"
+                      className="w-9 h-9 rounded-full object-cover"
                     />
                   ) : (
-                    <div className="w-12 h-12 rounded-full bg-teal-100 flex items-center justify-center">
-                      <span className="text-teal-700 font-semibold text-sm">
+                    <div className="w-9 h-9 rounded-full bg-amber-50 flex items-center justify-center">
+                      <span className="text-amber-600 font-semibold text-xs">
                         {getInitials(conversation.client_name)}
                       </span>
                     </div>
@@ -272,35 +274,35 @@ export default function DriverMessagesPage() {
 
                 {/* Content */}
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-center justify-between mb-1">
-                    <div className="flex items-center gap-2">
-                      <h3 className="font-semibold text-gray-900 truncate">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-1.5">
+                      <h3 className="text-sm font-semibold text-gray-900 truncate">
                         {conversation.client_name || 'Unknown Client'}
                       </h3>
-                      <span className="text-xs text-gray-500">(Client)</span>
+                      <span className="text-[10px] text-gray-400">(Client)</span>
                     </div>
-                    <span className="text-xs text-gray-500 flex-shrink-0">
+                    <span className="text-[10px] text-gray-400 flex-shrink-0">
                       {formatTime(conversation.last_message_at)}
                     </span>
                   </div>
 
-                  <p className="text-sm text-gray-600 mb-2 truncate">
+                  <p className="text-xs text-gray-500 truncate mt-0.5">
                     {conversation.shipment_title}
                   </p>
 
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-center justify-between mt-1">
                     <p
-                      className={`text-sm truncate ${
+                      className={`text-xs truncate ${
                         conversation.unread_count > 0
                           ? 'font-semibold text-gray-900'
-                          : 'text-gray-600'
+                          : 'text-gray-500'
                       }`}
                     >
                       {conversation.last_message_content ||
                         'No messages yet'}
                     </p>
                     <span
-                      className={`text-xs px-2 py-1 rounded-full flex-shrink-0 ml-2 ${getStatusBadgeColor(
+                      className={`text-[10px] px-1.5 py-0.5 rounded flex-shrink-0 ml-2 ${getStatusBadgeColor(
                         conversation.shipment_status
                       )}`}
                     >
@@ -310,7 +312,7 @@ export default function DriverMessagesPage() {
                 </div>
 
                 {/* Chevron */}
-                <ChevronRight className="h-5 w-5 text-gray-400 flex-shrink-0" />
+                <ChevronRight className="h-4 w-4 text-gray-300 flex-shrink-0" />
               </button>
             )
           })}
@@ -319,14 +321,15 @@ export default function DriverMessagesPage() {
 
       {/* Refresh Button */}
       {!loading && conversations.length > 0 && (
-        <div className="mt-6 text-center">
+        <div className="mt-3 text-center">
           <Button
             onClick={loadConversations}
             variant="outline"
-            className="text-gray-600"
+            size="sm"
+            className="h-7 text-xs text-gray-500"
           >
-            <Clock className="h-4 w-4 mr-2" />
-            Refresh Conversations
+            <Clock className="h-3 w-3 mr-1" />
+            Refresh
           </Button>
         </div>
       )}

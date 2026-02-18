@@ -7,7 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { User, Truck, Shield, ArrowRight, Mail, Lock, AlertCircle, Sparkles, Eye, EyeOff } from 'lucide-react'
+import { User, Truck, Shield, ArrowRight, Mail, Lock, AlertCircle, Eye, EyeOff } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import Header from '@/components/layout/Header'
 import Footer from '@/components/layout/Footer'
@@ -66,29 +66,37 @@ function LoginForm() {
   const roleConfig = {
     client: {
       icon: User,
-      color: 'text-primary',
-      gradient: 'from-primary to-accent',
+      color: 'text-blue-600',
+      iconBg: 'bg-blue-500',
+      tabActive: 'data-[state=active]:bg-blue-500 data-[state=active]:text-white',
+      buttonBg: 'bg-blue-500 hover:bg-blue-600',
       title: 'Client Login',
       description: 'Ship your vehicle with verified drivers',
     },
     driver: {
       icon: Truck,
-      color: 'text-secondary',
-      gradient: 'from-secondary to-drivedrop-orange-light',
+      color: 'text-amber-600',
+      iconBg: 'bg-amber-500',
+      tabActive: 'data-[state=active]:bg-amber-500 data-[state=active]:text-white',
+      buttonBg: 'bg-amber-500 hover:bg-amber-600',
       title: 'Driver Login',
       description: 'Manage your deliveries and earnings',
     },
     broker: {
       icon: User,
-      color: 'text-blue-600',
-      gradient: 'from-blue-600 to-blue-800',
+      color: 'text-teal-600',
+      iconBg: 'bg-teal-500',
+      tabActive: 'data-[state=active]:bg-teal-500 data-[state=active]:text-white',
+      buttonBg: 'bg-teal-500 hover:bg-teal-600',
       title: 'Broker Login',
       description: 'Manage your carrier network and loads',
     },
     admin: {
       icon: Shield,
-      color: 'text-accent',
-      gradient: 'from-accent to-primary',
+      color: 'text-purple-600',
+      iconBg: 'bg-purple-500',
+      tabActive: 'data-[state=active]:bg-purple-500 data-[state=active]:text-white',
+      buttonBg: 'bg-purple-500 hover:bg-purple-600',
       title: 'Admin Login',
       description: 'Manage platform operations',
     },
@@ -100,56 +108,51 @@ function LoginForm() {
   return (
     <>
       <Header />
-      <main className="min-h-screen pt-20 pb-16 relative overflow-hidden">
-        {/* Animated background */}
-        <div className="absolute inset-0 gradient-mesh opacity-40" />
-        <div className="absolute top-20 left-10 w-96 h-96 bg-primary/10 rounded-full blur-3xl animate-float" />
-        <div className="absolute bottom-20 right-10 w-96 h-96 bg-secondary/10 rounded-full blur-3xl animate-float" style={{ animationDelay: '2s' }} />
-
-        <div className="container relative z-10">
+      <main className="min-h-screen pt-20 pb-16 bg-[hsl(var(--surface-field))]">
+        <div className="container">
           <div className="max-w-md mx-auto">
             {/* Header */}
-            <div className="text-center space-y-4 mb-8 animate-slide-up">
-              <div className={`inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br ${currentConfig.gradient} shadow-xl`}>
-                <Icon className="w-8 h-8 text-white" />
+            <div className="text-center space-y-3 mb-6">
+              <div className={`inline-flex items-center justify-center w-12 h-12 rounded-md ${currentConfig.iconBg}`}>
+                <Icon className="w-6 h-6 text-white" />
               </div>
               <div>
-                <h1 className="text-4xl font-bold">{currentConfig.title}</h1>
-                <p className="text-muted-foreground mt-2">{currentConfig.description}</p>
+                <h1 className="text-2xl font-bold tracking-tight">{currentConfig.title}</h1>
+                <p className="text-sm text-muted-foreground mt-1">{currentConfig.description}</p>
               </div>
             </div>
 
             {/* Login Card */}
-            <div className="glass rounded-3xl p-8 shadow-2xl animate-slide-up" style={{ animationDelay: '0.1s' }}>
+            <div className="bg-white border border-border rounded-md p-6 shadow-sm">
               <Tabs value={activeRole} onValueChange={(v) => setActiveRole(v as UserRole)} className="w-full">
                 {/* Role Tabs */}
-                <TabsList className="grid w-full grid-cols-4 mb-8 bg-muted/50 p-1 rounded-xl">
+                <TabsList className="grid w-full grid-cols-4 mb-6 bg-slate-100 p-1 rounded-md">
                   <TabsTrigger 
                     value="client" 
-                    className="rounded-lg data-[state=active]:bg-primary data-[state=active]:text-white transition-all"
+                    className={`rounded text-xs ${roleConfig.client.tabActive}`}
                   >
-                    <User className="w-4 h-4 mr-2" />
+                    <User className="w-3.5 h-3.5 mr-1.5" />
                     Client
                   </TabsTrigger>
                   <TabsTrigger 
                     value="driver"
-                    className="rounded-lg data-[state=active]:bg-secondary data-[state=active]:text-white transition-all"
+                    className={`rounded text-xs ${roleConfig.driver.tabActive}`}
                   >
-                    <Truck className="w-4 h-4 mr-2" />
+                    <Truck className="w-3.5 h-3.5 mr-1.5" />
                     Driver
                   </TabsTrigger>
                   <TabsTrigger 
                     value="broker"
-                    className="rounded-lg data-[state=active]:bg-blue-600 data-[state=active]:text-white transition-all"
+                    className={`rounded text-xs ${roleConfig.broker.tabActive}`}
                   >
-                    <User className="w-4 h-4 mr-2" />
+                    <User className="w-3.5 h-3.5 mr-1.5" />
                     Broker
                   </TabsTrigger>
                   <TabsTrigger 
                     value="admin"
-                    className="rounded-lg data-[state=active]:bg-accent data-[state=active]:text-white transition-all"
+                    className={`rounded text-xs ${roleConfig.admin.tabActive}`}
                   >
-                    <Shield className="w-4 h-4 mr-2" />
+                    <Shield className="w-3.5 h-3.5 mr-1.5" />
                     Admin
                   </TabsTrigger>
                 </TabsList>
@@ -157,13 +160,13 @@ function LoginForm() {
                 {/* Login Form */}
                 <TabsContent value={activeRole} className="space-y-6 mt-0">
                   {error && (
-                    <div className="flex items-center gap-2 p-4 rounded-xl bg-destructive/10 border border-destructive/20 text-destructive animate-slide-down">
+                    <div className="flex items-center gap-2 p-3 rounded-md bg-destructive/10 border border-destructive/20 text-destructive">
                       <AlertCircle className="w-5 h-5 flex-shrink-0" />
                       <p className="text-sm">{error}</p>
                     </div>
                   )}
 
-                  <form onSubmit={handleLogin} className="space-y-6">
+                  <form onSubmit={handleLogin} className="space-y-4">
                     {/* Email */}
                     <div className="space-y-2">
                       <Label htmlFor="email" className="text-sm font-medium">
@@ -178,7 +181,7 @@ function LoginForm() {
                           value={email}
                           onChange={(e) => setEmail(e.target.value)}
                           required
-                          className="pl-10 h-12 rounded-xl"
+                          className="pl-10 h-10 rounded-md"
                         />
                       </div>
                     </div>
@@ -205,7 +208,7 @@ function LoginForm() {
                           value={password}
                           onChange={(e) => setPassword(e.target.value)}
                           required
-                          className="pl-10 pr-10 h-12 rounded-xl"
+                          className="pl-10 pr-10 h-10 rounded-md"
                         />
                         <button
                           type="button"
@@ -221,18 +224,17 @@ function LoginForm() {
                     <Button
                       type="submit"
                       disabled={loading}
-                      className={`w-full h-12 rounded-xl font-semibold bg-gradient-to-r ${currentConfig.gradient} hover-lift group`}
+                      className={`w-full h-10 rounded-md font-semibold ${currentConfig.buttonBg} text-white`}
                     >
                       {loading ? (
                         <div className="flex items-center gap-2">
-                          <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                          <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                           Signing in...
                         </div>
                       ) : (
                         <div className="flex items-center gap-2">
-                          <Sparkles className="w-5 h-5" />
                           Sign In
-                          <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+                          <ArrowRight className="w-4 h-4" />
                         </div>
                       )}
                     </Button>
@@ -255,7 +257,7 @@ function LoginForm() {
             </div>
 
             {/* Additional Info */}
-            <div className="mt-8 text-center space-y-4 animate-slide-up" style={{ animationDelay: '0.2s' }}>
+            <div className="mt-6 text-center space-y-4">
               <p className="text-sm text-muted-foreground">
                 By signing in, you agree to our{' '}
                 <Link href="/terms" className="text-primary hover:underline">

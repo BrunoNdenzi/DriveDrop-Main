@@ -251,7 +251,7 @@ class PricingService {
     // Hardcoded coordinates for common ZIP codes
     // In production, this should load from uszips.csv
     const zipMap: Record<string, { lat: number; lng: number }> = {
-      // Texas
+      // Carolina
       '75202': { lat: 32.7767, lng: -96.7970 }, // Dallas
       '77001': { lat: 29.7604, lng: -95.3698 }, // Houston
       '78701': { lat: 30.2672, lng: -97.7431 }, // Austin

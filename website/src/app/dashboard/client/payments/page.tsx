@@ -207,105 +207,102 @@ export default function ClientPaymentsPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="flex items-center justify-center py-12">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-teal-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading payment history...</p>
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto mb-3"></div>
+          <p className="text-sm text-gray-500">Loading payment history...</p>
         </div>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="space-y-4">
       {/* Header */}
-      <div className="bg-white border-b sticky top-0 z-10 shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900">Payments</h1>
-              <p className="text-sm text-gray-600">View your payment history and manage transactions</p>
-            </div>
-            <Button
-              onClick={loadPayments}
-              variant="outline"
-              size="sm"
-            >
-              <RefreshCw className="h-4 w-4 mr-2" />
-              Refresh
-            </Button>
-          </div>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-lg font-bold text-gray-900">Payments</h1>
+          <p className="text-xs text-gray-500">View your payment history and manage transactions</p>
         </div>
+        <Button
+          onClick={loadPayments}
+          variant="outline"
+          size="sm"
+          className="h-8 text-xs"
+        >
+          <RefreshCw className="h-3 w-3 mr-1" />
+          Refresh
+        </Button>
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div>
         {/* Stats Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
           {/* Total Paid */}
-          <div className="bg-gradient-to-br from-teal-500 to-teal-600 rounded-lg p-6 text-white">
-            <div className="flex items-center justify-between mb-4">
-              <DollarSign className="h-8 w-8" />
-              <CheckCircle className="h-5 w-5" />
+          <div className="bg-white rounded-md p-3 border border-gray-200">
+            <div className="flex items-center gap-2 mb-1">
+              <div className="p-1.5 bg-blue-50 rounded">
+                <DollarSign className="h-4 w-4 text-blue-500" />
+              </div>
+              <p className="text-xs text-gray-500">Total Paid</p>
             </div>
-            <h3 className="text-3xl font-bold mb-1">
+            <h3 className="text-xl font-bold text-gray-900">
               ${stats.totalPaid.toFixed(2)}
             </h3>
-            <p className="text-teal-100 text-sm">Total Paid</p>
           </div>
 
           {/* Completed Payments */}
-          <div className="bg-white rounded-lg shadow-sm p-6 border border-gray-200">
-            <div className="flex items-center justify-between mb-4">
-              <div className="p-2 bg-green-100 rounded-lg">
-                <CheckCircle className="h-6 w-6 text-green-600" />
+          <div className="bg-white rounded-md p-3 border border-gray-200">
+            <div className="flex items-center gap-2 mb-1">
+              <div className="p-1.5 bg-green-50 rounded">
+                <CheckCircle className="h-4 w-4 text-green-600" />
               </div>
+              <p className="text-xs text-gray-500">Completed</p>
             </div>
-            <h3 className="text-3xl font-bold text-gray-900 mb-1">
+            <h3 className="text-xl font-bold text-gray-900">
               {stats.completedPayments}
             </h3>
-            <p className="text-gray-600 text-sm">Completed Payments</p>
           </div>
 
           {/* Pending Payments */}
-          <div className="bg-white rounded-lg shadow-sm p-6 border border-gray-200">
-            <div className="flex items-center justify-between mb-4">
-              <div className="p-2 bg-orange-100 rounded-lg">
-                <Clock className="h-6 w-6 text-orange-600" />
+          <div className="bg-white rounded-md p-3 border border-gray-200">
+            <div className="flex items-center gap-2 mb-1">
+              <div className="p-1.5 bg-amber-50 rounded">
+                <Clock className="h-4 w-4 text-amber-600" />
               </div>
+              <p className="text-xs text-gray-500">Pending</p>
             </div>
-            <h3 className="text-3xl font-bold text-gray-900 mb-1">
+            <h3 className="text-xl font-bold text-gray-900">
               {stats.pendingPayments}
             </h3>
-            <p className="text-gray-600 text-sm">Pending Payments</p>
           </div>
 
           {/* Total Refunded */}
-          <div className="bg-white rounded-lg shadow-sm p-6 border border-gray-200">
-            <div className="flex items-center justify-between mb-4">
-              <div className="p-2 bg-purple-100 rounded-lg">
-                <RefreshCw className="h-6 w-6 text-purple-600" />
+          <div className="bg-white rounded-md p-3 border border-gray-200">
+            <div className="flex items-center gap-2 mb-1">
+              <div className="p-1.5 bg-purple-50 rounded">
+                <RefreshCw className="h-4 w-4 text-purple-600" />
               </div>
+              <p className="text-xs text-gray-500">Refunded</p>
             </div>
-            <h3 className="text-3xl font-bold text-gray-900 mb-1">
+            <h3 className="text-xl font-bold text-gray-900">
               ${stats.totalRefunded.toFixed(2)}
             </h3>
-            <p className="text-gray-600 text-sm">Total Refunded</p>
           </div>
         </div>
 
         {/* Filters */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 mb-6">
-          <div className="flex items-center gap-4 flex-wrap">
-            <div className="flex items-center gap-2">
-              <Filter className="h-5 w-5 text-gray-600" />
-              <span className="text-sm font-medium text-gray-700">Filters:</span>
+        <div className="bg-white rounded-md border border-gray-200 p-3 mb-4">
+          <div className="flex items-center gap-3 flex-wrap">
+            <div className="flex items-center gap-1.5">
+              <Filter className="h-4 w-4 text-gray-400" />
+              <span className="text-xs font-medium text-gray-500">Filters:</span>
             </div>
 
-            {/* Status Filter */}
             <select
               value={filterStatus}
               onChange={(e) => setFilterStatus(e.target.value)}
-              className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500"
+              className="border border-gray-200 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-blue-500"
             >
               <option value="all">All Status</option>
               <option value="completed">Completed</option>
@@ -315,11 +312,10 @@ export default function ClientPaymentsPage() {
               <option value="refunded">Refunded</option>
             </select>
 
-            {/* Type Filter */}
             <select
               value={filterType}
               onChange={(e) => setFilterType(e.target.value)}
-              className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500"
+              className="border border-gray-200 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-blue-500"
             >
               <option value="all">All Types</option>
               <option value="upfront">Initial Payment (20%)</option>
@@ -328,7 +324,7 @@ export default function ClientPaymentsPage() {
               <option value="full">Full Payment</option>
             </select>
 
-            <div className="ml-auto text-sm text-gray-600">
+            <div className="ml-auto text-xs text-gray-400">
               {filteredPayments.length} payment{filteredPayments.length !== 1 ? 's' : ''}
             </div>
           </div>
@@ -336,12 +332,12 @@ export default function ClientPaymentsPage() {
 
         {/* Payments List */}
         {filteredPayments.length === 0 ? (
-          <div className="text-center py-12 bg-white rounded-lg shadow-sm border border-gray-200">
-            <CreditCard className="h-16 w-16 text-gray-400 mx-auto mb-4" />
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">
+          <div className="text-center py-8 bg-white rounded-md border border-gray-200">
+            <CreditCard className="h-10 w-10 text-gray-300 mx-auto mb-3" />
+            <h3 className="text-sm font-semibold text-gray-900 mb-1">
               No Payments Found
             </h3>
-            <p className="text-gray-600 mb-4">
+            <p className="text-xs text-gray-500 mb-3">
               {filterStatus !== 'all' || filterType !== 'all'
                 ? 'Try adjusting your filters'
                 : 'Your payment history will appear here'}
@@ -359,22 +355,21 @@ export default function ClientPaymentsPage() {
             )}
           </div>
         ) : (
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 divide-y divide-gray-200">
+          <div className="bg-white rounded-md border border-gray-200 divide-y divide-gray-100">
             {filteredPayments.map((payment) => (
               <div
                 key={payment.id}
-                className="p-6 hover:bg-gray-50 transition-colors"
+                className="p-4 hover:bg-gray-50 transition-colors"
               >
                 <div className="flex items-start justify-between">
-                  {/* Left Side - Payment Info */}
-                  <div className="flex items-start gap-4 flex-1">
-                    <div className="p-3 bg-gray-100 rounded-lg">
+                  <div className="flex items-start gap-3 flex-1">
+                    <div className="p-2 bg-gray-50 rounded-md">
                       {getStatusIcon(payment.status)}
                     </div>
 
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-1">
-                        <h3 className="text-lg font-semibold text-gray-900">
+                      <div className="flex items-center gap-2 mb-0.5">
+                        <h3 className="text-sm font-semibold text-gray-900">
                           ${payment.amount.toFixed(2)}
                         </h3>
                         <span
@@ -386,16 +381,16 @@ export default function ClientPaymentsPage() {
                         </span>
                       </div>
 
-                      <p className="text-sm text-gray-600 mb-2">
+                      <p className="text-xs text-gray-500 mb-1">
                         {getTypeLabel(payment.payment_type)}
                       </p>
 
                       {payment.shipment && (
-                        <div className="flex items-center gap-2 text-sm text-gray-600 mb-2">
-                          <Package className="h-4 w-4" />
+                        <div className="flex items-center gap-1.5 text-xs text-gray-500 mb-1">
+                          <Package className="h-3 w-3" />
                           <button
                             onClick={() => router.push(`/dashboard/client/shipments/${payment.shipment_id}`)}
-                            className="hover:text-teal-600 hover:underline truncate"
+                            className="hover:text-blue-600 hover:underline truncate"
                           >
                             {payment.shipment.title}
                           </button>
@@ -426,13 +421,14 @@ export default function ClientPaymentsPage() {
                     </div>
                   </div>
 
-                  {/* Right Side - Actions */}
+                  {/* Actions */}
                   <div className="flex flex-col gap-2">
                     {payment.shipment && (
                       <Button
                         onClick={() => router.push(`/dashboard/client/shipments/${payment.shipment_id}`)}
                         variant="outline"
                         size="sm"
+                        className="h-7 text-xs"
                       >
                         View Shipment
                       </Button>
