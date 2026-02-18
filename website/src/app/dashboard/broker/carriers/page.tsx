@@ -173,9 +173,9 @@ export default function CarriersPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="flex items-center justify-center py-12">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-teal-500 mx-auto"></div>
           <p className="mt-4 text-gray-600">Loading carrier network...</p>
         </div>
       </div>
@@ -183,36 +183,23 @@ export default function CarriersPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <div className="bg-white shadow">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          <div className="md:flex md:items-center md:justify-between">
-            <div className="flex-1 min-w-0">
-              <h1 className="text-2xl font-bold text-gray-900">Carrier Network</h1>
-              <p className="mt-1 text-sm text-gray-500">
-                Manage your driver network and relationships
-              </p>
-            </div>
-            <div className="mt-4 flex md:mt-0 md:ml-4 space-x-3">
-              <button
-                onClick={() => router.push('/dashboard/broker')}
-                className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
-              >
-                ← Back
-              </button>
-              <button
-                onClick={() => setShowInviteModal(true)}
-                className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700"
-              >
-                + Invite Carrier
-              </button>
-            </div>
+    <div className="bg-gray-50">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        {/* Header */}
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h1 className="text-lg font-semibold text-gray-900">Carrier Network</h1>
+            <p className="mt-1 text-sm text-gray-500">
+              Manage your driver network and relationships
+            </p>
           </div>
+          <button
+            onClick={() => setShowInviteModal(true)}
+            className="inline-flex items-center px-4 py-2 border border-transparent rounded-md text-sm font-medium text-white bg-teal-500 hover:bg-teal-600"
+          >
+            + Invite Carrier
+          </button>
         </div>
-      </div>
-
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {error && (
           <div className="mb-6 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
             {error}
@@ -227,12 +214,12 @@ export default function CarriersPage() {
 
         {/* Stats */}
         <div className="grid grid-cols-1 gap-5 sm:grid-cols-4 mb-6">
-          <div className="bg-white overflow-hidden shadow rounded-lg">
+          <div className="bg-white overflow-hidden rounded-md border border-gray-200">
             <div className="p-5">
               <div className="flex items-center">
                 <div className="flex-shrink-0">
-                  <div className="bg-blue-500 rounded-md p-3">
-                    <svg className="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <div className="bg-teal-50 rounded-md p-3">
+                    <svg className="h-5 w-5 text-teal-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
                     </svg>
                   </div>
@@ -240,19 +227,19 @@ export default function CarriersPage() {
                 <div className="ml-5 w-0 flex-1">
                   <dl>
                     <dt className="text-sm font-medium text-gray-500 truncate">Total Carriers</dt>
-                    <dd className="text-2xl font-semibold text-gray-900">{carriers.length}</dd>
+                    <dd className="text-xl font-semibold text-gray-900">{carriers.length}</dd>
                   </dl>
                 </div>
               </div>
             </div>
           </div>
 
-          <div className="bg-white overflow-hidden shadow rounded-lg">
+          <div className="bg-white overflow-hidden rounded-md border border-gray-200">
             <div className="p-5">
               <div className="flex items-center">
                 <div className="flex-shrink-0">
-                  <div className="bg-green-500 rounded-md p-3">
-                    <svg className="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <div className="bg-teal-50 rounded-md p-3">
+                    <svg className="h-5 w-5 text-teal-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
                   </div>
@@ -260,7 +247,7 @@ export default function CarriersPage() {
                 <div className="ml-5 w-0 flex-1">
                   <dl>
                     <dt className="text-sm font-medium text-gray-500 truncate">Active</dt>
-                    <dd className="text-2xl font-semibold text-gray-900">
+                    <dd className="text-xl font-semibold text-gray-900">
                       {carriers.filter(c => c.relationship_status === 'active').length}
                     </dd>
                   </dl>
@@ -269,12 +256,12 @@ export default function CarriersPage() {
             </div>
           </div>
 
-          <div className="bg-white overflow-hidden shadow rounded-lg">
+          <div className="bg-white overflow-hidden rounded-md border border-gray-200">
             <div className="p-5">
               <div className="flex items-center">
                 <div className="flex-shrink-0">
-                  <div className="bg-yellow-500 rounded-md p-3">
-                    <svg className="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <div className="bg-teal-50 rounded-md p-3">
+                    <svg className="h-5 w-5 text-teal-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
                   </div>
@@ -282,7 +269,7 @@ export default function CarriersPage() {
                 <div className="ml-5 w-0 flex-1">
                   <dl>
                     <dt className="text-sm font-medium text-gray-500 truncate">Pending</dt>
-                    <dd className="text-2xl font-semibold text-gray-900">
+                    <dd className="text-xl font-semibold text-gray-900">
                       {carriers.filter(c => c.relationship_status === 'pending').length}
                     </dd>
                   </dl>
@@ -291,12 +278,12 @@ export default function CarriersPage() {
             </div>
           </div>
 
-          <div className="bg-white overflow-hidden shadow rounded-lg">
+          <div className="bg-white overflow-hidden rounded-md border border-gray-200">
             <div className="p-5">
               <div className="flex items-center">
                 <div className="flex-shrink-0">
-                  <div className="bg-purple-500 rounded-md p-3">
-                    <svg className="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <div className="bg-teal-50 rounded-md p-3">
+                    <svg className="h-5 w-5 text-teal-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
                     </svg>
                   </div>
@@ -304,7 +291,7 @@ export default function CarriersPage() {
                 <div className="ml-5 w-0 flex-1">
                   <dl>
                     <dt className="text-sm font-medium text-gray-500 truncate">Total Shipments</dt>
-                    <dd className="text-2xl font-semibold text-gray-900">
+                    <dd className="text-xl font-semibold text-gray-900">
                       {carriers.reduce((sum, c) => sum + c.total_shipments_completed, 0)}
                     </dd>
                   </dl>
@@ -315,8 +302,8 @@ export default function CarriersPage() {
         </div>
 
         {/* Filters */}
-        <div className="bg-white shadow rounded-lg p-4 mb-6">
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <div className="bg-white rounded-md border border-gray-200 p-4 mb-6">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Search Carriers
@@ -326,7 +313,7 @@ export default function CarriersPage() {
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 placeholder="Name, email, phone..."
-                className="w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                className="w-full border border-gray-300 rounded-md py-2 px-3 focus:outline-none focus:ring-teal-500 focus:border-teal-500"
               />
             </div>
             <div>
@@ -336,7 +323,7 @@ export default function CarriersPage() {
               <select
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value)}
-                className="w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                className="w-full border border-gray-300 rounded-md py-2 px-3 focus:outline-none focus:ring-teal-500 focus:border-teal-500"
               >
                 <option value="all">All Statuses</option>
                 <option value="pending">Pending</option>
@@ -350,11 +337,11 @@ export default function CarriersPage() {
         </div>
 
         {/* Carriers List */}
-        <div className="bg-white shadow rounded-lg overflow-hidden">
+        <div className="bg-white rounded-md border border-gray-200 overflow-hidden">
           {filteredCarriers.length === 0 ? (
-            <div className="p-12 text-center">
+            <div className="p-8 text-center">
               <svg
-                className="mx-auto h-12 w-12 text-gray-400"
+                className="mx-auto h-8 w-8 text-gray-400"
                 fill="none"
                 viewBox="0 0 24 24"
                 stroke="currentColor"
@@ -376,7 +363,7 @@ export default function CarriersPage() {
                 <div className="mt-6">
                   <button
                     onClick={() => setShowInviteModal(true)}
-                    className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700"
+                    className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-teal-500 hover:bg-teal-600"
                   >
                     + Invite Carrier
                   </button>
@@ -386,13 +373,13 @@ export default function CarriersPage() {
           ) : (
             <ul className="divide-y divide-gray-200">
               {filteredCarriers.map((carrier) => (
-                <li key={carrier.id} className="p-6 hover:bg-gray-50">
+                <li key={carrier.id} className="p-4 hover:bg-gray-50">
                   <div className="flex items-center justify-between">
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center space-x-4">
                         <div className="flex-shrink-0">
-                          <div className="h-12 w-12 rounded-full bg-blue-100 flex items-center justify-center">
-                            <span className="text-xl font-medium text-blue-600">
+                          <div className="h-9 w-9 rounded-full bg-teal-100 flex items-center justify-center">
+                            <span className="text-lg font-medium text-teal-500">
                               {carrier.carrier?.full_name?.charAt(0) || 'C'}
                             </span>
                           </div>
@@ -461,7 +448,7 @@ export default function CarriersPage() {
           <div className="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
             <div className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" onClick={() => setShowInviteModal(false)}></div>
             
-            <div className="inline-block align-bottom bg-white rounded-lg px-4 pt-5 pb-4 text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full sm:p-6">
+            <div className="inline-block align-bottom bg-white rounded-md px-4 pt-5 pb-4 text-left overflow-hidden transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full sm:p-4">
               <form onSubmit={handleInviteCarrier}>
                 <div>
                   <h3 className="text-lg leading-6 font-medium text-gray-900">
@@ -472,7 +459,7 @@ export default function CarriersPage() {
                   </p>
                 </div>
 
-                <div className="mt-6 space-y-4">
+                <div className="mt-4 space-y-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700">
                       Driver Email Address *
@@ -482,7 +469,7 @@ export default function CarriersPage() {
                       value={inviteEmail}
                       onChange={(e) => setInviteEmail(e.target.value)}
                       required
-                      className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                      className="mt-1 block w-full border border-gray-300 rounded-md py-2 px-3 focus:outline-none focus:ring-teal-500 focus:border-teal-500"
                     />
                   </div>
 
@@ -498,7 +485,7 @@ export default function CarriersPage() {
                       min="0"
                       max="100"
                       step="0.01"
-                      className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                      className="mt-1 block w-full border border-gray-300 rounded-md py-2 px-3 focus:outline-none focus:ring-teal-500 focus:border-teal-500"
                     />
                   </div>
 
@@ -511,7 +498,7 @@ export default function CarriersPage() {
                       value={invitePaymentTerms}
                       onChange={(e) => setInvitePaymentTerms(e.target.value)}
                       placeholder="e.g., Net 7, Upon delivery"
-                      className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                      className="mt-1 block w-full border border-gray-300 rounded-md py-2 px-3 focus:outline-none focus:ring-teal-500 focus:border-teal-500"
                     />
                   </div>
 
@@ -523,12 +510,12 @@ export default function CarriersPage() {
                       value={inviteNotes}
                       onChange={(e) => setInviteNotes(e.target.value)}
                       rows={3}
-                      className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                      className="mt-1 block w-full border border-gray-300 rounded-md py-2 px-3 focus:outline-none focus:ring-teal-500 focus:border-teal-500"
                     />
                   </div>
                 </div>
 
-                <div className="mt-6 flex space-x-3">
+                <div className="mt-4 flex space-x-3">
                   <button
                     type="button"
                     onClick={() => setShowInviteModal(false)}
@@ -539,7 +526,7 @@ export default function CarriersPage() {
                   <button
                     type="submit"
                     disabled={inviting}
-                    className="flex-1 inline-flex justify-center items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50"
+                    className="flex-1 inline-flex justify-center items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-teal-500 hover:bg-teal-600 disabled:opacity-50"
                   >
                     {inviting ? 'Sending...' : 'Send Invitation'}
                   </button>

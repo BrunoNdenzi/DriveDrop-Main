@@ -145,7 +145,7 @@ export default function BenjiDispatcher() {
     return (
       <div className="flex items-center justify-center h-96">
         <div className="text-center">
-          <Loader2 className="h-12 w-12 animate-spin text-teal-600 mx-auto mb-4" />
+          <Loader2 className="h-8 w-8 animate-spin text-purple-500 mx-auto mb-4" />
           <p className="text-lg font-medium text-gray-700">Benji is analyzing dispatch opportunities...</p>
           <p className="text-sm text-gray-500 mt-2">Calculating optimal driver-load matches</p>
         </div>
@@ -156,7 +156,7 @@ export default function BenjiDispatcher() {
   if (!analysis) {
     return (
       <div className="text-center py-12">
-        <AlertTriangle className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+        <AlertTriangle className="h-8 w-8 text-gray-400 mx-auto mb-4" />
         <p className="text-gray-600">Unable to load dispatch analysis</p>
         <Button onClick={analyzeOpportunities} className="mt-4">
           Retry Analysis
@@ -171,16 +171,16 @@ export default function BenjiDispatcher() {
     .reduce((sum, m) => sum + m.load.estimated_price, 0)
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {/* Header */}
-      <div className="bg-gradient-to-r from-teal-600 to-purple-600 rounded-xl p-6 text-white">
+      <div className="bg-purple-500 rounded-md p-4 text-white">
         <div className="flex items-start justify-between">
           <div>
             <div className="flex items-center gap-3 mb-2">
               <Sparkles className="h-8 w-8" />
-              <h2 className="text-2xl font-bold">Benji AI Dispatcher</h2>
+              <h2 className="text-lg font-semibold">Benji AI Dispatcher</h2>
             </div>
-            <p className="text-teal-100">
+            <p className="text-purple-100">
               Intelligent load assignment powered by AI
             </p>
           </div>
@@ -197,29 +197,29 @@ export default function BenjiDispatcher() {
 
         {/* Stats Grid */}
         <div className="grid grid-cols-4 gap-4 mt-6">
-          <div className="bg-white/10 backdrop-blur rounded-lg p-4">
-            <div className="text-teal-200 text-sm font-medium">Unassigned Loads</div>
-            <div className="text-3xl font-bold mt-1">{analysis.unassigned_loads}</div>
+          <div className="bg-white/10 backdrop-blur rounded-md p-4">
+            <div className="text-purple-200 text-sm font-medium">Unassigned Loads</div>
+            <div className="text-lg font-bold mt-1">{analysis.unassigned_loads}</div>
           </div>
-          <div className="bg-white/10 backdrop-blur rounded-lg p-4">
-            <div className="text-teal-200 text-sm font-medium">Available Drivers</div>
-            <div className="text-3xl font-bold mt-1">{analysis.available_drivers}</div>
+          <div className="bg-white/10 backdrop-blur rounded-md p-4">
+            <div className="text-purple-200 text-sm font-medium">Available Drivers</div>
+            <div className="text-lg font-bold mt-1">{analysis.available_drivers}</div>
           </div>
-          <div className="bg-white/10 backdrop-blur rounded-lg p-4">
-            <div className="text-teal-200 text-sm font-medium">Efficiency Score</div>
-            <div className="text-3xl font-bold mt-1">{analysis.efficiency_score}%</div>
+          <div className="bg-white/10 backdrop-blur rounded-md p-4">
+            <div className="text-purple-200 text-sm font-medium">Efficiency Score</div>
+            <div className="text-lg font-bold mt-1">{analysis.efficiency_score}%</div>
           </div>
-          <div className="bg-white/10 backdrop-blur rounded-lg p-4">
-            <div className="text-teal-200 text-sm font-medium">Est. Revenue</div>
-            <div className="text-3xl font-bold mt-1">${(analysis.estimated_revenue / 1000).toFixed(1)}k</div>
+          <div className="bg-white/10 backdrop-blur rounded-md p-4">
+            <div className="text-purple-200 text-sm font-medium">Est. Revenue</div>
+            <div className="text-lg font-bold mt-1">${(analysis.estimated_revenue / 1000).toFixed(1)}k</div>
           </div>
         </div>
       </div>
 
       {/* Benefits Banner */}
-      <div className="bg-green-50 border border-green-200 rounded-xl p-4">
+      <div className="bg-green-50 border border-green-200 rounded-md p-4">
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-6">
+          <div className="flex items-center gap-4">
             <div className="flex items-center gap-2">
               <Clock className="h-5 w-5 text-green-600" />
               <span className="text-sm text-green-900">
@@ -261,8 +261,8 @@ export default function BenjiDispatcher() {
 
       {/* Optimal Matches */}
       {analysis.optimal_matches.length === 0 ? (
-        <div className="text-center py-12 bg-gray-50 rounded-xl">
-          <CheckCircle className="h-12 w-12 text-green-600 mx-auto mb-4" />
+        <div className="text-center py-12 bg-gray-50 rounded-md">
+          <CheckCircle className="h-8 w-8 text-green-600 mx-auto mb-4" />
           <p className="text-lg font-medium text-gray-900">All loads assigned!</p>
           <p className="text-gray-600 mt-2">No pending assignments at the moment</p>
         </div>
@@ -281,9 +281,9 @@ export default function BenjiDispatcher() {
             {analysis.optimal_matches.map((match, idx) => (
               <div
                 key={match.load.id}
-                className={`bg-white border-2 rounded-xl p-6 transition-all cursor-pointer ${
+                className={`bg-white border-2 rounded-md p-4 transition-all cursor-pointer ${
                   selectedMatches.has(match.load.id)
-                    ? 'border-teal-500 shadow-md'
+                    ? 'border-purple-500'
                     : 'border-gray-200 hover:border-gray-300'
                 }`}
                 onClick={() => toggleMatch(match.load.id)}
@@ -291,7 +291,7 @@ export default function BenjiDispatcher() {
                 <div className="flex items-start justify-between">
                   {/* Match Rank */}
                   <div className="flex items-start gap-4 flex-1">
-                    <div className="flex items-center justify-center w-12 h-12 rounded-full bg-gradient-to-br from-teal-500 to-purple-600 text-white font-bold text-lg">
+                    <div className="flex items-center justify-center w-8 h-8 rounded-full bg-purple-500 text-white font-bold text-lg">
                       {idx + 1}
                     </div>
 
@@ -326,7 +326,7 @@ export default function BenjiDispatcher() {
                         {match.reasons.slice(0, 4).map((reason, i) => (
                           <span
                             key={i}
-                            className="text-xs px-2 py-1 bg-teal-50 text-teal-700 rounded-full"
+                            className="text-xs px-2 py-1 bg-purple-50 text-purple-600 rounded-full"
                           >
                             {reason}
                           </span>
@@ -334,7 +334,7 @@ export default function BenjiDispatcher() {
                       </div>
 
                       {/* Driver Info */}
-                      <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
+                      <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-md">
                         <User className="h-5 w-5 text-gray-400" />
                         <div className="flex-1">
                           <div className="font-medium text-gray-900">{match.driver.full_name}</div>
@@ -358,7 +358,7 @@ export default function BenjiDispatcher() {
                       type="checkbox"
                       checked={selectedMatches.has(match.load.id)}
                       onChange={() => toggleMatch(match.load.id)}
-                      className="w-5 h-5 text-teal-600 rounded focus:ring-teal-500"
+                      className="w-5 h-5 text-purple-500 rounded focus:ring-purple-500"
                     />
                   </div>
                 </div>

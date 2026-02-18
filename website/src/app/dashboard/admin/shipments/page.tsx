@@ -216,69 +216,60 @@ export default function AdminShipmentsPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="flex items-center justify-center py-12">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading shipments...</p>
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600 mx-auto mb-3"></div>
+          <p className="text-sm text-gray-600">Loading shipments...</p>
         </div>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="space-y-4">
       {/* Header */}
-      <div className="bg-white border-b sticky top-0 z-10 shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900">Shipment Management</h1>
-              <p className="text-sm text-gray-600">{filteredShipments.length} shipments</p>
-            </div>
-            <Link href="/dashboard/admin">
-              <Button variant="outline" size="sm">
-                Back to Dashboard
-              </Button>
-            </Link>
-          </div>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-lg font-semibold text-gray-900">Shipment Management</h1>
+          <p className="text-xs text-gray-500">{filteredShipments.length} shipments</p>
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div>
         {/* Filters */}
-        <div className="bg-white rounded-lg shadow-sm p-6 mb-6 border border-gray-200">
-          <div className="flex items-center gap-2 mb-4">
-            <Filter className="h-5 w-5 text-gray-600" />
-            <h2 className="text-lg font-semibold text-gray-900">Filters</h2>
+        <div className="bg-white rounded-md border border-gray-200 p-4 mb-4">
+          <div className="flex items-center gap-2 mb-3">
+            <Filter className="h-4 w-4 text-gray-500" />
+            <h2 className="text-sm font-medium text-gray-900">Filters</h2>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
             {/* Search */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-xs font-medium text-gray-600 mb-1">
                 Search
               </label>
               <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                <Search className="absolute left-2.5 top-1/2 transform -translate-y-1/2 h-3.5 w-3.5 text-gray-400" />
                 <input
                   type="text"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder="Search shipments..."
-                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  className="w-full pl-8 pr-3 py-1.5 text-sm border border-gray-300 rounded-md focus:ring-1 focus:ring-purple-500 focus:border-transparent"
                 />
               </div>
             </div>
 
             {/* Status Filter */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-xs font-medium text-gray-600 mb-1">
                 Shipment Status
               </label>
               <select
                 value={filterStatus}
                 onChange={(e) => setFilterStatus(e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-md focus:ring-1 focus:ring-purple-500 focus:border-transparent"
               >
                 <option value="all">All Statuses</option>
                 <option value="pending">Pending</option>
@@ -294,13 +285,13 @@ export default function AdminShipmentsPage() {
 
             {/* Payment Status Filter */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-xs font-medium text-gray-600 mb-1">
                 Payment Status
               </label>
               <select
                 value={filterPaymentStatus}
                 onChange={(e) => setFilterPaymentStatus(e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-md focus:ring-1 focus:ring-purple-500 focus:border-transparent"
               >
                 <option value="all">All Payments</option>
                 <option value="pending">Pending</option>
@@ -314,9 +305,9 @@ export default function AdminShipmentsPage() {
 
         {/* Shipments List */}
         {filteredShipments.length === 0 ? (
-          <div className="bg-white rounded-lg shadow-sm p-12 text-center border border-gray-200">
-            <Package className="h-16 w-16 text-gray-300 mx-auto mb-4" />
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">
+          <div className="bg-white rounded-md border border-gray-200 p-8 text-center">
+            <Package className="h-10 w-10 text-gray-300 mx-auto mb-3" />
+            <h3 className="text-sm font-semibold text-gray-900 mb-1">
               No Shipments Found
             </h3>
             <p className="text-gray-600">
@@ -326,18 +317,18 @@ export default function AdminShipmentsPage() {
             </p>
           </div>
         ) : (
-          <div className="space-y-4">
+          <div className="space-y-3">
             {filteredShipments.map((shipment) => (
               <div
                 key={shipment.id}
-                className="bg-white rounded-lg shadow-sm border border-gray-200 p-6"
+                className="bg-white rounded-md border border-gray-200 p-4"
               >
-                <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-6">
+                <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
                   {/* Shipment Details */}
                   <div className="flex-1">
-                    <div className="flex items-start justify-between mb-4">
+                    <div className="flex items-start justify-between mb-3">
                       <div>
-                        <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                        <h3 className="text-sm font-semibold text-gray-900 mb-1">
                           {shipment.title || `${shipment.vehicle_make} ${shipment.vehicle_model}`}
                         </h3>
                         <div className="flex items-center gap-2 flex-wrap">
@@ -356,8 +347,8 @@ export default function AdminShipmentsPage() {
                     </div>
 
                     {/* Client & Driver Info */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                      <div className="bg-blue-50 rounded-lg p-3">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
+                      <div className="bg-blue-50 rounded-md p-2.5">
                         <p className="text-xs text-gray-600 mb-1 flex items-center gap-1">
                           <User className="h-3 w-3" /> Client
                         </p>
@@ -367,7 +358,7 @@ export default function AdminShipmentsPage() {
                           </p>
                         )}
                       </div>
-                      <div className="bg-orange-50 rounded-lg p-3">
+                      <div className="bg-amber-50 rounded-md p-2.5">
                         <p className="text-xs text-gray-600 mb-1 flex items-center gap-1">
                           <Truck className="h-3 w-3" /> Driver
                         </p>
@@ -382,7 +373,7 @@ export default function AdminShipmentsPage() {
                     </div>
 
                     {/* Addresses */}
-                    <div className="space-y-2 mb-4">
+                    <div className="space-y-1.5 mb-3">
                       <div className="flex items-start gap-2 text-sm">
                         <MapPin className="h-4 w-4 text-green-600 mt-0.5 flex-shrink-0" />
                         <div>
@@ -414,7 +405,7 @@ export default function AdminShipmentsPage() {
                         {assigningDriver === shipment.id ? (
                           <div className="space-y-2">
                             <select
-                              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                              className="w-full px-3 py-1.5 border border-gray-300 rounded-md text-sm"
                               onChange={(e) => {
                                 if (e.target.value) {
                                   handleAssignDriver(shipment.id, e.target.value)

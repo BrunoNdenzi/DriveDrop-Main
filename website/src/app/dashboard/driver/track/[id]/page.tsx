@@ -401,15 +401,15 @@ export default function DriverShipmentTrackingPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
+      <div className="flex items-center justify-center min-h-[300px]">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
       </div>
     )
   }
 
   if (!shipment) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
+      <div className="flex items-center justify-center min-h-[300px]">
         <div className="text-center">
           <p className="text-gray-600 mb-4">Shipment not found</p>
           <Button onClick={() => router.push('/dashboard/driver/active')}>
@@ -423,10 +423,10 @@ export default function DriverShipmentTrackingPage() {
   const nextStatus = getNextStatus()
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="space-y-4">
       {/* Header */}
       <div className="bg-white border-b">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+        <div className="py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
               <Button
@@ -437,7 +437,7 @@ export default function DriverShipmentTrackingPage() {
                 Back
               </Button>
               <div>
-                <h1 className="text-2xl font-bold text-gray-900">{shipment.title}</h1>
+                <h1 className="text-lg font-semibold text-gray-900">{shipment.title}</h1>
                 <p className="text-sm text-gray-600">Shipment ID: {shipment.id}</p>
               </div>
             </div>
@@ -453,18 +453,18 @@ export default function DriverShipmentTrackingPage() {
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="py-4">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
           {/* Main Content */}
-          <div className="lg:col-span-2 space-y-6">
+          <div className="lg:col-span-2 space-y-4">
             {/* Map */}
-            <div className="bg-white rounded-lg shadow-sm overflow-hidden">
+            <div className="bg-white rounded-md border overflow-hidden">
               <div ref={mapContainerRef} className="h-96 w-full"></div>
             </div>
 
             {/* Status Progress */}
-            <div className="bg-white rounded-lg shadow-sm p-6">
-              <h2 className="text-lg font-semibold text-gray-900 mb-4">Shipment Progress</h2>
+            <div className="bg-white rounded-md border p-4">
+              <h2 className="text-xs font-semibold uppercase tracking-wide text-gray-900 mb-4">Shipment Progress</h2>
               <div className="space-y-3">
                 {STATUS_FLOW.map((status, index) => {
                   const Icon = status.icon
@@ -518,8 +518,8 @@ export default function DriverShipmentTrackingPage() {
             </div>
 
             {/* Vehicle Details */}
-            <div className="bg-white rounded-lg shadow-sm p-6">
-              <h2 className="text-lg font-semibold text-gray-900 mb-4">Vehicle Details</h2>
+            <div className="bg-white rounded-md border p-4">
+              <h2 className="text-xs font-semibold uppercase tracking-wide text-gray-900 mb-4">Vehicle Details</h2>
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <p className="text-sm text-gray-600">Year Make Model</p>
@@ -539,7 +539,7 @@ export default function DriverShipmentTrackingPage() {
                 </div>
               </div>
               {shipment.special_instructions && (
-                <div className="mt-4 p-3 bg-yellow-50 rounded-lg">
+                <div className="mt-4 p-3 bg-yellow-50 rounded-md">
                   <p className="text-sm font-medium text-gray-700">Special Instructions:</p>
                   <p className="text-sm text-gray-600 mt-1">{shipment.special_instructions}</p>
                 </div>
@@ -548,8 +548,8 @@ export default function DriverShipmentTrackingPage() {
 
             {/* Receipt Section */}
             {shipment.status === 'delivered' && payment && (
-              <div className="bg-white rounded-lg shadow-sm p-6">
-                <h2 className="text-lg font-semibold text-gray-900 mb-4">Receipt & Invoice</h2>
+              <div className="bg-white rounded-md border p-4">
+                <h2 className="text-xs font-semibold uppercase tracking-wide text-gray-900 mb-4">Receipt & Invoice</h2>
                 <div className="flex items-center gap-3">
                   <Button
                     onClick={downloadReceipt}
@@ -582,10 +582,10 @@ export default function DriverShipmentTrackingPage() {
           </div>
 
           {/* Sidebar */}
-          <div className="space-y-6">
+          <div className="space-y-4">
             {/* Client Info */}
-            <div className="bg-white rounded-lg shadow-sm p-6">
-              <h2 className="text-lg font-semibold text-gray-900 mb-4">Client Information</h2>
+            <div className="bg-white rounded-md border p-4">
+              <h2 className="text-xs font-semibold uppercase tracking-wide text-gray-900 mb-4">Client Information</h2>
               <div className="space-y-3">
                 <div className="flex items-center gap-3">
                   <User className="h-5 w-5 text-gray-400" />
@@ -616,8 +616,8 @@ export default function DriverShipmentTrackingPage() {
             </div>
 
             {/* Route Details */}
-            <div className="bg-white rounded-lg shadow-sm p-6">
-              <h2 className="text-lg font-semibold text-gray-900 mb-4">Route Details</h2>
+            <div className="bg-white rounded-md border p-4">
+              <h2 className="text-xs font-semibold uppercase tracking-wide text-gray-900 mb-4">Route Details</h2>
               <div className="space-y-4">
                 <div>
                   <div className="flex items-start gap-2 mb-2">
@@ -648,12 +648,12 @@ export default function DriverShipmentTrackingPage() {
 
             {/* Payment Info */}
             {payment && (
-              <div className="bg-white rounded-lg shadow-sm p-6">
-                <h2 className="text-lg font-semibold text-gray-900 mb-4">Payment Information</h2>
+              <div className="bg-white rounded-md border p-4">
+                <h2 className="text-xs font-semibold uppercase tracking-wide text-gray-900 mb-4">Payment Information</h2>
                 <div className="space-y-3">
                   <div>
                     <p className="text-sm text-gray-600">Total Amount</p>
-                    <p className="text-2xl font-bold text-green-600">${shipment.total_price.toFixed(2)}</p>
+                    <p className="text-lg font-bold text-green-600">${shipment.total_price.toFixed(2)}</p>
                   </div>
                   <div>
                     <p className="text-sm text-gray-600">Payment Status</p>
@@ -672,8 +672,8 @@ export default function DriverShipmentTrackingPage() {
             )}
 
             {/* Quick Actions */}
-            <div className="bg-white rounded-lg shadow-sm p-6">
-              <h2 className="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h2>
+            <div className="bg-white rounded-md border p-4">
+              <h2 className="text-xs font-semibold uppercase tracking-wide text-gray-900 mb-4">Quick Actions</h2>
               <div className="space-y-2">
                 {shipment.status === 'accepted' && (
                   <Link href={`/dashboard/driver/pickup-verification/${shipment.id}`}>

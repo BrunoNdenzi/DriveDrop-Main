@@ -222,27 +222,27 @@ export default function AdminReportsPage() {
 
   if (authLoading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
+      <div className="flex items-center justify-center py-12">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
       </div>
     )
   }
 
   if (!profile || profile.role !== 'admin') {
     return (
-      <div className="flex items-center justify-center min-h-screen">
+      <div className="flex items-center justify-center py-12">
         <p className="text-red-600">Access denied. Admin only.</p>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="max-w-7xl mx-auto">
-        <div className="mb-6 bg-gradient-to-r from-blue-600 to-purple-600 rounded-lg shadow-lg p-8 text-white">
+    <div className="bg-gray-50">
+      <div>
+        <div className="mb-6 bg-purple-500 rounded-md border p-4 text-white">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-4xl font-bold flex items-center gap-3 mb-2">
+              <h1 className="text-lg font-semibold flex items-center gap-3 mb-2">
                 <BarChart3 className="h-10 w-10" />
                 Analytics Dashboard
               </h1>
@@ -260,7 +260,7 @@ export default function AdminReportsPage() {
             </div>
           </div>
 
-          <div className="mt-6 flex items-center gap-4 bg-white/10 backdrop-blur-sm p-4 rounded-lg border border-white/20">
+          <div className="mt-6 flex items-center gap-4 bg-white/10 backdrop-blur-sm p-4 rounded-md border border-white/20">
             <Calendar className="h-5 w-5" />
             <div className="flex items-center gap-2">
               <label className="text-sm font-medium">From:</label>
@@ -268,7 +268,7 @@ export default function AdminReportsPage() {
                 type="date"
                 value={dateRange.start}
                 onChange={(e) => setDateRange(prev => ({ ...prev, start: e.target.value }))}
-                className="px-3 py-1.5 bg-white/20 border border-white/30 rounded-lg focus:outline-none focus:ring-2 focus:ring-white/50 text-white"
+                className="px-3 py-1.5 bg-white/20 border border-white/30 rounded-md focus:outline-none focus:ring-2 focus:ring-white/50 text-white"
               />
             </div>
             <div className="flex items-center gap-2">
@@ -277,7 +277,7 @@ export default function AdminReportsPage() {
                 type="date"
                 value={dateRange.end}
                 onChange={(e) => setDateRange(prev => ({ ...prev, end: e.target.value }))}
-                className="px-3 py-1.5 bg-white/20 border border-white/30 rounded-lg focus:outline-none focus:ring-2 focus:ring-white/50 text-white"
+                className="px-3 py-1.5 bg-white/20 border border-white/30 rounded-md focus:outline-none focus:ring-2 focus:ring-white/50 text-white"
               />
             </div>
           </div>
@@ -286,13 +286,13 @@ export default function AdminReportsPage() {
         {loading ? (
           <div className="flex items-center justify-center h-64">
             <div className="text-center">
-              <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-blue-600 mx-auto mb-4"></div>
+              <div className="animate-spin rounded-full h-10 w-10 border-b-4 border-blue-600 mx-auto mb-4"></div>
               <p className="text-gray-600 font-medium">Loading analytics...</p>
             </div>
           </div>
         ) : stats ? (
           <>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
               <StatCard
                 title="Total Revenue"
                 value={`$${stats.totalRevenue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
@@ -352,9 +352,9 @@ export default function AdminReportsPage() {
               />
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-              <div className="bg-white rounded-lg shadow-sm p-6">
-                <h3 className="text-xl font-bold text-gray-900 mb-6 flex items-center gap-2">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
+              <div className="bg-white rounded-md border p-4">
+                <h3 className="text-sm font-semibold text-gray-900 mb-6 flex items-center gap-2">
                   <Package className="h-6 w-6 text-blue-600" />
                   Shipment Status Distribution
                 </h3>
@@ -390,14 +390,14 @@ export default function AdminReportsPage() {
                 </div>
               </div>
 
-              <div className="bg-white rounded-lg shadow-sm p-6">
-                <h3 className="text-xl font-bold text-gray-900 mb-6 flex items-center gap-2">
+              <div className="bg-white rounded-md border p-4">
+                <h3 className="text-sm font-semibold text-gray-900 mb-6 flex items-center gap-2">
                   <MapPin className="h-6 w-6 text-purple-600" />
                   Top Shipping Routes
                 </h3>
                 <div className="space-y-3">
                   {topRoutes.length > 0 ? topRoutes.map((route, index) => (
-                    <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
+                    <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-md hover:bg-gray-100 transition-colors">
                       <div className="flex-1">
                         <p className="text-sm font-medium text-gray-900">{route.from}</p>
                         <p className="text-xs text-gray-600">→ {route.to}</p>
@@ -414,8 +414,8 @@ export default function AdminReportsPage() {
               </div>
             </div>
 
-            <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
-              <h3 className="text-xl font-bold text-gray-900 mb-6 flex items-center gap-2">
+            <div className="bg-white rounded-md border p-4 mb-6">
+              <h3 className="text-sm font-semibold text-gray-900 mb-6 flex items-center gap-2">
                 <TrendingUp className="h-6 w-6 text-green-600" />
                 Monthly Revenue Analysis
               </h3>
@@ -483,18 +483,18 @@ function StatCard({
   subtitle?: string
 }) {
   const colorClasses = {
-    green: 'from-green-500 to-emerald-600',
-    blue: 'from-blue-500 to-cyan-600',
-    purple: 'from-purple-500 to-pink-600',
-    orange: 'from-orange-500 to-red-600'
+    green: 'bg-green-500',
+    blue: 'bg-blue-500',
+    purple: 'bg-purple-500',
+    orange: 'bg-orange-500'
   }
 
   return (
-    <div className="bg-white rounded-lg shadow-lg overflow-hidden">
-      <div className={`h-2 bg-gradient-to-r ${colorClasses[color]}`}></div>
-      <div className="p-6">
+    <div className="bg-white rounded-md border overflow-hidden">
+      <div className={`h-2 ${colorClasses[color]}`}></div>
+      <div className="p-4">
         <div className="flex items-center justify-between mb-4">
-          <div className={`p-3 rounded-lg bg-gradient-to-br ${colorClasses[color]} text-white shadow-lg`}>
+          <div className={`p-3 rounded-md ${colorClasses[color]} text-white`}>
             {icon}
           </div>
           {trend !== undefined && trend !== 0 && (
@@ -505,7 +505,7 @@ function StatCard({
           )}
         </div>
         <p className="text-sm text-gray-600 mb-2">{title}</p>
-        <p className="text-3xl font-bold text-gray-900 mb-1">{value}</p>
+        <p className="text-lg font-semibold text-gray-900 mb-1">{value}</p>
         {subtitle && <p className="text-xs text-gray-500">{subtitle}</p>}
       </div>
     </div>
@@ -524,11 +524,11 @@ function MetricBox({
   bgColor: string
 }) {
   return (
-    <div className={`${bgColor} rounded-lg p-4 flex items-center gap-3`}>
+    <div className={`${bgColor} rounded-md p-4 flex items-center gap-3`}>
       <div>{icon}</div>
       <div>
         <p className="text-xs text-gray-600 font-medium">{label}</p>
-        <p className="text-2xl font-bold text-gray-900">{value}</p>
+        <p className="text-lg font-bold text-gray-900">{value}</p>
       </div>
     </div>
   )

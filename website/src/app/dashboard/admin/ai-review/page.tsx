@@ -111,13 +111,13 @@ export default function AIReviewQueuePage() {
   };
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-4 space-y-4">
       <div className="flex justify-between items-center">
-        <h1 className="text-3xl font-bold">AI Document Review Queue</h1>
+        <h1 className="text-lg font-semibold">AI Document Review Queue</h1>
         <div className="flex gap-2">
           <button
             onClick={() => setFilter('needs_review')}
-            className={`px-4 py-2 rounded-lg ${
+            className={`px-4 py-2 rounded-md ${
               filter === 'needs_review' ? 'bg-yellow-600 text-white' : 'bg-gray-200'
             }`}
           >
@@ -125,8 +125,8 @@ export default function AIReviewQueuePage() {
           </button>
           <button
             onClick={() => setFilter('all')}
-            className={`px-4 py-2 rounded-lg ${
-              filter === 'all' ? 'bg-blue-600 text-white' : 'bg-gray-200'
+            className={`px-4 py-2 rounded-md ${
+              filter === 'all' ? 'bg-purple-500 text-white' : 'bg-gray-200'
             }`}
           >
             All Documents
@@ -136,24 +136,24 @@ export default function AIReviewQueuePage() {
 
       {loading ? (
         <div className="text-center py-12">
-          <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+          <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-purple-500"></div>
           <p className="mt-4 text-gray-600">Loading documents...</p>
         </div>
       ) : documents.length === 0 ? (
-        <div className="text-center py-12 bg-gray-50 rounded-lg">
+        <div className="text-center py-12 bg-gray-50 rounded-md">
           <p className="text-gray-500">
             {filter === 'needs_review' ? 'No documents need review! 🎉' : 'No documents found'}
           </p>
         </div>
       ) : (
-        <div className="grid lg:grid-cols-3 gap-6">
+        <div className="grid lg:grid-cols-3 gap-4">
           {/* Documents List */}
           <div className="lg:col-span-1 space-y-3">
             {documents.map((doc) => (
               <div
                 key={doc.id}
-                className={`bg-white rounded-lg p-4 border-2 cursor-pointer transition ${
-                  selectedDoc?.id === doc.id ? 'border-blue-500 shadow-lg' : 'border-gray-200 hover:border-blue-300'
+                className={`bg-white rounded-md p-4 border-2 cursor-pointer transition ${
+                  selectedDoc?.id === doc.id ? 'border-purple-500' : 'border-gray-200 hover:border-purple-300'
                 }`}
                 onClick={() => setSelectedDoc(doc)}
               >
@@ -192,10 +192,10 @@ export default function AIReviewQueuePage() {
           {/* Document Review Panel */}
           <div className="lg:col-span-2">
             {selectedDoc ? (
-              <div className="bg-white rounded-lg shadow-lg p-6 border border-gray-200 space-y-6">
+              <div className="bg-white rounded-md p-4 border border-gray-200 space-y-4">
                 <div className="flex justify-between items-start">
                   <div>
-                    <h2 className="text-2xl font-bold mb-2 capitalize">
+                    <h2 className="text-lg font-semibold mb-2 capitalize">
                       {selectedDoc.document_type.replace('_', ' ')}
                     </h2>
                     <p className="text-sm text-gray-600">
@@ -203,7 +203,7 @@ export default function AIReviewQueuePage() {
                     </p>
                   </div>
                   <div className="text-right">
-                    <div className={`text-3xl font-bold ${getConfidenceColor(selectedDoc.confidence_score)}`}>
+                    <div className={`text-lg font-semibold ${getConfidenceColor(selectedDoc.confidence_score)}`}>
                       {selectedDoc.confidence_score ? `${(selectedDoc.confidence_score * 100).toFixed(1)}%` : 'N/A'}
                     </div>
                     <p className="text-sm text-gray-600">Confidence Score</p>
@@ -211,12 +211,12 @@ export default function AIReviewQueuePage() {
                 </div>
 
                 {/* Document Image */}
-                <div className="border rounded-lg p-4 bg-gray-50">
+                <div className="border rounded-md p-4 bg-gray-50">
                   <h3 className="font-bold mb-3">Document Image</h3>
                   <img
                     src={selectedDoc.document_url}
                     alt="Document"
-                    className="w-full rounded-lg border border-gray-300"
+                    className="w-full rounded-md border border-gray-300"
                     onError={(e) => {
                       e.currentTarget.src = '/placeholder-document.png';
                     }}
@@ -224,7 +224,7 @@ export default function AIReviewQueuePage() {
                 </div>
 
                 {/* Extracted Data */}
-                <div className="border rounded-lg p-4 bg-gray-50">
+                <div className="border rounded-md p-4 bg-gray-50">
                   <h3 className="font-bold mb-3">Extracted Data</h3>
                   {selectedDoc.extracted_data ? (
                     <div className="space-y-2">
@@ -245,13 +245,13 @@ export default function AIReviewQueuePage() {
                   <div className="flex gap-4">
                     <button
                       onClick={() => approveDocument(selectedDoc.id)}
-                      className="flex-1 px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition font-bold"
+                      className="flex-1 px-6 py-3 bg-green-600 text-white rounded-md hover:bg-green-700 transition font-bold"
                     >
                       ✅ Approve & Save Data
                     </button>
                     <button
                       onClick={() => rejectDocument(selectedDoc.id)}
-                      className="flex-1 px-6 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 transition font-bold"
+                      className="flex-1 px-6 py-3 bg-red-600 text-white rounded-md hover:bg-red-700 transition font-bold"
                     >
                       ❌ Reject Document
                     </button>
@@ -259,7 +259,7 @@ export default function AIReviewQueuePage() {
                 )}
 
                 {selectedDoc.status === 'completed' && (
-                  <div className="p-4 bg-green-50 border border-green-200 rounded-lg text-center">
+                  <div className="p-4 bg-green-50 border border-green-200 rounded-md text-center">
                     <p className="text-green-800 font-bold">✅ Document Approved</p>
                     {selectedDoc.reviewed_at && (
                       <p className="text-sm text-green-600">
@@ -270,13 +270,13 @@ export default function AIReviewQueuePage() {
                 )}
 
                 {selectedDoc.status === 'failed' && (
-                  <div className="p-4 bg-red-50 border border-red-200 rounded-lg text-center">
+                  <div className="p-4 bg-red-50 border border-red-200 rounded-md text-center">
                     <p className="text-red-800 font-bold">❌ Document Rejected</p>
                   </div>
                 )}
               </div>
             ) : (
-              <div className="bg-white rounded-lg shadow-lg p-12 border border-gray-200 text-center">
+              <div className="bg-white rounded-md p-12 border border-gray-200 text-center">
                 <p className="text-gray-500">Select a document to review</p>
               </div>
             )}

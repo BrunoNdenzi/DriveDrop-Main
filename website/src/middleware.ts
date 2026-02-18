@@ -3,6 +3,50 @@ import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
 export async function middleware(request: NextRequest) {
+  const pathname = request.nextUrl.pathname
+
+  // ── Maintenance Mode ──────────────────────────────────────────────
+  // Toggle via env var in Vercel dashboard → redeploy to activate.
+  // Admins bypass maintenance by adding ?bypass=admin to any URL once
+  // (sets a cookie) so they can still test the site.
+  const maintenanceMode = process.env.NEXT_PUBLIC_MAINTENANCE_MODE === 'true'
+
+  if (maintenanceMode) {
+    // Always allow the maintenance page itself and static assets
+    const isMaintenancePage = pathname === '/maintenance'
+    const isStaticAsset =
+      pathname.startsWith('/_next') ||
+      pathname.startsWith('/favicon') ||
+      pathname.includes('.')
+
+    if (!isMaintenancePage && !isStaticAsset) {
+      // Allow admin bypass via ?bypass=admin query param (sets cookie)
+      const bypassParam = request.nextUrl.searchParams.get('bypass')
+      const bypassCookie = request.cookies.get('maintenance_bypass')?.value
+
+      if (bypassParam === 'admin') {
+        const res = NextResponse.redirect(new URL(pathname, request.url))
+        res.cookies.set('maintenance_bypass', 'true', {
+          httpOnly: true,
+          secure: true,
+          sameSite: 'lax',
+          maxAge: 60 * 60 * 4, // 4 hours
+        })
+        return res
+      }
+
+      if (bypassCookie !== 'true') {
+        return NextResponse.rewrite(new URL('/maintenance', request.url))
+      }
+    }
+  }
+
+  // If user navigates to /maintenance when NOT in maintenance mode → send home
+  if (!maintenanceMode && pathname === '/maintenance') {
+    return NextResponse.redirect(new URL('/', request.url))
+  }
+
+  // ── Auth & Dashboard Protection ───────────────────────────────────
   let response = NextResponse.next({
     request: {
       headers: request.headers,
@@ -60,11 +104,11 @@ export async function middleware(request: NextRequest) {
     data: { session },
   } = await supabase.auth.getSession()
 
-  console.log('[MIDDLEWARE] Path:', request.nextUrl.pathname)
+  console.log('[MIDDLEWARE] Path:', pathname)
   console.log('[MIDDLEWARE] Has session:', !!session)
   
   // Protect all dashboard routes
-  if (request.nextUrl.pathname.startsWith('/dashboard')) {
+  if (pathname.startsWith('/dashboard')) {
     // Not authenticated - redirect to login
     if (!session) {
       console.log('[MIDDLEWARE] No session, redirecting to login')
@@ -92,7 +136,7 @@ export async function middleware(request: NextRequest) {
     }
 
     const userRole = profile.role
-    const requestedPath = request.nextUrl.pathname
+    const requestedPath = pathname
 
     console.log('[MIDDLEWARE] User role:', userRole)
     console.log('[MIDDLEWARE] Requested path:', requestedPath)
@@ -130,5 +174,10 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/dashboard/:path*'],
+  matcher: [
+    '/dashboard/:path*',
+    '/maintenance',
+    // Maintenance mode: match all page routes (not _next, api, or static)
+    '/((?!_next/static|_next/image|favicon.ico|api).*)',
+  ],
 }

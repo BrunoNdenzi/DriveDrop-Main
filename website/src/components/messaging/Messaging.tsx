@@ -172,7 +172,7 @@ export default function Messaging({ shipmentId, receiverId, receiverName, onClos
   if (loading) {
     return (
       <div className="flex items-center justify-center h-96">
-        <Loader2 className="h-8 w-8 animate-spin text-teal-600" />
+        <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
       </div>
     )
   }
@@ -211,7 +211,7 @@ export default function Messaging({ shipmentId, receiverId, receiverName, onClos
                     <div
                       className={`rounded-2xl px-4 py-2 ${
                         isSender
-                          ? 'bg-teal-600 text-white rounded-br-sm'
+                          ? 'bg-blue-500 text-white rounded-br-sm'
                           : 'bg-gray-100 text-gray-900 rounded-bl-sm'
                       }`}
                     >
@@ -226,7 +226,7 @@ export default function Messaging({ shipmentId, receiverId, receiverName, onClos
                       {isSender && (
                         <span className="text-xs">
                           {message.is_read ? (
-                            <CheckCheck className="h-3 w-3 text-teal-600" />
+                            <CheckCheck className="h-3 w-3 text-blue-500" />
                           ) : (
                             <Check className="h-3 w-3 text-gray-400" />
                           )}
@@ -260,7 +260,7 @@ export default function Messaging({ shipmentId, receiverId, receiverName, onClos
           <Button
             type="submit"
             disabled={!newMessage.trim() || sending}
-            className="bg-teal-600 hover:bg-teal-700 self-end"
+            className="bg-blue-500 hover:bg-blue-600 self-end"
             size="icon"
           >
             {sending ? (

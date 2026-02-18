@@ -182,17 +182,17 @@ export const BenjiDocumentScanner = ({
         initial={{ opacity: 0, scale: 0.9 }}
         animate={{ opacity: 1, scale: 1 }}
         exit={{ opacity: 0, scale: 0.9 }}
-        className="bg-white rounded-3xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto"
+        className="bg-white rounded-md border max-w-2xl w-full max-h-[90vh] overflow-y-auto"
       >
         {/* Header */}
-        <div className="bg-gradient-to-r from-teal-600 to-purple-600 p-6 rounded-t-3xl">
+        <div className="bg-blue-500 p-4 rounded-t-md">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-3">
-              <div className="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center backdrop-blur">
+              <div className="w-8 h-8 bg-white/20 rounded-full flex items-center justify-center backdrop-blur">
                 <Sparkles className="w-6 h-6 text-white" />
               </div>
               <div>
-                <h2 className="text-2xl font-bold text-white">Benji Document Scanner</h2>
+                <h2 className="text-lg font-semibold text-white">Benji Document Scanner</h2>
                 <p className="text-white/80 text-sm">AI-powered instant extraction</p>
               </div>
             </div>
@@ -205,7 +205,7 @@ export const BenjiDocumentScanner = ({
           </div>
         </div>
 
-        <div className="p-6">
+        <div className="p-4">
           {/* Document Type Selection */}
           {!selectedFile && !cameraActive && (
             <div className="mb-6">
@@ -217,10 +217,10 @@ export const BenjiDocumentScanner = ({
                   <button
                     key={type.value}
                     onClick={() => setDocumentType(type.value)}
-                    className={`p-4 rounded-xl border-2 transition-all text-left ${
+                    className={`p-4 rounded-md border-2 transition-all text-left ${
                       documentType === type.value
-                        ? 'border-teal-500 bg-teal-50'
-                        : 'border-gray-200 hover:border-teal-200 bg-white'
+                        ? 'border-blue-500 bg-blue-50'
+                        : 'border-gray-200 hover:border-blue-200 bg-white'
                     }`}
                   >
                     <div className="font-medium text-gray-900">{type.label}</div>
@@ -240,15 +240,15 @@ export const BenjiDocumentScanner = ({
                 exit={{ opacity: 0 }}
                 className="mb-6"
               >
-                <div className="relative rounded-2xl overflow-hidden bg-black">
+                <div className="relative rounded-md overflow-hidden bg-black">
                   <video
                     ref={videoRef}
                     autoPlay
                     playsInline
                     className="w-full h-96 object-cover"
                   />
-                  <div className="absolute inset-0 border-4 border-teal-500/50 pointer-events-none">
-                    <div className="absolute top-4 left-4 right-4 bg-black/60 backdrop-blur p-3 rounded-lg">
+                  <div className="absolute inset-0 border-4 border-blue-500/50 pointer-events-none">
+                    <div className="absolute top-4 left-4 right-4 bg-black/60 backdrop-blur p-3 rounded-md">
                       <p className="text-white text-sm text-center">
                         📸 Position document in frame and tap capture
                       </p>
@@ -257,7 +257,7 @@ export const BenjiDocumentScanner = ({
                   <div className="absolute bottom-4 left-0 right-0 flex justify-center space-x-4">
                     <button
                       onClick={capturePhoto}
-                      className="px-6 py-3 bg-teal-600 text-white rounded-full font-medium hover:bg-teal-700 transition-colors flex items-center space-x-2"
+                      className="px-6 py-3 bg-blue-500 text-white rounded-full font-medium hover:bg-blue-600 transition-colors flex items-center space-x-2"
                     >
                       <Camera className="w-5 h-5" />
                       <span>Capture</span>
@@ -279,10 +279,10 @@ export const BenjiDocumentScanner = ({
             <div className="space-y-4">
               <div
                 {...getRootProps()}
-                className={`border-3 border-dashed rounded-2xl p-12 text-center cursor-pointer transition-all ${
+                className={`border-3 border-dashed rounded-md p-12 text-center cursor-pointer transition-all ${
                   isDragActive
-                    ? 'border-teal-500 bg-teal-50'
-                    : 'border-gray-300 hover:border-teal-400 bg-gray-50'
+                    ? 'border-blue-500 bg-blue-50'
+                    : 'border-gray-300 hover:border-blue-400 bg-gray-50'
                 }`}
               >
                 <input {...getInputProps()} />
@@ -303,7 +303,7 @@ export const BenjiDocumentScanner = ({
 
               <button
                 onClick={startCamera}
-                className="w-full py-4 bg-gradient-to-r from-teal-600 to-purple-600 text-white rounded-2xl font-medium hover:shadow-lg transition-all flex items-center justify-center space-x-2"
+                className="w-full py-4 bg-blue-500 text-white rounded-md font-medium transition-all flex items-center justify-center space-x-2"
               >
                 <Camera className="w-5 h-5" />
                 <span>Use Camera</span>
@@ -313,8 +313,8 @@ export const BenjiDocumentScanner = ({
 
           {/* Preview & Processing */}
           {selectedFile && !isProcessing && (
-            <div className="space-y-6">
-              <div className="relative rounded-2xl overflow-hidden border-2 border-gray-200">
+            <div className="space-y-4">
+              <div className="relative rounded-md overflow-hidden border-2 border-gray-200">
                 <img
                   src={previewUrl || ''}
                   alt="Document preview"
@@ -329,13 +329,13 @@ export const BenjiDocumentScanner = ({
                     setPreviewUrl(null);
                     setExtractedData(null);
                   }}
-                  className="flex-1 py-3 border-2 border-gray-300 text-gray-700 rounded-2xl font-medium hover:bg-gray-50 transition-colors"
+                  className="flex-1 py-3 border-2 border-gray-300 text-gray-700 rounded-md font-medium hover:bg-gray-50 transition-colors"
                 >
                   Choose Different
                 </button>
                 <button
                   onClick={processDocument}
-                  className="flex-1 py-3 bg-gradient-to-r from-teal-600 to-purple-600 text-white rounded-2xl font-medium hover:shadow-lg transition-all flex items-center justify-center space-x-2"
+                  className="flex-1 py-3 bg-blue-500 text-white rounded-md font-medium transition-all flex items-center justify-center space-x-2"
                 >
                   <Sparkles className="w-5 h-5" />
                   <span>Scan with Benji</span>
@@ -351,7 +351,7 @@ export const BenjiDocumentScanner = ({
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
-                className="space-y-6"
+                className="space-y-4"
               >
                 {/* Progress Animation */}
                 <div className="text-center py-8">
@@ -375,7 +375,7 @@ export const BenjiDocumentScanner = ({
                         <X className="w-12 h-12 text-red-600" />
                       </div>
                     ) : (
-                      <div className="w-24 h-24 bg-gradient-to-br from-teal-500 to-purple-600 rounded-full flex items-center justify-center">
+                      <div className="w-24 h-24 bg-blue-500 rounded-full flex items-center justify-center">
                         <Loader2 className="w-12 h-12 text-white animate-spin" />
                       </div>
                     )}
@@ -388,7 +388,7 @@ export const BenjiDocumentScanner = ({
                   {/* Progress Bar */}
                   <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
                     <motion.div
-                      className="h-full bg-gradient-to-r from-teal-500 to-purple-600"
+                      className="h-full bg-blue-500"
                       initial={{ width: 0 }}
                       animate={{ width: `${progress.progress}%` }}
                       transition={{ duration: 0.5 }}
@@ -402,10 +402,10 @@ export const BenjiDocumentScanner = ({
                   <motion.div
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
-                    className="bg-gradient-to-br from-teal-50 to-purple-50 rounded-2xl p-6"
+                    className="bg-blue-50 rounded-md p-4"
                   >
                     <div className="flex items-center space-x-2 mb-4">
-                      <FileText className="w-5 h-5 text-teal-600" />
+                      <FileText className="w-5 h-5 text-blue-500" />
                       <h4 className="font-semibold text-gray-900">Extracted Information</h4>
                     </div>
                     <div className="grid grid-cols-2 gap-4 text-sm">

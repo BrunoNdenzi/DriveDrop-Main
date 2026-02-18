@@ -216,14 +216,14 @@ export default function NaturalLanguageShipmentCreator({
   if (variant === 'hero') {
     return (
       <div className={cn('max-w-4xl mx-auto', className)}>
-        <div className="glass rounded-3xl p-8 shadow-xl border border-white/20">
+        <div className="glass rounded-md p-4 border border-white/20">
           {/* Header */}
           <div className="text-center mb-6">
-            <div className="inline-flex items-center gap-2 bg-gradient-to-r from-purple-50 to-teal-50 px-4 py-2 rounded-full border border-purple-200 mb-4">
+            <div className="inline-flex items-center gap-2 bg-gray-50 px-4 py-2 rounded-full border border-purple-200 mb-4">
               <Sparkles className="h-5 w-5 text-purple-600" />
               <span className="text-sm font-semibold text-purple-700">Benji AI Assistant</span>
             </div>
-            <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-2">
+            <h2 className="text-lg font-semibold text-gray-900 mb-2">
               Tell Benji what you need to ship
             </h2>
             <p className="text-lg text-gray-600">
@@ -241,7 +241,7 @@ export default function NaturalLanguageShipmentCreator({
                 placeholder="Try: 'Ship my 2023 Honda Civic from Los Angeles to New York next week'"
                 rows={4}
                 disabled={isProcessing}
-                className="text-lg resize-none pr-12 bg-white/80 backdrop-blur border-2 border-gray-300 focus:border-teal-500 focus:ring-teal-500"
+                className="text-lg resize-none pr-12 bg-white/80 backdrop-blur border-2 border-gray-300 focus:border-blue-500 focus:ring-blue-500"
               />
               {prompt && !isProcessing && (
                 <button
@@ -262,10 +262,10 @@ export default function NaturalLanguageShipmentCreator({
                 onClick={toggleVoiceInput}
                 disabled={isProcessing}
                 className={cn(
-                  "px-4 py-3 rounded-xl font-medium transition-all flex items-center space-x-2 border-2",
+                  "px-4 py-3 rounded-md font-medium transition-all flex items-center space-x-2 border-2",
                   isListening
                     ? "bg-red-50 border-red-300 text-red-700 hover:bg-red-100"
-                    : "bg-white border-gray-300 text-gray-700 hover:border-teal-300 hover:bg-teal-50"
+                    : "bg-white border-gray-300 text-gray-700 hover:border-blue-300 hover:bg-blue-50"
                 )}
               >
                 {isListening ? (
@@ -286,7 +286,7 @@ export default function NaturalLanguageShipmentCreator({
                 type="button"
                 onClick={() => setShowDocScanner(true)}
                 disabled={isProcessing}
-                className="px-4 py-3 rounded-xl font-medium transition-all flex items-center space-x-2 border-2 bg-white border-gray-300 text-gray-700 hover:border-purple-300 hover:bg-purple-50"
+                className="px-4 py-3 rounded-md font-medium transition-all flex items-center space-x-2 border-2 bg-white border-gray-300 text-gray-700 hover:border-purple-300 hover:bg-purple-50"
               >
                 <Camera className="w-5 h-5" />
                 <span>Scan Doc</span>
@@ -296,7 +296,7 @@ export default function NaturalLanguageShipmentCreator({
               <Button
                 type="submit"
                 disabled={isProcessing || !prompt.trim()}
-                className="flex-1 bg-gradient-to-r from-teal-600 to-teal-700 hover:from-teal-700 hover:to-teal-800 text-white text-lg py-6 shadow-lg shadow-teal-600/20 group"
+                className="flex-1 bg-blue-500 hover:bg-blue-600 text-white text-lg py-3 group"
               >
                 {isProcessing ? (
                   <>
@@ -323,10 +323,10 @@ export default function NaturalLanguageShipmentCreator({
                   <button
                     key={idx}
                     onClick={() => handleExampleClick(example)}
-                    className="text-left text-sm p-3 rounded-lg bg-gray-50 hover:bg-teal-50 border border-gray-200 hover:border-teal-300 transition-all group"
+                    className="text-left text-sm p-3 rounded-md bg-gray-50 hover:bg-blue-50 border border-gray-200 hover:border-blue-300 transition-all group"
                   >
                     <div className="flex items-start gap-2">
-                      <Sparkles className="h-4 w-4 text-gray-400 group-hover:text-teal-600 flex-shrink-0 mt-0.5" />
+                      <Sparkles className="h-4 w-4 text-gray-400 group-hover:text-blue-500 flex-shrink-0 mt-0.5" />
                       <span className="text-gray-600 group-hover:text-gray-900">{example}</span>
                     </div>
                   </button>
@@ -337,7 +337,7 @@ export default function NaturalLanguageShipmentCreator({
 
           {/* Success Result */}
           {result?.success && result.shipment && (
-            <div className="mt-6 bg-green-50 border-2 border-green-200 rounded-xl p-6 animate-slide-up">
+            <div className="mt-6 bg-green-50 border-2 border-green-200 rounded-md p-4 animate-slide-up">
               <div className="flex items-start gap-4">
                 <CheckCircle className="h-6 w-6 text-green-600 flex-shrink-0 mt-1" />
                 <div className="flex-1">
@@ -348,7 +348,7 @@ export default function NaturalLanguageShipmentCreator({
                     Extracted with {((result.confidence || 0) * 100).toFixed(0)}% confidence
                   </p>
 
-                  <div className="grid grid-cols-2 gap-4 text-sm bg-white rounded-lg p-4">
+                  <div className="grid grid-cols-2 gap-4 text-sm bg-white rounded-md p-4">
                     <div>
                       <span className="text-gray-600">Vehicle:</span>
                       <p className="font-medium text-gray-900">
@@ -365,7 +365,7 @@ export default function NaturalLanguageShipmentCreator({
                     </div>
                     <div>
                       <span className="text-gray-600">Estimated Price:</span>
-                      <p className="font-medium text-teal-700">${(result.shipment.estimated_price || 0).toFixed(2)}</p>
+                      <p className="font-medium text-blue-600">${(result.shipment.estimated_price || 0).toFixed(2)}</p>
                     </div>
                   </div>
                 </div>
@@ -375,7 +375,7 @@ export default function NaturalLanguageShipmentCreator({
 
           {/* Error */}
           {error && (
-            <div className="mt-6 bg-red-50 border-2 border-red-200 rounded-xl p-6">
+            <div className="mt-6 bg-red-50 border-2 border-red-200 rounded-md p-4">
               <div className="flex items-start gap-4">
                 <AlertCircle className="h-6 w-6 text-red-600 flex-shrink-0 mt-1" />
                 <div className="flex-1">
@@ -400,10 +400,10 @@ export default function NaturalLanguageShipmentCreator({
 
   // Inline variant - used in forms
   return (
-    <div className={cn('space-y-6', className)}>
+    <div className={cn('space-y-4', className)}>
       {/* Input Mode Indicators */}
-      <div className="flex items-center gap-3 p-4 bg-gradient-to-r from-teal-50 to-purple-50 rounded-xl border border-teal-200">
-        <Sparkles className="h-6 w-6 text-teal-600 flex-shrink-0" />
+      <div className="flex items-center gap-3 p-4 bg-gray-50 rounded-md border border-blue-200">
+        <Sparkles className="h-6 w-6 text-blue-500 flex-shrink-0" />
         <div className="flex-1">
           <h3 className="text-sm font-semibold text-gray-900">How to use Benji:</h3>
           <p className="text-xs text-gray-600 mt-0.5">
@@ -449,10 +449,10 @@ export default function NaturalLanguageShipmentCreator({
             onClick={toggleVoiceInput}
             disabled={isProcessing}
             className={cn(
-              "px-4 py-3 rounded-xl font-medium transition-all flex items-center space-x-2 border-2",
+              "px-4 py-3 rounded-md font-medium transition-all flex items-center space-x-2 border-2",
               isListening
                 ? "bg-red-50 border-red-300 text-red-700 hover:bg-red-100"
-                : "bg-white border-gray-300 text-gray-700 hover:border-teal-300 hover:bg-teal-50"
+                : "bg-white border-gray-300 text-gray-700 hover:border-blue-300 hover:bg-blue-50"
             )}
           >
             {isListening ? (
@@ -473,7 +473,7 @@ export default function NaturalLanguageShipmentCreator({
             type="button"
             onClick={() => setShowDocScanner(true)}
             disabled={isProcessing}
-            className="px-4 py-3 rounded-xl font-medium transition-all flex items-center space-x-2 border-2 bg-white border-gray-300 text-gray-700 hover:border-purple-300 hover:bg-purple-50"
+            className="px-4 py-3 rounded-md font-medium transition-all flex items-center space-x-2 border-2 bg-white border-gray-300 text-gray-700 hover:border-purple-300 hover:bg-purple-50"
           >
             <Camera className="w-5 h-5" />
             <span>Scan Doc</span>
@@ -483,7 +483,7 @@ export default function NaturalLanguageShipmentCreator({
           <Button
             type="submit"
             disabled={isProcessing || !prompt.trim()}
-            className="flex-1 bg-gradient-to-r from-teal-600 to-teal-700 hover:from-teal-700 hover:to-teal-800 text-white py-6 shadow-lg"
+            className="flex-1 bg-blue-500 hover:bg-blue-600 text-white py-3"
           >
             {isProcessing ? (
               <>
@@ -510,10 +510,10 @@ export default function NaturalLanguageShipmentCreator({
               <button
                 key={idx}
                 onClick={() => handleExampleClick(example)}
-                className="text-left text-sm p-3 rounded-lg bg-white hover:bg-teal-50 border border-gray-200 hover:border-teal-300 transition-all group"
+                className="text-left text-sm p-3 rounded-md bg-white hover:bg-blue-50 border border-gray-200 hover:border-blue-300 transition-all group"
               >
                 <div className="flex items-start gap-2">
-                  <Sparkles className="h-4 w-4 text-gray-400 group-hover:text-teal-600 flex-shrink-0 mt-0.5" />
+                  <Sparkles className="h-4 w-4 text-gray-400 group-hover:text-blue-500 flex-shrink-0 mt-0.5" />
                   <span className="text-gray-600 group-hover:text-gray-900">{example}</span>
                 </div>
               </button>
@@ -524,7 +524,7 @@ export default function NaturalLanguageShipmentCreator({
 
       {/* Success Result */}
       {result?.success && result.shipment && (
-        <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+        <div className="bg-green-50 border border-green-200 rounded-md p-4">
           <div className="flex items-center gap-3 mb-3">
             <CheckCircle className="h-5 w-5 text-green-600" />
             <span className="font-medium text-green-900">Benji created your shipment!</span>
@@ -539,7 +539,7 @@ export default function NaturalLanguageShipmentCreator({
 
       {/* Error */}
       {error && (
-        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+        <div className="bg-red-50 border border-red-200 rounded-md p-4">
           <div className="flex items-start gap-3">
             <AlertCircle className="h-5 w-5 text-red-600 flex-shrink-0" />
             <p className="text-sm text-red-700">{error}</p>

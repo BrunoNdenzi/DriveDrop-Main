@@ -88,79 +88,79 @@ export default function AssignmentsPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      <div className="flex items-center justify-center py-12">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-teal-500"></div>
       </div>
     );
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {/* Header */}
-      <div className="bg-gradient-to-r from-blue-600 to-blue-700 rounded-2xl p-8 text-white">
-        <h1 className="text-3xl font-bold mb-2">My Assignments</h1>
-        <p className="text-blue-100">
+      <div>
+        <h1 className="text-lg font-semibold text-gray-900">My Assignments</h1>
+        <p className="text-xs text-gray-500">
           Track all your active load assignments and carrier performance
         </p>
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <div className="bg-white rounded-xl p-6 border border-gray-200">
-          <div className="flex items-center gap-3 mb-2">
-            <div className="p-2 bg-blue-50 rounded-lg">
-              <Package className="h-5 w-5 text-blue-600" />
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <div className="bg-white rounded-md p-4 border border-gray-200">
+          <div className="flex items-center gap-2 mb-1">
+            <div className="p-1.5 bg-teal-50 rounded-md">
+              <Package className="h-4 w-4 text-teal-500" />
             </div>
-            <span className="text-sm text-gray-600">Total Assignments</span>
+            <span className="text-xs text-gray-600">Total Assignments</span>
           </div>
-          <p className="text-3xl font-bold text-gray-900">{assignments.length}</p>
+          <p className="text-xl font-bold text-gray-900">{assignments.length}</p>
         </div>
 
-        <div className="bg-white rounded-xl p-6 border border-gray-200">
-          <div className="flex items-center gap-3 mb-2">
-            <div className="p-2 bg-orange-50 rounded-lg">
-              <Truck className="h-5 w-5 text-orange-600" />
+        <div className="bg-white rounded-md p-4 border border-gray-200">
+          <div className="flex items-center gap-2 mb-1">
+            <div className="p-1.5 bg-orange-50 rounded-md">
+              <Truck className="h-4 w-4 text-orange-600" />
             </div>
-            <span className="text-sm text-gray-600">Active</span>
+            <span className="text-xs text-gray-600">Active</span>
           </div>
-          <p className="text-3xl font-bold text-gray-900">
+          <p className="text-xl font-bold text-gray-900">
             {assignments.filter(a => ['assigned', 'accepted', 'in_transit', 'picked_up'].includes(a.assignment_status || '')).length}
           </p>
         </div>
 
-        <div className="bg-white rounded-xl p-6 border border-gray-200">
-          <div className="flex items-center gap-3 mb-2">
-            <div className="p-2 bg-green-50 rounded-lg">
-              <CheckCircle className="h-5 w-5 text-green-600" />
+        <div className="bg-white rounded-md p-4 border border-gray-200">
+          <div className="flex items-center gap-2 mb-1">
+            <div className="p-1.5 bg-green-50 rounded-md">
+              <CheckCircle className="h-4 w-4 text-green-600" />
             </div>
-            <span className="text-sm text-gray-600">Completed</span>
+            <span className="text-xs text-gray-600">Completed</span>
           </div>
-          <p className="text-3xl font-bold text-gray-900">
+          <p className="text-xl font-bold text-gray-900">
             {assignments.filter(a => ['completed', 'delivered'].includes(a.assignment_status || '')).length}
           </p>
         </div>
 
-        <div className="bg-white rounded-xl p-6 border border-gray-200">
-          <div className="flex items-center gap-3 mb-2">
-            <div className="p-2 bg-purple-50 rounded-lg">
-              <DollarSign className="h-5 w-5 text-purple-600" />
+        <div className="bg-white rounded-md p-4 border border-gray-200">
+          <div className="flex items-center gap-2 mb-1">
+            <div className="p-1.5 bg-purple-50 rounded-md">
+              <DollarSign className="h-4 w-4 text-purple-600" />
             </div>
-            <span className="text-sm text-gray-600">Total Revenue</span>
+            <span className="text-xs text-gray-600">Total Revenue</span>
           </div>
-          <p className="text-3xl font-bold text-gray-900">
+          <p className="text-xl font-bold text-gray-900">
             ${assignments.reduce((sum, a) => sum + (a.carrier_payout || 0), 0).toLocaleString()}
           </p>
         </div>
       </div>
 
       {/* Filter Tabs */}
-      <div className="bg-white rounded-xl border border-gray-200 p-2">
-        <div className="flex gap-2">
+      <div className="bg-white rounded-md border border-gray-200 p-1.5">
+        <div className="flex gap-1">
           <button
             onClick={() => setFilter('all')}
-            className={`px-6 py-2 rounded-lg font-medium transition-all ${
+            className={`px-4 py-1.5 rounded-md text-xs font-medium transition-all ${
               filter === 'all'
-                ? 'bg-blue-600 text-white shadow-lg'
+                ? 'bg-teal-500 text-white'
                 : 'text-gray-600 hover:bg-gray-50'
             }`}
           >
@@ -168,9 +168,9 @@ export default function AssignmentsPage() {
           </button>
           <button
             onClick={() => setFilter('active')}
-            className={`px-6 py-2 rounded-lg font-medium transition-all ${
+            className={`px-4 py-1.5 rounded-md text-xs font-medium transition-all ${
               filter === 'active'
-                ? 'bg-blue-600 text-white shadow-lg'
+                ? 'bg-teal-500 text-white'
                 : 'text-gray-600 hover:bg-gray-50'
             }`}
           >
@@ -178,9 +178,9 @@ export default function AssignmentsPage() {
           </button>
           <button
             onClick={() => setFilter('completed')}
-            className={`px-6 py-2 rounded-lg font-medium transition-all ${
+            className={`px-4 py-1.5 rounded-md text-xs font-medium transition-all ${
               filter === 'completed'
-                ? 'bg-blue-600 text-white shadow-lg'
+                ? 'bg-teal-500 text-white'
                 : 'text-gray-600 hover:bg-gray-50'
             }`}
           >
@@ -190,16 +190,16 @@ export default function AssignmentsPage() {
       </div>
 
       {/* Assignments List */}
-      <div className="bg-white rounded-xl border border-gray-200">
+      <div className="bg-white rounded-md border border-gray-200">
         {filteredAssignments.length === 0 ? (
-          <div className="p-12 text-center">
-            <div className="inline-flex items-center justify-center w-16 h-16 bg-gray-100 rounded-full mb-4">
-              <Package className="h-8 w-8 text-gray-400" />
+          <div className="p-8 text-center">
+            <div className="inline-flex items-center justify-center w-10 h-10 bg-gray-100 rounded-md mb-3">
+              <Package className="h-5 w-5 text-gray-400" />
             </div>
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">
+            <h3 className="text-sm font-semibold text-gray-900 mb-1">
               No assignments found
             </h3>
-            <p className="text-gray-600 mb-6">
+            <p className="text-xs text-gray-500 mb-4">
               {filter === 'all' 
                 ? 'Start assigning loads to carriers to see them here'
                 : `No ${filter} assignments at the moment`}
@@ -214,8 +214,8 @@ export default function AssignmentsPage() {
         ) : (
           <div className="divide-y divide-gray-200">
             {filteredAssignments.map((assignment) => (
-              <div key={assignment.id} className="p-6 hover:bg-gray-50 transition-colors">
-                <div className="flex items-start justify-between mb-4">
+              <div key={assignment.id} className="p-4 hover:bg-gray-50 transition-colors">
+                <div className="flex items-start justify-between mb-3">
                   <div className="flex-1">
                     <div className="flex items-center gap-3 mb-2">
                       <span className="text-sm font-mono text-gray-500">
@@ -227,7 +227,7 @@ export default function AssignmentsPage() {
                         {getStatusLabel(assignment.assignment_status || 'pending')}
                       </span>
                     </div>
-                    <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                    <h3 className="text-sm font-semibold text-gray-900 mb-1">
                       {assignment.shipment?.title || `Shipment #${assignment.shipment_id.slice(0, 8)}`}
                     </h3>
                   </div>
@@ -239,11 +239,11 @@ export default function AssignmentsPage() {
                   </Link>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                   {/* Pickup */}
-                  <div className="flex items-start gap-3">
-                    <div className="p-2 bg-green-50 rounded-lg mt-1">
-                      <MapPin className="h-4 w-4 text-green-600" />
+                  <div className="flex items-start gap-2">
+                    <div className="p-1.5 bg-green-50 rounded-md mt-0.5">
+                      <MapPin className="h-3.5 w-3.5 text-green-600" />
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium text-gray-900">Pickup</p>
@@ -254,9 +254,9 @@ export default function AssignmentsPage() {
                   </div>
 
                   {/* Delivery */}
-                  <div className="flex items-start gap-3">
-                    <div className="p-2 bg-red-50 rounded-lg mt-1">
-                      <MapPin className="h-4 w-4 text-red-600" />
+                  <div className="flex items-start gap-2">
+                    <div className="p-1.5 bg-red-50 rounded-md mt-0.5">
+                      <MapPin className="h-3.5 w-3.5 text-red-600" />
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium text-gray-900">Delivery</p>

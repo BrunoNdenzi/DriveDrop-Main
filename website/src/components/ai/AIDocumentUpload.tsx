@@ -120,12 +120,12 @@ export default function AIDocumentUpload({
       {/* Header with AI badge */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <FileText className="h-5 w-5 text-teal-600" />
+          <FileText className="h-5 w-5 text-blue-500" />
           <h3 className="text-lg font-semibold text-gray-900">
             Upload {getDocumentTypeLabel()}
           </h3>
         </div>
-        <div className="flex items-center gap-2 bg-gradient-to-r from-purple-50 to-teal-50 px-3 py-1.5 rounded-full border border-purple-200">
+        <div className="flex items-center gap-2 bg-purple-50 px-3 py-1.5 rounded-full border border-purple-200">
           <Sparkles className="h-4 w-4 text-purple-600" />
           <span className="text-xs font-semibold text-purple-700">AI Powered</span>
         </div>
@@ -138,8 +138,8 @@ export default function AIDocumentUpload({
           onDragOver={handleDragOver}
           onDragLeave={handleDragLeave}
           className={cn(
-            'relative border-2 border-dashed rounded-xl p-8 transition-all duration-200 cursor-pointer hover:border-teal-400 hover:bg-teal-50/50',
-            isDragging ? 'border-teal-500 bg-teal-50 scale-105' : 'border-gray-300 bg-gray-50',
+            'relative border-2 border-dashed rounded-md p-4 transition-all duration-200 cursor-pointer hover:border-blue-400 hover:bg-blue-50/50',
+            isDragging ? 'border-blue-500 bg-blue-50 scale-105' : 'border-gray-300 bg-gray-50',
             isProcessing && 'pointer-events-none opacity-60'
           )}
           onClick={() => fileInputRef.current?.click()}
@@ -156,8 +156,8 @@ export default function AIDocumentUpload({
             {isProcessing ? (
               <>
                 <div className="relative">
-                  <div className="w-16 h-16 rounded-full bg-teal-100 flex items-center justify-center">
-                    <Loader2 className="h-8 w-8 text-teal-600 animate-spin" />
+                  <div className="w-16 h-16 rounded-full bg-blue-100 flex items-center justify-center">
+                    <Loader2 className="h-8 w-8 text-blue-500 animate-spin" />
                   </div>
                   <div className="absolute -top-1 -right-1">
                     <Sparkles className="h-6 w-6 text-purple-500 animate-pulse" />
@@ -176,8 +176,8 @@ export default function AIDocumentUpload({
               </>
             ) : (
               <>
-                <div className="w-16 h-16 rounded-full bg-teal-100 flex items-center justify-center">
-                  <Upload className="h-8 w-8 text-teal-600" />
+                <div className="w-16 h-16 rounded-full bg-blue-100 flex items-center justify-center">
+                  <Upload className="h-8 w-8 text-blue-500" />
                 </div>
                 <div className="text-center">
                   <p className="text-base font-medium text-gray-900">
@@ -201,7 +201,7 @@ export default function AIDocumentUpload({
       {/* Preview with Result */}
       {preview && (
         <div className="space-y-4">
-          <div className="relative rounded-xl overflow-hidden border-2 border-gray-200">
+          <div className="relative rounded-md overflow-hidden border-2 border-gray-200">
             <img
               src={preview}
               alt="Document preview"
@@ -209,7 +209,7 @@ export default function AIDocumentUpload({
             />
             <button
               onClick={handleClear}
-              className="absolute top-2 right-2 p-2 bg-white rounded-full shadow-lg hover:bg-gray-100 transition-colors"
+              className="absolute top-2 right-2 p-2 bg-white rounded-full border hover:bg-gray-100 transition-colors"
             >
               <X className="h-4 w-4 text-gray-600" />
             </button>
@@ -218,7 +218,7 @@ export default function AIDocumentUpload({
           {/* Success Result */}
           {result?.success && (
             <div className={cn(
-              'rounded-xl p-6 border-2',
+              'rounded-md p-4 border-2',
               result.requiresReview
                 ? 'bg-amber-50 border-amber-200'
                 : 'bg-green-50 border-green-200'
@@ -287,7 +287,7 @@ export default function AIDocumentUpload({
                   )}
 
                   {result.requiresReview && result.lowConfidenceFields.length > 0 && (
-                    <div className="text-sm text-amber-700 bg-amber-100 rounded-lg p-3">
+                    <div className="text-sm text-amber-700 bg-amber-100 rounded-md p-3">
                       <p className="font-medium">Low confidence fields:</p>
                       <p className="mt-1">{result.lowConfidenceFields.join(', ')}</p>
                     </div>
@@ -310,7 +310,7 @@ export default function AIDocumentUpload({
 
       {/* Error Message */}
       {error && (
-        <div className="bg-red-50 border-2 border-red-200 rounded-xl p-4">
+        <div className="bg-red-50 border-2 border-red-200 rounded-md p-4">
           <div className="flex items-start gap-3">
             <AlertCircle className="h-5 w-5 text-red-600 flex-shrink-0 mt-0.5" />
             <div>

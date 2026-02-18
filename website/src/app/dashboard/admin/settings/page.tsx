@@ -4,9 +4,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 
 export default function AdminSettingsPage() {
   return (
-    <div className="p-6 space-y-6">
+    <div className="space-y-4">
       <div>
-        <h1 className="text-3xl font-bold">Settings</h1>
+        <h1 className="text-lg font-semibold">Settings</h1>
         <p className="text-muted-foreground mt-1">
           Manage your admin preferences and configurations
         </p>

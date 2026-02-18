@@ -14,7 +14,7 @@ Verify that payment initialization now works correctly with all required fields 
 ## 📋 Test Case: Dallas → San Diego Shipment
 
 ### Test Data
-- **Route**: Dallas, Texas 75202 → San Diego, California 92116
+- **Route**: Dallas, Carolina 75202 → San Diego, California 92116
 - **Vehicle**: 2021 Nissan Altima (Sedan)
 - **Delivery Type**: Flexible (≥7 days)
 - **Expected Distance**: ~1,359 miles
@@ -36,7 +36,7 @@ Verify that payment initialization now works correctly with all required fields 
 - Navigate to "Create Shipment" or "New Booking"
 
 ### Step 2: Enter Pickup Details
-- **Address**: Dallas, Texas 75202
+- **Address**: Dallas, Carolina 75202
 - **Date**: Select date 1-2 days from now
 - **Notes**: (optional) "Test shipment - Dallas to San Diego"
 
@@ -154,7 +154,7 @@ estimated_price: 1226.41 (flexible) or similar
 pickup_date: <selected date>
 delivery_date: <selected date>
 status: "pending"
-pickup_address: "Dallas, Texas 75202"
+pickup_address: "Dallas, Carolina 75202"
 delivery_address: "San Diego, California 92116"
 ```
 

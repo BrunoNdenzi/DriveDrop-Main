@@ -22,7 +22,7 @@ const notificationColors = {
   payment_success: 'bg-green-50 text-green-600',
   payment_failed: 'bg-red-50 text-red-600',
   shipment_created: 'bg-purple-50 text-purple-600',
-  shipment_updated: 'bg-orange-50 text-orange-600',
+  shipment_updated: 'bg-amber-50 text-amber-600',
   driver_assigned: 'bg-indigo-50 text-indigo-600',
   delivery_completed: 'bg-emerald-50 text-emerald-600',
   message_received: 'bg-cyan-50 text-cyan-600',
@@ -67,11 +67,11 @@ export default function NotificationBell() {
       {/* Notification Bell Button */}
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="p-2 rounded-lg hover:bg-gray-100 transition-colors relative group"
+        className="p-2 rounded-md hover:bg-gray-100 transition-colors relative group"
       >
         <Bell className="h-5 w-5 text-gray-600 group-hover:text-gray-900 transition-colors" />
         {unreadCount > 0 && (
-          <span className="absolute top-1 right-1 min-w-[18px] h-[18px] bg-orange-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center px-1">
+          <span className="absolute top-1 right-1 min-w-[18px] h-[18px] bg-amber-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center px-1">
             {unreadCount > 9 ? '9+' : unreadCount}
           </span>
         )}
@@ -79,9 +79,9 @@ export default function NotificationBell() {
 
       {/* Notifications Dropdown */}
       {isOpen && (
-        <div className="absolute right-0 mt-2 w-96 bg-white rounded-xl shadow-2xl border border-gray-200 overflow-hidden z-50">
+        <div className="absolute right-0 mt-2 w-96 bg-white rounded-md border border-gray-200 overflow-hidden z-50">
           {/* Header */}
-          <div className="bg-gradient-to-r from-primary to-secondary px-4 py-3 flex items-center justify-between">
+          <div className="bg-primary px-4 py-3 flex items-center justify-between">
             <h3 className="text-white font-semibold">Notifications</h3>
             {unreadCount > 0 && (
               <button
@@ -124,12 +124,12 @@ export default function NotificationBell() {
                     >
                       {/* Unread Indicator */}
                       {!notification.is_read && (
-                        <div className="absolute left-2 top-1/2 -translate-y-1/2 w-2 h-2 bg-orange-500 rounded-full"></div>
+                        <div className="absolute left-2 top-1/2 -translate-y-1/2 w-2 h-2 bg-amber-500 rounded-full"></div>
                       )}
 
                       <div className="flex gap-3 pl-4">
                         {/* Icon */}
-                        <div className={`w-10 h-10 rounded-lg ${colorClass} flex items-center justify-center flex-shrink-0`}>
+                        <div className={`w-10 h-10 rounded-md ${colorClass} flex items-center justify-center flex-shrink-0`}>
                           <Icon className="h-5 w-5" />
                         </div>
 

@@ -27,7 +27,7 @@ const zipCoords = {
 };
 
 // Test 1: Extract ZIP codes
-const pickup = "Dallas, Texas 75202";
+const pickup = "Dallas, Carolina 75202";
 const delivery = "San Diego, California 92116";
 
 const pickupZip = extractZip(pickup);

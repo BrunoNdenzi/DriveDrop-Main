@@ -164,12 +164,14 @@ export default function DriverRegistrationPage() {
 
   if (submitted) {
     return (
-      <main className="min-h-screen">
+      <main className="min-h-screen bg-[hsl(var(--surface-field))]">
         <Header />
-        <div className="container py-20">
+        <div className="container pt-20 py-12">
           <Card className="max-w-2xl mx-auto text-center">
             <CardContent className="pt-12 pb-12">
-              <CheckCircle className="h-16 w-16 text-green-500 mx-auto mb-6" />
+              <div className="inline-flex items-center justify-center w-16 h-16 rounded-md bg-emerald-500 mx-auto mb-6">
+                <CheckCircle className="h-8 w-8 text-white" />
+              </div>
               <h2 className="text-3xl font-bold mb-4">Application Submitted!</h2>
               <p className="text-lg text-muted-foreground mb-8">
                 Thank you for applying to become a DriveDrop driver. We've received your application and will review it within 3-5 business days.
@@ -189,35 +191,36 @@ export default function DriverRegistrationPage() {
   }
 
   return (
-    <main className="min-h-screen">
+    <main className="min-h-screen bg-[hsl(var(--surface-field))]">
       <Header />
       
-      {/* Hero Section */}
-      <section className="bg-gradient-to-b from-blue-50 to-white py-12">
+      {/* Page Header */}
+      <section className="border-b border-border bg-white pt-20 py-8">
         <div className="container">
-          <div className="max-w-4xl mx-auto text-center">
-            <Truck className="h-12 w-12 text-primary mx-auto mb-4" />
-            <h1 className="text-4xl font-bold mb-4">Become a DriveDrop Driver</h1>
-            <p className="text-lg text-muted-foreground mb-8">
-              Join our network of trusted drivers and start earning today
+          <div className="max-w-4xl mx-auto">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="w-10 h-10 rounded-md bg-amber-500 flex items-center justify-center">
+                <Truck className="h-5 w-5 text-white" />
+              </div>
+              <h1 className="text-2xl font-bold tracking-tight">Driver Application</h1>
+            </div>
+            <p className="text-sm text-muted-foreground mb-6">
+              Complete the application below to register as a DriveDrop carrier.
             </p>
             
-            {/* Benefits */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-              <div className="flex flex-col items-center">
-                <Shield className="h-8 w-8 text-primary mb-2" />
-                <h3 className="font-semibold">Verified & Insured</h3>
-                <p className="text-sm text-muted-foreground">Background check included</p>
+            {/* Requirements */}
+            <div className="flex gap-6 text-sm text-muted-foreground">
+              <div className="flex items-center gap-2">
+                <Shield className="h-4 w-4 text-amber-500" />
+                <span>Background check required</span>
               </div>
-              <div className="flex flex-col items-center">
-                <Truck className="h-8 w-8 text-primary mb-2" />
-                <h3 className="font-semibold">Flexible Schedule</h3>
-                <p className="text-sm text-muted-foreground">Work when you want</p>
+              <div className="flex items-center gap-2">
+                <Truck className="h-4 w-4 text-amber-500" />
+                <span>Valid license &amp; insurance</span>
               </div>
-              <div className="flex flex-col items-center">
-                <FileText className="h-8 w-8 text-primary mb-2" />
-                <h3 className="font-semibold">Weekly Payments</h3>
-                <p className="text-sm text-muted-foreground">Get paid fast</p>
+              <div className="flex items-center gap-2">
+                <FileText className="h-4 w-4 text-amber-500" />
+                <span>Weekly payouts</span>
               </div>
             </div>
           </div>

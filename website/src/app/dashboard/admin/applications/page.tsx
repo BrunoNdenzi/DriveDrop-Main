@@ -148,43 +148,34 @@ export default function AdminApplicationsPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="flex items-center justify-center py-12">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading applications...</p>
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600 mx-auto mb-3"></div>
+          <p className="text-sm text-gray-600">Loading applications...</p>
         </div>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="space-y-4">
       {/* Header */}
-      <div className="bg-white border-b sticky top-0 z-10 shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900">Driver Applications</h1>
-              <p className="text-sm text-gray-600">{applications.length} applications</p>
-            </div>
-            <Link href="/dashboard/admin">
-              <Button variant="outline" size="sm">
-                Back to Dashboard
-              </Button>
-            </Link>
-          </div>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-lg font-semibold text-gray-900">Driver Applications</h1>
+          <p className="text-xs text-gray-500">{applications.length} applications</p>
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div>
         {/* Filter Tabs */}
-        <div className="bg-white rounded-lg shadow-sm mb-6 border border-gray-200">
+        <div className="bg-white rounded-md border border-gray-200 mb-4">
           <div className="flex border-b border-gray-200">
             <button
               onClick={() => setFilterStatus('pending')}
-              className={`flex-1 px-6 py-4 text-sm font-medium ${
+              className={`flex-1 px-4 py-2.5 text-xs font-medium ${
                 filterStatus === 'pending'
-                  ? 'border-b-2 border-purple-600 text-purple-600'
+                  ? 'border-b-2 border-purple-500 text-purple-600'
                   : 'text-gray-600 hover:text-gray-900'
               }`}
             >
@@ -192,9 +183,9 @@ export default function AdminApplicationsPage() {
             </button>
             <button
               onClick={() => setFilterStatus('approved')}
-              className={`flex-1 px-6 py-4 text-sm font-medium ${
+              className={`flex-1 px-4 py-2.5 text-xs font-medium ${
                 filterStatus === 'approved'
-                  ? 'border-b-2 border-purple-600 text-purple-600'
+                  ? 'border-b-2 border-purple-500 text-purple-600'
                   : 'text-gray-600 hover:text-gray-900'
               }`}
             >
@@ -202,9 +193,9 @@ export default function AdminApplicationsPage() {
             </button>
             <button
               onClick={() => setFilterStatus('rejected')}
-              className={`flex-1 px-6 py-4 text-sm font-medium ${
+              className={`flex-1 px-4 py-2.5 text-xs font-medium ${
                 filterStatus === 'rejected'
-                  ? 'border-b-2 border-purple-600 text-purple-600'
+                  ? 'border-b-2 border-purple-500 text-purple-600'
                   : 'text-gray-600 hover:text-gray-900'
               }`}
             >
@@ -212,9 +203,9 @@ export default function AdminApplicationsPage() {
             </button>
             <button
               onClick={() => setFilterStatus('all')}
-              className={`flex-1 px-6 py-4 text-sm font-medium ${
+              className={`flex-1 px-4 py-2.5 text-xs font-medium ${
                 filterStatus === 'all'
-                  ? 'border-b-2 border-purple-600 text-purple-600'
+                  ? 'border-b-2 border-purple-500 text-purple-600'
                   : 'text-gray-600 hover:text-gray-900'
               }`}
             >
@@ -225,9 +216,9 @@ export default function AdminApplicationsPage() {
 
         {/* Applications List */}
         {applications.length === 0 ? (
-          <div className="bg-white rounded-lg shadow-sm p-12 text-center border border-gray-200">
-            <UserCheck className="h-16 w-16 text-gray-300 mx-auto mb-4" />
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">
+          <div className="bg-white rounded-md border border-gray-200 p-8 text-center">
+            <UserCheck className="h-10 w-10 text-gray-300 mx-auto mb-3" />
+            <h3 className="text-sm font-semibold text-gray-900 mb-1">
               No Applications Found
             </h3>
             <p className="text-gray-600">
@@ -235,21 +226,21 @@ export default function AdminApplicationsPage() {
             </p>
           </div>
         ) : (
-          <div className="space-y-6">
+          <div className="space-y-4">
             {applications.map((application) => {
               const user = application.user
 
               return (
                 <div
                   key={application.id}
-                  className="bg-white rounded-lg shadow-sm border border-gray-200 p-6"
+                  className="bg-white rounded-md border border-gray-200 p-4"
                 >
-                  <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-6">
+                  <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
                     {/* Application Details */}
                     <div className="flex-1">
-                      <div className="flex items-start justify-between mb-4">
+                      <div className="flex items-start justify-between mb-3">
                         <div>
-                          <h3 className="text-xl font-semibold text-gray-900 mb-2">
+                          <h3 className="text-sm font-semibold text-gray-900 mb-1">
                             {user?.first_name} {user?.last_name}
                           </h3>
                           <div className="flex items-center gap-2 flex-wrap">
@@ -265,7 +256,7 @@ export default function AdminApplicationsPage() {
                       </div>
 
                       {/* Contact Info */}
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
                         <div className="flex items-center gap-2 text-sm text-gray-600">
                           <Mail className="h-4 w-4" />
                           {user?.email || 'N/A'}
@@ -277,9 +268,9 @@ export default function AdminApplicationsPage() {
                       </div>
 
                       {/* License Info */}
-                      <div className="bg-gray-50 rounded-lg p-4 mb-4">
-                        <h4 className="text-sm font-semibold text-gray-900 mb-3 flex items-center gap-2">
-                          <FileText className="h-4 w-4" />
+                      <div className="bg-gray-50 rounded-md p-3 mb-3">
+                        <h4 className="text-xs font-semibold text-gray-900 mb-2 flex items-center gap-2">
+                          <FileText className="h-3.5 w-3.5" />
                           License Information
                         </h4>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -300,8 +291,8 @@ export default function AdminApplicationsPage() {
 
                       {/* Vehicle Info */}
                       {application.vehicle_info && (
-                        <div className="bg-blue-50 rounded-lg p-4 mb-4">
-                          <h4 className="text-sm font-semibold text-gray-900 mb-3">
+                        <div className="bg-blue-50 rounded-md p-3 mb-3">
+                          <h4 className="text-xs font-semibold text-gray-900 mb-2">
                             Vehicle Information
                           </h4>
                           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
@@ -346,7 +337,7 @@ export default function AdminApplicationsPage() {
                       )}
 
                       {/* Background Check Status */}
-                      <div className="flex items-center gap-2 mb-4">
+                      <div className="flex items-center gap-2 mb-3">
                         <span className="text-sm font-medium text-gray-700">Background Check:</span>
                         <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
                           application.background_check_status === 'completed'
@@ -361,7 +352,7 @@ export default function AdminApplicationsPage() {
 
                       {/* Admin Notes */}
                       {application.admin_notes && (
-                        <div className="bg-red-50 border border-red-200 rounded-lg p-3">
+                        <div className="bg-red-50 border border-red-200 rounded-md p-3">
                           <div className="flex items-start gap-2">
                             <AlertCircle className="h-4 w-4 text-red-600 mt-0.5 flex-shrink-0" />
                             <div>
@@ -375,7 +366,7 @@ export default function AdminApplicationsPage() {
 
                     {/* Actions */}
                     {application.status === 'pending' && (
-                      <div className="lg:w-48 flex flex-col gap-3">
+                      <div className="lg:w-44 flex flex-col gap-2">
                         <Button
                           onClick={() => handleApprove(application.id, application.user_id)}
                           disabled={processingId === application.id}

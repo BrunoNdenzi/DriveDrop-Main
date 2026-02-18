@@ -88,16 +88,16 @@ const CollapsibleSection: React.FC<CollapsibleSectionProps> = ({
   }
 
   return (
-    <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+    <div className="bg-white rounded-md border border-gray-200 overflow-hidden">
       <button
         type="button" // Explicitly set type to button to prevent form submission
         onClick={handleToggle}
-        className={`w-full px-6 py-4 flex items-center justify-between hover:bg-gray-50 transition-colors ${
-          isExpanded ? 'border-b border-gray-200 bg-teal-50' : ''
+        className={`w-full px-4 py-4 flex items-center justify-between hover:bg-gray-50 transition-colors ${
+          isExpanded ? 'border-b border-gray-200 bg-blue-50' : ''
         }`}
       >
         <div className="flex items-center gap-3">
-          <div className={`${isValid ? 'text-green-600' : 'text-teal-600'}`}>
+          <div className={`${isValid ? 'text-green-600' : 'text-blue-500'}`}>
             {icon}
           </div>
           <h3 className="text-lg font-semibold text-gray-900">{title}</h3>
@@ -118,7 +118,7 @@ const CollapsibleSection: React.FC<CollapsibleSectionProps> = ({
       </button>
       
       {isExpanded && (
-        <div className="px-6 py-6 space-y-4">
+        <div className="px-4 py-4 space-y-4">
           {children}
         </div>
       )}
@@ -418,7 +418,7 @@ export default function ShipmentForm({ onSubmit, isSubmitting, showClientFields 
             </div>
           </div>
           {formData.distance > 0 && (
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 flex items-center gap-2">
+            <div className="bg-blue-50 border border-blue-200 rounded-md p-3 flex items-center gap-2">
               <Info className="h-4 w-4 text-blue-600" />
               <span className="text-sm text-blue-900">
                 Estimated distance: <strong>{formData.distance} miles</strong>
@@ -445,7 +445,7 @@ export default function ShipmentForm({ onSubmit, isSubmitting, showClientFields 
                 id="vehicleType"
                 value={formData.vehicleType}
                 onChange={(e) => updateFormData('vehicleType', e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 required
                 data-tour="vehicle-selection"
               >
@@ -514,7 +514,7 @@ export default function ShipmentForm({ onSubmit, isSubmitting, showClientFields 
                 type="checkbox"
                 checked={formData.isOperable}
                 onChange={(e) => updateFormData('isOperable', e.target.checked)}
-                className="w-4 h-4 text-teal-600 border-gray-300 rounded focus:ring-teal-500"
+                className="w-4 h-4 text-blue-500 border-gray-300 rounded focus:ring-blue-500"
               />
               Vehicle is operable
             </Label>
@@ -541,9 +541,9 @@ export default function ShipmentForm({ onSubmit, isSubmitting, showClientFields 
               <button
                 type="button"
                 onClick={() => updateFormData('shipmentType', 'standard')}
-                className={`p-4 border-2 rounded-lg text-left transition-all ${
+                className={`p-4 border-2 rounded-md text-left transition-all ${
                   formData.shipmentType === 'standard'
-                    ? 'border-teal-600 bg-teal-50'
+                    ? 'border-blue-500 bg-blue-50'
                     : 'border-gray-200 hover:border-gray-300'
                 }`}
               >
@@ -553,9 +553,9 @@ export default function ShipmentForm({ onSubmit, isSubmitting, showClientFields 
               <button
                 type="button"
                 onClick={() => updateFormData('shipmentType', 'expedited')}
-                className={`p-4 border-2 rounded-lg text-left transition-all ${
+                className={`p-4 border-2 rounded-md text-left transition-all ${
                   formData.shipmentType === 'expedited'
-                    ? 'border-teal-600 bg-teal-50'
+                    ? 'border-blue-500 bg-blue-50'
                     : 'border-gray-200 hover:border-gray-300'
                 }`}
               >
@@ -590,7 +590,7 @@ export default function ShipmentForm({ onSubmit, isSubmitting, showClientFields 
         <div className="space-y-4">
           {formData.estimatedPrice > 0 && formData.pricingBreakdown ? (
             <>
-              <div className="bg-teal-50 border border-teal-200 rounded-lg p-6" data-tour="pricing-preview">
+              <div className="bg-blue-50 border border-blue-200 rounded-md p-4" data-tour="pricing-preview">
                 <div className="space-y-3">
                   {/* Distance Band Info */}
                   <div className="flex justify-between items-center text-sm">
@@ -654,10 +654,10 @@ export default function ShipmentForm({ onSubmit, isSubmitting, showClientFields 
                 </div>
 
                 {/* Total */}
-                <div className="border-t border-teal-300 pt-4 mt-4">
+                <div className="border-t border-blue-300 pt-4 mt-4">
                   <div className="flex justify-between items-center">
                     <span className="text-lg font-bold text-gray-900">Total Quote:</span>
-                    <span className="text-2xl font-bold text-teal-600">
+                    <span className="text-lg font-semibold text-blue-500">
                       ${formData.estimatedPrice.toFixed(2)}
                     </span>
                   </div>
@@ -665,7 +665,7 @@ export default function ShipmentForm({ onSubmit, isSubmitting, showClientFields 
               </div>
 
               {/* Payment Structure */}
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+              <div className="bg-blue-50 border border-blue-200 rounded-md p-4">
                 <h4 className="font-semibold text-blue-900 mb-2">Payment Structure:</h4>
                 <ul className="space-y-2 text-sm text-blue-800">
                   <li className="flex items-start gap-2">
@@ -684,8 +684,8 @@ export default function ShipmentForm({ onSubmit, isSubmitting, showClientFields 
               </div>
             </>
           ) : (
-            <div className="text-center py-8 text-gray-500">
-              <DollarSign className="h-12 w-12 mx-auto mb-2 text-gray-400" />
+            <div className="text-center py-4 text-gray-500">
+              <DollarSign className="h-8 w-8 mx-auto mb-2 text-gray-400" />
               <p>Complete the pickup and delivery locations to see pricing</p>
             </div>
           )}
@@ -693,11 +693,11 @@ export default function ShipmentForm({ onSubmit, isSubmitting, showClientFields 
       </CollapsibleSection>
 
       {/* Submit Button */}
-      <div className="pt-6">
+      <div className="pt-4">
         <Button
           type="submit"
           disabled={isSubmitting || !Object.values(sectionValidity).every(valid => valid)}
-          className="w-full bg-teal-600 hover:bg-teal-700 text-white py-6 text-lg font-semibold"
+          className="w-full bg-blue-500 hover:bg-blue-600 text-white py-3 text-lg font-semibold"
           data-tour="submit-shipment"
         >
           {isSubmitting ? 'Processing...' : 'Continue to Completion'}

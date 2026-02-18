@@ -64,48 +64,21 @@ export default function TrackShipmentPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <div className="bg-white border-b sticky top-0 z-10 shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
-            <div className="flex items-center gap-4">
-              <Link 
-                href="/dashboard/client"
-                className="flex items-center gap-2 text-gray-600 hover:text-gray-900 transition-colors"
-              >
-                <ArrowLeft className="h-5 w-5" />
-                <span className="font-medium">Dashboard</span>
-              </Link>
-              <div className="h-6 w-px bg-gray-300"></div>
-              <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-                <MapPin className="h-6 w-6 text-teal-600" />
-                Track Shipment
-              </h1>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+    <div className="space-y-4">
+      <div className="max-w-2xl mx-auto">
         {/* Main Card */}
-        <div className="bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden">
-          <div className="bg-gradient-to-r from-teal-500 to-teal-600 p-8 text-white">
-            <div className="flex items-center justify-center mb-4">
-              <div className="bg-white/20 p-4 rounded-full">
-                <Package className="h-12 w-12" />
-              </div>
-            </div>
-            <h2 className="text-2xl font-bold text-center mb-2">Track Your Shipment</h2>
-            <p className="text-teal-100 text-center">
+        <div className="bg-white rounded-md border border-gray-200 overflow-hidden">
+          <div className="px-4 pt-4 pb-2">
+            <h2 className="text-sm font-semibold text-gray-900 mb-1">Track Your Shipment</h2>
+            <p className="text-xs text-gray-500">
               Enter your shipment ID to view real-time tracking information
             </p>
           </div>
 
-          <div className="p-8">
-            <form onSubmit={handleTrack} className="space-y-6">
+          <div className="px-4 pb-4">
+            <form onSubmit={handleTrack} className="space-y-4">
               <div>
-                <label htmlFor="trackingId" className="block text-sm font-medium text-gray-700 mb-2">
+                <label htmlFor="trackingId" className="block text-sm font-medium text-gray-700 mb-1">
                   Shipment ID
                 </label>
                 <div className="relative">
@@ -118,7 +91,7 @@ export default function TrackShipmentPage() {
                       setError('')
                     }}
                     placeholder="e.g., 3aa90f68-bafd-4e8e-a874-0bba98332daa"
-                    className="pl-10 h-12 text-base"
+                    className="pl-10"
                     disabled={loading}
                   />
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
@@ -129,7 +102,7 @@ export default function TrackShipmentPage() {
               </div>
 
               {error && (
-                <div className="flex items-start gap-3 p-4 bg-red-50 border border-red-200 rounded-lg">
+                <div className="flex items-start gap-3 p-4 bg-red-50 border border-red-200 rounded-md">
                   <AlertCircle className="h-5 w-5 text-red-600 mt-0.5 flex-shrink-0" />
                   <div>
                     <p className="text-sm font-medium text-red-900">Error</p>
@@ -141,7 +114,7 @@ export default function TrackShipmentPage() {
               <Button
                 type="submit"
                 disabled={loading || !trackingId.trim()}
-                className="w-full h-12 text-base bg-teal-600 hover:bg-teal-700"
+                className="w-full bg-blue-500 hover:bg-blue-600"
               >
                 {loading ? (
                   <>
@@ -157,21 +130,21 @@ export default function TrackShipmentPage() {
               </Button>
             </form>
 
-            <div className="mt-8 pt-8 border-t border-gray-200">
+            <div className="mt-4 pt-4 border-t border-gray-200">
               <h3 className="text-sm font-semibold text-gray-900 mb-4">Quick Access</h3>
               <div className="grid grid-cols-1 gap-3">
                 <Link
                   href="/dashboard/client/shipments"
-                  className="flex items-center justify-between p-4 bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors group"
+                  className="flex items-center justify-between p-3 bg-gray-50 hover:bg-gray-100 rounded-md transition-colors group"
                 >
                   <div className="flex items-center gap-3">
-                    <Package className="h-5 w-5 text-gray-600 group-hover:text-teal-600" />
+                    <Package className="h-5 w-5 text-gray-600 group-hover:text-blue-500" />
                     <div>
                       <p className="font-medium text-gray-900">My Shipments</p>
                       <p className="text-sm text-gray-500">View all your shipments</p>
                     </div>
                   </div>
-                  <ArrowLeft className="h-5 w-5 text-gray-400 group-hover:text-teal-600 rotate-180" />
+                  <ArrowLeft className="h-5 w-5 text-gray-400 group-hover:text-blue-500 rotate-180" />
                 </Link>
               </div>
             </div>
@@ -179,10 +152,10 @@ export default function TrackShipmentPage() {
         </div>
 
         {/* Help Section */}
-        <div className="mt-6 text-center">
+        <div className="mt-4 text-center">
           <p className="text-sm text-gray-600">
             Need help?{' '}
-            <Link href="/dashboard/client/messages" className="text-teal-600 hover:text-teal-700 font-medium">
+            <Link href="/dashboard/client/messages" className="text-blue-500 hover:text-blue-600 font-medium">
               Contact Support
             </Link>
           </p>

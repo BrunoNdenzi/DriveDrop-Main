@@ -6,7 +6,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { User, Mail, Lock, Phone, ArrowRight, AlertCircle, CheckCircle, Sparkles, Truck, Eye, EyeOff } from 'lucide-react'
+import { User, Mail, Lock, Phone, ArrowRight, AlertCircle, CheckCircle, Truck, Eye, EyeOff } from 'lucide-react'
 import Header from '@/components/layout/Header'
 import Footer from '@/components/layout/Footer'
 
@@ -112,15 +112,14 @@ function SignUpPageContent() {
     return (
       <>
         <Header />
-        <main className="min-h-screen pt-20 pb-16 relative overflow-hidden flex items-center justify-center">
-          <div className="absolute inset-0 gradient-mesh opacity-40" />
-          <div className="container relative z-10">
-            <div className="max-w-md mx-auto text-center space-y-6 glass rounded-3xl p-12 animate-slide-up">
-              <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-gradient-to-br from-primary to-accent shadow-xl">
-                <CheckCircle className="w-10 h-10 text-white" />
+        <main className="min-h-screen pt-20 pb-16 bg-background flex items-center justify-center">
+          <div className="container">
+            <div className="max-w-md mx-auto text-center space-y-6 bg-white border border-border rounded-md p-10">
+              <div className="inline-flex items-center justify-center w-14 h-14 rounded-md bg-emerald-50 border border-emerald-200">
+                <CheckCircle className="w-7 h-7 text-emerald-600" />
               </div>
               <div className="space-y-2">
-                <h1 className="text-3xl font-bold">Check Your Email!</h1>
+                <h1 className="text-2xl font-bold tracking-tight">Check Your Email!</h1>
                 <p className="text-muted-foreground">
                   We've sent a verification link to <strong>{formData.email}</strong>
                 </p>
@@ -144,22 +143,17 @@ function SignUpPageContent() {
   return (
     <>
       <Header />
-      <main className="min-h-screen pt-20 pb-16 relative overflow-hidden">
-        {/* Animated background */}
-        <div className="absolute inset-0 gradient-mesh opacity-40" />
-        <div className="absolute top-20 left-10 w-96 h-96 bg-primary/10 rounded-full blur-3xl animate-float" />
-        <div className="absolute bottom-20 right-10 w-96 h-96 bg-secondary/10 rounded-full blur-3xl animate-float" style={{ animationDelay: '2s' }} />
-
-        <div className="container relative z-10">
+      <main className="min-h-screen pt-20 pb-16 bg-[hsl(var(--surface-field))]">
+        <div className="container">
           <div className="max-w-md mx-auto">
             {/* Header */}
-            <div className="text-center space-y-4 mb-8 animate-slide-up">
-              <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-primary to-accent shadow-xl">
-                <User className="w-8 h-8 text-white" />
+            <div className="text-center space-y-3 mb-6">
+              <div className="inline-flex items-center justify-center w-12 h-12 rounded-md bg-blue-500">
+                <User className="w-6 h-6 text-white" />
               </div>
               <div>
-                <h1 className="text-4xl font-bold">Create Your Account</h1>
-                <p className="text-muted-foreground mt-2">
+                <h1 className="text-2xl font-bold tracking-tight">Create Your Account</h1>
+                <p className="text-sm text-muted-foreground mt-1">
                   {role === 'client' && 'Join DriveDrop and start shipping your vehicles today'}
                   {role === 'broker' && 'Join DriveDrop as a broker and connect your network'}
                   {!role || (role !== 'client' && role !== 'broker') && 'Join DriveDrop today'}
@@ -168,15 +162,15 @@ function SignUpPageContent() {
             </div>
 
             {/* Signup Card */}
-            <div className="glass rounded-3xl p-8 shadow-2xl animate-slide-up" style={{ animationDelay: '0.1s' }}>
+            <div className="bg-white border border-border rounded-md p-6 shadow-sm">
               {error && (
-                <div className="flex items-center gap-2 p-4 mb-6 rounded-xl bg-destructive/10 border border-destructive/20 text-destructive animate-slide-down">
+                <div className="flex items-center gap-2 p-3 mb-4 rounded-md bg-destructive/10 border border-destructive/20 text-destructive">
                   <AlertCircle className="w-5 h-5 flex-shrink-0" />
                   <p className="text-sm">{error}</p>
                 </div>
               )}
 
-              <form onSubmit={handleSubmit} className="space-y-6">
+              <form onSubmit={handleSubmit} className="space-y-4">
                 {/* Name Fields */}
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
@@ -189,7 +183,7 @@ function SignUpPageContent() {
                       value={formData.firstName}
                       onChange={handleChange}
                       required
-                      className="h-12 rounded-xl"
+                      className="h-10 rounded-md"
                     />
                   </div>
                   <div className="space-y-2">
@@ -202,7 +196,7 @@ function SignUpPageContent() {
                       value={formData.lastName}
                       onChange={handleChange}
                       required
-                      className="h-12 rounded-xl"
+                      className="h-10 rounded-md"
                     />
                   </div>
                 </div>
@@ -220,7 +214,7 @@ function SignUpPageContent() {
                       value={formData.email}
                       onChange={handleChange}
                       required
-                      className="pl-10 h-12 rounded-xl"
+                      className="pl-10 h-10 rounded-md"
                     />
                   </div>
                 </div>
@@ -238,7 +232,7 @@ function SignUpPageContent() {
                       value={formData.phone}
                       onChange={handleChange}
                       required
-                      className="pl-10 h-12 rounded-xl"
+                      className="pl-10 h-10 rounded-md"
                     />
                   </div>
                 </div>
@@ -257,7 +251,7 @@ function SignUpPageContent() {
                       onChange={handleChange}
                       required
                       minLength={8}
-                      className="pl-10 pr-10 h-12 rounded-xl"
+                      className="pl-10 pr-10 h-10 rounded-md"
                     />
                     <button
                       type="button"
@@ -287,7 +281,7 @@ function SignUpPageContent() {
                       onChange={handleChange}
                       required
                       minLength={8}
-                      className="pl-10 pr-10 h-12 rounded-xl"
+                      className="pl-10 pr-10 h-10 rounded-md"
                     />
                     <button
                       type="button"
@@ -304,18 +298,17 @@ function SignUpPageContent() {
                 <Button
                   type="submit"
                   disabled={loading}
-                  className="w-full h-12 rounded-xl font-semibold gradient-primary hover-lift group"
+                  className="w-full h-10 rounded-md font-semibold bg-blue-500 hover:bg-blue-600 text-white"
                 >
                   {loading ? (
                     <div className="flex items-center gap-2">
-                      <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                      <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                       Creating account...
                     </div>
                   ) : (
                     <div className="flex items-center gap-2">
-                      <Sparkles className="w-5 h-5" />
                       Create Account
-                      <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+                      <ArrowRight className="w-4 h-4" />
                     </div>
                   )}
                 </Button>
@@ -333,12 +326,12 @@ function SignUpPageContent() {
             </div>
 
             {/* Driver & Broker Application Links */}
-            <div className="mt-8 space-y-4">
-              <div className="text-center glass rounded-2xl p-6 animate-slide-up" style={{ animationDelay: '0.2s' }}>
+            <div className="mt-6 space-y-3">
+              <div className="text-center bg-white border border-amber-200 rounded-md p-5 bg-amber-50/50">
                 <p className="text-sm text-muted-foreground mb-3">
                   Want to become a driver and earn money?
                 </p>
-                <Button asChild variant="outline" className="border-primary text-primary hover:bg-primary hover:text-white">
+                <Button asChild size="sm" className="bg-amber-500 hover:bg-amber-600 text-white">
                   <Link href="/drivers/register">
                     <Truck className="w-4 h-4 mr-2" />
                     Apply as a Driver
@@ -346,11 +339,11 @@ function SignUpPageContent() {
                 </Button>
               </div>
               
-              <div className="text-center glass rounded-2xl p-6 animate-slide-up" style={{ animationDelay: '0.25s' }}>
+              <div className="text-center bg-white border border-teal-200 rounded-md p-5 bg-teal-50/50">
                 <p className="text-sm text-muted-foreground mb-3">
                   Are you a licensed auto transport broker?
                 </p>
-                <Button asChild variant="outline" className="border-blue-600 text-blue-600 hover:bg-blue-600 hover:text-white">
+                <Button asChild size="sm" className="bg-teal-500 hover:bg-teal-600 text-white">
                   <Link href="/auth/broker-signup">
                     <User className="w-4 h-4 mr-2" />
                     Register as a Broker

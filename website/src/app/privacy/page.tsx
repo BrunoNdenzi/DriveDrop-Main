@@ -3,10 +3,10 @@ import Footer from '@/components/layout/Footer'
 
 export default function PrivacyPolicyPage() {
   return (
-    <main className="min-h-screen">
+    <main className="min-h-screen bg-background">
       <Header />
-      <div className="container py-12 max-w-4xl">
-        <h1 className="text-4xl font-bold mb-8">Privacy Policy</h1>
+      <div className="container pt-20 py-10 max-w-4xl">
+        <h1 className="text-2xl font-bold tracking-tight mb-6">Privacy Policy</h1>
         
         <div className="prose prose-lg max-w-none">
           <p className="text-muted-foreground mb-6">

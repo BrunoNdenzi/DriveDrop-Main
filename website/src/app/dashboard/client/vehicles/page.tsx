@@ -222,9 +222,9 @@ export default function VehicleProfilesPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="flex items-center justify-center py-12">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-teal-600 mx-auto mb-4"></div>
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto mb-4"></div>
           <p className="text-gray-600">Loading vehicles...</p>
         </div>
       </div>
@@ -232,17 +232,16 @@ export default function VehicleProfilesPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div className="space-y-4">
         {/* Header */}
-        <div className="flex items-center justify-between mb-8">
+        <div className="flex items-center justify-between mb-4">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">My Vehicles</h1>
-            <p className="text-gray-600 mt-1">Manage your saved vehicle profiles for quick booking</p>
+            <h1 className="text-lg font-semibold text-gray-900">My Vehicles</h1>
+            <p className="text-xs text-gray-500">Manage your saved vehicle profiles for quick booking</p>
           </div>
           <Button
             onClick={() => setShowAddModal(true)}
-            className="bg-teal-600 hover:bg-teal-700"
+            className="bg-blue-500 hover:bg-blue-600"
           >
             <Plus className="h-4 w-4 mr-2" />
             Add Vehicle
@@ -251,15 +250,15 @@ export default function VehicleProfilesPage() {
 
         {/* Vehicles List */}
         {vehicles.length === 0 ? (
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-12 text-center">
-            <Car className="h-16 w-16 text-gray-400 mx-auto mb-4" />
-            <h3 className="text-xl font-semibold text-gray-900 mb-2">No vehicles yet</h3>
-            <p className="text-gray-600 mb-6">
+          <div className="bg-white rounded-md border border-gray-200 p-8 text-center">
+            <Car className="h-10 w-10 text-gray-400 mx-auto mb-4" />
+            <h3 className="text-sm font-semibold text-gray-900 mb-2">No vehicles yet</h3>
+            <p className="text-gray-600 mb-3">
               Add your first vehicle profile to streamline future shipments.
             </p>
             <Button
               onClick={() => setShowAddModal(true)}
-              className="bg-teal-600 hover:bg-teal-700"
+              className="bg-blue-500 hover:bg-blue-600"
             >
               <Plus className="h-4 w-4 mr-2" />
               Add Your First Vehicle
@@ -270,19 +269,19 @@ export default function VehicleProfilesPage() {
             {vehicles.map((vehicle) => (
               <div
                 key={vehicle.id}
-                className={`bg-white rounded-lg shadow-sm border ${
-                  vehicle.is_primary ? 'border-teal-600 ring-2 ring-teal-100' : 'border-gray-200'
-                } p-6 hover:shadow-md transition-shadow`}
+                className={`bg-white rounded-md border ${
+                  vehicle.is_primary ? 'border-blue-500 ring-1 ring-blue-100' : 'border-gray-200'
+                } p-4 transition-colors`}
               >
-                <div className="flex items-start justify-between mb-4">
+                <div className="flex items-start justify-between mb-3">
                   <div className="flex-1">
                     {vehicle.is_primary && (
-                      <div className="inline-flex items-center gap-1 bg-teal-100 text-teal-700 text-xs font-medium px-2 py-1 rounded-full mb-2">
+                      <div className="inline-flex items-center gap-1 bg-blue-50 text-blue-600 text-xs font-medium px-2 py-1 rounded-full mb-2">
                         <Star className="h-3 w-3 fill-current" />
                         Primary Vehicle
                       </div>
                     )}
-                    <h3 className="text-lg font-bold text-gray-900">
+                    <h3 className="text-sm font-semibold text-gray-900">
                       {vehicle.nickname || `${vehicle.year} ${vehicle.make} ${vehicle.model}`}
                     </h3>
                     {vehicle.nickname && (
@@ -340,36 +339,35 @@ export default function VehicleProfilesPage() {
             ))}
           </div>
         )}
-      </div>
 
       {/* Add/Edit Modal */}
       {showAddModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="p-6 border-b border-gray-200 sticky top-0 bg-white">
+          <div className="bg-white rounded-md max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-4 border-b border-gray-200 sticky top-0 bg-white">
               <div className="flex items-center justify-between">
-                <h2 className="text-2xl font-bold text-gray-900">
+                <h2 className="text-sm font-semibold text-gray-900">
                   {editingVehicle ? 'Edit Vehicle' : 'Add Vehicle'}
                 </h2>
                 <button
                   onClick={closeModal}
                   className="text-gray-400 hover:text-gray-600"
                 >
-                  <X className="h-6 w-6" />
+                  <X className="h-5 w-5" />
                 </button>
               </div>
             </div>
 
-            <form onSubmit={handleSubmit} className="p-6 space-y-6">
+            <form onSubmit={handleSubmit} className="p-4 space-y-4">
               {/* Vehicle Type */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-gray-700 mb-1">
                   Vehicle Type
                 </label>
                 <select
                   value={formData.vehicle_type}
                   onChange={(e) => setFormData({ ...formData, vehicle_type: e.target.value as any })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-1 focus:ring-blue-500 focus:border-transparent"
                   required
                 >
                   <option value="car">Car</option>
@@ -383,7 +381,7 @@ export default function VehicleProfilesPage() {
               {/* Make & Model */}
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
                     Make <span className="text-red-500">*</span>
                   </label>
                   <Input
@@ -394,7 +392,7 @@ export default function VehicleProfilesPage() {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
                     Model <span className="text-red-500">*</span>
                   </label>
                   <Input
@@ -408,7 +406,7 @@ export default function VehicleProfilesPage() {
 
               {/* Year */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-gray-700 mb-1">
                   Year <span className="text-red-500">*</span>
                 </label>
                 <Input
@@ -424,7 +422,7 @@ export default function VehicleProfilesPage() {
               {/* Color & License Plate */}
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
                     Color
                   </label>
                   <Input
@@ -434,7 +432,7 @@ export default function VehicleProfilesPage() {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
                     License Plate
                   </label>
                   <Input
@@ -448,7 +446,7 @@ export default function VehicleProfilesPage() {
 
               {/* Nickname */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-gray-700 mb-1">
                   Nickname (Optional)
                 </label>
                 <Input
@@ -475,7 +473,7 @@ export default function VehicleProfilesPage() {
                 <Button
                   type="submit"
                   disabled={submitting}
-                  className="flex-1 bg-teal-600 hover:bg-teal-700"
+                  className="flex-1 bg-blue-500 hover:bg-blue-600"
                 >
                   {submitting ? 'Saving...' : editingVehicle ? 'Update Vehicle' : 'Add Vehicle'}
                 </Button>

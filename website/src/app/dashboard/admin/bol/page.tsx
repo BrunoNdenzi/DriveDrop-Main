@@ -133,31 +133,31 @@ export default function BOLManagementPage() {
   };
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-4 space-y-4">
       <div className="flex justify-between items-center">
-        <h1 className="text-3xl font-bold">Bill of Lading Management</h1>
+        <h1 className="text-lg font-semibold">Bill of Lading Management</h1>
         <div className="flex gap-2">
           <button
             onClick={() => setFilter('all')}
-            className={`px-4 py-2 rounded-lg ${filter === 'all' ? 'bg-blue-600 text-white' : 'bg-gray-200'}`}
+            className={`px-4 py-2 rounded-md ${filter === 'all' ? 'bg-purple-500 text-white' : 'bg-gray-200'}`}
           >
             All
           </button>
           <button
             onClick={() => setFilter('issued')}
-            className={`px-4 py-2 rounded-lg ${filter === 'issued' ? 'bg-blue-600 text-white' : 'bg-gray-200'}`}
+            className={`px-4 py-2 rounded-md ${filter === 'issued' ? 'bg-purple-500 text-white' : 'bg-gray-200'}`}
           >
             Issued
           </button>
           <button
             onClick={() => setFilter('in_transit')}
-            className={`px-4 py-2 rounded-lg ${filter === 'in_transit' ? 'bg-purple-600 text-white' : 'bg-gray-200'}`}
+            className={`px-4 py-2 rounded-md ${filter === 'in_transit' ? 'bg-purple-600 text-white' : 'bg-gray-200'}`}
           >
             In Transit
           </button>
           <button
             onClick={() => setFilter('delivered')}
-            className={`px-4 py-2 rounded-lg ${filter === 'delivered' ? 'bg-green-600 text-white' : 'bg-gray-200'}`}
+            className={`px-4 py-2 rounded-md ${filter === 'delivered' ? 'bg-green-600 text-white' : 'bg-gray-200'}`}
           >
             Delivered
           </button>
@@ -166,22 +166,22 @@ export default function BOLManagementPage() {
 
       {loading ? (
         <div className="text-center py-12">
-          <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+          <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-purple-500"></div>
           <p className="mt-4 text-gray-600">Loading BOLs...</p>
         </div>
       ) : bols.length === 0 ? (
-        <div className="text-center py-12 bg-gray-50 rounded-lg">
+        <div className="text-center py-12 bg-gray-50 rounded-md">
           <p className="text-gray-500">No Bills of Lading found</p>
         </div>
       ) : (
-        <div className="grid lg:grid-cols-3 gap-6">
+        <div className="grid lg:grid-cols-3 gap-4">
           {/* BOL List */}
           <div className="lg:col-span-1 space-y-3">
             {bols.map((bol) => (
               <div
                 key={bol.id}
-                className={`bg-white rounded-lg p-4 border-2 cursor-pointer transition ${
-                  selectedBOL?.id === bol.id ? 'border-blue-500 shadow-lg' : 'border-gray-200 hover:border-blue-300'
+                className={`bg-white rounded-md p-4 border-2 cursor-pointer transition ${
+                  selectedBOL?.id === bol.id ? 'border-purple-500' : 'border-gray-200 hover:border-purple-300'
                 }`}
                 onClick={() => setSelectedBOL(bol)}
               >
@@ -203,10 +203,10 @@ export default function BOLManagementPage() {
           {/* BOL Details */}
           <div className="lg:col-span-2">
             {selectedBOL ? (
-              <div className="bg-white rounded-lg shadow-lg p-6 border border-gray-200 space-y-6">
+              <div className="bg-white rounded-md border p-4 border-gray-200 space-y-4">
                 <div className="flex justify-between items-start">
                   <div>
-                    <h2 className="text-2xl font-bold">BOL #{selectedBOL.bol_number}</h2>
+                    <h2 className="text-lg font-semibold">BOL #{selectedBOL.bol_number}</h2>
                     <p className="text-gray-600">{selectedBOL.vehicle_info.year} {selectedBOL.vehicle_info.make} {selectedBOL.vehicle_info.model}</p>
                   </div>
                   <span className={`px-4 py-2 rounded-full text-sm font-bold ${getStatusColor(selectedBOL.status)}`}>
@@ -215,7 +215,7 @@ export default function BOLManagementPage() {
                 </div>
 
                 {/* Vehicle Info */}
-                <div className="border rounded-lg p-4 bg-gray-50">
+                <div className="border rounded-md p-4 bg-gray-50">
                   <h3 className="font-bold mb-3">Vehicle Information</h3>
                   <div className="grid grid-cols-2 gap-3 text-sm">
                     <div>
@@ -231,13 +231,13 @@ export default function BOLManagementPage() {
 
                 {/* Shipper & Consignee */}
                 <div className="grid md:grid-cols-2 gap-4">
-                  <div className="border rounded-lg p-4 bg-blue-50">
+                  <div className="border rounded-md p-4 bg-blue-50">
                     <h3 className="font-bold mb-2">Shipper</h3>
                     <p className="font-bold">{selectedBOL.shipper_info.name}</p>
                     <p className="text-sm text-gray-600">{selectedBOL.shipper_info.address}</p>
                     <p className="text-sm text-gray-600">{selectedBOL.shipper_info.phone}</p>
                   </div>
-                  <div className="border rounded-lg p-4 bg-green-50">
+                  <div className="border rounded-md p-4 bg-green-50">
                     <h3 className="font-bold mb-2">Consignee</h3>
                     <p className="font-bold">{selectedBOL.consignee_info.name}</p>
                     <p className="text-sm text-gray-600">{selectedBOL.consignee_info.address}</p>
@@ -246,7 +246,7 @@ export default function BOLManagementPage() {
                 </div>
 
                 {/* Vehicle Condition Reports */}
-                <div className="border rounded-lg p-4 bg-gray-50">
+                <div className="border rounded-md p-4 bg-gray-50">
                   <h3 className="font-bold mb-3">Vehicle Condition Reports</h3>
                   {conditions.length > 0 ? (
                     <div className="space-y-3">
@@ -279,7 +279,7 @@ export default function BOLManagementPage() {
 
                 {/* Signatures */}
                 <div className="grid md:grid-cols-2 gap-4">
-                  <div className="border rounded-lg p-4 bg-gray-50">
+                  <div className="border rounded-md p-4 bg-gray-50">
                     <h3 className="font-bold mb-2">Pickup Signature</h3>
                     {selectedBOL.pickup_signature_url ? (
                       <img src={selectedBOL.pickup_signature_url} alt="Pickup Signature" className="border rounded max-h-32" />
@@ -287,7 +287,7 @@ export default function BOLManagementPage() {
                       <p className="text-gray-500 text-sm">Not signed yet</p>
                     )}
                   </div>
-                  <div className="border rounded-lg p-4 bg-gray-50">
+                  <div className="border rounded-md p-4 bg-gray-50">
                     <h3 className="font-bold mb-2">Delivery Signature</h3>
                     {selectedBOL.delivery_signature_url ? (
                       <img src={selectedBOL.delivery_signature_url} alt="Delivery Signature" className="border rounded max-h-32" />
@@ -300,13 +300,13 @@ export default function BOLManagementPage() {
                 {/* Actions */}
                 <button
                   onClick={() => generatePDF(selectedBOL.id)}
-                  className="w-full px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-bold"
+                  className="w-full px-6 py-3 bg-purple-500 text-white rounded-md hover:bg-purple-600 transition font-bold"
                 >
                   📄 Download PDF
                 </button>
               </div>
             ) : (
-              <div className="bg-white rounded-lg shadow-lg p-12 border border-gray-200 text-center">
+              <div className="bg-white rounded-md border p-4 border-gray-200 text-center">
                 <p className="text-gray-500">Select a BOL to view details</p>
               </div>
             )}

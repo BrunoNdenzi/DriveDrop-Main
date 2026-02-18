@@ -212,231 +212,214 @@ export default function DriverEarningsPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="flex items-center justify-center py-12">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-teal-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading earnings data...</p>
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-amber-500 mx-auto mb-3"></div>
+          <p className="text-xs text-gray-500">Loading earnings data...</p>
         </div>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="space-y-4">
       {/* Header */}
-      <div className="bg-white border-b sticky top-0 z-10 shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900">Earnings</h1>
-              <p className="text-sm text-gray-600">Track your income and payments</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-lg font-bold text-gray-900">Earnings</h1>
+          <p className="text-xs text-gray-500">Track your income and payments</p>
+        </div>
+      </div>
+
+      {/* Stats Grid */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        {/* Total Earnings */}
+        <div className="bg-white rounded-md p-3 border border-gray-200">
+          <div className="flex items-center gap-2 mb-2">
+            <div className="p-1.5 bg-green-50 rounded-md">
+              <DollarSign className="h-4 w-4 text-green-600" />
             </div>
-            <Link href="/dashboard/driver">
-              <Button variant="outline" size="sm">
-                Back to Dashboard
-              </Button>
-            </Link>
+            <p className="text-xs text-gray-500">Total Earnings</p>
+          </div>
+          <h3 className="text-xl font-bold text-gray-900">
+            ${stats.totalEarnings.toFixed(2)}
+          </h3>
+        </div>
+
+        {/* Pending Earnings */}
+        <div className="bg-white rounded-md p-3 border border-gray-200">
+          <div className="flex items-center gap-2 mb-2">
+            <div className="p-1.5 bg-amber-50 rounded-md">
+              <Clock className="h-4 w-4 text-amber-600" />
+            </div>
+            <p className="text-xs text-gray-500">Pending</p>
+          </div>
+          <h3 className="text-xl font-bold text-gray-900">
+            ${stats.pendingEarnings.toFixed(2)}
+          </h3>
+        </div>
+
+        {/* This Week */}
+        <div className="bg-white rounded-md p-3 border border-gray-200">
+          <div className="flex items-center gap-2 mb-2">
+            <div className="p-1.5 bg-blue-50 rounded-md">
+              <Calendar className="h-4 w-4 text-blue-600" />
+            </div>
+            <p className="text-xs text-gray-500">This Week</p>
+          </div>
+          <h3 className="text-xl font-bold text-gray-900">
+            ${stats.thisWeekEarnings.toFixed(2)}
+          </h3>
+        </div>
+
+        {/* Average Per Delivery */}
+        <div className="bg-white rounded-md p-3 border border-gray-200">
+          <div className="flex items-center gap-2 mb-2">
+            <div className="p-1.5 bg-teal-50 rounded-md">
+              <Package className="h-4 w-4 text-teal-600" />
+            </div>
+            <p className="text-xs text-gray-500">Avg/Delivery</p>
+          </div>
+          <h3 className="text-xl font-bold text-gray-900">
+            ${stats.averageEarningPerDelivery.toFixed(2)}
+          </h3>
+        </div>
+      </div>
+
+      {/* Monthly Overview */}
+      <div className="bg-white rounded-md border border-gray-200 p-4">
+        <h2 className="text-sm font-semibold text-gray-900 mb-3">Monthly Overview</h2>
+        <div className="grid grid-cols-3 gap-4">
+          <div>
+            <p className="text-xs text-gray-500 mb-1">This Month</p>
+            <p className="text-lg font-bold text-amber-600">
+              ${stats.thisMonthEarnings.toFixed(2)}
+            </p>
+          </div>
+          <div>
+            <p className="text-xs text-gray-500 mb-1">Deliveries</p>
+            <p className="text-lg font-bold text-gray-900">
+              {stats.completedDeliveries}
+            </p>
+          </div>
+          <div>
+            <p className="text-xs text-gray-500 mb-1">Success Rate</p>
+            <p className="text-lg font-bold text-green-600">
+              {stats.completedDeliveries > 0 ? '100%' : '0%'}
+            </p>
           </div>
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Stats Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          {/* Total Earnings */}
-          <div className="bg-gradient-to-br from-green-500 to-green-600 rounded-lg p-6 text-white">
-            <div className="flex items-center justify-between mb-4">
-              <DollarSign className="h-8 w-8" />
-              <TrendingUp className="h-5 w-5" />
-            </div>
-            <h3 className="text-3xl font-bold mb-1">
-              ${stats.totalEarnings.toFixed(2)}
-            </h3>
-            <p className="text-green-100 text-sm">Total Earnings</p>
-          </div>
-
-          {/* Pending Earnings */}
-          <div className="bg-white rounded-lg shadow-sm p-6 border border-gray-200">
-            <div className="flex items-center justify-between mb-4">
-              <div className="p-2 bg-orange-100 rounded-lg">
-                <Clock className="h-6 w-6 text-orange-600" />
-              </div>
-            </div>
-            <h3 className="text-3xl font-bold text-gray-900 mb-1">
-              ${stats.pendingEarnings.toFixed(2)}
-            </h3>
-            <p className="text-gray-600 text-sm">Pending Payment</p>
-          </div>
-
-          {/* This Week */}
-          <div className="bg-white rounded-lg shadow-sm p-6 border border-gray-200">
-            <div className="flex items-center justify-between mb-4">
-              <div className="p-2 bg-blue-100 rounded-lg">
-                <Calendar className="h-6 w-6 text-blue-600" />
-              </div>
-              <ArrowUpRight className="h-5 w-5 text-green-500" />
-            </div>
-            <h3 className="text-3xl font-bold text-gray-900 mb-1">
-              ${stats.thisWeekEarnings.toFixed(2)}
-            </h3>
-            <p className="text-gray-600 text-sm">This Week</p>
-          </div>
-
-          {/* Average Per Delivery */}
-          <div className="bg-white rounded-lg shadow-sm p-6 border border-gray-200">
-            <div className="flex items-center justify-between mb-4">
-              <div className="p-2 bg-teal-100 rounded-lg">
-                <Package className="h-6 w-6 text-teal-600" />
-              </div>
-            </div>
-            <h3 className="text-3xl font-bold text-gray-900 mb-1">
-              ${stats.averageEarningPerDelivery.toFixed(2)}
-            </h3>
-            <p className="text-gray-600 text-sm">Avg per Delivery</p>
-          </div>
+      {/* Filters */}
+      <div className="bg-white rounded-md border border-gray-200 p-4">
+        <div className="flex items-center gap-2 mb-3">
+          <Filter className="h-4 w-4 text-gray-500" />
+          <h2 className="text-sm font-semibold text-gray-900">Filter Payments</h2>
         </div>
 
-        {/* Monthly Overview */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-8">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">Monthly Overview</h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div>
-              <p className="text-sm text-gray-600 mb-2">This Month Earnings</p>
-              <p className="text-2xl font-bold text-teal-600">
-                ${stats.thisMonthEarnings.toFixed(2)}
-              </p>
-            </div>
-            <div>
-              <p className="text-sm text-gray-600 mb-2">Completed Deliveries</p>
-              <p className="text-2xl font-bold text-gray-900">
-                {stats.completedDeliveries}
-              </p>
-            </div>
-            <div>
-              <p className="text-sm text-gray-600 mb-2">Success Rate</p>
-              <p className="text-2xl font-bold text-green-600">
-                {stats.completedDeliveries > 0 ? '100%' : '0%'}
-              </p>
-            </div>
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="block text-xs font-medium text-gray-600 mb-1">
+              Status
+            </label>
+            <select
+              value={filterStatus}
+              onChange={(e) => setFilterStatus(e.target.value)}
+              className="w-full px-2 py-1.5 text-xs border border-gray-300 rounded-md focus:ring-1 focus:ring-amber-500 focus:border-amber-500"
+            >
+              <option value="all">All Statuses</option>
+              <option value="completed">Completed</option>
+              <option value="pending">Pending</option>
+              <option value="failed">Failed</option>
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-xs font-medium text-gray-600 mb-1">
+              Period
+            </label>
+            <select
+              value={filterPeriod}
+              onChange={(e) => setFilterPeriod(e.target.value)}
+              className="w-full px-2 py-1.5 text-xs border border-gray-300 rounded-md focus:ring-1 focus:ring-amber-500 focus:border-amber-500"
+            >
+              <option value="all">All Time</option>
+              <option value="week">Last 7 Days</option>
+              <option value="month">Last 30 Days</option>
+              <option value="year">Last Year</option>
+            </select>
           </div>
         </div>
+      </div>
 
-        {/* Filters */}
-        <div className="bg-white rounded-lg shadow-sm p-6 mb-6 border border-gray-200">
-          <div className="flex items-center gap-2 mb-4">
-            <Filter className="h-5 w-5 text-gray-600" />
-            <h2 className="text-lg font-semibold text-gray-900">Filter Payments</h2>
+      {/* Payment History */}
+      <div className="bg-white rounded-md border border-gray-200">
+        <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
+          <div>
+            <h2 className="text-sm font-semibold text-gray-900">Payment History</h2>
+            <p className="text-[10px] text-gray-400">
+              {filteredPayments.length} payment{filteredPayments.length !== 1 ? 's' : ''}
+            </p>
           </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {/* Status Filter */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Payment Status
-              </label>
-              <select
-                value={filterStatus}
-                onChange={(e) => setFilterStatus(e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent"
-              >
-                <option value="all">All Statuses</option>
-                <option value="completed">Completed</option>
-                <option value="pending">Pending</option>
-                <option value="failed">Failed</option>
-              </select>
-            </div>
-
-            {/* Period Filter */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Time Period
-              </label>
-              <select
-                value={filterPeriod}
-                onChange={(e) => setFilterPeriod(e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent"
-              >
-                <option value="all">All Time</option>
-                <option value="week">Last 7 Days</option>
-                <option value="month">Last 30 Days</option>
-                <option value="year">Last Year</option>
-              </select>
-            </div>
-          </div>
+          <Button variant="outline" size="sm" className="h-7 text-xs">
+            <Download className="h-3 w-3 mr-1" />
+            Export
+          </Button>
         </div>
 
-        {/* Payment History */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200">
-          <div className="p-6 border-b border-gray-200">
-            <div className="flex items-center justify-between">
-              <div>
-                <h2 className="text-xl font-semibold text-gray-900">Payment History</h2>
-                <p className="text-gray-600 text-sm mt-1">
-                  {filteredPayments.length} payment{filteredPayments.length !== 1 ? 's' : ''} found
-                </p>
-              </div>
-              <Button variant="outline" size="sm">
-                <Download className="h-4 w-4 mr-2" />
-                Export
-              </Button>
-            </div>
+        {filteredPayments.length === 0 ? (
+          <div className="p-8 text-center">
+            <DollarSign className="h-10 w-10 text-gray-300 mx-auto mb-3" />
+            <h3 className="text-sm font-semibold text-gray-900 mb-1">
+              No Payments Found
+            </h3>
+            <p className="text-xs text-gray-500">
+              {payments.length === 0
+                ? "Complete deliveries to start earning!"
+                : "No payments match your filters."}
+            </p>
           </div>
-
-          {filteredPayments.length === 0 ? (
-            <div className="p-12 text-center">
-              <DollarSign className="h-16 w-16 text-gray-300 mx-auto mb-4" />
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                No Payments Found
-              </h3>
-              <p className="text-gray-600">
-                {payments.length === 0
-                  ? "You haven't received any payments yet. Complete deliveries to start earning!"
-                  : "No payments match your filters. Try adjusting your search criteria."}
-              </p>
-            </div>
           ) : (
-            <div className="divide-y divide-gray-200">
+            <div className="divide-y divide-gray-100">
               {filteredPayments.map((payment) => {
                 const driverEarning = payment.amount * 0.8
                 const shipment = payment.shipment
 
                 return (
-                  <div key={payment.id} className="p-6 hover:bg-gray-50 transition-colors">
+                  <div key={payment.id} className="px-4 py-3 hover:bg-gray-50 transition-colors">
                     <div className="flex items-start justify-between">
                       <div className="flex-1">
-                        <div className="flex items-center gap-3 mb-2">
-                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(payment.status)}`}>
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium ${getStatusColor(payment.status)}`}>
                             {payment.status.charAt(0).toUpperCase() + payment.status.slice(1)}
                           </span>
-                          <span className="text-sm text-gray-500">
+                          <span className="text-[10px] text-gray-400">
                             {formatDate(payment.created_at)}
                           </span>
                         </div>
 
                         {shipment && (
-                          <div className="space-y-1">
-                            <p className="text-sm font-medium text-gray-900">
+                          <div className="mt-1">
+                            <p className="text-xs font-medium text-gray-900">
                               {shipment.title || 'Vehicle Transport'}
                             </p>
-                            <p className="text-sm text-gray-600">
+                            <p className="text-[10px] text-gray-500 truncate">
                               {shipment.pickup_address} → {shipment.delivery_address}
                             </p>
-                            <p className="text-xs text-gray-500">
-                              {shipment.distance} miles • ID: {shipment.id.slice(0, 8)}
+                            <p className="text-[10px] text-gray-400">
+                              {shipment.distance} mi • {shipment.id.slice(0, 8)}
                             </p>
                           </div>
                         )}
                       </div>
 
-                      <div className="text-right ml-4">
-                        <p className="text-2xl font-bold text-teal-600">
+                      <div className="text-right ml-3">
+                        <p className="text-sm font-bold text-amber-600">
                           ${driverEarning.toFixed(2)}
                         </p>
-                        <p className="text-xs text-gray-500 mt-1">
-                          Total: ${payment.amount.toFixed(2)}
-                        </p>
-                        <p className="text-xs text-gray-500">
-                          (80% commission)
+                        <p className="text-[10px] text-gray-400">
+                          Total: ${payment.amount.toFixed(2)} (80%)
                         </p>
                       </div>
                     </div>
@@ -447,38 +430,26 @@ export default function DriverEarningsPage() {
           )}
         </div>
 
-        {/* Info Card */}
-        <div className="mt-8 bg-blue-50 border border-blue-200 rounded-lg p-6">
-          <div className="flex items-start gap-4">
-            <div className="p-3 bg-blue-500 rounded-lg">
-              <TrendingUp className="h-6 w-6 text-white" />
-            </div>
-            <div>
-              <h3 className="font-semibold text-gray-900 mb-2">
-                Maximize Your Earnings
-              </h3>
-              <p className="text-sm text-gray-700 mb-3">
-                Here are some tips to increase your income on DriveDrop:
-              </p>
-              <ul className="text-sm text-gray-700 space-y-1">
-                <li className="flex items-center gap-2">
-                  <CheckCircle className="h-4 w-4 text-green-600" />
-                  Accept longer distance deliveries for higher payouts
-                </li>
-                <li className="flex items-center gap-2">
-                  <CheckCircle className="h-4 w-4 text-green-600" />
-                  Maintain a high rating to get access to premium jobs
-                </li>
-                <li className="flex items-center gap-2">
-                  <CheckCircle className="h-4 w-4 text-green-600" />
-                  Complete deliveries quickly to take on more jobs
-                </li>
-                <li className="flex items-center gap-2">
-                  <CheckCircle className="h-4 w-4 text-green-600" />
-                  Provide excellent service for repeat customers
-                </li>
-              </ul>
-            </div>
+      {/* Tips */}
+      <div className="bg-amber-50 border border-amber-100 rounded-md p-3">
+        <div className="flex items-start gap-2">
+          <TrendingUp className="h-4 w-4 text-amber-600 mt-0.5" />
+          <div>
+            <h3 className="text-xs font-semibold text-gray-900 mb-1">Maximize Earnings</h3>
+            <ul className="text-[10px] text-gray-600 space-y-0.5">
+              <li className="flex items-center gap-1">
+                <CheckCircle className="h-3 w-3 text-green-500" />
+                Longer distance deliveries = higher payouts
+              </li>
+              <li className="flex items-center gap-1">
+                <CheckCircle className="h-3 w-3 text-green-500" />
+                High ratings unlock premium jobs
+              </li>
+              <li className="flex items-center gap-1">
+                <CheckCircle className="h-3 w-3 text-green-500" />
+                Fast completions enable more jobs
+              </li>
+            </ul>
           </div>
         </div>
       </div>

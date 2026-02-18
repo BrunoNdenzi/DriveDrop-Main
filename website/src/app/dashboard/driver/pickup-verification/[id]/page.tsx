@@ -376,9 +376,9 @@ export default function PickupVerificationPage({ params }: { params: { id: strin
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
+      <div className="flex items-center justify-center min-h-[300px]">
         <div className="text-center">
-          <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4 text-blue-600" />
+          <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4 text-amber-500" />
           <p className="text-gray-600">Loading verification form...</p>
         </div>
       </div>
@@ -387,11 +387,11 @@ export default function PickupVerificationPage({ params }: { params: { id: strin
 
   if (!shipment) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
+      <div className="flex items-center justify-center min-h-[300px]">
         <div className="text-center">
-          <AlertTriangle className="w-12 h-12 text-red-500 mx-auto mb-4" />
+          <AlertTriangle className="w-8 h-8 text-red-500 mx-auto mb-4" />
           <p className="text-gray-600">Shipment not found</p>
-          <OptimizedLink href="/dashboard/driver/active" className="text-blue-600 hover:underline mt-4 inline-block">
+          <OptimizedLink href="/dashboard/driver/active" className="text-amber-500 hover:underline mt-4 inline-block">
             Return to Active Deliveries
           </OptimizedLink>
         </div>
@@ -404,10 +404,10 @@ export default function PickupVerificationPage({ params }: { params: { id: strin
   const completionPercentage = (requiredPhotosCount / totalRequiredPhotos) * 100
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-20">
+    <div className="pb-8">
       {/* Header */}
-      <div className="bg-white border-b sticky top-0 z-10">
-        <div className="max-w-4xl mx-auto px-4 py-4">
+      <div className="bg-white border-b">
+        <div className="px-4 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
               <OptimizedLink 
@@ -417,14 +417,14 @@ export default function PickupVerificationPage({ params }: { params: { id: strin
                 <ChevronLeft className="w-6 h-6" />
               </OptimizedLink>
               <div>
-                <h1 className="text-xl font-bold text-gray-900">Pickup Verification</h1>
+                <h1 className="text-sm font-semibold text-gray-900">Pickup Verification</h1>
                 <p className="text-sm text-gray-600">
                   {shipment.vehicle_year} {shipment.vehicle_make} {shipment.vehicle_model}
                 </p>
               </div>
             </div>
             <div className="text-right">
-              <p className="text-2xl font-bold text-blue-600">{requiredPhotosCount}/{totalRequiredPhotos}</p>
+              <p className="text-lg font-bold text-amber-500">{requiredPhotosCount}/{totalRequiredPhotos}</p>
               <p className="text-xs text-gray-600">Required Photos</p>
             </div>
           </div>
@@ -433,7 +433,7 @@ export default function PickupVerificationPage({ params }: { params: { id: strin
           <div className="mt-4">
             <div className="w-full bg-gray-200 rounded-full h-2">
               <div 
-                className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                className="bg-amber-500 h-2 rounded-full transition-all duration-300"
                 style={{ width: `${completionPercentage}%` }}
               />
             </div>
@@ -441,9 +441,9 @@ export default function PickupVerificationPage({ params }: { params: { id: strin
         </div>
       </div>
 
-      <div className="max-w-4xl mx-auto px-4 py-6 space-y-6">
+      <div className="px-4 py-4 space-y-4">
         {/* Location Status */}
-        <div className={`p-4 rounded-lg border ${
+        <div className={`p-4 rounded-md border ${
           location 
             ? 'bg-green-50 border-green-200' 
             : 'bg-yellow-50 border-yellow-200'
@@ -473,7 +473,7 @@ export default function PickupVerificationPage({ params }: { params: { id: strin
         </div>
 
         {/* Instructions */}
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+        <div className="bg-blue-50 border border-blue-200 rounded-md p-4">
           <div className="flex items-start space-x-3">
             <Info className="w-5 h-5 text-blue-600 mt-0.5" />
             <div className="flex-1">
@@ -490,11 +490,11 @@ export default function PickupVerificationPage({ params }: { params: { id: strin
         </div>
 
         {/* Photo Capture Grid */}
-        <div className="bg-white rounded-lg border p-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">Vehicle Photos</h2>
+        <div className="bg-white rounded-md border p-4">
+          <h2 className="text-xs font-semibold uppercase tracking-wide text-gray-900 mb-4">Vehicle Photos</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {photos.map((photo) => (
-              <div key={photo.id} className="border rounded-lg overflow-hidden">
+              <div key={photo.id} className="border rounded-md overflow-hidden">
                 {photo.captured && photo.preview ? (
                   <div className="relative">
                     <img 
@@ -539,19 +539,19 @@ export default function PickupVerificationPage({ params }: { params: { id: strin
         </div>
 
         {/* Issues Section */}
-        <div className="bg-white rounded-lg border p-6">
+        <div className="bg-white rounded-md border p-4">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-semibold text-gray-900">Report Issues</h2>
+            <h2 className="text-xs font-semibold uppercase tracking-wide text-gray-900">Report Issues</h2>
             <button
               onClick={() => setShowIssueForm(!showIssueForm)}
-              className="text-sm text-blue-600 hover:text-blue-700 font-medium"
+              className="text-sm text-amber-500 hover:text-amber-600 font-medium"
             >
               {showIssueForm ? 'Cancel' : '+ Add Issue'}
             </button>
           </div>
 
           {showIssueForm && (
-            <div className="mb-4 p-4 bg-gray-50 rounded-lg space-y-3">
+            <div className="mb-4 p-4 bg-gray-50 rounded-md space-y-3">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Issue Type
@@ -559,7 +559,7 @@ export default function PickupVerificationPage({ params }: { params: { id: strin
                 <select
                   value={currentIssue.type || ''}
                   onChange={(e) => setCurrentIssue(prev => ({ ...prev, type: e.target.value as any }))}
-                  className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full px-3 py-2 border rounded-md focus:ring-1 focus:ring-amber-500 focus:border-transparent"
                 >
                   <option value="">Select issue type</option>
                   {ISSUE_TYPES.map(type => (
@@ -577,13 +577,13 @@ export default function PickupVerificationPage({ params }: { params: { id: strin
                   value={currentIssue.description || ''}
                   onChange={(e) => setCurrentIssue(prev => ({ ...prev, description: e.target.value }))}
                   rows={3}
-                  className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full px-3 py-2 border rounded-md focus:ring-1 focus:ring-amber-500 focus:border-transparent"
                   placeholder="Describe the issue in detail..."
                 />
               </div>
               <button
                 onClick={addIssue}
-                className="w-full bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 font-medium"
+                className="w-full bg-amber-500 text-white py-2 rounded-md hover:bg-amber-600 font-medium"
               >
                 Add Issue
               </button>
@@ -595,7 +595,7 @@ export default function PickupVerificationPage({ params }: { params: { id: strin
               {issues.map((issue, index) => (
                 <div 
                   key={index}
-                  className={`p-3 rounded-lg border flex items-start justify-between ${
+                  className={`p-3 rounded-md border flex items-start justify-between ${
                     issue.severity === 'major' 
                       ? 'bg-red-50 border-red-200' 
                       : issue.severity === 'moderate'
@@ -638,30 +638,30 @@ export default function PickupVerificationPage({ params }: { params: { id: strin
             </div>
           ) : (
             <div className="text-center py-8 text-gray-500">
-              <CheckCircle2 className="w-12 h-12 mx-auto mb-2 text-green-500" />
+              <CheckCircle2 className="w-8 h-8 mx-auto mb-2 text-green-500" />
               <p className="text-sm">No issues reported</p>
             </div>
           )}
         </div>
 
         {/* Additional Notes */}
-        <div className="bg-white rounded-lg border p-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">Additional Notes</h2>
+        <div className="bg-white rounded-md border p-4">
+          <h2 className="text-xs font-semibold uppercase tracking-wide text-gray-900 mb-4">Additional Notes</h2>
           <textarea
             value={verificationNotes}
             onChange={(e) => setVerificationNotes(e.target.value)}
             rows={4}
-            className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            className="w-full px-3 py-2 border rounded-md focus:ring-1 focus:ring-amber-500 focus:border-transparent"
             placeholder="Add any additional notes about the pickup (optional)..."
           />
         </div>
 
         {/* Submit Button */}
-        <div className="bg-white rounded-lg border p-6">
+        <div className="bg-white rounded-md border p-4">
           <button
             onClick={handleSubmit}
             disabled={submitting || requiredPhotosCount < totalRequiredPhotos || !location}
-            className="w-full bg-blue-600 text-white py-4 rounded-lg hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed font-semibold text-lg flex items-center justify-center space-x-2"
+            className="w-full bg-amber-500 text-white py-2 rounded-md hover:bg-amber-600 disabled:bg-gray-300 disabled:cursor-not-allowed font-semibold text-sm flex items-center justify-center space-x-2"
           >
             {submitting ? (
               <>

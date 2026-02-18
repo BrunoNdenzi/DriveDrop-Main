@@ -94,18 +94,18 @@ function ChangePasswordForm() {
   return (
     <>
       <Header />
-      <main className="min-h-screen pt-20 pb-16">
-        <div className="max-w-md mx-auto px-4 py-16">
-          <div className="bg-white rounded-2xl shadow-xl p-8">
+      <main className="min-h-screen pt-20 pb-16 bg-[hsl(var(--surface-field))]">
+        <div className="max-w-md mx-auto px-4 py-10">
+          <div className="bg-white border border-border rounded-md shadow-sm p-6">
             {/* Header */}
-            <div className="text-center mb-8">
-              <div className="inline-flex items-center justify-center w-16 h-16 bg-primary/10 rounded-full mb-4">
-                <Lock className="h-8 w-8 text-primary" />
+            <div className="text-center mb-6">
+              <div className="inline-flex items-center justify-center w-12 h-12 bg-blue-500 rounded-md mb-3">
+                <Lock className="h-6 w-6 text-white" />
               </div>
-              <h1 className="text-2xl font-bold text-gray-900">
+              <h1 className="text-2xl font-bold tracking-tight">
                 {required ? 'Password Change Required' : 'Change Password'}
               </h1>
-              <p className="text-gray-600 mt-2">
+              <p className="text-sm text-muted-foreground mt-1">
                 {required
                   ? 'For security reasons, please create a new password'
                   : 'Create a strong password to protect your account'}
@@ -113,17 +113,17 @@ function ChangePasswordForm() {
             </div>
 
             {success ? (
-              <div className="text-center py-8">
-                <CheckCircle className="h-16 w-16 text-green-500 mx-auto mb-4" />
-                <h2 className="text-xl font-semibold text-gray-900 mb-2">
+              <div className="text-center py-6">
+                <CheckCircle className="h-12 w-12 text-emerald-600 mx-auto mb-3" />
+                <h2 className="text-lg font-semibold mb-1">
                   Password Changed Successfully!
                 </h2>
-                <p className="text-gray-600">
+                <p className="text-sm text-muted-foreground">
                   Redirecting to your dashboard...
                 </p>
               </div>
             ) : (
-              <form onSubmit={handleSubmit} className="space-y-6">
+              <form onSubmit={handleSubmit} className="space-y-4">
                 {/* New Password */}
                 <div>
                   <Label htmlFor="newPassword">New Password</Label>
@@ -149,7 +149,7 @@ function ChangePasswordForm() {
                 {/* Password Requirements */}
                 {newPassword && (
                   <div className="space-y-2 text-sm">
-                    <p className="font-medium text-gray-700">Password must contain:</p>
+                    <p className="font-medium text-sm text-muted-foreground">Password must contain:</p>
                     <div className="space-y-1">
                       <RequirementItem met={passwordRequirements.minLength} text="At least 8 characters" />
                       <RequirementItem met={passwordRequirements.hasUpperCase} text="One uppercase letter" />
@@ -175,13 +175,13 @@ function ChangePasswordForm() {
                     <button
                       type="button"
                       onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
                     >
                       {showConfirmPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
                     </button>
                   </div>
                   {confirmPassword && (
-                    <p className={`text-sm mt-1 ${passwordsMatch ? 'text-green-600' : 'text-red-600'}`}>
+                    <p className={`text-sm mt-1 ${passwordsMatch ? 'text-emerald-600' : 'text-destructive'}`}>
                       {passwordsMatch ? '✓ Passwords match' : '✗ Passwords do not match'}
                     </p>
                   )}
@@ -189,7 +189,7 @@ function ChangePasswordForm() {
 
                 {/* Error Message */}
                 {error && (
-                  <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-red-700 text-sm">
+                  <div className="bg-destructive/10 border border-destructive/20 rounded-md p-3 text-destructive text-sm">
                     {error}
                   </div>
                 )}
@@ -218,9 +218,9 @@ function RequirementItem({ met, text }: { met: boolean; text: string }) {
       {met ? (
         <CheckCircle className="h-4 w-4 text-green-600" />
       ) : (
-        <XCircle className="h-4 w-4 text-gray-400" />
+        <XCircle className="h-4 w-4 text-muted-foreground" />
       )}
-      <span className={met ? 'text-green-700' : 'text-gray-600'}>{text}</span>
+      <span className={met ? 'text-emerald-700' : 'text-muted-foreground'}>{text}</span>
     </div>
   )
 }

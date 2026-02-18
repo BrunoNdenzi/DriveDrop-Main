@@ -250,11 +250,11 @@ function PaymentForm({ shipmentData, completionData, onPaymentComplete, onFinalS
             <Check className="h-10 w-10 text-green-600" />
           </div>
         </div>
-        <h3 className="text-2xl font-bold text-gray-900 mb-2">Payment Successful!</h3>
+        <h3 className="text-lg font-semibold text-gray-900 mb-2">Payment Successful!</h3>
         <p className="text-gray-600 mb-4">
           Your shipment has been created and the initial payment has been processed.
         </p>
-        <div className="bg-green-50 border border-green-200 rounded-lg p-4 max-w-md mx-auto">
+        <div className="bg-green-50 border border-green-200 rounded-md p-4 max-w-md mx-auto">
           <p className="text-sm text-green-800">
             You'll receive a confirmation email shortly. We'll notify you when a driver is assigned to your shipment.
           </p>
@@ -266,14 +266,14 @@ function PaymentForm({ shipmentData, completionData, onPaymentComplete, onFinalS
   // Wait for clientSecret before rendering Stripe Elements
   if (!clientSecret) {
     return (
-      <div className="space-y-6">
+      <div className="space-y-4">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">Payment</h2>
+          <h2 className="text-lg font-semibold text-gray-900 mb-2">Payment</h2>
           <p className="text-gray-600">Complete your payment to confirm the shipment</p>
         </div>
 
         {error ? (
-          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
+          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-md">
             {error}
           </div>
         ) : (
@@ -287,9 +287,9 @@ function PaymentForm({ shipmentData, completionData, onPaymentComplete, onFinalS
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
+    <form onSubmit={handleSubmit} className="space-y-4">
       {/* Payment Summary */}
-      <div className="bg-teal-50 border border-teal-200 rounded-lg p-6">
+      <div className="bg-blue-50 border border-blue-200 rounded-md p-4">
         <h3 className="font-semibold text-gray-900 mb-4">Payment Summary</h3>
         <div className="space-y-3">
           <div className="flex justify-between">
@@ -298,18 +298,18 @@ function PaymentForm({ shipmentData, completionData, onPaymentComplete, onFinalS
               ${shipmentData.estimatedPrice.toFixed(2)}
             </span>
           </div>
-          <div className="border-t border-teal-300 pt-3">
+          <div className="border-t border-blue-300 pt-3">
             <div className="flex justify-between items-center">
               <div>
                 <p className="font-semibold text-gray-900">Initial Payment (20%)</p>
                 <p className="text-sm text-gray-600">Charged today</p>
               </div>
-              <span className="text-2xl font-bold text-teal-600">
+              <span className="text-lg font-semibold text-blue-500">
                 ${(upfrontAmount / 100).toFixed(2)}
               </span>
             </div>
           </div>
-          <div className="border-t border-teal-300 pt-3">
+          <div className="border-t border-blue-300 pt-3">
             <div className="flex justify-between items-center text-gray-600">
               <div>
                 <p className="font-medium">Remaining Balance (80%)</p>
@@ -324,9 +324,9 @@ function PaymentForm({ shipmentData, completionData, onPaymentComplete, onFinalS
       </div>
 
       {/* Authorization Hold Info */}
-      <div className="bg-blue-50 border border-blue-200 rounded-lg p-5">
+      <div className="bg-blue-50 border border-blue-200 rounded-md p-4">
         <div className="flex items-start gap-3">
-          <div className="p-2 bg-blue-100 rounded-lg flex-shrink-0">
+          <div className="p-2 bg-blue-100 rounded-md flex-shrink-0">
             <Lock className="h-5 w-5 text-blue-600" />
           </div>
           <div className="flex-1">
@@ -374,7 +374,7 @@ function PaymentForm({ shipmentData, completionData, onPaymentComplete, onFinalS
       </div>
 
       {/* Remaining Payment Info - OLD VERSION - REMOVE THIS */}
-      <div className="hidden bg-blue-50 border border-blue-200 rounded-lg p-4">
+      <div className="hidden bg-blue-50 border border-blue-200 rounded-md p-4">
         <div className="flex items-start gap-3">
           <AlertCircle className="h-5 w-5 text-blue-600 mt-0.5 flex-shrink-0" />
           <div className="text-sm text-blue-900">
@@ -392,7 +392,7 @@ function PaymentForm({ shipmentData, completionData, onPaymentComplete, onFinalS
           <label className="block text-sm font-semibold text-gray-900 mb-3">
             Payment Method
           </label>
-          <div className="border-2 border-gray-300 rounded-lg p-4">
+          <div className="border-2 border-gray-300 rounded-md p-4">
             <PaymentElement
               options={{
                 layout: {
@@ -431,14 +431,14 @@ function PaymentForm({ shipmentData, completionData, onPaymentComplete, onFinalS
           </p>
         </div>
       ) : (
-        <div className="border-2 border-gray-300 rounded-lg p-8 text-center">
+        <div className="border-2 border-gray-300 rounded-md p-4 text-center">
           <Loader2 className="h-8 w-8 animate-spin mx-auto mb-3 text-gray-400" />
           <p className="text-gray-600">Initializing payment...</p>
         </div>
       )}
 
       {/* Billing Information */}
-      <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+      <div className="bg-gray-50 border border-gray-200 rounded-md p-4">
         <h4 className="font-semibold text-gray-900 mb-3 text-sm">Billing Information</h4>
         <div className="space-y-2 text-sm">
           <div className="flex justify-between">
@@ -458,7 +458,7 @@ function PaymentForm({ shipmentData, completionData, onPaymentComplete, onFinalS
 
       {/* Error Message */}
       {error && (
-        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+        <div className="bg-red-50 border border-red-200 rounded-md p-4">
           <div className="flex items-start gap-3">
             <AlertCircle className="h-5 w-5 text-red-600 mt-0.5 flex-shrink-0" />
             <p className="text-sm text-red-800">{error}</p>
@@ -467,7 +467,7 @@ function PaymentForm({ shipmentData, completionData, onPaymentComplete, onFinalS
       )}
 
       {/* Security Notice */}
-      <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+      <div className="bg-gray-50 border border-gray-200 rounded-md p-4">
         <div className="flex items-center gap-3">
           <Lock className="h-5 w-5 text-gray-600" />
           <p className="text-sm text-gray-700">
@@ -480,7 +480,7 @@ function PaymentForm({ shipmentData, completionData, onPaymentComplete, onFinalS
       <Button
         type="submit"
         disabled={!stripe || !clientSecret || processing}
-        className="w-full bg-teal-600 hover:bg-teal-700 text-white py-6 text-lg font-semibold"
+        className="w-full bg-blue-500 hover:bg-blue-600 text-white py-3 text-lg font-semibold"
       >
         {processing ? (
           <>
@@ -552,14 +552,14 @@ export default function PaymentStep(props: PaymentStepProps) {
   // Show loading state while waiting for clientSecret
   if (!clientSecret) {
     return (
-      <div className="space-y-6">
+      <div className="space-y-4">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">Payment</h2>
+          <h2 className="text-lg font-semibold text-gray-900 mb-2">Payment</h2>
           <p className="text-gray-600">Complete your payment to confirm the shipment</p>
         </div>
 
         {error ? (
-          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
+          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-md">
             {error}
           </div>
         ) : (

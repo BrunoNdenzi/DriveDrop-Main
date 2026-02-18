@@ -165,7 +165,7 @@ export default function JobDetailPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500"></div>
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-amber-500"></div>
       </div>
     )
   }
@@ -173,8 +173,8 @@ export default function JobDetailPage() {
   if (!job) {
     return (
       <div className="text-center py-12">
-        <AlertCircle className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-        <h2 className="text-xl font-semibold text-gray-900 mb-2">Job Not Found</h2>
+        <AlertCircle className="h-8 w-8 text-gray-400 mx-auto mb-4" />
+        <h2 className="text-sm font-semibold text-gray-900 mb-2">Job Not Found</h2>
         <p className="text-gray-600 mb-6">This job may have been taken by another driver.</p>
         <Button onClick={() => router.push('/dashboard/driver/jobs')}>
           View Available Jobs
@@ -186,7 +186,7 @@ export default function JobDetailPage() {
   const driverEarnings = job.estimated_price * 0.90 // 90% to driver
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {/* Header */}
       <div className="flex items-center gap-4">
         <Button
@@ -198,33 +198,33 @@ export default function JobDetailPage() {
           Back
         </Button>
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">{job.title}</h1>
+          <h1 className="text-lg font-semibold text-gray-900">{job.title}</h1>
           <p className="text-gray-600">Posted {formatDate(job.created_at)}</p>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         {/* Main Content */}
-        <div className="lg:col-span-2 space-y-6">
+        <div className="lg:col-span-2 space-y-4">
           {/* Earnings Card */}
-          <div className="bg-gradient-to-r from-green-500 to-green-600 rounded-xl p-6 text-white">
+          <div className="bg-white border rounded-md p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-green-100 mb-1">Your Earnings (90%)</p>
-                <p className="text-4xl font-bold">${driverEarnings.toFixed(2)}</p>
-                <p className="text-green-100 text-sm mt-2">
+                <p className="text-gray-500 mb-1">Your Earnings (90%)</p>
+                <p className="text-lg font-bold text-gray-900">${driverEarnings.toFixed(2)}</p>
+                <p className="text-gray-500 text-sm mt-2">
                   Total: ${job.estimated_price.toFixed(2)} • {job.distance} miles
                 </p>
               </div>
-              <DollarSign className="h-16 w-16 text-green-200" />
+              <DollarSign className="h-10 w-10 text-gray-300" />
             </div>
           </div>
 
           {/* Vehicle Information */}
-          <div className="bg-white rounded-xl p-6 border border-gray-200">
+          <div className="bg-white rounded-md p-4 border border-gray-200">
             <div className="flex items-center gap-3 mb-4">
-              <Car className="h-6 w-6 text-orange-500" />
-              <h2 className="text-xl font-semibold text-gray-900">Vehicle Information</h2>
+              <Car className="h-5 w-5 text-amber-500" />
+              <h2 className="text-sm font-semibold text-gray-900">Vehicle Information</h2>
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
@@ -253,7 +253,7 @@ export default function JobDetailPage() {
               </div>
               {job.is_accident_recovery && (
                 <div className="col-span-2">
-                  <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+                  <div className="bg-yellow-50 border border-yellow-200 rounded-md p-3">
                     <p className="text-sm font-medium text-yellow-800 flex items-center gap-2">
                       <AlertCircle className="h-4 w-4" />
                       Accident Recovery Vehicle
@@ -265,13 +265,13 @@ export default function JobDetailPage() {
           </div>
 
           {/* Pickup & Delivery */}
-          <div className="bg-white rounded-xl p-6 border border-gray-200">
-            <h2 className="text-xl font-semibold text-gray-900 mb-4">Route Details</h2>
+          <div className="bg-white rounded-md p-4 border border-gray-200">
+            <h2 className="text-sm font-semibold text-gray-900 mb-4">Route Details</h2>
             
             {/* Pickup */}
             <div className="mb-6">
               <div className="flex items-start gap-3 mb-2">
-                <div className="p-2 bg-green-100 rounded-lg">
+                <div className="p-2 bg-green-100 rounded-md">
                   <MapPin className="h-5 w-5 text-green-600" />
                 </div>
                 <div className="flex-1">
@@ -281,7 +281,7 @@ export default function JobDetailPage() {
                     {job.pickup_city}, {job.pickup_state} {job.pickup_zip}
                   </p>
                   {job.pickup_notes && (
-                    <div className="mt-2 bg-blue-50 border border-blue-200 rounded-lg p-3">
+                    <div className="mt-2 bg-blue-50 border border-blue-200 rounded-md p-3">
                       <p className="text-sm text-blue-900">
                         <strong>Notes:</strong> {job.pickup_notes}
                       </p>
@@ -303,7 +303,7 @@ export default function JobDetailPage() {
             {/* Delivery */}
             <div>
               <div className="flex items-start gap-3 mb-2">
-                <div className="p-2 bg-red-100 rounded-lg">
+                <div className="p-2 bg-red-100 rounded-md">
                   <MapPin className="h-5 w-5 text-red-600" />
                 </div>
                 <div className="flex-1">
@@ -313,7 +313,7 @@ export default function JobDetailPage() {
                     {job.delivery_city}, {job.delivery_state} {job.delivery_zip}
                   </p>
                   {job.delivery_notes && (
-                    <div className="mt-2 bg-blue-50 border border-blue-200 rounded-lg p-3">
+                    <div className="mt-2 bg-blue-50 border border-blue-200 rounded-md p-3">
                       <p className="text-sm text-blue-900">
                         <strong>Notes:</strong> {job.delivery_notes}
                       </p>
@@ -326,18 +326,18 @@ export default function JobDetailPage() {
 
           {/* Additional Details */}
           {job.description && (
-            <div className="bg-white rounded-xl p-6 border border-gray-200">
+            <div className="bg-white rounded-md p-4 border border-gray-200">
               <div className="flex items-center gap-3 mb-4">
-                <Info className="h-6 w-6 text-orange-500" />
-                <h2 className="text-xl font-semibold text-gray-900">Job Description</h2>
+                <Info className="h-5 w-5 text-amber-500" />
+                <h2 className="text-sm font-semibold text-gray-900">Job Description</h2>
               </div>
               <p className="text-gray-700">{job.description}</p>
             </div>
           )}
 
           {/* Additional Info */}
-          <div className="bg-white rounded-xl p-6 border border-gray-200">
-            <h2 className="text-xl font-semibold text-gray-900 mb-4">Additional Information</h2>
+          <div className="bg-white rounded-md p-4 border border-gray-200">
+            <h2 className="text-sm font-semibold text-gray-900 mb-4">Additional Information</h2>
             <div className="grid grid-cols-2 gap-4">
               {job.weight_kg && (
                 <div>
@@ -353,7 +353,7 @@ export default function JobDetailPage() {
               )}
               {job.is_fragile && (
                 <div className="col-span-2">
-                  <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+                  <div className="bg-yellow-50 border border-yellow-200 rounded-md p-3">
                     <p className="text-sm font-medium text-yellow-800 flex items-center gap-2">
                       <Package className="h-4 w-4" />
                       Handle with Extra Care - Fragile
@@ -366,13 +366,13 @@ export default function JobDetailPage() {
         </div>
 
         {/* Sidebar */}
-        <div className="space-y-6">
+        <div className="space-y-4">
           {/* Accept Job Card */}
-          <div className="bg-white rounded-xl p-6 border border-gray-200 sticky top-6">
+          <div className="bg-white rounded-md p-4 border border-gray-200">
             <Button
               onClick={handleAcceptJob}
               disabled={accepting}
-              className="w-full bg-orange-500 hover:bg-orange-600 text-white py-6 text-lg font-semibold mb-4"
+              className="w-full bg-amber-500 hover:bg-amber-600 text-white py-2 text-sm font-semibold mb-4"
             >
               {accepting ? (
                 <>
@@ -414,7 +414,7 @@ export default function JobDetailPage() {
           </div>
 
           {/* Client Info */}
-          <div className="bg-white rounded-xl p-6 border border-gray-200">
+          <div className="bg-white rounded-md p-4 border border-gray-200">
             <h3 className="font-semibold text-gray-900 mb-3">Client Information</h3>
             <div className="space-y-2 text-sm">
               <p className="text-gray-700">
@@ -427,7 +427,7 @@ export default function JobDetailPage() {
           </div>
 
           {/* Tips */}
-          <div className="bg-blue-50 rounded-xl p-6 border border-blue-200">
+          <div className="bg-blue-50 rounded-md p-4 border border-blue-200">
             <h3 className="font-semibold text-blue-900 mb-3 flex items-center gap-2">
               <Info className="h-5 w-5" />
               Before You Accept

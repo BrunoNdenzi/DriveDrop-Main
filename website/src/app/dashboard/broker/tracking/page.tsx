@@ -165,7 +165,7 @@ export default function BrokerTrackingPage() {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-teal-500 mx-auto"></div>
           <p className="mt-4 text-gray-600">Loading tracking data...</p>
         </div>
       </div>
@@ -173,30 +173,23 @@ export default function BrokerTrackingPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {/* Header */}
-      <div className="bg-gradient-to-r from-blue-600 to-indigo-700 rounded-2xl p-8 text-white">
+      <div className="border border-gray-200 rounded-md p-4">
         <div className="flex items-center justify-between flex-wrap gap-4">
           <div>
-            <h1 className="text-3xl font-bold mb-2">Live Tracking</h1>
-            <p className="text-blue-100">
+            <h1 className="text-lg font-semibold text-gray-900">Live Tracking</h1>
+            <p className="text-xs text-gray-500">
               Real-time monitoring of {activeShipments.length} active shipment{activeShipments.length !== 1 ? 's' : ''}
             </p>
           </div>
           <div className="flex gap-3">
             <Button
               onClick={() => loadData()}
-              className="bg-white text-blue-600 hover:bg-blue-50"
+              className="bg-teal-500 hover:bg-teal-600 text-white"
             >
               <RefreshCw className="h-4 w-4 mr-2" />
               Refresh
-            </Button>
-            <Button
-              onClick={() => router.push('/dashboard/broker')}
-              variant="outline"
-              className="bg-white/10 border-white/30 text-white hover:bg-white/20"
-            >
-              ← Back
             </Button>
           </div>
         </div>
@@ -204,10 +197,10 @@ export default function BrokerTrackingPage() {
 
       {/* Stats Bar */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <div className="bg-white rounded-xl border border-gray-200 p-4">
+        <div className="bg-white rounded-md border border-gray-200 p-4">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-              <Truck className="h-5 w-5 text-blue-600" />
+            <div className="w-9 h-9 bg-teal-100 rounded-md flex items-center justify-center">
+              <Truck className="h-5 w-5 text-teal-500" />
             </div>
             <div>
               <p className="text-xs text-gray-500">In Transit</p>
@@ -218,9 +211,9 @@ export default function BrokerTrackingPage() {
           </div>
         </div>
 
-        <div className="bg-white rounded-xl border border-gray-200 p-4">
+        <div className="bg-white rounded-md border border-gray-200 p-4">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-yellow-100 rounded-lg flex items-center justify-center">
+            <div className="w-9 h-9 bg-yellow-100 rounded-md flex items-center justify-center">
               <MapPin className="h-5 w-5 text-yellow-600" />
             </div>
             <div>
@@ -232,9 +225,9 @@ export default function BrokerTrackingPage() {
           </div>
         </div>
 
-        <div className="bg-white rounded-xl border border-gray-200 p-4">
+        <div className="bg-white rounded-md border border-gray-200 p-4">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
+            <div className="w-9 h-9 bg-green-100 rounded-md flex items-center justify-center">
               <Package className="h-5 w-5 text-green-600" />
             </div>
             <div>
@@ -246,9 +239,9 @@ export default function BrokerTrackingPage() {
           </div>
         </div>
 
-        <div className="bg-white rounded-xl border border-gray-200 p-4">
+        <div className="bg-white rounded-md border border-gray-200 p-4">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
+            <div className="w-9 h-9 bg-purple-100 rounded-md flex items-center justify-center">
               <Clock className="h-5 w-5 text-purple-600" />
             </div>
             <div>
@@ -261,11 +254,11 @@ export default function BrokerTrackingPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         {/* Shipments List */}
         <div className="lg:col-span-1 space-y-4">
           {/* Search & Filters */}
-          <div className="bg-white rounded-xl border border-gray-200 p-4">
+          <div className="bg-white rounded-md border border-gray-200 p-4">
             <div className="space-y-3">
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
@@ -274,14 +267,14 @@ export default function BrokerTrackingPage() {
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   placeholder="Search shipments..."
-                  className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                  className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-teal-500 focus:border-transparent text-sm"
                 />
               </div>
 
               <select
                 value={filterStatus}
                 onChange={(e) => setFilterStatus(e.target.value as any)}
-                className="w-full border border-gray-300 rounded-lg py-2 px-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                className="w-full border border-gray-300 rounded-md py-2 px-3 focus:outline-none focus:ring-1 focus:ring-teal-500 focus:border-transparent text-sm"
               >
                 <option value="all">All Statuses</option>
                 <option value="in_transit">In Transit</option>
@@ -294,7 +287,7 @@ export default function BrokerTrackingPage() {
                 <button
                   onClick={() => setAutoRefresh(!autoRefresh)}
                   className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                    autoRefresh ? 'bg-blue-600' : 'bg-gray-200'
+                    autoRefresh ? 'bg-teal-500' : 'bg-gray-200'
                   }`}
                 >
                   <span
@@ -310,8 +303,8 @@ export default function BrokerTrackingPage() {
           {/* Shipments */}
           <div className="space-y-3 max-h-[600px] overflow-y-auto">
             {filteredShipments.length === 0 ? (
-              <div className="bg-white rounded-xl border border-gray-200 p-8 text-center">
-                <AlertCircle className="h-12 w-12 text-gray-400 mx-auto mb-3" />
+              <div className="bg-white rounded-md border border-gray-200 p-6 text-center">
+                <AlertCircle className="h-8 w-8 text-gray-400 mx-auto mb-3" />
                 <p className="text-sm font-medium text-gray-900 mb-1">No active shipments</p>
                 <p className="text-xs text-gray-500">
                   {searchTerm || filterStatus !== 'all' 
@@ -324,14 +317,14 @@ export default function BrokerTrackingPage() {
                 <div
                   key={shipment.id}
                   onClick={() => setSelectedShipment(shipment)}
-                  className={`bg-white rounded-xl border p-4 cursor-pointer transition-all hover:shadow-md ${
+                  className={`bg-white rounded-md border p-3 cursor-pointer transition-colors ${
                     selectedShipment?.id === shipment.id
-                      ? 'border-blue-500 ring-2 ring-blue-200'
+                      ? 'border-teal-500 ring-2 ring-teal-200'
                       : 'border-gray-200'
                   }`}
                 >
                   {/* Status Badge */}
-                  <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center justify-between mb-2">
                     <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium border ${getStatusColor(shipment.status)}`}>
                       <Navigation className="h-3 w-3" />
                       {getStatusLabel(shipment.status)}
@@ -340,7 +333,7 @@ export default function BrokerTrackingPage() {
                   </div>
 
                   {/* Route */}
-                  <div className="space-y-2 mb-3">
+                  <div className="space-y-2 mb-2">
                     <div className="flex items-start gap-2">
                       <div className="w-2 h-2 bg-green-500 rounded-full mt-1.5"></div>
                       <div className="flex-1">
@@ -383,13 +376,13 @@ export default function BrokerTrackingPage() {
         {/* Map & Details */}
         <div className="lg:col-span-2 space-y-4">
           {/* Map */}
-          <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+          <div className="bg-white rounded-md border border-gray-200 overflow-hidden">
             <div className="h-[500px] bg-gray-100 relative">
               {/* Placeholder for actual map */}
               <div className="absolute inset-0 flex items-center justify-center">
                 <div className="text-center">
-                  <MapPin className="h-16 w-16 text-gray-400 mx-auto mb-4" />
-                  <p className="text-lg font-semibold text-gray-900 mb-2">Interactive Map</p>
+                  <MapPin className="h-10 w-10 text-gray-400 mx-auto mb-3" />
+                  <p className="text-sm font-semibold text-gray-900 mb-2">Interactive Map</p>
                   <p className="text-sm text-gray-600 max-w-md">
                     Real-time tracking map will be displayed here showing all active shipments and driver locations.
                   </p>
@@ -412,7 +405,7 @@ export default function BrokerTrackingPage() {
 
               {/* Map Controls */}
               <div className="absolute top-4 right-4 flex flex-col gap-2">
-                <button className="bg-white p-2 rounded-lg shadow-lg hover:bg-gray-50 transition-colors">
+                <button className="bg-white p-2 rounded-md shadow hover:bg-gray-50 transition-colors">
                   <Maximize2 className="h-5 w-5 text-gray-700" />
                 </button>
               </div>
@@ -421,21 +414,21 @@ export default function BrokerTrackingPage() {
 
           {/* Selected Shipment Details */}
           {selectedShipment && (
-            <div className="bg-white rounded-xl border border-gray-200 p-6">
-              <div className="flex items-center justify-between mb-6">
-                <h3 className="text-lg font-bold text-gray-900">Shipment Details</h3>
+            <div className="bg-white rounded-md border border-gray-200 p-4">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-sm font-semibold text-gray-900">Shipment Details</h3>
                 <button
                   onClick={() => setSelectedShipment(null)}
-                  className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                  className="p-2 hover:bg-gray-100 rounded-md transition-colors"
                 >
                   <X className="h-5 w-5 text-gray-500" />
                 </button>
               </div>
 
-              <div className="grid grid-cols-2 gap-6">
+              <div className="grid grid-cols-2 gap-4">
                 {/* Carrier Info */}
                 <div>
-                  <h4 className="text-xs font-semibold text-gray-500 uppercase mb-3">Carrier</h4>
+                  <h4 className="text-xs font-semibold text-gray-500 uppercase mb-2">Carrier</h4>
                   <div className="space-y-2">
                     <div className="flex items-center gap-2">
                       <User className="h-4 w-4 text-gray-400" />
@@ -448,7 +441,7 @@ export default function BrokerTrackingPage() {
                         <Phone className="h-4 w-4 text-gray-400" />
                         <a 
                           href={`tel:${selectedShipment.assignment.carrier.phone}`}
-                          className="text-sm text-blue-600 hover:text-blue-700"
+                          className="text-sm text-teal-600 hover:text-teal-700"
                         >
                           {selectedShipment.assignment.carrier.phone}
                         </a>
@@ -459,7 +452,7 @@ export default function BrokerTrackingPage() {
 
                 {/* Vehicle Info */}
                 <div>
-                  <h4 className="text-xs font-semibold text-gray-500 uppercase mb-3">Vehicle</h4>
+                  <h4 className="text-xs font-semibold text-gray-500 uppercase mb-2">Vehicle</h4>
                   <div className="space-y-2">
                     <p className="text-sm text-gray-900">
                       {selectedShipment.assignment.load_board?.shipment?.vehicle_year}{' '}
@@ -474,15 +467,15 @@ export default function BrokerTrackingPage() {
 
                 {/* Commission */}
                 <div>
-                  <h4 className="text-xs font-semibold text-gray-500 uppercase mb-3">Commission</h4>
-                  <p className="text-xl font-bold text-green-600">
+                  <h4 className="text-xs font-semibold text-gray-500 uppercase mb-2">Commission</h4>
+                  <p className="text-lg font-bold text-green-600">
                     ${selectedShipment.assignment.broker_commission?.toLocaleString() || 'N/A'}
                   </p>
                 </div>
 
                 {/* Status */}
                 <div>
-                  <h4 className="text-xs font-semibold text-gray-500 uppercase mb-3">Status</h4>
+                  <h4 className="text-xs font-semibold text-gray-500 uppercase mb-2">Status</h4>
                   <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-sm font-medium border ${getStatusColor(selectedShipment.status)}`}>
                     <Navigation className="h-4 w-4" />
                     {getStatusLabel(selectedShipment.status)}
@@ -490,7 +483,7 @@ export default function BrokerTrackingPage() {
                 </div>
               </div>
 
-              <div className="mt-6 pt-6 border-t border-gray-200">
+              <div className="mt-4 pt-4 border-t border-gray-200">
                 <div className="flex gap-3">
                   <Button
                     onClick={() => router.push(`/dashboard/broker/assignments/${selectedShipment.id}`)}
@@ -504,7 +497,7 @@ export default function BrokerTrackingPage() {
                       // Center map on this shipment
                       console.log('Center map on shipment');
                     }}
-                    className="flex-1 bg-blue-600 hover:bg-blue-700 text-white"
+                    className="flex-1 bg-teal-500 hover:bg-teal-600 text-white"
                   >
                     <MapPin className="h-4 w-4 mr-2" />
                     Center on Map

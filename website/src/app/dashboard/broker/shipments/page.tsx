@@ -141,17 +141,17 @@ export default function BrokerShipmentsPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-teal-500"></div>
       </div>
     );
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">My Shipments</h1>
+          <h1 className="text-lg font-semibold text-gray-900">My Shipments</h1>
           <p className="text-gray-600 mt-1">Manage shipments you've created for your clients</p>
         </div>
         <div className="flex items-center gap-3">
@@ -165,7 +165,7 @@ export default function BrokerShipmentsPage() {
           </Button>
           <Button
             onClick={() => router.push('/dashboard/broker/shipments/create')}
-            className="bg-blue-600 hover:bg-blue-700 gap-2"
+            className="bg-teal-500 hover:bg-teal-600 gap-2"
           >
             <Plus className="h-4 w-4" />
             Create Shipment
@@ -175,57 +175,57 @@ export default function BrokerShipmentsPage() {
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <div className="bg-white rounded-xl p-6 border border-gray-200">
+        <div className="bg-white rounded-md p-4 border border-gray-200">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-gray-600 font-medium">Total Shipments</p>
-              <p className="text-3xl font-bold text-gray-900 mt-2">{stats.total}</p>
+              <p className="text-xl font-bold text-gray-900 mt-2">{stats.total}</p>
             </div>
-            <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
-              <Package className="h-6 w-6 text-blue-600" />
+            <div className="p-2 bg-blue-100 rounded-lg flex items-center justify-center">
+              <Package className="h-5 w-5 text-blue-600" />
             </div>
           </div>
         </div>
 
-        <div className="bg-white rounded-xl p-6 border border-gray-200">
+        <div className="bg-white rounded-md p-4 border border-gray-200">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-gray-600 font-medium">Pending</p>
-              <p className="text-3xl font-bold text-yellow-600 mt-2">{stats.pending}</p>
+              <p className="text-xl font-bold text-yellow-600 mt-2">{stats.pending}</p>
             </div>
-            <div className="w-12 h-12 bg-yellow-100 rounded-lg flex items-center justify-center">
-              <Clock className="h-6 w-6 text-yellow-600" />
+            <div className="p-2 bg-yellow-100 rounded-lg flex items-center justify-center">
+              <Clock className="h-5 w-5 text-yellow-600" />
             </div>
           </div>
         </div>
 
-        <div className="bg-white rounded-xl p-6 border border-gray-200">
+        <div className="bg-white rounded-md p-4 border border-gray-200">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-gray-600 font-medium">Active</p>
-              <p className="text-3xl font-bold text-orange-600 mt-2">{stats.active}</p>
+              <p className="text-xl font-bold text-orange-600 mt-2">{stats.active}</p>
             </div>
-            <div className="w-12 h-12 bg-orange-100 rounded-lg flex items-center justify-center">
-              <TrendingUp className="h-6 w-6 text-orange-600" />
+            <div className="p-2 bg-orange-100 rounded-lg flex items-center justify-center">
+              <TrendingUp className="h-5 w-5 text-orange-600" />
             </div>
           </div>
         </div>
 
-        <div className="bg-white rounded-xl p-6 border border-gray-200">
+        <div className="bg-white rounded-md p-4 border border-gray-200">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-gray-600 font-medium">Completed</p>
-              <p className="text-3xl font-bold text-green-600 mt-2">{stats.completed}</p>
+              <p className="text-xl font-bold text-green-600 mt-2">{stats.completed}</p>
             </div>
-            <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
-              <CheckCircle className="h-6 w-6 text-green-600" />
+            <div className="p-2 bg-green-100 rounded-lg flex items-center justify-center">
+              <CheckCircle className="h-5 w-5 text-green-600" />
             </div>
           </div>
         </div>
       </div>
 
       {/* Filters */}
-      <div className="bg-white rounded-xl border border-gray-200 p-4">
+      <div className="bg-white rounded-md border border-gray-200 p-4">
         <div className="flex flex-col md:flex-row gap-4">
           {/* Search */}
           <div className="flex-1 relative">
@@ -261,10 +261,10 @@ export default function BrokerShipmentsPage() {
       </div>
 
       {/* Shipments Table */}
-      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+      <div className="bg-white rounded-md border border-gray-200 overflow-hidden">
         {filteredShipments.length === 0 ? (
-          <div className="text-center py-12">
-            <Package className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+          <div className="text-center p-8">
+            <Package className="h-8 w-8 text-gray-400 mx-auto mb-4" />
             <h3 className="text-lg font-semibold text-gray-900 mb-2">
               {searchTerm || statusFilter !== 'all' ? 'No shipments found' : 'No shipments yet'}
             </h3>
@@ -275,7 +275,7 @@ export default function BrokerShipmentsPage() {
             </p>
             <Button
               onClick={() => router.push('/dashboard/broker/shipments/create')}
-              className="bg-blue-600 hover:bg-blue-700"
+              className="bg-teal-500 hover:bg-teal-600"
             >
               <Plus className="h-4 w-4 mr-2" />
               Create First Shipment

@@ -177,16 +177,16 @@ export default function QuoteCalculator() {
   }
 
   return (
-    <section id="quote" className="py-12 bg-muted/50">
-      <div className="container">
-        <div className="mx-auto max-w-2xl text-center">
-          <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">Get Instant Quote</h2>
-          <p className="mt-3 text-base text-muted-foreground">
-            Calculate your shipping cost in seconds
-          </p>
-        </div>
+    <section id="quote" className="border-b border-border bg-[hsl(var(--surface-field))]">
+      {/* Section Header */}
+      <div className="px-6 py-3 border-b border-border">
+        <h2 className="text-base font-semibold text-foreground tracking-tight">Request Quote</h2>
+        <p className="text-xs text-muted-foreground mt-0.5">
+          Calculate shipment cost by route and vehicle type
+        </p>
+      </div>
 
-        <div className="mt-8 mx-auto max-w-3xl">
+      <div className="px-6 py-6 max-w-3xl">
           <Card>
             <CardHeader>
               <CardTitle>Shipment Details</CardTitle>
@@ -392,7 +392,6 @@ export default function QuoteCalculator() {
             </Card>
           )}
         </div>
-      </div>
     </section>
   )
 }

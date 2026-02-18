@@ -40,7 +40,7 @@ export const EmailTemplates: Record<EmailTemplateType, EmailTemplate> = {
           </div>
           <div class="content">
             <h2>Hi {{firstName}},</h2>
-            <p>Welcome to DriveDrop, Texas' premier vehicle shipping platform! We're excited to help you ship vehicles safely and efficiently.</p>
+            <p>Welcome to DriveDrop, Carolina' premier vehicle shipping platform! We're excited to help you ship vehicles safely and efficiently.</p>
             
             <div class="info-box">
               <strong>🎯 What you can do now:</strong>
@@ -66,7 +66,7 @@ export const EmailTemplates: Record<EmailTemplateType, EmailTemplate> = {
       </body>
       </html>
     `,
-    textContent: `Welcome to DriveDrop, {{firstName}}!\n\nWe're excited to help you ship vehicles safely and efficiently across Texas.\n\nAccess your dashboard: {{dashboardUrl}}\n\nNeed help? Contact us at support@drivedrop.us.com`
+    textContent: `Welcome to DriveDrop, {{firstName}}!\n\nWe're excited to help you ship vehicles safely and efficiently across Carolina.\n\nAccess your dashboard: {{dashboardUrl}}\n\nNeed help? Contact us at support@drivedrop.us.com`
   },
 
   shipment_created: {
@@ -249,7 +249,7 @@ export const EmailTemplates: Record<EmailTemplateType, EmailTemplate> = {
           </div>
           <div class="content">
             <h2>Welcome to DriveDrop, {{firstName}}!</h2>
-            <p>You're now part of Texas' fastest-growing vehicle logistics network.</p>
+            <p>You're now part of Carolina' fastest-growing vehicle logistics network.</p>
 
             <div class="info-box">
               <strong>🎯 Get Started:</strong>

@@ -45,7 +45,7 @@ private extractZipFromAddress(address: string): string | null {
 
 **Test Results**:
 ```
-"Dallas, Texas 75202" → "75202" ✅
+"Dallas, Carolina 75202" → "75202" ✅
 "San Diego, California 92116" → "92116" ✅
 ```
 
@@ -54,7 +54,7 @@ Added hardcoded coordinates for common US ZIP codes:
 ```typescript
 private lookupZipCoordinates(zip: string): { lat: number; lng: number } | null {
   const zipMap: Record<string, { lat: number; lng: number }> = {
-    // Texas
+    // Carolina
     '75202': { lat: 32.7767, lng: -96.7970 }, // Dallas
     '77001': { lat: 29.7604, lng: -95.3698 }, // Houston
     '78701': { lat: 30.2672, lng: -97.7431 }, // Austin
@@ -242,7 +242,7 @@ Straight-line distance needs adjustment for actual road routes:
 
 ### Distance Calculation
 - [x] Dallas 75202 → San Diego 92116: 1,358.9 miles (0.1% error) ✅
-- [x] ZIP extraction from "Dallas, Texas 75202": "75202" ✅
+- [x] ZIP extraction from "Dallas, Carolina 75202": "75202" ✅
 - [x] ZIP extraction from "San Diego, California 92116": "92116" ✅
 - [x] Coordinate lookup for 75202: (32.7767, -96.7970) ✅
 - [x] Coordinate lookup for 92116: (32.7157, -117.1611) ✅

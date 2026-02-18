@@ -368,9 +368,9 @@ export default function DeliveryCompletePage({ params }: { params: { id: string 
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
+      <div className="flex items-center justify-center min-h-[300px]">
         <div className="text-center">
-          <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4 text-blue-600" />
+          <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4 text-amber-500" />
           <p className="text-gray-600">Loading delivery form...</p>
         </div>
       </div>
@@ -379,10 +379,10 @@ export default function DeliveryCompletePage({ params }: { params: { id: string 
 
   if (!shipment) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
+      <div className="flex items-center justify-center min-h-[300px]">
         <div className="text-center">
           <p className="text-gray-600">Shipment not found</p>
-          <OptimizedLink href="/dashboard/driver/active" className="text-blue-600 hover:underline mt-4 inline-block">
+          <OptimizedLink href="/dashboard/driver/active" className="text-amber-500 hover:underline mt-4 inline-block">
             Return to Active Deliveries
           </OptimizedLink>
         </div>
@@ -394,20 +394,20 @@ export default function DeliveryCompletePage({ params }: { params: { id: string 
   const totalRequired = photos.filter(p => p.id !== 'handover').length
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-20">
+    <div className="pb-8">
       {/* Header */}
-      <div className="bg-white border-b sticky top-0 z-10">
-        <div className="max-w-4xl mx-auto px-4 py-4">
+      <div className="bg-white border-b">
+        <div className="px-4 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
               <OptimizedLink 
                 href={`/dashboard/driver/active/${params.id}`}
                 className="text-gray-600 hover:text-gray-900"
               >
-                <ChevronLeft className="w-6 h-6" />
+                <ChevronLeft className="w-5 h-5" />
               </OptimizedLink>
               <div>
-                <h1 className="text-xl font-bold text-gray-900">Complete Delivery</h1>
+                <h1 className="text-sm font-semibold text-gray-900">Complete Delivery</h1>
                 <p className="text-sm text-gray-600">
                   {shipment.vehicle_year} {shipment.vehicle_make} {shipment.vehicle_model}
                 </p>
@@ -415,7 +415,7 @@ export default function DeliveryCompletePage({ params }: { params: { id: string 
             </div>
             {shipment.payment && shipment.payment.length > 0 && (
               <div className="text-right">
-                <p className="text-2xl font-bold text-green-600">
+                <p className="text-lg font-bold text-green-600">
                   ${shipment.payment[0].driver_payout.toFixed(2)}
                 </p>
                 <p className="text-xs text-gray-600">Your Earnings</p>
@@ -425,9 +425,9 @@ export default function DeliveryCompletePage({ params }: { params: { id: string 
         </div>
       </div>
 
-      <div className="max-w-4xl mx-auto px-4 py-6 space-y-6">
+      <div className="px-4 py-4 space-y-4">
         {/* Delivery Address */}
-        <div className="bg-white rounded-lg border p-4">
+        <div className="bg-white rounded-md border p-4">
           <div className="flex items-start space-x-3">
             <MapPin className="w-5 h-5 text-red-600 mt-0.5" />
             <div className="flex-1">
@@ -443,10 +443,10 @@ export default function DeliveryCompletePage({ params }: { params: { id: string 
 
         {/* Payment Info */}
         {shipment.payment && shipment.payment.length > 0 && (
-          <div className="bg-gradient-to-r from-green-50 to-teal-50 rounded-lg border border-green-200 p-6">
+          <div className="bg-gray-50 rounded-md border border-green-200 p-4">
             <div className="flex items-start space-x-3">
-              <div className="p-2 bg-green-100 rounded-lg">
-                <DollarSign className="w-6 h-6 text-green-600" />
+              <div className="p-2 bg-green-100 rounded-md">
+                <DollarSign className="w-5 h-5 text-green-600" />
               </div>
               <div className="flex-1">
                 <h3 className="font-semibold text-gray-900 mb-2">Final Payment Capture</h3>
@@ -455,13 +455,13 @@ export default function DeliveryCompletePage({ params }: { params: { id: string 
                   This ensures instant payment with no cash handling required.
                 </p>
                 <div className="grid grid-cols-2 gap-4">
-                  <div className="bg-white rounded-lg p-3 border border-green-200">
+                  <div className="bg-white rounded-md p-3 border border-green-200">
                     <p className="text-xs text-gray-600 mb-1">Already Paid (20%)</p>
                     <p className="text-lg font-bold text-gray-900">
                       ${((shipment.payment[0].amount * 0.2) / 100).toFixed(2)}
                     </p>
                   </div>
-                  <div className="bg-white rounded-lg p-3 border border-green-200">
+                  <div className="bg-white rounded-md p-3 border border-green-200">
                     <p className="text-xs text-gray-600 mb-1">Will be Captured (80%)</p>
                     <p className="text-lg font-bold text-green-600">
                       ${((shipment.payment[0].amount * 0.8) / 100).toFixed(2)}
@@ -471,7 +471,7 @@ export default function DeliveryCompletePage({ params }: { params: { id: string 
                 <div className="mt-3 pt-3 border-t border-green-200">
                   <div className="flex items-center justify-between">
                     <span className="text-sm font-medium text-gray-700">Your Earnings (80% of total)</span>
-                    <span className="text-xl font-bold text-green-600">
+                    <span className="text-sm font-semibold text-green-600">
                       ${shipment.payment[0].driver_payout.toFixed(2)}
                     </span>
                   </div>
@@ -482,16 +482,16 @@ export default function DeliveryCompletePage({ params }: { params: { id: string 
         )}
 
         {/* Delivery Photos */}
-        <div className="bg-white rounded-lg border p-6">
+        <div className="bg-white rounded-md border p-4">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-semibold text-gray-900">Delivery Photos</h2>
+            <h2 className="text-xs font-semibold uppercase tracking-wide text-gray-900">Delivery Photos</h2>
             <span className="text-sm text-gray-600">
               {requiredPhotoCount}/{totalRequired} Required
             </span>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {photos.map((photo) => (
-              <div key={photo.id} className="border rounded-lg overflow-hidden">
+              <div key={photo.id} className="border rounded-md overflow-hidden">
                 {photo.captured && photo.preview ? (
                   <div className="relative">
                     <img 
@@ -536,8 +536,8 @@ export default function DeliveryCompletePage({ params }: { params: { id: string 
         </div>
 
         {/* Client Confirmation */}
-        <div className="bg-white rounded-lg border p-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">Client Confirmation</h2>
+        <div className="bg-white rounded-md border p-4">
+          <h2 className="text-xs font-semibold uppercase tracking-wide text-gray-900 mb-4">Client Confirmation</h2>
           
           <div className="space-y-4">
             <div className="flex items-center space-x-3">
@@ -546,7 +546,7 @@ export default function DeliveryCompletePage({ params }: { params: { id: string 
                 id="clientPresent"
                 checked={clientPresent}
                 onChange={(e) => setClientPresent(e.target.checked)}
-                className="w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500"
+                className="w-4 h-4 text-amber-500 rounded focus:ring-1 focus:ring-amber-500"
               />
               <label htmlFor="clientPresent" className="text-gray-700">
                 Client was present at delivery
@@ -563,7 +563,7 @@ export default function DeliveryCompletePage({ params }: { params: { id: string 
                     type="text"
                     value={clientName}
                     onChange={(e) => setClientName(e.target.value)}
-                    className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="w-full px-3 py-2 border rounded-md focus:ring-1 focus:ring-amber-500 focus:border-transparent"
                     placeholder="Enter client name"
                   />
                 </div>
@@ -576,7 +576,7 @@ export default function DeliveryCompletePage({ params }: { params: { id: string 
                     type="text"
                     value={clientSignature}
                     onChange={(e) => setClientSignature(e.target.value)}
-                    className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent font-script text-xl"
+                    className="w-full px-3 py-2 border rounded-md focus:ring-1 focus:ring-amber-500 focus:border-transparent font-script text-xl"
                     placeholder="Type signature"
                   />
                   <p className="text-xs text-gray-500 mt-1">
@@ -587,7 +587,7 @@ export default function DeliveryCompletePage({ params }: { params: { id: string 
             )}
 
             {!clientPresent && (
-              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+              <div className="bg-yellow-50 border border-yellow-200 rounded-md p-3">
                 <p className="text-sm text-yellow-800">
                   Please ensure you have authorization to leave the vehicle at this location.
                   Take clear photos documenting the delivery location.
@@ -598,23 +598,23 @@ export default function DeliveryCompletePage({ params }: { params: { id: string 
         </div>
 
         {/* Delivery Notes */}
-        <div className="bg-white rounded-lg border p-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">Delivery Notes</h2>
+        <div className="bg-white rounded-md border p-4">
+          <h2 className="text-xs font-semibold uppercase tracking-wide text-gray-900 mb-4">Delivery Notes</h2>
           <textarea
             value={deliveryNotes}
             onChange={(e) => setDeliveryNotes(e.target.value)}
             rows={4}
-            className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            className="w-full px-3 py-2 border rounded-md focus:ring-1 focus:ring-amber-500 focus:border-transparent"
             placeholder="Add any notes about the delivery (optional)..."
           />
         </div>
 
         {/* Summary Card */}
         {shipment.payment && shipment.payment.length > 0 && (
-          <div className="bg-gradient-to-br from-blue-50 to-green-50 rounded-lg border border-blue-200 p-6">
+          <div className="bg-gray-50 rounded-md border border-blue-200 p-4">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-gray-900">Delivery Summary</h3>
-              <DollarSign className="w-6 h-6 text-green-600" />
+              <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-900">Delivery Summary</h3>
+              <DollarSign className="w-5 h-5 text-green-600" />
             </div>
             <div className="space-y-3">
               <div className="flex justify-between">
@@ -627,7 +627,7 @@ export default function DeliveryCompletePage({ params }: { params: { id: string 
               </div>
               <div className="flex justify-between pt-3 border-t">
                 <span className="text-gray-900 font-semibold">Your Earnings</span>
-                <span className="text-2xl font-bold text-green-600">
+                <span className="text-lg font-bold text-green-600">
                   ${shipment.payment[0].driver_payout.toFixed(2)}
                 </span>
               </div>
@@ -636,11 +636,11 @@ export default function DeliveryCompletePage({ params }: { params: { id: string 
         )}
 
         {/* Complete Button */}
-        <div className="bg-white rounded-lg border p-6">
+        <div className="bg-white rounded-md border p-4">
           <button
             onClick={handleSubmit}
             disabled={submitting || requiredPhotoCount < totalRequired || !location}
-            className="w-full bg-green-600 text-white py-4 rounded-lg hover:bg-green-700 disabled:bg-gray-300 disabled:cursor-not-allowed font-semibold text-lg flex items-center justify-center space-x-2"
+            className="w-full bg-green-600 text-white py-2 rounded-md hover:bg-green-700 disabled:bg-gray-300 disabled:cursor-not-allowed font-semibold text-sm flex items-center justify-center space-x-2"
           >
             {submitting ? (
               <>
@@ -666,10 +666,10 @@ export default function DeliveryCompletePage({ params }: { params: { id: string 
 
         {/* Contact Client */}
         {shipment.client && (
-          <div className="bg-white rounded-lg border p-4">
+          <div className="bg-white rounded-md border p-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-3">
-                <MessageCircle className="w-5 h-5 text-blue-600" />
+                <MessageCircle className="w-5 h-5 text-amber-500" />
                 <div>
                   <p className="font-medium text-gray-900">Need to contact client?</p>
                   <p className="text-sm text-gray-600">{shipment.client.first_name} {shipment.client.last_name}</p>
@@ -677,7 +677,7 @@ export default function DeliveryCompletePage({ params }: { params: { id: string 
               </div>
               <a
                 href={`tel:${shipment.client.phone}`}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium"
+                className="px-4 py-2 bg-amber-500 text-white rounded-md hover:bg-amber-600 text-sm font-medium"
               >
                 Call Client
               </a>

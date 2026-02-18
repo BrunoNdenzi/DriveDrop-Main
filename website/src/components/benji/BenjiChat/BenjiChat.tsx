@@ -184,7 +184,7 @@ export const BenjiChat = ({
             whileHover={{ scale: 1.1 }}
             whileTap={{ scale: 0.95 }}
             onClick={() => setIsOpen(true)}
-            className="fixed bottom-6 right-6 w-16 h-16 bg-gradient-to-br from-teal-500 to-purple-600 rounded-full shadow-2xl flex items-center justify-center z-50 hover:shadow-teal-500/50 transition-shadow"
+            className="fixed bottom-6 right-6 w-16 h-16 bg-blue-500 rounded-full border border-gray-200 flex items-center justify-center z-50"
           >
             <Bot className="w-7 h-7 text-white" />
             <motion.div
@@ -211,10 +211,10 @@ export const BenjiChat = ({
             }}
             exit={{ opacity: 0, y: 100, scale: 0.8 }}
             transition={{ type: 'spring', damping: 25 }}
-            className="fixed bottom-6 right-6 w-[400px] bg-white rounded-3xl shadow-2xl z-50 flex flex-col overflow-hidden border border-gray-200"
+            className="fixed bottom-6 right-6 w-[400px] bg-white rounded-3xl z-50 flex flex-col overflow-hidden border border-gray-200"
           >
             {/* Header */}
-            <div className="bg-gradient-to-r from-teal-600 to-purple-600 px-6 py-4 flex items-center justify-between">
+            <div className="bg-blue-500 px-4 py-4 flex items-center justify-between">
               <div className="flex items-center space-x-3">
                 <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center backdrop-blur">
                   <Bot className="w-6 h-6 text-white" />
@@ -243,7 +243,7 @@ export const BenjiChat = ({
             {/* Messages */}
             {!isMinimized && (
               <>
-                <div className="flex-1 overflow-y-auto p-6 bg-gradient-to-b from-gray-50 to-white">
+                <div className="flex-1 overflow-y-auto p-4 bg-gray-50">
                   {messages.map((message) => (
                     <BenjiMessage
                       key={message.id}
@@ -266,12 +266,12 @@ export const BenjiChat = ({
                       onKeyPress={(e) => e.key === 'Enter' && handleSend()}
                       placeholder="Ask Benji anything..."
                       disabled={isLoading}
-                      className="flex-1 px-4 py-3 bg-gray-100 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 disabled:opacity-50"
+                      className="flex-1 px-4 py-3 bg-gray-100 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
                     />
                     <button
                       onClick={handleSend}
                       disabled={!inputValue.trim() || isLoading}
-                      className="w-12 h-12 bg-gradient-to-br from-teal-500 to-purple-600 rounded-2xl flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed hover:shadow-lg transition-all"
+                      className="w-8 h-8 bg-blue-500 rounded-2xl flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed transition-all"
                     >
                       <Send className="w-5 h-5 text-white" />
                     </button>

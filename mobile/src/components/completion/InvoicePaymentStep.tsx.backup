@@ -341,7 +341,7 @@ const InvoicePaymentStep: React.FC<Props> = ({
 
     // Extract state and provide state-level fallback
     const stateCoordinates: Record<string, {lat: number, lng: number}> = {
-      'tx': { lat: 31.9686, lng: -99.9018 }, // Texas center
+      'tx': { lat: 31.9686, lng: -99.9018 }, // Carolina center
       'ca': { lat: 36.7783, lng: -119.4179 }, // California center
       'ny': { lat: 40.7128, lng: -74.0060 }, // New York center
       'fl': { lat: 27.7663, lng: -82.6404 }, // Florida center

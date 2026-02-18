@@ -256,119 +256,99 @@ export default function DriverJobsPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50">
-        <div className="bg-white border-b sticky top-0 z-10 shadow-sm">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="flex items-center justify-between h-16">
-              <div>
-                <h1 className="text-2xl font-bold text-gray-900">Available Jobs</h1>
-                <p className="text-sm text-gray-600">Loading...</p>
-              </div>
-            </div>
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-lg font-bold text-gray-900">Available Jobs</h1>
+            <p className="text-xs text-gray-500">Loading...</p>
           </div>
         </div>
-        
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <JobCardSkeleton />
-            <JobCardSkeleton />
-            <JobCardSkeleton />
-            <JobCardSkeleton />
-          </div>
+        <div className="grid grid-cols-1 gap-3">
+          <JobCardSkeleton />
+          <JobCardSkeleton />
+          <JobCardSkeleton />
         </div>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="space-y-4">
       {/* Header */}
-      <div className="bg-white border-b sticky top-0 z-10 shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900">Available Jobs</h1>
-              <p className="text-sm text-gray-600">
-                {mode === 'benji' ? 'AI-powered recommendations' : `${filteredJobs.length} jobs available`}
-              </p>
-            </div>
-            <div className="flex gap-3">
-              <div className="flex bg-gray-100 rounded-lg p-1">
-                <button
-                  onClick={() => setMode('benji')}
-                  className={`px-4 py-2 rounded-md font-medium text-sm transition-all flex items-center gap-2 ${
-                    mode === 'benji'
-                      ? 'bg-gradient-to-r from-teal-600 to-purple-600 text-white shadow-md'
-                      : 'text-gray-700 hover:text-gray-900'
-                  }`}
-                >
-                  <Sparkles className="h-4 w-4" />
-                  Benji
-                </button>
-                <button
-                  onClick={() => setMode('browse')}
-                  className={`px-4 py-2 rounded-md font-medium text-sm transition-all ${
-                    mode === 'browse'
-                      ? 'bg-white text-gray-900 shadow-md'
-                      : 'text-gray-700 hover:text-gray-900'
-                  }`}
-                >
-                  Browse All
-                </button>
-              </div>
-              <Link href="/dashboard/driver">
-                <Button variant="outline" size="sm">
-                  Back to Dashboard
-                </Button>
-              </Link>
-            </div>
-          </div>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-lg font-bold text-gray-900">Available Jobs</h1>
+          <p className="text-xs text-gray-500">
+            {mode === 'benji' ? 'AI-powered recommendations' : `${filteredJobs.length} jobs available`}
+          </p>
+        </div>
+        <div className="flex bg-gray-100 rounded-md p-0.5">
+          <button
+            onClick={() => setMode('benji')}
+            className={`px-3 py-1.5 rounded text-xs font-medium transition-all flex items-center gap-1.5 ${
+              mode === 'benji'
+                ? 'bg-amber-500 text-white shadow-sm'
+                : 'text-gray-600 hover:text-gray-900'
+            }`}
+          >
+            <Sparkles className="h-3 w-3" />
+            Benji
+          </button>
+          <button
+            onClick={() => setMode('browse')}
+            className={`px-3 py-1.5 rounded text-xs font-medium transition-all ${
+              mode === 'browse'
+                ? 'bg-white text-gray-900 shadow-sm'
+                : 'text-gray-600 hover:text-gray-900'
+            }`}
+          >
+            Browse
+          </button>
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Benji Mode */}
-        {mode === 'benji' && (
-          <BenjiLoadRecommendations />
-        )}
+      {/* Benji Mode */}
+      {mode === 'benji' && (
+        <BenjiLoadRecommendations />
+      )}
 
-        {/* Browse Mode */}
-        {mode === 'browse' && (
-          <>
-            {/* Filters */}
-            <div className="bg-white rounded-lg shadow-sm p-6 mb-6 border border-gray-200">
-              <div className="flex items-center gap-2 mb-4">
-                <Filter className="h-5 w-5 text-gray-600" />
-                <h2 className="text-lg font-semibold text-gray-900">Filters</h2>
-              </div>
+      {/* Browse Mode */}
+      {mode === 'browse' && (
+        <>
+          {/* Filters */}
+          <div className="bg-white rounded-md border border-gray-200 p-4">
+            <div className="flex items-center gap-2 mb-3">
+              <Filter className="h-4 w-4 text-gray-500" />
+              <h2 className="text-sm font-semibold text-gray-900">Filters</h2>
+            </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
             {/* Search */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-xs font-medium text-gray-600 mb-1">
                 Search
               </label>
               <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 h-3 w-3 text-gray-400" />
                 <input
                   type="text"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder="Search jobs..."
-                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+                  className="w-full pl-7 pr-2 py-1.5 text-xs border border-gray-300 rounded-md focus:ring-1 focus:ring-amber-500 focus:border-amber-500"
                 />
               </div>
             </div>
 
             {/* Distance Filter */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-xs font-medium text-gray-600 mb-1">
                 Max Distance
               </label>
               <select
                 value={filterDistance}
                 onChange={(e) => setFilterDistance(e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+                className="w-full px-2 py-1.5 text-xs border border-gray-300 rounded-md focus:ring-1 focus:ring-amber-500 focus:border-amber-500"
               >
                 <option value="all">All Distances</option>
                 <option value="100">Under 100 miles</option>
@@ -380,13 +360,13 @@ export default function DriverJobsPage() {
 
             {/* Vehicle Type Filter */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-xs font-medium text-gray-600 mb-1">
                 Vehicle Type
               </label>
               <select
                 value={filterVehicleType}
                 onChange={(e) => setFilterVehicleType(e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+                className="w-full px-2 py-1.5 text-xs border border-gray-300 rounded-md focus:ring-1 focus:ring-amber-500 focus:border-amber-500"
               >
                 <option value="all">All Types</option>
                 <option value="sedan">Sedan</option>
@@ -400,13 +380,13 @@ export default function DriverJobsPage() {
 
             {/* Price Filter */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-xs font-medium text-gray-600 mb-1">
                 Price Range
               </label>
               <select
                 value={filterPrice}
                 onChange={(e) => setFilterPrice(e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+                className="w-full px-2 py-1.5 text-xs border border-gray-300 rounded-md focus:ring-1 focus:ring-amber-500 focus:border-amber-500"
               >
                 <option value="all">All Prices</option>
                 <option value="low">Under $500</option>
@@ -418,31 +398,31 @@ export default function DriverJobsPage() {
 
           {/* Active Filters Summary */}
           {(searchQuery || filterDistance !== 'all' || filterVehicleType !== 'all' || filterPrice !== 'all') && (
-            <div className="mt-4 pt-4 border-t border-gray-200">
-              <div className="flex items-center gap-2 flex-wrap">
-                <span className="text-sm text-gray-600">Active filters:</span>
+            <div className="mt-3 pt-3 border-t border-gray-100">
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <span className="text-[10px] text-gray-500">Filters:</span>
                 {searchQuery && (
-                  <span className="inline-flex items-center px-3 py-1 bg-teal-100 text-teal-800 rounded-full text-sm">
-                    Search: "{searchQuery}"
-                    <button onClick={() => setSearchQuery('')} className="ml-2">×</button>
+                  <span className="inline-flex items-center px-2 py-0.5 bg-amber-50 text-amber-700 rounded text-[10px]">
+                    "{searchQuery}"
+                    <button onClick={() => setSearchQuery('')} className="ml-1">×</button>
                   </span>
                 )}
                 {filterDistance !== 'all' && (
-                  <span className="inline-flex items-center px-3 py-1 bg-teal-100 text-teal-800 rounded-full text-sm">
-                    Distance: Under {filterDistance}mi
-                    <button onClick={() => setFilterDistance('all')} className="ml-2">×</button>
+                  <span className="inline-flex items-center px-2 py-0.5 bg-amber-50 text-amber-700 rounded text-[10px]">
+                    &lt;{filterDistance}mi
+                    <button onClick={() => setFilterDistance('all')} className="ml-1">×</button>
                   </span>
                 )}
                 {filterVehicleType !== 'all' && (
-                  <span className="inline-flex items-center px-3 py-1 bg-teal-100 text-teal-800 rounded-full text-sm">
-                    Type: {filterVehicleType}
-                    <button onClick={() => setFilterVehicleType('all')} className="ml-2">×</button>
+                  <span className="inline-flex items-center px-2 py-0.5 bg-amber-50 text-amber-700 rounded text-[10px]">
+                    {filterVehicleType}
+                    <button onClick={() => setFilterVehicleType('all')} className="ml-1">×</button>
                   </span>
                 )}
                 {filterPrice !== 'all' && (
-                  <span className="inline-flex items-center px-3 py-1 bg-teal-100 text-teal-800 rounded-full text-sm">
-                    Price: {filterPrice}
-                    <button onClick={() => setFilterPrice('all')} className="ml-2">×</button>
+                  <span className="inline-flex items-center px-2 py-0.5 bg-amber-50 text-amber-700 rounded text-[10px]">
+                    {filterPrice}
+                    <button onClick={() => setFilterPrice('all')} className="ml-1">×</button>
                   </span>
                 )}
                 <button
@@ -452,7 +432,7 @@ export default function DriverJobsPage() {
                     setFilterVehicleType('all')
                     setFilterPrice('all')
                   }}
-                  className="text-sm text-teal-600 hover:text-teal-700 font-medium"
+                  className="text-[10px] text-amber-600 hover:text-amber-700 font-medium"
                 >
                   Clear all
                 </button>
@@ -463,15 +443,15 @@ export default function DriverJobsPage() {
 
         {/* Jobs List */}
         {filteredJobs.length === 0 ? (
-          <div className="bg-white rounded-lg shadow-sm p-12 text-center border border-gray-200">
-            <Package className="h-16 w-16 text-gray-300 mx-auto mb-4" />
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">
+          <div className="bg-white rounded-md border border-gray-200 p-8 text-center">
+            <Package className="h-10 w-10 text-gray-300 mx-auto mb-3" />
+            <h3 className="text-sm font-semibold text-gray-900 mb-1">
               No Jobs Found
             </h3>
-            <p className="text-gray-600 mb-6">
+            <p className="text-xs text-gray-500 mb-3">
               {jobs.length === 0 
-                ? "There are no available jobs at the moment. Check back later!"
-                : "No jobs match your filters. Try adjusting your search criteria."}
+                ? "No available jobs at the moment. Check back later!"
+                : "No jobs match your filters."}
             </p>
             {filteredJobs.length === 0 && jobs.length > 0 && (
               <Button
@@ -481,33 +461,34 @@ export default function DriverJobsPage() {
                   setFilterVehicleType('all')
                   setFilterPrice('all')
                 }}
-                className="bg-teal-600 hover:bg-teal-700"
+                size="sm"
+                className="h-7 text-xs bg-amber-500 hover:bg-amber-600"
               >
                 Clear Filters
               </Button>
             )}
           </div>
         ) : (
-          <div className="grid grid-cols-1 gap-6">
+          <div className="space-y-3">
             {filteredJobs.map((job) => (
               <div
                 key={job.id}
-                className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow"
+                className="bg-white rounded-md border border-gray-200 p-4"
               >
-                <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-6">
+                <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
                   {/* Job Details */}
                   <div className="flex-1">
-                    <div className="flex items-start justify-between mb-4">
+                    <div className="flex items-start justify-between mb-2">
                       <div>
-                        <h3 className="text-xl font-semibold text-gray-900 mb-2">
+                        <h3 className="text-sm font-semibold text-gray-900 mb-1">
                           {job.title || `${job.vehicle_make} ${job.vehicle_model} ${job.vehicle_year}`}
                         </h3>
-                        <div className="flex items-center gap-3 text-sm text-gray-600">
-                          <span className="flex items-center gap-1">
-                            <Clock className="h-4 w-4" />
-                            Posted {formatTimeAgo(job.created_at)}
+                        <div className="flex items-center gap-2 text-[10px] text-gray-400">
+                          <span className="flex items-center gap-0.5">
+                            <Clock className="h-3 w-3" />
+                            {formatTimeAgo(job.created_at)}
                           </span>
-                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                          <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-green-100 text-green-800">
                             Available
                           </span>
                         </div>
@@ -515,79 +496,67 @@ export default function DriverJobsPage() {
                     </div>
 
                     {/* Vehicle Info */}
-                    <div className="bg-gray-50 rounded-lg p-4 mb-4">
-                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div className="bg-gray-50 rounded-md p-2.5 mb-2">
+                      <div className="grid grid-cols-4 gap-2">
                         <div>
-                          <p className="text-xs text-gray-500 mb-1">Vehicle Type</p>
-                          <p className="text-sm font-medium text-gray-900 capitalize">
-                            <Truck className="h-4 w-4 inline mr-1" />
-                            {job.vehicle_type}
-                          </p>
+                          <p className="text-[10px] text-gray-400">Type</p>
+                          <p className="text-xs font-medium text-gray-900 capitalize">{job.vehicle_type}</p>
                         </div>
                         <div>
-                          <p className="text-xs text-gray-500 mb-1">Make & Model</p>
-                          <p className="text-sm font-medium text-gray-900">
-                            {job.vehicle_make} {job.vehicle_model}
-                          </p>
+                          <p className="text-[10px] text-gray-400">Make/Model</p>
+                          <p className="text-xs font-medium text-gray-900">{job.vehicle_make} {job.vehicle_model}</p>
                         </div>
                         <div>
-                          <p className="text-xs text-gray-500 mb-1">Year</p>
-                          <p className="text-sm font-medium text-gray-900">{job.vehicle_year}</p>
+                          <p className="text-[10px] text-gray-400">Year</p>
+                          <p className="text-xs font-medium text-gray-900">{job.vehicle_year}</p>
                         </div>
                         <div>
-                          <p className="text-xs text-gray-500 mb-1">Condition</p>
-                          <p className={`text-sm font-medium ${job.is_operable ? 'text-green-600' : 'text-orange-600'}`}>
-                            {job.is_operable ? 'Operable' : 'Non-Operable'}
+                          <p className="text-[10px] text-gray-400">Condition</p>
+                          <p className={`text-xs font-medium ${job.is_operable ? 'text-green-600' : 'text-amber-600'}`}>
+                            {job.is_operable ? 'Operable' : 'Non-Op'}
                           </p>
                         </div>
                       </div>
                     </div>
 
                     {/* Addresses */}
-                    <div className="space-y-3">
-                      <div className="flex items-start gap-2">
-                        <MapPin className="h-5 w-5 text-green-600 mt-0.5 flex-shrink-0" />
-                        <div>
-                          <p className="text-sm font-medium text-gray-900">Pickup Location</p>
-                          <p className="text-sm text-gray-600">{job.pickup_address}</p>
-                          {job.pickup_date && (
-                            <p className="text-xs text-gray-500 mt-1">
-                              <Calendar className="h-3 w-3 inline mr-1" />
-                              Pickup: {formatDate(job.pickup_date)}
-                            </p>
-                          )}
-                        </div>
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-1.5 text-xs">
+                        <MapPin className="h-3 w-3 text-green-600 flex-shrink-0" />
+                        <span className="text-gray-600 truncate">{job.pickup_address}</span>
+                        {job.pickup_date && (
+                          <span className="text-[10px] text-gray-400 flex-shrink-0">
+                            {formatDate(job.pickup_date)}
+                          </span>
+                        )}
                       </div>
-                      <div className="flex items-start gap-2">
-                        <MapPin className="h-5 w-5 text-red-600 mt-0.5 flex-shrink-0" />
-                        <div>
-                          <p className="text-sm font-medium text-gray-900">Delivery Location</p>
-                          <p className="text-sm text-gray-600">{job.delivery_address}</p>
-                        </div>
+                      <div className="flex items-center gap-1.5 text-xs">
+                        <MapPin className="h-3 w-3 text-red-600 flex-shrink-0" />
+                        <span className="text-gray-600 truncate">{job.delivery_address}</span>
                       </div>
                     </div>
 
                     {/* Distance */}
-                    <div className="mt-4 flex items-center gap-4 text-sm text-gray-600">
-                      <span className="flex items-center gap-1">
-                        <Ruler className="h-4 w-4" />
-                        {job.distance ? job.distance.toFixed(0) : 'N/A'} miles
+                    <div className="mt-2 flex items-center gap-3 text-[10px] text-gray-400">
+                      <span className="flex items-center gap-0.5">
+                        <Ruler className="h-3 w-3" />
+                        {job.distance ? job.distance.toFixed(0) : 'N/A'} mi
                       </span>
-                      <span className="flex items-center gap-1">
-                        <Clock className="h-4 w-4" />
-                        ~{job.distance ? Math.ceil(job.distance / 500) : 'N/A'} days estimated
+                      <span className="flex items-center gap-0.5">
+                        <Clock className="h-3 w-3" />
+                        ~{job.distance ? Math.ceil(job.distance / 500) : 'N/A'} days
                       </span>
                     </div>
                   </div>
 
                   {/* Price & Action */}
-                  <div className="lg:w-64 flex flex-col items-end gap-4">
+                  <div className="lg:w-48 flex flex-col items-end gap-2">
                     <div className="text-right">
-                      <p className="text-sm text-gray-600 mb-1">Your Earnings (90%)</p>
-                      <p className="text-4xl font-bold text-teal-600">
+                      <p className="text-[10px] text-gray-400">Earnings (90%)</p>
+                      <p className="text-lg font-bold text-amber-600">
                         ${(job.estimated_price * 0.9).toFixed(2)}
                       </p>
-                      <p className="text-xs text-gray-500 mt-1">
+                      <p className="text-[10px] text-gray-400">
                         Total: ${job.estimated_price.toFixed(2)}
                       </p>
                     </div>
@@ -595,24 +564,25 @@ export default function DriverJobsPage() {
                     <Button
                       onClick={() => handleApplyForJob(job.id)}
                       disabled={applyingJobId === job.id}
-                      className="w-full bg-teal-600 hover:bg-teal-700 text-white"
+                      size="sm"
+                      className="w-full h-8 text-xs bg-amber-500 hover:bg-amber-600 text-white"
                     >
                       {applyingJobId === job.id ? (
                         <>
-                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                          <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-white mr-1"></div>
                           Applying...
                         </>
                       ) : (
                         <>
-                          <CheckCircle className="h-4 w-4 mr-2" />
-                          Apply for Job
+                          <CheckCircle className="h-3 w-3 mr-1" />
+                          Apply
                         </>
                       )}
                     </Button>
 
                     <Link href={`/dashboard/driver/jobs/${job.id}`} className="w-full">
-                      <Button variant="outline" className="w-full">
-                        View Details
+                      <Button variant="outline" size="sm" className="w-full h-7 text-xs">
+                        Details
                       </Button>
                     </Link>
                   </div>

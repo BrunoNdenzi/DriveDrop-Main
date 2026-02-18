@@ -4,95 +4,89 @@ import Link from 'next/link'
 import { Package, Truck, Users, ArrowRight } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 
-const userTypes = [
+const roles = [
   {
     icon: Package,
-    label: 'I am a Shipper',
-    description: 'Move vehicles with trusted carriers across Texas. Real-time tracking and instant quotes.',
-    features: ['Instant pricing', 'Live tracking', 'Broker network', 'Insurance included'],
+    label: 'Shipper',
+    summary: 'Create shipments, receive quotes, track vehicles.',
+    capabilities: ['Request quotes', 'Track shipments', 'Manage pickups', 'View invoices'],
     cta: 'Ship a Vehicle',
     href: '/signup?role=client',
-    gradient: 'from-blue-500 to-blue-600',
-    bgGradient: 'from-blue-50 to-blue-100',
+    iconBg: 'bg-blue-500',
+    dotColor: 'bg-blue-500',
+    borderAccent: 'border-l-blue-500',
+    ctaBg: 'bg-blue-500 hover:bg-blue-600 text-white',
   },
   {
     icon: Truck,
-    label: 'I am a Carrier',
-    description: 'Find high-value loads, optimize routes with AI, and get paid fast with our carrier platform.',
-    features: ['AI route optimization', 'Smart load matching', 'Quick payments', 'Fuel cost tracking'],
+    label: 'Carrier',
+    summary: 'Accept loads, manage routes, confirm deliveries.',
+    capabilities: ['Browse loads', 'AI route planning', 'Confirm pickup/delivery', 'Earnings dashboard'],
     cta: 'Find Loads',
     href: '/drivers/register',
-    gradient: 'from-amber-500 to-amber-600',
-    bgGradient: 'from-amber-50 to-amber-100',
+    iconBg: 'bg-amber-500',
+    dotColor: 'bg-amber-500',
+    borderAccent: 'border-l-amber-500',
+    ctaBg: 'bg-amber-500 hover:bg-amber-600 text-white',
   },
   {
     icon: Users,
-    label: 'I am a Broker',
-    description: 'Connect to our broker network with Central Dispatch, Montway, and uShip integrations.',
-    features: ['Multi-broker sync', 'Automated dispatch', 'Commission tracking', 'Client portal'],
+    label: 'Broker',
+    summary: 'Dispatch across networks, manage carrier assignments.',
+    capabilities: ['Multi-board sync', 'Assign carriers', 'Track commissions', 'Client management'],
     cta: 'Connect Network',
     href: '/signup?role=broker',
-    gradient: 'from-teal-500 to-teal-600',
-    bgGradient: 'from-teal-50 to-teal-100',
+    iconBg: 'bg-teal-500',
+    dotColor: 'bg-teal-500',
+    borderAccent: 'border-l-teal-500',
+    ctaBg: 'bg-teal-500 hover:bg-teal-600 text-white',
   },
 ]
 
 export default function UserPathways() {
   return (
-    <section className="py-12 bg-white">
-      <div className="container">
-        <div className="text-center mb-8">
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">
-            Choose Your Platform Experience
-          </h2>
-          <p className="text-sm text-gray-600">
-            Tailored solutions for shippers, carriers, and brokers
-          </p>
-        </div>
+    <section className="border-b border-border bg-[#f8fafc]">
+      {/* Section Header */}
+      <div className="px-6 py-3 border-b border-border">
+        <h2 className="text-base font-semibold text-foreground tracking-tight">
+          Platform Access
+        </h2>
+        <p className="text-xs text-muted-foreground mt-0.5">
+          Select a role to access the system
+        </p>
+      </div>
 
-        <div className="grid md:grid-cols-3 gap-6">
-          {userTypes.map((type) => (
-            <div
-              key={type.label}
-              className="group relative bg-white border-2 rounded-lg overflow-hidden hover:shadow-xl transition-all"
-            >
-              {/* Gradient Header */}
-              <div className={`bg-gradient-to-br ${type.bgGradient} p-6 border-b-2`}>
-                <div className="flex items-center gap-3 mb-3">
-                  <div className={`w-12 h-12 bg-gradient-to-br ${type.gradient} rounded-lg flex items-center justify-center`}>
-                    <type.icon className="h-6 w-6 text-white" />
-                  </div>
-                  <h3 className="text-lg font-bold text-gray-900">{type.label}</h3>
-                </div>
-                <p className="text-sm text-gray-700 leading-relaxed">
-                  {type.description}
-                </p>
+      <div className="grid md:grid-cols-3 divide-y md:divide-y-0 md:divide-x divide-border">
+        {roles.map((role) => (
+          <div key={role.label} className={`px-6 py-5 border-l-4 ${role.borderAccent}`}>
+            <div className="flex items-center gap-2.5 mb-3">
+              <div className={`w-8 h-8 ${role.iconBg} rounded flex items-center justify-center`}>
+                <role.icon className="h-4 w-4 text-white" />
               </div>
-
-              {/* Features */}
-              <div className="p-6">
-                <ul className="space-y-2 mb-6">
-                  {type.features.map((feature) => (
-                    <li key={feature} className="flex items-center gap-2 text-sm text-gray-700">
-                      <div className={`w-1.5 h-1.5 rounded-full bg-gradient-to-br ${type.gradient}`} />
-                      {feature}
-                    </li>
-                  ))}
-                </ul>
-
-                <Link href={type.href}>
-                  <Button 
-                    className={`w-full bg-gradient-to-r ${type.gradient} hover:opacity-90 text-white`}
-                    size="lg"
-                  >
-                    {type.cta}
-                    <ArrowRight className="h-4 w-4 ml-2 group-hover:translate-x-1 transition-transform" />
-                  </Button>
-                </Link>
-              </div>
+              <h3 className="text-sm font-semibold text-foreground">{role.label}</h3>
             </div>
-          ))}
-        </div>
+
+            <p className="text-xs text-muted-foreground mb-4 leading-relaxed">
+              {role.summary}
+            </p>
+
+            <ul className="space-y-1.5 mb-4">
+              {role.capabilities.map((cap) => (
+                <li key={cap} className="flex items-center gap-2 text-xs text-foreground">
+                  <span className={`w-1.5 h-1.5 rounded-full ${role.dotColor} flex-shrink-0`} />
+                  {cap}
+                </li>
+              ))}
+            </ul>
+
+            <Link href={role.href}>
+              <Button size="sm" className={`w-full gap-2 ${role.ctaBg}`}>
+                {role.cta}
+                <ArrowRight className="h-3.5 w-3.5" />
+              </Button>
+            </Link>
+          </div>
+        ))}
       </div>
     </section>
   )

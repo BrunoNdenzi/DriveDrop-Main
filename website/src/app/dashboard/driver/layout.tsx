@@ -50,8 +50,8 @@ export default function DriverDashboardLayout({
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-orange-50 to-primary/5">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500"></div>
+      <div className="min-h-screen flex items-center justify-center bg-[hsl(var(--surface-field))]">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-amber-500"></div>
       </div>
     )
   }
@@ -61,7 +61,7 @@ export default function DriverDashboardLayout({
     : profile?.email?.split('@')[0] || 'Driver'
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
+    <div className="min-h-screen bg-[hsl(var(--surface-field))]">
       {/* Header */}
       <header className="bg-white border-b border-gray-200 sticky top-0 z-40">
         <div className="px-4 sm:px-6 lg:px-8">
@@ -119,7 +119,7 @@ export default function DriverDashboardLayout({
                   onClick={() => setUserMenuOpen(!userMenuOpen)}
                   className="flex items-center gap-2 p-2 rounded-lg hover:bg-gray-100 transition-colors"
                 >
-                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-orange-500 to-orange-600 flex items-center justify-center">
+                  <div className="w-8 h-8 rounded-full bg-amber-500 flex items-center justify-center">
                     <span className="text-white font-semibold text-sm">
                       {userName.charAt(0).toUpperCase()}
                     </span>
@@ -132,7 +132,7 @@ export default function DriverDashboardLayout({
 
                 {/* Dropdown Menu */}
                 {userMenuOpen && (
-                  <div className="absolute right-0 mt-2 w-56 bg-white rounded-xl shadow-xl border border-gray-200 py-2">
+                  <div className="absolute right-0 mt-2 w-56 bg-white rounded-md shadow-md border border-gray-200 py-2">
                     <div className="px-4 py-3 border-b border-gray-100">
                       <p className="text-sm font-medium text-gray-900">{userName}</p>
                       <p className="text-xs text-gray-500 truncate">{profile?.email}</p>
@@ -186,9 +186,9 @@ export default function DriverDashboardLayout({
                   href={item.href}
                   onClick={() => setSidebarOpen(false)}
                   className={`
-                    flex items-center gap-3 px-4 py-3 rounded-lg transition-all
+                    flex items-center gap-3 px-4 py-3 rounded-md transition-all
                     ${isActive 
-                      ? 'bg-gradient-to-r from-orange-500 to-orange-600 text-white shadow-lg shadow-orange-500/20' 
+                      ? 'bg-amber-500 text-white' 
                       : 'text-gray-700 hover:bg-gray-50'
                     }
                   `}
@@ -202,27 +202,27 @@ export default function DriverDashboardLayout({
 
           {/* Earnings Widget */}
           <div className="p-4">
-            <div className="bg-gradient-to-br from-green-50 to-emerald-50 rounded-xl p-4 border border-green-200">
+            <div className="bg-slate-50 rounded-md p-4 border border-border">
               <div className="flex items-center gap-2 mb-2">
-                <DollarSign className="h-5 w-5 text-green-600" />
-                <h3 className="font-semibold text-gray-900">Today's Earnings</h3>
+                <DollarSign className="h-5 w-5 text-amber-500" />
+                <h3 className="font-semibold text-gray-900 text-sm">Today's Earnings</h3>
               </div>
-              <p className="text-3xl font-bold text-green-600 mb-1">$0.00</p>
+              <p className="text-3xl font-bold text-amber-500 mb-1">$0.00</p>
               <p className="text-xs text-gray-600">0 deliveries completed</p>
             </div>
           </div>
 
           {/* Quick Help */}
           <div className="p-4">
-            <div className="bg-gradient-to-br from-primary/10 to-secondary/10 rounded-xl p-4 border border-primary/20">
-              <h3 className="font-semibold text-gray-900 mb-2">Need Help?</h3>
+            <div className="bg-slate-50 rounded-md p-4 border border-border">
+              <h3 className="font-semibold text-gray-900 mb-2 text-sm">Need Help?</h3>
               <p className="text-sm text-gray-600 mb-3">
                 Contact driver support
               </p>
               <div className="space-y-2">
                 <a 
                   href="mailto:support@drivedrop.us.com"
-                  className="flex items-center justify-center gap-2 w-full px-4 py-2 text-sm font-medium text-primary border border-primary rounded-lg hover:bg-primary hover:text-white transition-colors"
+                  className="flex items-center justify-center gap-2 w-full px-4 py-2 text-sm font-medium text-amber-600 border border-amber-300 rounded-md hover:bg-amber-500 hover:text-white transition-colors"
                 >
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
@@ -231,7 +231,7 @@ export default function DriverDashboardLayout({
                 </a>
                 <a 
                   href="tel:+15042662317"
-                  className="flex items-center justify-center gap-2 w-full px-4 py-2 text-sm font-medium text-primary border border-primary rounded-lg hover:bg-primary hover:text-white transition-colors"
+                  className="flex items-center justify-center gap-2 w-full px-4 py-2 text-sm font-medium text-amber-600 border border-amber-300 rounded-md hover:bg-amber-500 hover:text-white transition-colors"
                 >
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />

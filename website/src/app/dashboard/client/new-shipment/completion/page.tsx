@@ -90,16 +90,16 @@ export default function ShipmentCompletionPage() {
 
   if (!shipmentData) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-teal-600"></div>
+      <div className="flex items-center justify-center py-12">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div>
       {/* Header */}
-      <div className="bg-white border-b sticky top-0 z-10 shadow-sm">
+      <div className="bg-white border-b">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             <button
@@ -112,7 +112,7 @@ export default function ShipmentCompletionPage() {
             <h1 className="text-lg font-semibold text-gray-900">
               {STEPS[currentStep - 1].title}
             </h1>
-            <div className="bg-teal-600 text-white px-3 py-1 rounded-full text-sm font-semibold">
+            <div className="bg-blue-500 text-white px-2.5 py-0.5 rounded-md text-xs font-semibold">
               {currentStep}/{STEPS.length}
             </div>
           </div>
@@ -122,27 +122,27 @@ export default function ShipmentCompletionPage() {
       {/* Content */}
       <div className="max-w-5xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
         {/* Progress Indicator */}
-        <div className="mb-8">
+        <div className="mb-4">
           <div className="flex items-center justify-center gap-2">
             {STEPS.map((step, index) => (
               <div key={step.id} className="flex items-center">
                 <div className="flex flex-col items-center">
                   <div
                     className={`
-                      w-12 h-12 rounded-full flex items-center justify-center border-2 transition-all
+                      w-9 h-9 rounded-full flex items-center justify-center border-2 transition-all
                       ${currentStep > step.id
                         ? 'bg-green-600 border-green-600'
                         : currentStep === step.id
-                        ? 'bg-teal-600 border-teal-600'
+                        ? 'bg-blue-500 border-blue-500'
                         : 'bg-gray-100 border-gray-300'
                       }
                     `}
                   >
                     {currentStep > step.id ? (
-                      <Check className="h-6 w-6 text-white" />
+                      <Check className="h-5 w-5 text-white" />
                     ) : (
                       <step.icon
-                        className={`h-6 w-6 ${
+                        className={`h-5 w-5 ${
                           currentStep >= step.id ? 'text-white' : 'text-gray-400'
                         }`}
                       />
@@ -158,7 +158,7 @@ export default function ShipmentCompletionPage() {
                 </div>
                 {index < STEPS.length - 1 && (
                   <div
-                    className={`w-16 sm:w-24 h-1 mx-2 transition-all ${
+                    className={`w-12 sm:w-20 h-0.5 mx-2 transition-all ${
                       currentStep > step.id ? 'bg-green-600' : 'bg-gray-200'
                     }`}
                   />
@@ -169,17 +169,17 @@ export default function ShipmentCompletionPage() {
         </div>
 
         {/* Step Title & Description */}
-        <div className="text-center mb-8">
-          <h2 className="text-3xl font-bold text-gray-900 mb-2">
+        <div className="text-center mb-4">
+          <h2 className="text-lg font-semibold text-gray-900 mb-1">
             {STEPS[currentStep - 1].title}
           </h2>
-          <p className="text-gray-600 text-lg">
+          <p className="text-xs text-gray-500">
             {STEPS[currentStep - 1].description}
           </p>
         </div>
 
         {/* Step Content */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 md:p-8 mb-6">
+        <div className="bg-white rounded-md border border-gray-200 p-4 mb-4">
           {currentStep === 1 && (
             <VehiclePhotosStep
               shipmentData={shipmentData}
@@ -223,7 +223,7 @@ export default function ShipmentCompletionPage() {
               onClick={handleNext}
               disabled={!canProceed()}
               size="lg"
-              className="bg-teal-600 hover:bg-teal-700 px-8"
+              className="bg-blue-500 hover:bg-blue-600 px-6"
             >
               Continue
               <ArrowLeft className="h-5 w-5 ml-2 rotate-180" />

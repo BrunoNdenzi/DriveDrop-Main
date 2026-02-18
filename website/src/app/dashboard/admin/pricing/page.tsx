@@ -210,15 +210,15 @@ export default function AdminPricingPage() {
 
   if (authLoading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-500"></div>
+      <div className="flex items-center justify-center py-12">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-500"></div>
       </div>
     )
   }
 
   if (!profile || profile.role !== 'admin') {
     return (
-      <div className="flex items-center justify-center min-h-screen">
+      <div className="flex items-center justify-center py-12">
         <p className="text-red-600">Access denied. Admin only.</p>
       </div>
     )
@@ -226,10 +226,10 @@ export default function AdminPricingPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
+      <div className="flex items-center justify-center py-12">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-500 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading pricing configuration...</p>
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-500 mx-auto mb-3"></div>
+          <p className="text-sm text-gray-600">Loading pricing configuration...</p>
         </div>
       </div>
     )
@@ -237,10 +237,10 @@ export default function AdminPricingPage() {
 
   if (!config) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
+      <div className="flex items-center justify-center py-12">
         <div className="text-center">
-          <AlertCircle className="h-16 w-16 text-gray-400 mx-auto mb-4" />
-          <p className="text-gray-600 mb-4">Failed to load configuration</p>
+          <AlertCircle className="h-10 w-10 text-gray-400 mx-auto mb-3" />
+          <p className="text-sm text-gray-600 mb-3">Failed to load configuration</p>
           <Button onClick={loadConfig}>Retry</Button>
         </div>
       </div>
@@ -248,23 +248,23 @@ export default function AdminPricingPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6">
-      <div className="max-w-6xl mx-auto">
+    <div className="space-y-4">
+      <div>
         {/* Header */}
-        <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
+        <div className="bg-white rounded-md border border-gray-200 p-4 mb-4">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-3">
-                <DollarSign className="h-8 w-8 text-purple-600" />
+              <h1 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                <DollarSign className="h-5 w-5 text-purple-600" />
                 Dynamic Pricing Configuration
               </h1>
-              <p className="text-gray-600 mt-1">
+              <p className="text-xs text-gray-500 mt-0.5">
                 Last updated: {new Date(config.updated_at).toLocaleDateString()}
               </p>
             </div>
             {hasChanges() && (
-              <div className="flex items-center gap-2 bg-orange-50 text-orange-700 px-4 py-2 rounded-lg">
-                <AlertCircle className="h-5 w-5" />
+              <div className="flex items-center gap-2 bg-orange-50 text-orange-700 px-3 py-1.5 rounded-md text-xs">
+                <AlertCircle className="h-4 w-4" />
                 <span className="font-medium">Unsaved changes</span>
               </div>
             )}
@@ -444,23 +444,23 @@ export default function AdminPricingPage() {
 
         {/* Change Reason */}
         {hasChanges() && (
-          <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+          <div className="bg-white rounded-md border border-gray-200 p-4 mb-4">
+            <label className="block text-xs font-medium text-gray-600 mb-1">
               Change Reason <span className="text-red-500">*</span>
             </label>
             <textarea
               value={changeReason}
               onChange={(e) => setChangeReason(e.target.value)}
               placeholder="Explain why you're making these changes..."
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
-              rows={3}
+              className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-purple-500"
+              rows={2}
             />
           </div>
         )}
 
         {/* Action Buttons */}
         {hasChanges() && (
-          <div className="bg-white rounded-lg shadow-sm p-6 flex items-center justify-between">
+          <div className="bg-white rounded-md border border-gray-200 p-4 flex items-center justify-between">
             <Button
               onClick={handleReset}
               variant="outline"
@@ -507,18 +507,18 @@ function ConfigSection({
   children: React.ReactNode
 }) {
   return (
-    <div className="bg-white rounded-lg shadow-sm mb-4 overflow-hidden">
+    <div className="bg-white rounded-md border border-gray-200 mb-3 overflow-hidden">
       <button
         onClick={onToggle}
-        className="w-full flex items-center justify-between p-6 hover:bg-gray-50 transition-colors"
+        className="w-full flex items-center justify-between px-4 py-3 hover:bg-gray-50 transition-colors"
       >
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2">
           <div className="text-purple-600">{icon}</div>
-          <h2 className="text-xl font-semibold text-gray-900">{title}</h2>
+          <h2 className="text-sm font-semibold text-gray-900">{title}</h2>
         </div>
-        {expanded ? <ChevronUp className="h-5 w-5 text-gray-400" /> : <ChevronDown className="h-5 w-5 text-gray-400" />}
+        {expanded ? <ChevronUp className="h-4 w-4 text-gray-400" /> : <ChevronDown className="h-4 w-4 text-gray-400" />}
       </button>
-      {expanded && <div className="px-6 pb-6">{children}</div>}
+      {expanded && <div className="px-4 pb-4">{children}</div>}
     </div>
   )
 }
@@ -540,7 +540,7 @@ function InputField({
 }) {
   return (
     <div>
-      <label className="block text-sm font-medium text-gray-700 mb-2">
+      <label className="block text-xs font-medium text-gray-600 mb-1">
         {label}
       </label>
       <input
@@ -549,7 +549,7 @@ function InputField({
         onChange={(e) => onChange(e.target.value)}
         step={step}
         disabled={disabled}
-        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
+        className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-purple-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
       />
     </div>
   )
@@ -565,7 +565,7 @@ function SwitchField({
   onChange: (value: boolean) => void
 }) {
   return (
-    <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+    <div className="flex items-center justify-between p-3 bg-gray-50 rounded-md">
       <label className="text-sm font-medium text-gray-700">{label}</label>
       <button
         onClick={() => onChange(!checked)}
