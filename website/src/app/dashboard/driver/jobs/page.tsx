@@ -593,7 +593,6 @@ export default function DriverJobsPage() {
         )}
           </>
         )}
-      </div>
     </div>
   )
 }

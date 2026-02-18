@@ -151,41 +151,39 @@ function BrokerDashboardContent() {
               <h1 className="text-lg font-semibold text-gray-900">
                 {broker.company_name}
               </h1>
-                {broker.dba_name && (
-                  <p className="text-blue-100 text-sm mt-1">
-                    DBA: {broker.dba_name}
-                  </p>
-                )}
-              </div>
-            </div>
-            <div className="flex items-center gap-3">
-              <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-white/90 ${statusColors.text} border ${statusColors.border}`}>
-                {formatVerificationStatus(broker.verification_status)}
-              </span>
-              {broker.mc_number && (
-                <span className="text-blue-100 text-sm">
-                  MC#{broker.mc_number}
-                </span>
+              {broker.dba_name && (
+                <p className="text-gray-500 text-sm mt-1">
+                  DBA: {broker.dba_name}
+                </p>
               )}
             </div>
           </div>
-          <div className="flex gap-3">
-            <Button
-              variant="outline"
-              onClick={() => router.push('/dashboard/broker/profile')}
-              className="bg-white/10 border-white/30 text-white hover:bg-white/20"
-            >
-              <FileText className="h-4 w-4 mr-2" />
-              Edit Profile
-            </Button>
-            <Button
-              onClick={() => router.push('/dashboard/broker/load-board')}
-              className="bg-white text-blue-600 hover:bg-blue-50"
-            >
-              <Package className="h-4 w-4 mr-2" />
-              Load Board
-            </Button>
+          <div className="flex items-center gap-3">
+            <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-white/90 ${statusColors.text} border ${statusColors.border}`}>
+              {formatVerificationStatus(broker.verification_status)}
+            </span>
+            {broker.mc_number && (
+              <span className="text-gray-500 text-sm">
+                MC#{broker.mc_number}
+              </span>
+            )}
           </div>
+        </div>
+        <div className="flex gap-3">
+          <Button
+            variant="outline"
+            onClick={() => router.push('/dashboard/broker/profile')}
+          >
+            <FileText className="h-4 w-4 mr-2" />
+            Edit Profile
+          </Button>
+          <Button
+            onClick={() => router.push('/dashboard/broker/load-board')}
+            className="bg-teal-600 text-white hover:bg-teal-700"
+          >
+            <Package className="h-4 w-4 mr-2" />
+            Load Board
+          </Button>
         </div>
       </div>
 
