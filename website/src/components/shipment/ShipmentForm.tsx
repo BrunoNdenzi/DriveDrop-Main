@@ -88,7 +88,7 @@ const CollapsibleSection: React.FC<CollapsibleSectionProps> = ({
   }
 
   return (
-    <div className="bg-white rounded-md border border-gray-200 overflow-hidden">
+    <div className="bg-white rounded-md border border-gray-200">
       <button
         type="button" // Explicitly set type to button to prevent form submission
         onClick={handleToggle}
