@@ -59,26 +59,37 @@ export default function NewShipmentPage() {
         </div>
       </div>
 
+      {/* Mode Toggle */}
+      <div className="bg-white rounded-md border border-gray-200 p-1 flex">
+        <button
+          onClick={() => setMode('ai')}
+          className={`flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-md text-sm font-medium transition-all ${
+            mode === 'ai'
+              ? 'bg-blue-500 text-white shadow-sm'
+              : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+          }`}
+        >
+          <Sparkles className="h-4 w-4" />
+          Benji AI
+        </button>
+        <button
+          onClick={() => setMode('traditional')}
+          className={`flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-md text-sm font-medium transition-all ${
+            mode === 'traditional'
+              ? 'bg-blue-500 text-white shadow-sm'
+              : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+          }`}
+        >
+          <FileText className="h-4 w-4" />
+          Traditional Form
+        </button>
+      </div>
+
       {/* Content */}
       <div>
         {/* AI Mode - Benji */}
         {mode === 'ai' && (
           <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <h2 className="text-base font-semibold text-gray-900">Create with Benji AI</h2>
-                <p className="text-xs text-gray-500">
-                  Type, speak, or scan a document to create your shipment
-                </p>
-              </div>
-              <button
-                onClick={() => setMode('traditional')}
-                className="text-xs text-gray-400 hover:text-gray-600 underline"
-              >
-                Use traditional form instead
-              </button>
-            </div>
-
             {/* Benji Creator */}
             <NaturalLanguageShipmentCreator 
               onShipmentCreated={handleBenjiShipmentCreated}
@@ -90,27 +101,6 @@ export default function NewShipmentPage() {
         {/* Traditional Mode - Form */}
         {mode === 'traditional' && (
           <div>
-            <div className="flex items-center justify-between mb-4">
-              <div>
-                <h2 className="text-base font-semibold text-gray-900">Create with Form</h2>
-                <p className="text-xs text-gray-500">
-                  Fill out the traditional shipment form
-                </p>
-              </div>
-              <button
-                onClick={() => setMode('ai')}
-                className="flex items-center gap-1 text-xs text-blue-500 hover:text-blue-600 font-medium"
-              >
-                <Sparkles className="w-3 h-3" />
-                Try Benji AI instead
-              </button>
-            </div>
-
-            <div className="mb-4 p-3 bg-blue-50 rounded-md border border-blue-200">
-              <p className="text-xs text-gray-700">
-                <strong>Tip:</strong> Benji AI can create shipments faster with voice and document scanning.
-              </p>
-            </div>
             <ShipmentForm onSubmit={handleSubmit} isSubmitting={isSubmitting} />
           </div>
         )}

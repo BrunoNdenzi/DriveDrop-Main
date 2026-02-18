@@ -225,7 +225,7 @@ export default function ClientDashboardPage() {
             <p className="text-xs text-gray-500 mb-4">
               Create your first shipment to get started
             </p>
-            <Link href="/dashboard/client/new">
+            <Link href="/dashboard/client/new-shipment">
               <Button size="sm" className="h-8 text-xs">
                 <Plus className="h-3 w-3 mr-1" />
                 Create Shipment

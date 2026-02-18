@@ -13,30 +13,30 @@ interface ProofOfOwnershipStepProps {
 
 const DOCUMENT_TYPES = [
   {
-    id: 'title',
-    title: 'Vehicle Title',
-    description: 'Original title or registration certificate',
+    id: 'id',
+    title: 'Photo ID',
+    description: "Driver's license or government ID",
     required: true,
-    formats: ['PDF', 'JPG', 'PNG']
-  },
-  {
-    id: 'registration',
-    title: 'Registration',
-    description: 'Current vehicle registration',
-    required: false,
     formats: ['PDF', 'JPG', 'PNG']
   },
   {
     id: 'insurance',
     title: 'Insurance Card',
     description: 'Proof of insurance coverage',
+    required: true,
+    formats: ['PDF', 'JPG', 'PNG']
+  },
+  {
+    id: 'title',
+    title: 'Vehicle Title',
+    description: 'Original title or registration certificate',
     required: false,
     formats: ['PDF', 'JPG', 'PNG']
   },
   {
-    id: 'id',
-    title: 'Photo ID',
-    description: "Driver's license or government ID",
+    id: 'registration',
+    title: 'Registration',
+    description: 'Current vehicle registration',
     required: false,
     formats: ['PDF', 'JPG', 'PNG']
   },
@@ -119,7 +119,8 @@ export default function ProofOfOwnershipStep({ shipmentData, documents, onDocume
           <div className="text-sm text-blue-900">
             <p className="font-semibold mb-1">Document Requirements:</p>
             <ul className="list-disc list-inside space-y-1 text-blue-800">
-              <li>At least one proof of ownership document is required (vehicle title)</li>
+              <li>Photo ID and Insurance Card are required</li>
+              <li>Vehicle Title and Registration are optional but recommended</li>
               <li>Ensure all documents are clear and readable</li>
               <li>Accepted formats: PDF, JPG, PNG (max 15MB per file)</li>
               <li>Personal information will be kept secure and confidential</li>
