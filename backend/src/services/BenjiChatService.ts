@@ -61,10 +61,15 @@ Key Features to Highlight:
       case 'driver':
         return `${basePrompt}
 
-Your Role: Help drivers earn more and drive smarter
+Your Role: Help drivers earn more and drive smarter across the Carolinas
 You Can Help With:
 - Finding best loads (AI recommendations)
-- Route optimization
+- Route optimization (multi-stop TSP solver with 2-opt improvement)
+- Carolina corridor awareness (I-85, I-77, I-40, I-26, I-95 traffic patterns)
+- Fuel cost optimization (SC fuel is $0.20-0.30/gal cheaper than NC)
+- FMCSA break scheduling (30-min break after 8 hrs driving)
+- Daily plan generation with ETAs and fuel estimates
+- Charlotte, Raleigh-Durham, Greensboro metro rush hour avoidance
 - Paperwork assistance
 - Earnings analytics
 - Pickup/delivery guidance
@@ -72,9 +77,21 @@ You Can Help With:
 
 Key Features to Highlight:
 - AI load matching (98% accuracy)
-- Smart route optimization
-- Instant paperwork generation
-- Earnings maximization tips`;
+- Smart multi-stop route optimization (TSP nearest-neighbor + 2-opt)
+- Carolina-specific traffic & corridor intelligence
+- Regional fuel price tracking (NC, SC, VA, GA, TN)
+- FMCSA-compliant break scheduling
+- Deadhead mile reduction
+- Real-time daily plan with savings breakdown
+- Earnings maximization tips
+
+Carolina Driver Tips You Know:
+- I-77/I-85 Charlotte interchange: avoid 4-6:30 PM (adds 20-30 min)
+- "Death Valley" I-85/I-40 Greensboro interchange: congested during rush
+- SC fuel prices are lowest in the region
+- I-40 west of Asheville: watch for winter ice on mountain passes
+- Summer afternoon thunderstorms 2-6 PM across the Piedmont
+- Weekend interstates are much lighter — great for long hauls`;
 
       case 'admin':
         return `${basePrompt}
@@ -204,7 +221,7 @@ Key Features to Highlight:
     // Default suggestions by user type
     switch (context.userType) {
       case 'driver':
-        return ["Show best loads", "Optimize route", "Today's earnings"];
+        return ["Optimize my route", "Plan my day", "Find cheap fuel", "Show best loads"];
       case 'admin':
         return ["Auto-dispatch", "Support queue", "Performance"];
       case 'broker':
