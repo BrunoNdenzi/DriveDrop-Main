@@ -20,7 +20,8 @@ import {
   ClipboardList,
   CheckCircle,
   MessageSquare,
-  Navigation
+  Navigation,
+  Map
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import NotificationBell from '@/components/NotificationBell'
@@ -29,6 +30,7 @@ const navItems = [
   { href: '/dashboard/driver', label: 'Dashboard', icon: TrendingUp },
   { href: '/dashboard/driver/jobs', label: 'Available Jobs', icon: Package },
   { href: '/dashboard/driver/active', label: 'Active Deliveries', icon: Truck },
+  { href: '/dashboard/driver/navigation', label: 'Navigation', icon: Map },
   { href: '/dashboard/driver/route-planner', label: 'Route Planner', icon: Navigation },
   { href: '/dashboard/driver/applications', label: 'My Applications', icon: ClipboardList },
   { href: '/dashboard/driver/completed', label: 'Completed', icon: CheckCircle },
