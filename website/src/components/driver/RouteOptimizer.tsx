@@ -20,7 +20,6 @@ import {
   Truck,
   Package,
   RotateCcw,
-  Play,
   Info,
   Sun,
   Cloud,
@@ -163,7 +162,7 @@ export default function RouteOptimizer({ driverId }: { driverId: string }) {
   const [benjiQuery, setBenjiQuery] = useState('')
   const [benjiResponse, setBenjiResponse] = useState<{ answer: string; suggestions: string[] } | null>(null)
   const [loadingBenji, setLoadingBenji] = useState(false)
-  const [showInAppMap, setShowInAppMap] = useState(false)
+  const [mapExpanded, setMapExpanded] = useState(true)
 
   // ── Auth Token ──────────────────────────────────────────────────────
 
@@ -691,19 +690,11 @@ export default function RouteOptimizer({ driverId }: { driverId: string }) {
               ))}
             </div>
 
-            {/* Navigate buttons */}
-            <div className="mt-4 pt-4 border-t border-gray-100 space-y-2">
-              <Button
-                onClick={() => setShowInAppMap(true)}
-                className="w-full bg-amber-500 hover:bg-amber-600 text-white"
-              >
-                <span className="flex items-center justify-center gap-2">
-                  <Play className="h-4 w-4" />
-                  Navigate In-App
-                </span>
-              </Button>
+            {/* Fallback: Open in Google Maps */}
+            <div className="mt-4 pt-4 border-t border-gray-100">
               <Button
                 variant="outline"
+                size="sm"
                 onClick={() => {
                   const waypoints = optimizedRoute.stops
                     .filter(s => s.type !== 'current_location')
@@ -714,15 +705,56 @@ export default function RouteOptimizer({ driverId }: { driverId: string }) {
                   const url = `https://www.google.com/maps/dir/?api=1&origin=${origin}&destination=${dest}&waypoints=${waypointStr}&travelmode=driving`
                   window.open(url, '_blank')
                 }}
-                className="w-full text-gray-600"
+                className="w-full text-gray-500 text-xs"
               >
                 <span className="flex items-center justify-center gap-2">
-                  <Navigation className="h-4 w-4" />
-                  Open in Google Maps
+                  <Navigation className="h-3.5 w-3.5" />
+                  Open in Google Maps (external)
                 </span>
               </Button>
             </div>
           </CollapsibleSection>
+
+          {/* ── In-App Map Navigation (inline, auto-shown) ─────── */}
+          <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+            <button
+              onClick={() => setMapExpanded(!mapExpanded)}
+              className="w-full flex items-center justify-between px-4 py-3 hover:bg-gray-50 transition-colors"
+            >
+              <div className="flex items-center gap-2">
+                <Navigation className="h-5 w-5 text-amber-500" />
+                <h3 className="text-sm font-semibold text-gray-900">Route Map & Navigation</h3>
+                <span className="text-xs text-gray-400 ml-1">
+                  {optimizedRoute.stops.length} stops · {optimizedRoute.summary?.totalDistance || '—'} mi
+                </span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] px-2 py-0.5 rounded-full bg-green-100 text-green-700 font-medium">LIVE</span>
+                {mapExpanded ? <ChevronUp className="h-4 w-4 text-gray-400" /> : <ChevronDown className="h-4 w-4 text-gray-400" />}
+              </div>
+            </button>
+            {mapExpanded && (
+              <div className="border-t border-gray-100">
+                <DriverMapNavigation
+                  stops={optimizedRoute.stops.map(s => ({
+                    id: s.id,
+                    address: s.address,
+                    type: s.type,
+                    label: s.vehicleInfo || s.type.replace('_', ' '),
+                    shipmentId: s.shipmentId,
+                    vehicleInfo: s.vehicleInfo,
+                    order: s.order,
+                    estimatedArrival: s.estimatedArrival,
+                  }))}
+                  height="h-[500px]"
+                  showOverlay={false}
+                  carolinaInsights={optimizedRoute.carolinaInsights}
+                  benjiTips={optimizedRoute.benjiTips}
+                  fuelStops={optimizedRoute.fuelStops}
+                />
+              </div>
+            )}
+          </div>
 
           {/* Benji Tips */}
           {optimizedRoute.benjiTips.length > 0 && (
@@ -1032,41 +1064,7 @@ export default function RouteOptimizer({ driverId }: { driverId: string }) {
         </div>
       </div>
 
-      {/* ── In-App Map Navigation ─────────────────────────────── */}
-      {showInAppMap && optimizedRoute && (
-        <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
-          <div className="px-5 py-3 border-b border-gray-100 flex items-center justify-between">
-            <h3 className="text-sm font-semibold text-gray-900 flex items-center gap-2">
-              <Navigation className="h-4 w-4 text-amber-500" />
-              Live Map Navigation
-            </h3>
-            <button
-              onClick={() => setShowInAppMap(false)}
-              className="text-xs text-gray-500 hover:text-gray-700 font-medium"
-            >
-              Close Map
-            </button>
-          </div>
-          <DriverMapNavigation
-            stops={optimizedRoute.stops.map(s => ({
-              id: s.id,
-              address: s.address,
-              type: s.type,
-              label: s.vehicleInfo || s.type.replace('_', ' '),
-              shipmentId: s.shipmentId,
-              vehicleInfo: s.vehicleInfo,
-              order: s.order,
-              estimatedArrival: s.estimatedArrival,
-            }))}
-            onClose={() => setShowInAppMap(false)}
-            height="h-[500px]"
-            showOverlay={true}
-            carolinaInsights={optimizedRoute.carolinaInsights}
-            benjiTips={optimizedRoute.benjiTips}
-            fuelStops={optimizedRoute.fuelStops}
-          />
-        </div>
-      )}
+
     </div>
   )
 }
