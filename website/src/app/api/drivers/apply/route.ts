@@ -267,51 +267,73 @@ export async function POST(request: NextRequest) {
       const firstName = fullName.split(' ')[0]
       await sendEmail({
         to: email,
-        subject: '✅ Driver Application Received - DriveDrop',
+        subject: 'Driver Application Received - DriveDrop',
         html: `
           <!DOCTYPE html>
-          <html>
-            <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
-              <div style="background: linear-gradient(135deg, #00B8A9 0%, #008B80 100%); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
-                <h1 style="color: white; margin: 0; font-size: 28px;">Application Received! ✅</h1>
-              </div>
-              
-              <div style="background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px;">
-                <p style="font-size: 16px; margin-bottom: 20px;">Hi ${firstName},</p>
-                
-                <p style="font-size: 16px; margin-bottom: 20px;">
-                  Thank you for applying to become a DriveDrop driver! We have received your application and will review it shortly.
-                </p>
-                
-                <div style="background: white; padding: 20px; border-radius: 8px; margin: 30px 0; border-left: 4px solid #00B8A9;">
-                  <h2 style="margin: 0 0 15px 0; color: #00B8A9; font-size: 18px;">📋 What's Next?</h2>
-                  <ol style="margin: 0; padding-left: 20px; font-size: 14px; line-height: 1.8;">
-                    <li>We'll review your application and documents</li>
-                    <li>Background check will be initiated</li>
-                    <li>You'll receive an email once we make a decision (typically within 3-5 business days)</li>
-                    <li>If approved, you'll receive login credentials</li>
-                  </ol>
-                </div>
-                
-                <div style="background: #e8f5f4; padding: 15px; border-radius: 4px; margin-top: 20px;">
-                  <p style="margin: 0; font-size: 14px; color: #00695c;">
-                    💡 <strong>Application ID:</strong> ${application.id.substring(0, 8).toUpperCase()}<br>
-                    Keep this ID for your records.
-                  </p>
-                </div>
-                
-                <p style="font-size: 14px; color: #666; margin-top: 30px;">
-                  Questions? Contact us at <a href="mailto:support@drivedrop.us.com" style="color: #00B8A9;">support@drivedrop.us.com</a>
-                </p>
-                
-                <p style="font-size: 16px; margin-top: 30px; margin-bottom: 5px;">Best regards,</p>
-                <p style="font-size: 16px; margin-top: 0; font-weight: bold; color: #00B8A9;">The DriveDrop Team</p>
-              </div>
-              
-              <div style="text-align: center; padding: 20px; color: #666; font-size: 12px;">
-                <p>© ${new Date().getFullYear()} DriveDrop. All rights reserved.</p>
-              </div>
-            </body>
+          <html lang="en">
+          <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>Application Received</title>
+          </head>
+          <body style="margin:0;padding:0;background-color:#f3f4f6;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;">
+            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#f3f4f6;">
+              <tr>
+                <td style="padding:40px 20px;">
+                  <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="margin:0 auto;background-color:#ffffff;border-radius:8px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.1);">
+                    <!-- Header -->
+                    <tr>
+                      <td style="background-color:#030712;padding:32px 40px;text-align:center;">
+                        <h1 style="margin:0 0 4px;color:#ffffff;font-size:22px;font-weight:700;letter-spacing:-0.3px;">
+                          Drive<span style="color:#3b82f6;">Drop</span>
+                        </h1>
+                        <p style="margin:0;color:#6b7280;font-size:13px;">Application Received</p>
+                      </td>
+                    </tr>
+                    <!-- Body -->
+                    <tr>
+                      <td style="padding:36px 40px;color:#111827;font-size:15px;line-height:1.7;">
+                        <h2 style="margin:0 0 16px;color:#111827;font-size:20px;">Hi ${firstName},</h2>
+
+                        <p>Thank you for applying to become a DriveDrop driver! We have received your application and will review it shortly.</p>
+
+                        <div style="background-color:#f9fafb;border-left:3px solid #f59e0b;padding:16px 20px;margin:24px 0;border-radius:0 6px 6px 0;font-size:14px;line-height:1.7;">
+                          <strong>What's Next?</strong>
+                          <ol style="margin:8px 0 0;padding-left:18px;">
+                            <li>We'll review your application and documents</li>
+                            <li>Background check will be initiated</li>
+                            <li>You'll receive an email once we make a decision (typically 3-5 business days)</li>
+                            <li>If approved, you'll receive login credentials</li>
+                          </ol>
+                        </div>
+
+                        <div style="background-color:#f9fafb;padding:12px 16px;border-radius:6px;margin:20px 0;font-size:13px;color:#6b7280;">
+                          <strong>Application ID:</strong> <span style="font-family:monospace;">${application.id.substring(0, 8).toUpperCase()}</span> — keep this for your records.
+                        </div>
+
+                        <p style="color:#6b7280;font-size:13px;">
+                          Questions? Contact us at <a href="mailto:support@drivedrop.us.com" style="color:#3b82f6;text-decoration:none;">support@drivedrop.us.com</a>
+                        </p>
+
+                        <p>Best regards,<br><strong>The DriveDrop Team</strong></p>
+                      </td>
+                    </tr>
+                    <!-- Footer -->
+                    <tr>
+                      <td style="padding:24px 40px;background-color:#f9fafb;border-top:1px solid #e5e7eb;text-align:center;color:#6b7280;font-size:12px;">
+                        <p style="margin:0;">
+                          <a href="https://drivedrop.us.com" style="color:#3b82f6;text-decoration:none;">drivedrop.us.com</a>
+                          &nbsp;&middot;&nbsp;
+                          <a href="mailto:support@drivedrop.us.com" style="color:#3b82f6;text-decoration:none;">support@drivedrop.us.com</a>
+                        </p>
+                        <p style="margin:8px 0 0;color:#9ca3af;font-size:11px;">&copy; ${new Date().getFullYear()} DriveDrop Inc. All rights reserved.</p>
+                      </td>
+                    </tr>
+                  </table>
+                </td>
+              </tr>
+            </table>
+          </body>
           </html>
         `,
       })
@@ -325,83 +347,97 @@ export async function POST(request: NextRequest) {
     try {
       await sendEmail({
         to: 'infos@drivedrop.us.com',
-        subject: '🚨 New Driver Application Submitted - DriveDrop',
+        subject: 'New Driver Application Submitted - DriveDrop',
         html: `
           <!DOCTYPE html>
-          <html>
-            <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
-              <div style="background: linear-gradient(135deg, #FF6B6B 0%, #EE5A6F 100%); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
-                <h1 style="color: white; margin: 0; font-size: 28px;">🚨 New Driver Application</h1>
-              </div>
-              
-              <div style="background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px;">
-                <p style="font-size: 16px; margin-bottom: 20px;">
-                  A new driver application has been submitted and requires review.
-                </p>
-                
-                <div style="background: white; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #FF6B6B;">
-                  <h2 style="margin: 0 0 15px 0; color: #FF6B6B; font-size: 18px;">📋 Applicant Information</h2>
-                  <table style="width: 100%; font-size: 14px;">
+          <html lang="en">
+          <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>New Driver Application</title>
+          </head>
+          <body style="margin:0;padding:0;background-color:#f3f4f6;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;">
+            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#f3f4f6;">
+              <tr>
+                <td style="padding:40px 20px;">
+                  <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="margin:0 auto;background-color:#ffffff;border-radius:8px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.1);">
+                    <!-- Header -->
                     <tr>
-                      <td style="padding: 8px 0; color: #666; width: 40%;"><strong>Full Name:</strong></td>
-                      <td style="padding: 8px 0;">${fullName}</td>
+                      <td style="background-color:#030712;padding:32px 40px;text-align:center;">
+                        <h1 style="margin:0 0 4px;color:#ffffff;font-size:22px;font-weight:700;letter-spacing:-0.3px;">
+                          Drive<span style="color:#3b82f6;">Drop</span>
+                        </h1>
+                        <p style="margin:0;color:#ef4444;font-size:13px;font-weight:600;">New Driver Application</p>
+                      </td>
                     </tr>
+                    <!-- Body -->
                     <tr>
-                      <td style="padding: 8px 0; color: #666;"><strong>Email:</strong></td>
-                      <td style="padding: 8px 0;">${email}</td>
+                      <td style="padding:36px 40px;color:#111827;font-size:15px;line-height:1.7;">
+                        <p>A new driver application has been submitted and requires review.</p>
+
+                        <div style="background-color:#f9fafb;border-left:3px solid #a855f7;padding:16px 20px;margin:24px 0;border-radius:0 6px 6px 0;font-size:14px;line-height:1.7;">
+                          <strong>Applicant Information</strong><br>
+                          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:8px;">
+                            <tr>
+                              <td style="padding:6px 0;color:#6b7280;width:40%;font-size:13px;"><strong>Full Name:</strong></td>
+                              <td style="padding:6px 0;font-size:13px;">${fullName}</td>
+                            </tr>
+                            <tr>
+                              <td style="padding:6px 0;color:#6b7280;font-size:13px;"><strong>Email:</strong></td>
+                              <td style="padding:6px 0;font-size:13px;">${email}</td>
+                            </tr>
+                            <tr>
+                              <td style="padding:6px 0;color:#6b7280;font-size:13px;"><strong>Phone:</strong></td>
+                              <td style="padding:6px 0;font-size:13px;">${phone}</td>
+                            </tr>
+                            <tr>
+                              <td style="padding:6px 0;color:#6b7280;font-size:13px;"><strong>License State:</strong></td>
+                              <td style="padding:6px 0;font-size:13px;">${licenseState}</td>
+                            </tr>
+                            <tr>
+                              <td style="padding:6px 0;color:#6b7280;font-size:13px;"><strong>Application ID:</strong></td>
+                              <td style="padding:6px 0;font-size:13px;font-family:monospace;">${application.id.substring(0, 8).toUpperCase()}</td>
+                            </tr>
+                            <tr>
+                              <td style="padding:6px 0;color:#6b7280;font-size:13px;"><strong>Submitted:</strong></td>
+                              <td style="padding:6px 0;font-size:13px;">${new Date().toLocaleString()}</td>
+                            </tr>
+                          </table>
+                        </div>
+
+                        <div style="background-color:#fffbeb;border-left:3px solid #f59e0b;padding:16px 20px;margin:20px 0;border-radius:0 6px 6px 0;font-size:13px;line-height:1.8;">
+                          <strong style="color:#92400e;">Documents Uploaded:</strong><br>
+                          ${licenseFrontUrl ? '&#10003; Driver License (Front)' : '&#10007; Driver License (Front)'}<br>
+                          ${licenseBackUrl ? '&#10003; Driver License (Back)' : '&#10007; Driver License (Back)'}<br>
+                          ${proofOfAddressUrl ? '&#10003; Proof of Address' : '&#10007; Proof of Address'}<br>
+                          ${insuranceProofUrl ? '&#10003; Insurance Document' : '&#10007; Insurance Document'}
+                        </div>
+
+                        <div style="background-color:#f9fafb;padding:12px 16px;border-radius:6px;margin:20px 0;font-size:13px;color:#6b7280;">
+                          <strong>Background Check:</strong> Not Started &nbsp;&middot;&nbsp; <strong>Status:</strong> Pending Review
+                        </div>
+
+                        <div style="text-align:center;margin:28px 0;">
+                          <a href="https://www.drivedrop.us.com/dashboard/admin/driver-applications" style="display:inline-block;background-color:#a855f7;color:#ffffff;padding:12px 32px;text-decoration:none;border-radius:6px;font-size:14px;font-weight:600;">Review Application</a>
+                        </div>
+
+                        <p style="color:#9ca3af;font-size:12px;text-align:center;">This is an automated notification from the DriveDrop driver application system.</p>
+                      </td>
                     </tr>
+                    <!-- Footer -->
                     <tr>
-                      <td style="padding: 8px 0; color: #666;"><strong>Phone:</strong></td>
-                      <td style="padding: 8px 0;">${phone}</td>
-                    </tr>
-                    <tr>
-                      <td style="padding: 8px 0; color: #666;"><strong>License State:</strong></td>
-                      <td style="padding: 8px 0;">${licenseState}</td>
-                    </tr>
-                    <tr>
-                      <td style="padding: 8px 0; color: #666;"><strong>Application ID:</strong></td>
-                      <td style="padding: 8px 0; font-family: monospace;">${application.id.substring(0, 8).toUpperCase()}</td>
-                    </tr>
-                    <tr>
-                      <td style="padding: 8px 0; color: #666;"><strong>Submitted:</strong></td>
-                      <td style="padding: 8px 0;">${new Date().toLocaleString()}</td>
+                      <td style="padding:24px 40px;background-color:#f9fafb;border-top:1px solid #e5e7eb;text-align:center;color:#6b7280;font-size:12px;">
+                        <p style="margin:0;">
+                          <a href="https://drivedrop.us.com" style="color:#3b82f6;text-decoration:none;">drivedrop.us.com</a>
+                        </p>
+                        <p style="margin:8px 0 0;color:#9ca3af;font-size:11px;">&copy; ${new Date().getFullYear()} DriveDrop Inc. All rights reserved.</p>
+                      </td>
                     </tr>
                   </table>
-                </div>
-
-                <div style="background: #fff3cd; padding: 15px; border-radius: 4px; margin: 20px 0; border-left: 4px solid #ffc107;">
-                  <p style="margin: 0; font-size: 14px; color: #856404;">
-                    ⚠️ <strong>Documents Uploaded:</strong><br>
-                    ${licenseFrontUrl ? '✅ Driver License (Front)' : '❌ Driver License (Front)'}<br>
-                    ${licenseBackUrl ? '✅ Driver License (Back)' : '❌ Driver License (Back)'}<br>
-                    ${proofOfAddressUrl ? '✅ Proof of Address' : '❌ Proof of Address'}<br>
-                    ${insuranceProofUrl ? '✅ Insurance Document' : '❌ Insurance Document'}
-                  </p>
-                </div>
-
-                <div style="background: #e8f5f4; padding: 15px; border-radius: 4px; margin: 20px 0;">
-                  <p style="margin: 0; font-size: 14px; color: #00695c;">
-                    📊 <strong>Background Check Status:</strong> Not Started<br>
-                    🚦 <strong>Application Status:</strong> Pending Review
-                  </p>
-                </div>
-                
-                <div style="text-align: center; margin: 30px 0;">
-                  <a href="https://www.drivedrop.us.com/dashboard/admin/driver-applications" 
-                     style="display: inline-block; background: #FF6B6B; color: white; padding: 15px 30px; text-decoration: none; border-radius: 5px; font-weight: bold; font-size: 16px;">
-                    Review Application Now →
-                  </a>
-                </div>
-
-                <p style="font-size: 14px; color: #666; margin-top: 30px; text-align: center;">
-                  This is an automated notification from the DriveDrop driver application system.
-                </p>
-              </div>
-              
-              <div style="text-align: center; padding: 20px; color: #666; font-size: 12px;">
-                <p>© ${new Date().getFullYear()} DriveDrop. All rights reserved.</p>
-              </div>
-            </body>
+                </td>
+              </tr>
+            </table>
+          </body>
           </html>
         `,
       })
