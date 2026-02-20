@@ -51,45 +51,68 @@ export async function POST(
         subject: 'Driver Application Update - DriveDrop',
         html: `
           <!DOCTYPE html>
-          <html>
-            <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
-              <div style="background: linear-gradient(135deg, #00B8A9 0%, #008B80 100%); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
-                <h1 style="color: white; margin: 0; font-size: 28px;">Application Status Update</h1>
-              </div>
-              
-              <div style="background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px;">
-                <p style="font-size: 16px; margin-bottom: 20px;">Hi ${firstName},</p>
-                
-                <p style="font-size: 16px; margin-bottom: 20px;">
-                  Thank you for your interest in becoming a DriveDrop driver. After careful review of your application, we are unable to approve it at this time.
-                </p>
-                
-                ${reason ? `
-                  <div style="background: #fff3cd; border-left: 4px solid #ffc107; padding: 15px; margin: 20px 0; border-radius: 4px;">
-                    <p style="margin: 0; font-size: 14px; color: #856404;">
-                      <strong>Reason:</strong> ${reason}
-                    </p>
-                  </div>
-                ` : ''}
-                
-                <div style="background: #e3f2fd; padding: 15px; border-radius: 4px; margin: 20px 0;">
-                  <p style="margin: 0; font-size: 14px; color: #0d47a1;">
-                    💡 <strong>Can I reapply?</strong> Yes! You're welcome to submit a new application in the future. Please ensure all requirements are met before reapplying.
-                  </p>
-                </div>
-                
-                <p style="font-size: 14px; color: #666; margin-top: 30px;">
-                  If you have questions about this decision, please contact us at <a href="mailto:support@drivedrop.us.com" style="color: #00B8A9;">support@drivedrop.us.com</a>
-                </p>
-                
-                <p style="font-size: 16px; margin-top: 30px; margin-bottom: 5px;">Best regards,</p>
-                <p style="font-size: 16px; margin-top: 0; font-weight: bold; color: #00B8A9;">The DriveDrop Team</p>
-              </div>
-              
-              <div style="text-align: center; padding: 20px; color: #666; font-size: 12px;">
-                <p>© ${new Date().getFullYear()} DriveDrop. All rights reserved.</p>
-              </div>
-            </body>
+          <html lang="en">
+          <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>Application Update</title>
+          </head>
+          <body style="margin:0;padding:0;background-color:#f3f4f6;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;">
+            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#f3f4f6;">
+              <tr>
+                <td style="padding:40px 20px;">
+                  <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="margin:0 auto;background-color:#ffffff;border-radius:8px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.1);">
+                    <!-- Header -->
+                    <tr>
+                      <td style="background-color:#030712;padding:32px 40px;text-align:center;">
+                        <h1 style="margin:0 0 4px;color:#ffffff;font-size:22px;font-weight:700;letter-spacing:-0.3px;">
+                          Drive<span style="color:#3b82f6;">Drop</span>
+                        </h1>
+                        <p style="margin:0;color:#6b7280;font-size:13px;">Application Status Update</p>
+                      </td>
+                    </tr>
+                    <!-- Body -->
+                    <tr>
+                      <td style="padding:36px 40px;color:#111827;font-size:15px;line-height:1.7;">
+                        <h2 style="margin:0 0 16px;color:#111827;font-size:20px;">Hi ${firstName},</h2>
+
+                        <p>Thank you for your interest in becoming a DriveDrop driver. After careful review of your application, we are unable to approve it at this time.</p>
+
+                        ${reason ? `
+                          <div style="background-color:#fffbeb;border-left:3px solid #f59e0b;padding:16px 20px;margin:24px 0;border-radius:0 6px 6px 0;font-size:14px;">
+                            <strong style="color:#92400e;">Reason:</strong>
+                            <p style="margin:6px 0 0;color:#92400e;">${reason}</p>
+                          </div>
+                        ` : ''}
+
+                        <div style="background-color:#eff6ff;border-left:3px solid #3b82f6;padding:16px 20px;margin:24px 0;border-radius:0 6px 6px 0;font-size:14px;">
+                          <strong>Can I reapply?</strong>
+                          <p style="margin:6px 0 0;">Yes! You're welcome to submit a new application in the future. Please ensure all requirements are met before reapplying.</p>
+                        </div>
+
+                        <p style="color:#6b7280;font-size:13px;">
+                          If you have questions about this decision, please contact us at <a href="mailto:support@drivedrop.us.com" style="color:#3b82f6;text-decoration:none;">support@drivedrop.us.com</a>
+                        </p>
+
+                        <p>Best regards,<br><strong>The DriveDrop Team</strong></p>
+                      </td>
+                    </tr>
+                    <!-- Footer -->
+                    <tr>
+                      <td style="padding:24px 40px;background-color:#f9fafb;border-top:1px solid #e5e7eb;text-align:center;color:#6b7280;font-size:12px;">
+                        <p style="margin:0;">
+                          <a href="https://drivedrop.us.com" style="color:#3b82f6;text-decoration:none;">drivedrop.us.com</a>
+                          &nbsp;&middot;&nbsp;
+                          <a href="mailto:support@drivedrop.us.com" style="color:#3b82f6;text-decoration:none;">support@drivedrop.us.com</a>
+                        </p>
+                        <p style="margin:8px 0 0;color:#9ca3af;font-size:11px;">&copy; ${new Date().getFullYear()} DriveDrop Inc. All rights reserved.</p>
+                      </td>
+                    </tr>
+                  </table>
+                </td>
+              </tr>
+            </table>
+          </body>
           </html>
         `,
       })

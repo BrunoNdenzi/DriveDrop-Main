@@ -1,481 +1,343 @@
 import { EmailTemplate, EmailTemplateType } from '../types/email.types';
 
-const DRIVEDROP_BRAND = {
-  primary: '#00B8A9',
-  secondary: '#FF9800',
-  dark: '#263238',
-  light: '#F7F9FC',
+// ── Design System (matches website UI) ──────────────────────────────
+const DD = {
+  bg:      '#030712', // gray-950
+  card:    '#ffffff',
+  border:  '#e5e7eb', // gray-200
+  muted:   '#f9fafb', // gray-50
+  text:    '#111827', // gray-900
+  sub:     '#6b7280', // gray-500
+  blue:    '#3b82f6', // blue-500
+  blueHi:  '#2563eb', // blue-600
+  amber:   '#f59e0b', // amber-500
+  teal:    '#14b8a6', // teal-500
+  green:   '#22c55e', // green-500
+  red:     '#ef4444', // red-500
+  purple:  '#a855f7', // purple-500
 };
 
-const emailBaseStyle = `
-  <style>
-    body { margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; }
-    .container { max-width: 600px; margin: 0 auto; background: white; }
-    .header { background: linear-gradient(135deg, ${DRIVEDROP_BRAND.primary} 0%, #008C7F 100%); padding: 40px 20px; text-align: center; }
-    .header h1 { color: white; margin: 0; font-size: 28px; font-weight: 700; }
-    .content { padding: 40px 30px; color: ${DRIVEDROP_BRAND.dark}; line-height: 1.6; }
-    .button { display: inline-block; background: ${DRIVEDROP_BRAND.primary}; color: white; padding: 14px 32px; text-decoration: none; border-radius: 8px; font-weight: 600; margin: 20px 0; }
-    .button:hover { background: #008C7F; }
-    .info-box { background: ${DRIVEDROP_BRAND.light}; border-left: 4px solid ${DRIVEDROP_BRAND.primary}; padding: 20px; margin: 20px 0; border-radius: 4px; }
-    .footer { background: #f5f5f5; padding: 30px; text-align: center; color: #666; font-size: 14px; }
-    .footer a { color: ${DRIVEDROP_BRAND.primary}; text-decoration: none; }
-    h2 { color: ${DRIVEDROP_BRAND.primary}; font-size: 24px; margin-top: 0; }
-    .status-badge { display: inline-block; background: ${DRIVEDROP_BRAND.secondary}; color: white; padding: 6px 12px; border-radius: 20px; font-size: 12px; font-weight: 600; }
-  </style>
+// ── Shared base layout ──────────────────────────────────────────────
+const emailBase = (title: string, body: string, footerExtra = '') => `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${title}</title>
+</head>
+<body style="margin:0;padding:0;background-color:#f3f4f6;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#f3f4f6;">
+    <tr>
+      <td style="padding:40px 20px;">
+        <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="margin:0 auto;background-color:${DD.card};border-radius:8px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.1);">
+          <!-- Header -->
+          <tr>
+            <td style="background-color:${DD.bg};padding:32px 40px;text-align:center;">
+              <h1 style="margin:0 0 4px;color:#ffffff;font-size:22px;font-weight:700;letter-spacing:-0.3px;">
+                Drive<span style="color:${DD.blue};">Drop</span>
+              </h1>
+              <p style="margin:0;color:${DD.sub};font-size:13px;">${title}</p>
+            </td>
+          </tr>
+          <!-- Body -->
+          <tr>
+            <td style="padding:36px 40px;color:${DD.text};font-size:15px;line-height:1.7;">
+              ${body}
+            </td>
+          </tr>
+          <!-- Footer -->
+          <tr>
+            <td style="padding:24px 40px;background-color:${DD.muted};border-top:1px solid ${DD.border};text-align:center;color:${DD.sub};font-size:12px;">
+              ${footerExtra}
+              <p style="margin:8px 0 0;">
+                <a href="https://drivedrop.us.com" style="color:${DD.blue};text-decoration:none;">drivedrop.us.com</a>
+                &nbsp;&middot;&nbsp;
+                <a href="mailto:support@drivedrop.us.com" style="color:${DD.blue};text-decoration:none;">support@drivedrop.us.com</a>
+              </p>
+              <p style="margin:8px 0 0;color:#9ca3af;font-size:11px;">&copy; ${new Date().getFullYear()} DriveDrop Inc. All rights reserved.</p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
 `;
 
+// ── Reusable components ─────────────────────────────────────────────
+const btn = (text: string, url: string, color = DD.blue) =>
+  `<div style="text-align:center;margin:28px 0;">
+    <a href="${url}" style="display:inline-block;background-color:${color};color:#ffffff;padding:12px 32px;text-decoration:none;border-radius:6px;font-size:14px;font-weight:600;">${text}</a>
+  </div>`;
+
+const infoBox = (content: string, accent = DD.blue) =>
+  `<div style="background-color:${DD.muted};border-left:3px solid ${accent};padding:16px 20px;margin:20px 0;border-radius:0 6px 6px 0;font-size:14px;line-height:1.7;">
+    ${content}
+  </div>`;
+
+const badge = (text: string, bg = DD.blue) =>
+  `<span style="display:inline-block;background-color:${bg};color:#ffffff;padding:4px 12px;border-radius:12px;font-size:12px;font-weight:600;">${text}</span>`;
+
+// ── Templates ───────────────────────────────────────────────────────
 export const EmailTemplates: Record<EmailTemplateType, EmailTemplate> = {
-  // CLIENT EMAILS
+
+  // ─── CLIENT EMAILS ──────────────────────────────────────────────
   client_welcome: {
-    subject: 'Welcome to DriveDrop - Your Vehicle Shipping Partner',
+    subject: 'Welcome to DriveDrop — Your Account is Ready',
     sender: 'client',
-    htmlContent: `
-      <!DOCTYPE html>
-      <html>
-      <head>${emailBaseStyle}</head>
-      <body>
-        <div class="container">
-          <div class="header">
-            <h1>🚗 Welcome to DriveDrop!</h1>
-          </div>
-          <div class="content">
-            <h2>Hi {{firstName}},</h2>
-            <p>Welcome to DriveDrop, Carolina' premier vehicle shipping platform! We're excited to help you ship vehicles safely and efficiently.</p>
-            
-            <div class="info-box">
-              <strong>🎯 What you can do now:</strong>
-              <ul>
-                <li>Get instant quotes for vehicle shipments</li>
-                <li>Track shipments in real-time with GPS</li>
-                <li>Access our network of verified carriers</li>
-                <li>Manage all shipments from one dashboard</li>
-              </ul>
-            </div>
+    htmlContent: emailBase('Welcome to DriveDrop', `
+      <h2 style="margin:0 0 16px;color:${DD.text};font-size:20px;">Hi {{firstName}},</h2>
+      <p>Welcome to DriveDrop — vehicle logistics, simplified. Your account is set up and ready to go.</p>
 
-            <p>Ready to ship your first vehicle?</p>
-            <a href="{{dashboardUrl}}" class="button">Go to Dashboard</a>
+      ${infoBox(`
+        <strong>What you can do:</strong>
+        <ul style="margin:8px 0 0;padding-left:18px;">
+          <li>Get instant quotes for vehicle shipments</li>
+          <li>Track shipments in real-time with GPS</li>
+          <li>Access a network of verified carriers</li>
+          <li>Manage everything from one dashboard</li>
+        </ul>
+      `)}
 
-            <p>Need help getting started? Our support team is here for you at <strong>support@drivedrop.us.com</strong></p>
-          </div>
-          <div class="footer">
-            <p><strong>DriveDrop</strong><br>
-            Vehicle Shipping Made Simple<br>
-            <a href="mailto:support@drivedrop.us.com">support@drivedrop.us.com</a></p>
-          </div>
-        </div>
-      </body>
-      </html>
-    `,
-    textContent: `Welcome to DriveDrop, {{firstName}}!\n\nWe're excited to help you ship vehicles safely and efficiently across Carolina.\n\nAccess your dashboard: {{dashboardUrl}}\n\nNeed help? Contact us at support@drivedrop.us.com`
+      ${btn('Go to Dashboard', '{{dashboardUrl}}')}
+
+      <p style="color:${DD.sub};font-size:13px;">Questions? Reach us at <a href="mailto:support@drivedrop.us.com" style="color:${DD.blue};text-decoration:none;">support@drivedrop.us.com</a></p>
+    `),
+    textContent: `Welcome to DriveDrop, {{firstName}}!\n\nYour account is ready. Access your dashboard: {{dashboardUrl}}\n\nNeed help? Contact support@drivedrop.us.com`
   },
 
   shipment_created: {
-    subject: 'Shipment Created - {{shipmentId}}',
+    subject: 'Shipment Created — {{shipmentId}}',
     sender: 'client',
-    htmlContent: `
-      <!DOCTYPE html>
-      <html>
-      <head>${emailBaseStyle}</head>
-      <body>
-        <div class="container">
-          <div class="header">
-            <h1>📦 Shipment Created</h1>
-          </div>
-          <div class="content">
-            <h2>Shipment {{shipmentId}}</h2>
-            <p>Hi {{firstName}},</p>
-            <p>Your vehicle shipment has been created successfully!</p>
+    htmlContent: emailBase('Shipment Created', `
+      <h2 style="margin:0 0 16px;color:${DD.text};font-size:20px;">Shipment {{shipmentId}}</h2>
+      <p>Hi {{firstName}}, your vehicle shipment has been created.</p>
 
-            <div class="info-box">
-              <strong>Shipment Details:</strong><br>
-              <strong>ID:</strong> {{shipmentId}}<br>
-              <strong>Vehicle:</strong> {{vehicleYear}} {{vehicleMake}} {{vehicleModel}}<br>
-              <strong>From:</strong> {{pickupCity}}, {{pickupState}}<br>
-              <strong>To:</strong> {{deliveryCity}}, {{deliveryState}}<br>
-              <strong>Pickup Date:</strong> {{pickupDate}}<br>
-              <strong>Status:</strong> <span class="status-badge">{{status}}</span>
-            </div>
+      ${infoBox(`
+        <strong>Shipment Details</strong><br>
+        <strong>ID:</strong> {{shipmentId}}<br>
+        <strong>Vehicle:</strong> {{vehicleYear}} {{vehicleMake}} {{vehicleModel}}<br>
+        <strong>From:</strong> {{pickupCity}}, {{pickupState}}<br>
+        <strong>To:</strong> {{deliveryCity}}, {{deliveryState}}<br>
+        <strong>Pickup:</strong> {{pickupDate}}<br>
+        <strong>Status:</strong> ${badge('{{status}}', DD.amber)}
+      `)}
 
-            <p>We're matching your shipment with the best available carriers. You'll receive a notification once a carrier is assigned.</p>
+      <p>We're matching your shipment with the best available carriers. You'll be notified once one is assigned.</p>
 
-            <a href="{{trackingUrl}}" class="button">Track Shipment</a>
-          </div>
-          <div class="footer">
-            <p><strong>DriveDrop</strong><br>
-            <a href="{{trackingUrl}}">Track Your Shipment</a> | <a href="mailto:support@drivedrop.us.com">Contact Support</a></p>
-          </div>
-        </div>
-      </body>
-      </html>
-    `,
-    textContent: `Shipment Created: {{shipmentId}}\n\nVehicle: {{vehicleYear}} {{vehicleMake}} {{vehicleModel}}\nRoute: {{pickupCity}}, {{pickupState}} → {{deliveryCity}}, {{deliveryState}}\n\nTrack: {{trackingUrl}}`
+      ${btn('Track Shipment', '{{trackingUrl}}')}
+    `),
+    textContent: `Shipment Created: {{shipmentId}}\n\nVehicle: {{vehicleYear}} {{vehicleMake}} {{vehicleModel}}\nRoute: {{pickupCity}}, {{pickupState}} -> {{deliveryCity}}, {{deliveryState}}\n\nTrack: {{trackingUrl}}`
   },
 
   carrier_assigned: {
-    subject: 'Carrier Assigned - {{shipmentId}}',
+    subject: 'Carrier Assigned — {{shipmentId}}',
     sender: 'client',
-    htmlContent: `
-      <!DOCTYPE html>
-      <html>
-      <head>${emailBaseStyle}</head>
-      <body>
-        <div class="container">
-          <div class="header">
-            <h1>🚛 Carrier Assigned!</h1>
-          </div>
-          <div class="content">
-            <h2>Great news, {{firstName}}!</h2>
-            <p>A verified carrier has been assigned to your shipment.</p>
+    htmlContent: emailBase('Carrier Assigned', `
+      <h2 style="margin:0 0 16px;color:${DD.text};font-size:20px;">Great news, {{firstName}}!</h2>
+      <p>A verified carrier has been assigned to your shipment.</p>
 
-            <div class="info-box">
-              <strong>Carrier Information:</strong><br>
-              <strong>Company:</strong> {{carrierName}}<br>
-              <strong>Driver:</strong> {{driverName}}<br>
-              <strong>Phone:</strong> {{driverPhone}}<br>
-              <strong>Rating:</strong> ⭐ {{driverRating}}/5.0<br><br>
-              <strong>Pickup:</strong> {{pickupDate}} at {{pickupTime}}<br>
-              <strong>Est. Delivery:</strong> {{deliveryDate}}
-            </div>
+      ${infoBox(`
+        <strong>Carrier Details</strong><br>
+        <strong>Company:</strong> {{carrierName}}<br>
+        <strong>Driver:</strong> {{driverName}}<br>
+        <strong>Phone:</strong> {{driverPhone}}<br>
+        <strong>Rating:</strong> {{driverRating}}/5.0<br><br>
+        <strong>Pickup:</strong> {{pickupDate}} at {{pickupTime}}<br>
+        <strong>Est. Delivery:</strong> {{deliveryDate}}
+      `)}
 
-            <p>Your driver will contact you 24 hours before pickup to confirm details.</p>
+      <p>Your driver will contact you 24 hours before pickup to confirm details.</p>
 
-            <a href="{{trackingUrl}}" class="button">Track Live</a>
-          </div>
-          <div class="footer">
-            <p><strong>DriveDrop</strong><br>
-            Questions? Contact <a href="mailto:support@drivedrop.us.com">support@drivedrop.us.com</a></p>
-          </div>
-        </div>
-      </body>
-      </html>
-    `
+      ${btn('Track Live', '{{trackingUrl}}')}
+    `)
   },
 
   pickup_confirmed: {
-    subject: 'Vehicle Picked Up - {{shipmentId}}',
+    subject: 'Vehicle Picked Up — {{shipmentId}}',
     sender: 'client',
-    htmlContent: `
-      <!DOCTYPE html>
-      <html>
-      <head>${emailBaseStyle}</head>
-      <body>
-        <div class="container">
-          <div class="header">
-            <h1>✅ Vehicle Picked Up</h1>
-          </div>
-          <div class="content">
-            <h2>Your vehicle is on the way!</h2>
-            <p>Hi {{firstName}},</p>
-            <p>Your {{vehicleYear}} {{vehicleMake}} {{vehicleModel}} has been picked up and is now in transit.</p>
+    htmlContent: emailBase('Vehicle Picked Up', `
+      <h2 style="margin:0 0 16px;color:${DD.text};font-size:20px;">Your vehicle is on the way!</h2>
+      <p>Hi {{firstName}}, your {{vehicleYear}} {{vehicleMake}} {{vehicleModel}} has been picked up and is now in transit.</p>
 
-            <div class="info-box">
-              <strong>Pickup Confirmation:</strong><br>
-              <strong>Picked up:</strong> {{pickupTime}} on {{pickupDate}}<br>
-              <strong>Location:</strong> {{pickupAddress}}<br>
-              <strong>Driver:</strong> {{driverName}}<br>
-              <strong>Est. Delivery:</strong> {{estimatedDelivery}}<br>
-              <strong>Current Location:</strong> Live tracking available
-            </div>
+      ${infoBox(`
+        <strong>Pickup Confirmation</strong><br>
+        <strong>Picked up:</strong> {{pickupTime}} on {{pickupDate}}<br>
+        <strong>Location:</strong> {{pickupAddress}}<br>
+        <strong>Driver:</strong> {{driverName}}<br>
+        <strong>Est. Delivery:</strong> {{estimatedDelivery}}
+      `, DD.green)}
 
-            <p>Track your vehicle's journey in real-time with GPS updates every 30 seconds.</p>
+      <p>Track your vehicle's journey in real-time.</p>
 
-            <a href="{{trackingUrl}}" class="button">Track Live</a>
-          </div>
-          <div class="footer">
-            <p><strong>DriveDrop</strong><br>
-            Track 24/7: <a href="{{trackingUrl}}">{{trackingUrl}}</a></p>
-          </div>
-        </div>
-      </body>
-      </html>
-    `
+      ${btn('Track Live', '{{trackingUrl}}', DD.green)}
+    `)
   },
 
   delivery_confirmed: {
-    subject: 'Vehicle Delivered - {{shipmentId}}',
+    subject: 'Vehicle Delivered — {{shipmentId}}',
     sender: 'client',
-    htmlContent: `
-      <!DOCTYPE html>
-      <html>
-      <head>${emailBaseStyle}</head>
-      <body>
-        <div class="container">
-          <div class="header">
-            <h1>🎉 Delivery Complete!</h1>
-          </div>
-          <div class="content">
-            <h2>Your vehicle has been delivered!</h2>
-            <p>Hi {{firstName}},</p>
-            <p>Great news! Your {{vehicleYear}} {{vehicleMake}} {{vehicleModel}} has been successfully delivered.</p>
+    htmlContent: emailBase('Delivery Complete', `
+      <h2 style="margin:0 0 16px;color:${DD.text};font-size:20px;">Your vehicle has been delivered!</h2>
+      <p>Hi {{firstName}}, your {{vehicleYear}} {{vehicleMake}} {{vehicleModel}} was delivered successfully.</p>
 
-            <div class="info-box">
-              <strong>Delivery Details:</strong><br>
-              <strong>Delivered:</strong> {{deliveryTime}} on {{deliveryDate}}<br>
-              <strong>Location:</strong> {{deliveryAddress}}<br>
-              <strong>Received by:</strong> {{receiverName}}<br>
-              <strong>Total Distance:</strong> {{totalMiles}} miles<br>
-              <strong>Delivery Time:</strong> {{transitDays}} days
-            </div>
+      ${infoBox(`
+        <strong>Delivery Details</strong><br>
+        <strong>Delivered:</strong> {{deliveryTime}} on {{deliveryDate}}<br>
+        <strong>Location:</strong> {{deliveryAddress}}<br>
+        <strong>Received by:</strong> {{receiverName}}<br>
+        <strong>Total Distance:</strong> {{totalMiles}} miles<br>
+        <strong>Transit Time:</strong> {{transitDays}} days
+      `, DD.green)}
 
-            <p>Thank you for choosing DriveDrop! We'd love to hear about your experience.</p>
+      <p>Thank you for choosing DriveDrop. We'd love your feedback.</p>
 
-            <a href="{{reviewUrl}}" class="button">Leave a Review</a>
+      ${btn('Leave a Review', '{{reviewUrl}}', DD.green)}
 
-            <p>Need another shipment? We're here to help!</p>
-            <a href="{{dashboardUrl}}">Create New Shipment</a>
-          </div>
-          <div class="footer">
-            <p><strong>DriveDrop</strong><br>
-            <a href="mailto:support@drivedrop.us.com">support@drivedrop.us.com</a> | <a href="{{dashboardUrl}}">Dashboard</a></p>
-          </div>
-        </div>
-      </body>
-      </html>
-    `
+      <p style="color:${DD.sub};font-size:13px;">Need another shipment? <a href="{{dashboardUrl}}" style="color:${DD.blue};text-decoration:none;">Create one here</a>.</p>
+    `)
   },
 
-  // DRIVER/CARRIER EMAILS
+  // ─── DRIVER / CARRIER EMAILS ────────────────────────────────────
   driver_welcome: {
     subject: 'Welcome to DriveDrop Carrier Network',
     sender: 'driver',
-    htmlContent: `
-      <!DOCTYPE html>
-      <html>
-      <head>${emailBaseStyle}</head>
-      <body>
-        <div class="container">
-          <div class="header">
-            <h1>🚛 Welcome, Carrier!</h1>
-          </div>
-          <div class="content">
-            <h2>Welcome to DriveDrop, {{firstName}}!</h2>
-            <p>You're now part of Carolina' fastest-growing vehicle logistics network.</p>
+    htmlContent: emailBase('Welcome, Carrier!', `
+      <h2 style="margin:0 0 16px;color:${DD.text};font-size:20px;">Welcome, {{firstName}}!</h2>
+      <p>You're now part of DriveDrop's vehicle logistics network.</p>
 
-            <div class="info-box">
-              <strong>🎯 Get Started:</strong>
-              <ul>
-                <li>Browse available loads with AI matching</li>
-                <li>Optimize routes with smart navigation</li>
-                <li>Accept loads instantly</li>
-                <li>Get paid fast with direct deposit</li>
-              </ul>
-            </div>
+      ${infoBox(`
+        <strong>Get started:</strong>
+        <ul style="margin:8px 0 0;padding-left:18px;">
+          <li>Browse available loads with AI matching</li>
+          <li>Optimize routes with smart navigation</li>
+          <li>Accept loads instantly</li>
+          <li>Get paid fast with direct deposit</li>
+        </ul>
+      `, DD.amber)}
 
-            <p><strong>Your carrier profile is live!</strong> Start accepting loads now.</p>
+      <p>Your carrier profile is live — start accepting loads now.</p>
 
-            <a href="{{dashboardUrl}}" class="button">View Available Loads</a>
+      ${btn('View Available Loads', '{{dashboardUrl}}', DD.amber)}
 
-            <p>Questions? Our carrier support team is here: <strong>carrier@drivedrop.us.com</strong></p>
-          </div>
-          <div class="footer">
-            <p><strong>DriveDrop Carrier Network</strong><br>
-            <a href="mailto:carrier@drivedrop.us.com">carrier@drivedrop.us.com</a></p>
-          </div>
-        </div>
-      </body>
-      </html>
-    `
+      <p style="color:${DD.sub};font-size:13px;">Questions? Contact <a href="mailto:support@drivedrop.us.com" style="color:${DD.blue};text-decoration:none;">support@drivedrop.us.com</a></p>
+    `)
   },
 
   load_available: {
-    subject: 'New Load Match - {{route}}',
+    subject: 'New Load Match — {{route}}',
     sender: 'driver',
-    htmlContent: `
-      <!DOCTYPE html>
-      <html>
-      <head>${emailBaseStyle}</head>
-      <body>
-        <div class="container">
-          <div class="header">
-            <h1>🎯 New Load Available</h1>
-          </div>
-          <div class="content">
-            <h2>Perfect match for you, {{firstName}}!</h2>
-            <p>Our AI has identified a high-value load that matches your route and schedule.</p>
+    htmlContent: emailBase('New Load Available', `
+      <h2 style="margin:0 0 16px;color:${DD.text};font-size:20px;">Match found, {{firstName}}!</h2>
+      <p>Our AI identified a high-value load matching your route and schedule.</p>
 
-            <div class="info-box">
-              <strong>Load Details:</strong><br>
-              <strong>Route:</strong> {{pickupCity}}, {{pickupState}} → {{deliveryCity}}, {{deliveryState}}<br>
-              <strong>Distance:</strong> {{distance}} miles<br>
-              <strong>Pickup:</strong> {{pickupDate}}<br>
-              <strong>Vehicle:</strong> {{vehicleYear}} {{vehicleMake}} {{vehicleModel}}<br>
-              <strong>Rate:</strong> <strong style="color: ${DRIVEDROP_BRAND.secondary}; font-size: 20px;">{{rate}}</strong><br>
-              <strong>Load ID:</strong> {{loadId}}
-            </div>
+      ${infoBox(`
+        <strong>Load Details</strong><br>
+        <strong>Route:</strong> {{pickupCity}}, {{pickupState}} &rarr; {{deliveryCity}}, {{deliveryState}}<br>
+        <strong>Distance:</strong> {{distance}} miles<br>
+        <strong>Pickup:</strong> {{pickupDate}}<br>
+        <strong>Vehicle:</strong> {{vehicleYear}} {{vehicleMake}} {{vehicleModel}}<br>
+        <strong>Rate:</strong> <span style="color:${DD.amber};font-size:18px;font-weight:700;">{{rate}}</span><br>
+        <strong>Load ID:</strong> {{loadId}}
+      `, DD.amber)}
 
-            <p><strong>⚡ Act fast!</strong> This load is being shown to multiple carriers.</p>
+      <p><strong>Act fast</strong> — this load is visible to multiple carriers.</p>
 
-            <a href="{{loadUrl}}" class="button">View & Accept Load</a>
-          </div>
-          <div class="footer">
-            <p><strong>DriveDrop Carrier Network</strong><br>
-            <a href="{{loadUrl}}">View Load Details</a></p>
-          </div>
-        </div>
-      </body>
-      </html>
-    `
+      ${btn('View & Accept Load', '{{loadUrl}}', DD.amber)}
+    `)
   },
 
   load_assigned: {
-    subject: 'Load Confirmed - {{loadId}}',
+    subject: 'Load Confirmed — {{loadId}}',
     sender: 'driver',
-    htmlContent: `
-      <!DOCTYPE html>
-      <html>
-      <head>${emailBaseStyle}</head>
-      <body>
-        <div class="container">
-          <div class="header">
-            <h1>✅ Load Confirmed!</h1>
-          </div>
-          <div class="content">
-            <h2>You've got a new load, {{firstName}}!</h2>
-            <p>Congratulations! Load {{loadId}} has been assigned to you.</p>
+    htmlContent: emailBase('Load Confirmed', `
+      <h2 style="margin:0 0 16px;color:${DD.text};font-size:20px;">You've got a new load, {{firstName}}!</h2>
+      <p>Load {{loadId}} has been assigned to you.</p>
 
-            <div class="info-box">
-              <strong>Assignment Details:</strong><br>
-              <strong>Load ID:</strong> {{loadId}}<br>
-              <strong>Pickup:</strong> {{pickupAddress}}<br>
-              <strong>Pickup Date:</strong> {{pickupDate}} at {{pickupTime}}<br>
-              <strong>Delivery:</strong> {{deliveryAddress}}<br>
-              <strong>Contact:</strong> {{customerName}} - {{customerPhone}}<br>
-              <strong>Payment:</strong> {{rate}} (paid on delivery)
-            </div>
+      ${infoBox(`
+        <strong>Assignment Details</strong><br>
+        <strong>Load ID:</strong> {{loadId}}<br>
+        <strong>Pickup:</strong> {{pickupAddress}}<br>
+        <strong>Pickup Date:</strong> {{pickupDate}} at {{pickupTime}}<br>
+        <strong>Delivery:</strong> {{deliveryAddress}}<br>
+        <strong>Contact:</strong> {{customerName}} &mdash; {{customerPhone}}<br>
+        <strong>Payment:</strong> {{rate}} (paid on delivery)
+      `, DD.green)}
 
-            <p><strong>Next Steps:</strong></p>
-            <ol>
-              <li>Review pickup instructions</li>
-              <li>Contact customer 24h before pickup</li>
-              <li>Complete pickup verification</li>
-              <li>Enable GPS tracking</li>
-            </ol>
+      <p><strong>Next steps:</strong></p>
+      <ol style="padding-left:18px;line-height:2;">
+        <li>Review pickup instructions</li>
+        <li>Contact customer 24h before pickup</li>
+        <li>Complete pickup verification</li>
+        <li>Enable GPS tracking</li>
+      </ol>
 
-            <a href="{{loadDetailsUrl}}" class="button">View Full Details</a>
-          </div>
-          <div class="footer">
-            <p><strong>DriveDrop</strong><br>
-            Support: <a href="mailto:carrier@drivedrop.us.com">carrier@drivedrop.us.com</a></p>
-          </div>
-        </div>
-      </body>
-      </html>
-    `
+      ${btn('View Full Details', '{{loadDetailsUrl}}', DD.amber)}
+    `)
   },
 
-  // BROKER EMAILS
+  // ─── BROKER EMAILS ──────────────────────────────────────────────
   broker_welcome: {
     subject: 'Welcome to DriveDrop Broker Network',
     sender: 'broker',
-    htmlContent: `
-      <!DOCTYPE html>
-      <html>
-      <head>${emailBaseStyle}</head>
-      <body>
-        <div class="container">
-          <div class="header">
-            <h1>🤝 Welcome to DriveDrop</h1>
-          </div>
-          <div class="content">
-            <h2>Welcome, {{firstName}}!</h2>
-            <p>You're now connected to DriveDrop's broker network with Central Dispatch, Montway, and uShip integrations.</p>
+    htmlContent: emailBase('Welcome, Broker!', `
+      <h2 style="margin:0 0 16px;color:${DD.text};font-size:20px;">Welcome, {{firstName}}!</h2>
+      <p>You're now connected to DriveDrop's broker network with Central Dispatch, Montway, and uShip integrations.</p>
 
-            <div class="info-box">
-              <strong>🎯 Broker Benefits:</strong>
-              <ul>
-                <li>Sync loads from multiple platforms</li>
-                <li>AI-powered carrier matching</li>
-                <li>Automated dispatch workflow</li>
-                <li>Commission tracking & reporting</li>
-              </ul>
-            </div>
+      ${infoBox(`
+        <strong>Broker benefits:</strong>
+        <ul style="margin:8px 0 0;padding-left:18px;">
+          <li>Sync loads from multiple platforms</li>
+          <li>AI-powered carrier matching</li>
+          <li>Automated dispatch workflow</li>
+          <li>Commission tracking &amp; reporting</li>
+        </ul>
+      `, DD.teal)}
 
-            <a href="{{dashboardUrl}}" class="button">Access Broker Dashboard</a>
+      ${btn('Access Broker Dashboard', '{{dashboardUrl}}', DD.teal)}
 
-            <p>Questions? Contact: <strong>broker@drivedrop.us.com</strong></p>
-          </div>
-          <div class="footer">
-            <p><strong>DriveDrop Broker Network</strong><br>
-            <a href="mailto:broker@drivedrop.us.com">broker@drivedrop.us.com</a></p>
-          </div>
-        </div>
-      </body>
-      </html>
-    `
+      <p style="color:${DD.sub};font-size:13px;">Questions? Contact <a href="mailto:support@drivedrop.us.com" style="color:${DD.blue};text-decoration:none;">support@drivedrop.us.com</a></p>
+    `)
   },
 
-  // UTILITY EMAILS
+  // ─── UTILITY EMAILS ─────────────────────────────────────────────
   password_reset: {
     subject: 'Reset Your DriveDrop Password',
     sender: 'client',
-    htmlContent: `
-      <!DOCTYPE html>
-      <html>
-      <head>${emailBaseStyle}</head>
-      <body>
-        <div class="container">
-          <div class="header">
-            <h1>🔐 Password Reset</h1>
-          </div>
-          <div class="content">
-            <h2>Reset your password</h2>
-            <p>Hi {{firstName}},</p>
-            <p>We received a request to reset your DriveDrop password.</p>
+    htmlContent: emailBase('Password Reset', `
+      <h2 style="margin:0 0 16px;color:${DD.text};font-size:20px;">Reset your password</h2>
+      <p>Hi {{firstName}}, we received a request to reset your DriveDrop password.</p>
 
-            <a href="{{resetUrl}}" class="button">Reset Password</a>
+      ${btn('Reset Password', '{{resetUrl}}')}
 
-            <p>This link expires in 1 hour.</p>
-            <p>If you didn't request this, please ignore this email.</p>
-          </div>
-          <div class="footer">
-            <p><strong>DriveDrop</strong><br>
-            <a href="mailto:support@drivedrop.us.com">support@drivedrop.us.com</a></p>
-          </div>
-        </div>
-      </body>
-      </html>
-    `
+      <p style="color:${DD.sub};font-size:13px;">This link expires in 1 hour. If you didn't request this, you can safely ignore this email.</p>
+    `)
   },
 
   email_verification: {
     subject: 'Verify Your DriveDrop Email',
     sender: 'client',
-    htmlContent: `
-      <!DOCTYPE html>
-      <html>
-      <head>${emailBaseStyle}</head>
-      <body>
-        <div class="container">
-          <div class="header">
-            <h1>✉️ Verify Your Email</h1>
-          </div>
-          <div class="content">
-            <h2>Almost there, {{firstName}}!</h2>
-            <p>Please verify your email address to complete your DriveDrop registration.</p>
+    htmlContent: emailBase('Verify Your Email', `
+      <h2 style="margin:0 0 16px;color:${DD.text};font-size:20px;">Almost there, {{firstName}}!</h2>
+      <p>Verify your email address to complete your DriveDrop registration.</p>
 
-            <a href="{{verificationUrl}}" class="button">Verify Email Address</a>
+      ${btn('Verify Email Address', '{{verificationUrl}}')}
 
-            <p>This link expires in 24 hours.</p>
-          </div>
-          <div class="footer">
-            <p><strong>DriveDrop</strong><br>
-            <a href="mailto:support@drivedrop.us.com">support@drivedrop.us.com</a></p>
-          </div>
-        </div>
-      </body>
-      </html>
-    `
+      <p style="color:${DD.sub};font-size:13px;">This link expires in 24 hours.</p>
+    `)
   },
 
-  // Additional placeholder templates (can be expanded)
-  quote_received: { subject: 'Quote Received', sender: 'client', htmlContent: '' },
-  payment_received: { subject: 'Payment Received', sender: 'client', htmlContent: '' },
-  pickup_reminder: { subject: 'Pickup Reminder', sender: 'driver', htmlContent: '' },
-  delivery_reminder: { subject: 'Delivery Reminder', sender: 'driver', htmlContent: '' },
-  payment_processed: { subject: 'Payment Processed', sender: 'driver', htmlContent: '' },
-  broker_load_synced: { subject: 'Load Synced', sender: 'broker', htmlContent: '' },
-  broker_load_matched: { subject: 'Load Matched', sender: 'broker', htmlContent: '' },
-  commission_report: { subject: 'Commission Report', sender: 'broker', htmlContent: '' },
-  admin_new_user: { subject: 'New User Registration', sender: 'admin', htmlContent: '' },
-  admin_daily_summary: { subject: 'Daily Summary', sender: 'admin', htmlContent: '' },
+  // ─── Placeholders ───────────────────────────────────────────────
+  quote_received:       { subject: 'Quote Received', sender: 'client', htmlContent: '' },
+  payment_received:     { subject: 'Payment Received', sender: 'client', htmlContent: '' },
+  pickup_reminder:      { subject: 'Pickup Reminder', sender: 'driver', htmlContent: '' },
+  delivery_reminder:    { subject: 'Delivery Reminder', sender: 'driver', htmlContent: '' },
+  payment_processed:    { subject: 'Payment Processed', sender: 'driver', htmlContent: '' },
+  broker_load_synced:   { subject: 'Load Synced', sender: 'broker', htmlContent: '' },
+  broker_load_matched:  { subject: 'Load Matched', sender: 'broker', htmlContent: '' },
+  commission_report:    { subject: 'Commission Report', sender: 'broker', htmlContent: '' },
+  admin_new_user:       { subject: 'New User Registration', sender: 'admin', htmlContent: '' },
+  admin_daily_summary:  { subject: 'Daily Summary', sender: 'admin', htmlContent: '' },
 };
