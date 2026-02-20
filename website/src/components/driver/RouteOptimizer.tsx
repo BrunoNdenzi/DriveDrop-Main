@@ -4,6 +4,7 @@ import { useState, useCallback, useEffect, useRef } from 'react'
 import { getSupabaseBrowserClient } from '@/lib/supabase-client'
 import { toast } from '@/components/ui/toast'
 import { Button } from '@/components/ui/button'
+import DriverMapNavigation, { type NavStop } from '@/components/driver/DriverMapNavigation'
 import {
   Navigation,
   MapPin,
@@ -162,6 +163,7 @@ export default function RouteOptimizer({ driverId }: { driverId: string }) {
   const [benjiQuery, setBenjiQuery] = useState('')
   const [benjiResponse, setBenjiResponse] = useState<{ answer: string; suggestions: string[] } | null>(null)
   const [loadingBenji, setLoadingBenji] = useState(false)
+  const [showInAppMap, setShowInAppMap] = useState(false)
 
   // ── Auth Token ──────────────────────────────────────────────────────
 
@@ -689,9 +691,19 @@ export default function RouteOptimizer({ driverId }: { driverId: string }) {
               ))}
             </div>
 
-            {/* Navigate button */}
-            <div className="mt-4 pt-4 border-t border-gray-100">
+            {/* Navigate buttons */}
+            <div className="mt-4 pt-4 border-t border-gray-100 space-y-2">
               <Button
+                onClick={() => setShowInAppMap(true)}
+                className="w-full bg-amber-500 hover:bg-amber-600 text-white"
+              >
+                <span className="flex items-center justify-center gap-2">
+                  <Play className="h-4 w-4" />
+                  Navigate In-App
+                </span>
+              </Button>
+              <Button
+                variant="outline"
                 onClick={() => {
                   const waypoints = optimizedRoute.stops
                     .filter(s => s.type !== 'current_location')
@@ -702,11 +714,11 @@ export default function RouteOptimizer({ driverId }: { driverId: string }) {
                   const url = `https://www.google.com/maps/dir/?api=1&origin=${origin}&destination=${dest}&waypoints=${waypointStr}&travelmode=driving`
                   window.open(url, '_blank')
                 }}
-                className="w-full bg-blue-600 hover:bg-blue-700 text-white"
+                className="w-full text-gray-600"
               >
                 <span className="flex items-center justify-center gap-2">
-                  <Play className="h-4 w-4" />
-                  Open in Google Maps Navigation
+                  <Navigation className="h-4 w-4" />
+                  Open in Google Maps
                 </span>
               </Button>
             </div>
@@ -1019,6 +1031,42 @@ export default function RouteOptimizer({ driverId }: { driverId: string }) {
           ))}
         </div>
       </div>
+
+      {/* ── In-App Map Navigation ─────────────────────────────── */}
+      {showInAppMap && optimizedRoute && (
+        <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+          <div className="px-5 py-3 border-b border-gray-100 flex items-center justify-between">
+            <h3 className="text-sm font-semibold text-gray-900 flex items-center gap-2">
+              <Navigation className="h-4 w-4 text-amber-500" />
+              Live Map Navigation
+            </h3>
+            <button
+              onClick={() => setShowInAppMap(false)}
+              className="text-xs text-gray-500 hover:text-gray-700 font-medium"
+            >
+              Close Map
+            </button>
+          </div>
+          <DriverMapNavigation
+            stops={optimizedRoute.stops.map(s => ({
+              id: s.id,
+              address: s.address,
+              type: s.type,
+              label: s.vehicleInfo || s.type.replace('_', ' '),
+              shipmentId: s.shipmentId,
+              vehicleInfo: s.vehicleInfo,
+              order: s.order,
+              estimatedArrival: s.estimatedArrival,
+            }))}
+            onClose={() => setShowInAppMap(false)}
+            height="h-[500px]"
+            showOverlay={true}
+            carolinaInsights={optimizedRoute.carolinaInsights}
+            benjiTips={optimizedRoute.benjiTips}
+            fuelStops={optimizedRoute.fuelStops}
+          />
+        </div>
+      )}
     </div>
   )
 }

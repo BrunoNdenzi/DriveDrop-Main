@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useRef } from 'react'
+import { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { getSupabaseBrowserClient } from '@/lib/supabase-client'
 import { useAuth } from '@/hooks/useAuth'
@@ -24,6 +24,7 @@ import {
   Mail
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import DriverMapNavigation, { type NavStop } from '@/components/driver/DriverMapNavigation'
 
 interface Shipment {
   id: string
@@ -96,8 +97,6 @@ export default function DriverShipmentTrackingPage() {
   const [loading, setLoading] = useState(true)
   const [updating, setUpdating] = useState(false)
   const [sendingReceipt, setSendingReceipt] = useState(false)
-  const mapRef = useRef<google.maps.Map | null>(null)
-  const mapContainerRef = useRef<HTMLDivElement>(null)
   const supabase = getSupabaseBrowserClient()
 
   useEffect(() => {
@@ -105,12 +104,6 @@ export default function DriverShipmentTrackingPage() {
       fetchShipmentData()
     }
   }, [profile?.id, params.id])
-
-  useEffect(() => {
-    if (shipment && window.google && mapContainerRef.current && !mapRef.current) {
-      initializeMap()
-    }
-  }, [shipment])
 
   const fetchShipmentData = async () => {
     try {
@@ -150,54 +143,6 @@ export default function DriverShipmentTrackingPage() {
     } finally {
       setLoading(false)
     }
-  }
-
-  const initializeMap = () => {
-    if (!mapContainerRef.current || !shipment) return
-
-    const map = new google.maps.Map(mapContainerRef.current, {
-      center: { lat: shipment.pickup_lat, lng: shipment.pickup_lng },
-      zoom: 8,
-      mapTypeControl: false,
-      streetViewControl: false,
-    })
-
-    mapRef.current = map
-
-    // Add pickup marker
-    new google.maps.Marker({
-      position: { lat: shipment.pickup_lat, lng: shipment.pickup_lng },
-      map: map,
-      label: 'P',
-      title: 'Pickup Location',
-    })
-
-    // Add delivery marker
-    new google.maps.Marker({
-      position: { lat: shipment.delivery_lat, lng: shipment.delivery_lng },
-      map: map,
-      label: 'D',
-      title: 'Delivery Location',
-    })
-
-    // Draw route
-    const routePath = new google.maps.Polyline({
-      path: [
-        { lat: shipment.pickup_lat, lng: shipment.pickup_lng },
-        { lat: shipment.delivery_lat, lng: shipment.delivery_lng },
-      ],
-      geodesic: true,
-      strokeColor: '#3B82F6',
-      strokeOpacity: 0.8,
-      strokeWeight: 3,
-      map: map,
-    })
-
-    // Fit bounds
-    const bounds = new google.maps.LatLngBounds()
-    bounds.extend({ lat: shipment.pickup_lat, lng: shipment.pickup_lng })
-    bounds.extend({ lat: shipment.delivery_lat, lng: shipment.delivery_lng })
-    map.fitBounds(bounds)
   }
 
   const updateStatus = async (newStatus: string) => {
@@ -457,9 +402,34 @@ export default function DriverShipmentTrackingPage() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
           {/* Main Content */}
           <div className="lg:col-span-2 space-y-4">
-            {/* Map */}
+            {/* Map with Navigation */}
             <div className="bg-white rounded-md border overflow-hidden">
-              <div ref={mapContainerRef} className="h-96 w-full"></div>
+              <DriverMapNavigation
+                stops={[
+                  ...((['accepted', 'assigned', 'driver_en_route', 'driver_arrived'].includes(shipment.status)) ? [{
+                    id: `pickup-${shipment.id}`,
+                    address: `${shipment.pickup_address}, ${shipment.pickup_city}, ${shipment.pickup_state} ${shipment.pickup_zip}`,
+                    type: 'pickup' as const,
+                    lat: shipment.pickup_lat,
+                    lng: shipment.pickup_lng,
+                    label: 'Pickup',
+                    vehicleInfo: shipment.title,
+                    order: 1,
+                  }] : []),
+                  {
+                    id: `delivery-${shipment.id}`,
+                    address: `${shipment.delivery_address}, ${shipment.delivery_city}, ${shipment.delivery_state} ${shipment.delivery_zip}`,
+                    type: 'delivery' as const,
+                    lat: shipment.delivery_lat,
+                    lng: shipment.delivery_lng,
+                    label: 'Delivery',
+                    vehicleInfo: shipment.title,
+                    order: (['accepted', 'assigned', 'driver_en_route', 'driver_arrived'].includes(shipment.status)) ? 2 : 1,
+                  },
+                ]}
+                height="h-96"
+                showOverlay={true}
+              />
             </div>
 
             {/* Status Progress */}
