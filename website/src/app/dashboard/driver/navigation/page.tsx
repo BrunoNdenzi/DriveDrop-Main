@@ -146,10 +146,12 @@ export default function DriverNavigationPage() {
   const [navETA, setNavETA] = useState('')
   const [isNavigating, setIsNavigating] = useState(false)
 
-  // ── Load Shipments ─────────────────────────────────────────────────
+  // ── Load Shipments (same logic as RouteOptimizer) ───────────────────
   useEffect(() => {
     const load = async () => {
-      const driverId = profile?.id || user?.id
+      // Get authenticated user directly — same approach as RouteOptimizer
+      const { data: { user: authUser } } = await supabase.auth.getUser()
+      const driverId = authUser?.id
       if (!driverId) return
       try {
         setLoadingShipments(true)
@@ -169,7 +171,7 @@ export default function DriverNavigationPage() {
       }
     }
     load()
-  }, [profile?.id, user?.id, supabase])
+  }, [supabase])
 
   // ── Initialize Map ─────────────────────────────────────────────────
   const initMap = useCallback(() => {
