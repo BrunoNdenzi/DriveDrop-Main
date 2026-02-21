@@ -45,14 +45,15 @@ interface Shipment {
   title: string
   pickup_address: string
   delivery_address: string
-  pickup_lat: number | null
-  pickup_lng: number | null
-  delivery_lat: number | null
-  delivery_lng: number | null
   status: string
   estimated_price: number | null
   distance: number | null
   created_at: string
+}
+
+interface GeocodedCoords {
+  pickup?: { lat: number; lng: number }
+  delivery?: { lat: number; lng: number }
 }
 
 interface NearbyPlace {
@@ -124,6 +125,7 @@ export default function DriverNavigationPage() {
 
   // ── State ─────────────────────────────────────────────────────────
   const [shipments, setShipments] = useState<Shipment[]>([])
+  const [shipmentCoords, setShipmentCoords] = useState<Record<string, GeocodedCoords>>({})
   const [loadingShipments, setLoadingShipments] = useState(true)
   const [mapReady, setMapReady] = useState(false)
   const [driverPos, setDriverPos] = useState<{ lat: number; lng: number } | null>(null)
@@ -157,13 +159,19 @@ export default function DriverNavigationPage() {
         setLoadingShipments(true)
         const { data, error } = await supabase
           .from('shipments')
-          .select('id, title, pickup_address, delivery_address, pickup_lat, pickup_lng, delivery_lat, delivery_lng, status, estimated_price, distance, created_at')
+          .select('id, title, pickup_address, delivery_address, status, estimated_price, distance, created_at')
           .eq('driver_id', driverId)
           .in('status', ['accepted', 'assigned', 'picked_up', 'in_transit', 'in_progress', 'driver_en_route', 'driver_arrived', 'pickup_verification_pending', 'pickup_verified'])
           .order('created_at', { ascending: false })
 
         if (error) throw error
-        setShipments(data || [])
+        const loaded = data || []
+        setShipments(loaded)
+
+        // Geocode addresses to get map coordinates
+        if (loaded.length > 0 && window.google) {
+          geocodeShipments(loaded)
+        }
       } catch (err) {
         console.error('Failed to load shipments:', err)
       } finally {
@@ -172,6 +180,48 @@ export default function DriverNavigationPage() {
     }
     load()
   }, [supabase])
+
+  // ── Geocode Shipment Addresses ─────────────────────────────────────
+  const geocodeShipments = async (items: Shipment[]) => {
+    if (!window.google) return
+    const geocoder = new google.maps.Geocoder()
+    const coords: Record<string, GeocodedCoords> = {}
+
+    const geocode = (address: string): Promise<{ lat: number; lng: number } | null> =>
+      new Promise(resolve => {
+        geocoder.geocode({ address }, (results, status) => {
+          if (status === 'OK' && results?.[0]?.geometry?.location) {
+            resolve({ lat: results[0].geometry.location.lat(), lng: results[0].geometry.location.lng() })
+          } else {
+            resolve(null)
+          }
+        })
+      })
+
+    // Process in batches of 5 to respect geocoding rate limits
+    for (let i = 0; i < items.length; i += 5) {
+      const batch = items.slice(i, i + 5)
+      await Promise.all(batch.map(async (shipment) => {
+        const entry: GeocodedCoords = {}
+        const [pickup, delivery] = await Promise.all([
+          geocode(shipment.pickup_address),
+          geocode(shipment.delivery_address),
+        ])
+        if (pickup) entry.pickup = pickup
+        if (delivery) entry.delivery = delivery
+        coords[shipment.id] = entry
+      }))
+    }
+
+    setShipmentCoords(coords)
+  }
+
+  // Re-geocode when Google Maps becomes available after shipments loaded
+  useEffect(() => {
+    if (shipments.length > 0 && Object.keys(shipmentCoords).length === 0 && window.google) {
+      geocodeShipments(shipments)
+    }
+  }, [mapReady, shipments.length])
 
   // ── Initialize Map ─────────────────────────────────────────────────
   const initMap = useCallback(() => {
@@ -241,9 +291,11 @@ export default function DriverNavigationPage() {
     let hasValidCoords = false
 
     shipments.forEach(shipment => {
+      const coords = shipmentCoords[shipment.id]
+
       // Pickup marker
-      if (shipment.pickup_lat && shipment.pickup_lng) {
-        const pos = { lat: shipment.pickup_lat, lng: shipment.pickup_lng }
+      if (coords?.pickup) {
+        const pos = coords.pickup
         bounds.extend(pos)
         hasValidCoords = true
 
@@ -274,8 +326,8 @@ export default function DriverNavigationPage() {
       }
 
       // Delivery marker
-      if (shipment.delivery_lat && shipment.delivery_lng) {
-        const pos = { lat: shipment.delivery_lat, lng: shipment.delivery_lng }
+      if (coords?.delivery) {
+        const pos = coords.delivery
         bounds.extend(pos)
         hasValidCoords = true
 
@@ -314,7 +366,7 @@ export default function DriverNavigationPage() {
     if (hasValidCoords) {
       mapRef.current.fitBounds(bounds, 60)
     }
-  }, [mapReady, shipments, driverPos])
+  }, [mapReady, shipments, shipmentCoords, driverPos])
 
   // ── Show Shipment InfoWindow ──────────────────────────────────────
   const showShipmentInfo = (marker: google.maps.Marker, shipment: Shipment, type: 'pickup' | 'delivery') => {
@@ -549,18 +601,21 @@ export default function DriverNavigationPage() {
       return
     }
 
+    const coords = shipmentCoords[shipment.id]
+
     if (needsPickup) {
-      if (shipment.pickup_lat && shipment.pickup_lng) {
-        waypoints.push({ location: new google.maps.LatLng(shipment.pickup_lat, shipment.pickup_lng), stopover: true })
-      } else {
-        waypoints.push({ location: shipment.pickup_address, stopover: true })
-      }
-      destination = shipment.delivery_lat && shipment.delivery_lng
-        ? new google.maps.LatLng(shipment.delivery_lat, shipment.delivery_lng)
+      waypoints.push({
+        location: coords?.pickup
+          ? new google.maps.LatLng(coords.pickup.lat, coords.pickup.lng)
+          : shipment.pickup_address,
+        stopover: true,
+      })
+      destination = coords?.delivery
+        ? new google.maps.LatLng(coords.delivery.lat, coords.delivery.lng)
         : shipment.delivery_address
     } else {
-      destination = shipment.delivery_lat && shipment.delivery_lng
-        ? new google.maps.LatLng(shipment.delivery_lat, shipment.delivery_lng)
+      destination = coords?.delivery
+        ? new google.maps.LatLng(coords.delivery.lat, coords.delivery.lng)
         : shipment.delivery_address
     }
 
@@ -731,8 +786,9 @@ export default function DriverNavigationPage() {
     const bounds = new google.maps.LatLngBounds()
     let has = false
     shipments.forEach(s => {
-      if (s.pickup_lat && s.pickup_lng) { bounds.extend({ lat: s.pickup_lat, lng: s.pickup_lng }); has = true }
-      if (s.delivery_lat && s.delivery_lng) { bounds.extend({ lat: s.delivery_lat, lng: s.delivery_lng }); has = true }
+      const c = shipmentCoords[s.id]
+      if (c?.pickup) { bounds.extend(c.pickup); has = true }
+      if (c?.delivery) { bounds.extend(c.delivery); has = true }
     })
     if (driverPos) { bounds.extend(driverPos); has = true }
     if (has) mapRef.current.fitBounds(bounds, 60)
@@ -918,8 +974,9 @@ export default function DriverNavigationPage() {
                             setSelectedShipment(shipment)
                             if (mapRef.current) {
                               const bounds = new google.maps.LatLngBounds()
-                              if (shipment.pickup_lat && shipment.pickup_lng) bounds.extend({ lat: shipment.pickup_lat, lng: shipment.pickup_lng })
-                              if (shipment.delivery_lat && shipment.delivery_lng) bounds.extend({ lat: shipment.delivery_lat, lng: shipment.delivery_lng })
+                              const c = shipmentCoords[shipment.id]
+                              if (c?.pickup) bounds.extend(c.pickup)
+                              if (c?.delivery) bounds.extend(c.delivery)
                               if (driverPos) bounds.extend(driverPos)
                               mapRef.current.fitBounds(bounds, 80)
                             }
