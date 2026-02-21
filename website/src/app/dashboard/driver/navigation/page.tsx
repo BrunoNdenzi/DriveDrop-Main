@@ -106,7 +106,7 @@ const CAROLINA_WEIGH_STATIONS = [
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 export default function DriverNavigationPage() {
-  const { user } = useAuth()
+  const { user, profile } = useAuth()
   const supabase = getSupabaseBrowserClient()
 
   // ── Refs ──────────────────────────────────────────────────────────
@@ -149,14 +149,15 @@ export default function DriverNavigationPage() {
   // ── Load Shipments ─────────────────────────────────────────────────
   useEffect(() => {
     const load = async () => {
-      if (!user?.id) return
+      const driverId = profile?.id || user?.id
+      if (!driverId) return
       try {
         setLoadingShipments(true)
         const { data, error } = await supabase
           .from('shipments')
           .select('id, title, pickup_address, delivery_address, pickup_lat, pickup_lng, delivery_lat, delivery_lng, status, estimated_price, distance, created_at')
-          .eq('driver_id', user.id)
-          .in('status', ['accepted', 'assigned', 'picked_up', 'in_transit', 'driver_en_route', 'driver_arrived'])
+          .eq('driver_id', driverId)
+          .in('status', ['accepted', 'assigned', 'picked_up', 'in_transit', 'in_progress', 'driver_en_route', 'driver_arrived', 'pickup_verification_pending', 'pickup_verified'])
           .order('created_at', { ascending: false })
 
         if (error) throw error
@@ -168,7 +169,7 @@ export default function DriverNavigationPage() {
       }
     }
     load()
-  }, [user?.id, supabase])
+  }, [profile?.id, user?.id, supabase])
 
   // ── Initialize Map ─────────────────────────────────────────────────
   const initMap = useCallback(() => {

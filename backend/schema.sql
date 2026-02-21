@@ -571,7 +571,7 @@ CREATE TABLE public.driver_applications (
   email text NOT NULL,
   phone text NOT NULL,
   address jsonb NOT NULL,
-  ssn_encrypted text, -- Now nullable (SSN removed from application form)
+  ssn_encrypted text NOT NULL,
   license_number text NOT NULL,
   license_state text NOT NULL,
   license_expiration date NOT NULL,

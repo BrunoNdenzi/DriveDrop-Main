@@ -29,6 +29,9 @@ import {
   Coffee,
   Locate,
   Crosshair,
+  Square,
+  CheckSquare,
+  MousePointerClick,
 } from 'lucide-react'
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api/v1'
@@ -145,6 +148,7 @@ export default function RouteOptimizer({ driverId }: { driverId: string }) {
 
   // State
   const [activeShipments, setActiveShipments] = useState<Shipment[]>([])
+  const [selectedShipmentIds, setSelectedShipmentIds] = useState<Set<string>>(new Set())
   const [driverLocation, setDriverLocation] = useState('')
   const [vehicleType, setVehicleType] = useState('default')
   const [departureTime, setDepartureTime] = useState('')
@@ -280,13 +284,31 @@ export default function RouteOptimizer({ driverId }: { driverId: string }) {
           .order('created_at', { ascending: false })
 
         if (error) throw error
-        setActiveShipments(data || [])
+        const shipments = data || []
+        setActiveShipments(shipments)
+        // Auto-select all shipments on first load
+        setSelectedShipmentIds(new Set(shipments.map(s => s.id)))
       } catch (err) {
         console.error('Failed to load shipments:', err)
       }
     }
     loadShipments()
   }, [driverId, supabase])
+
+  // ── Shipment Selection Helpers ─────────────────────────────────────
+
+  const toggleShipment = (id: string) => {
+    setSelectedShipmentIds(prev => {
+      const next = new Set(prev)
+      if (next.has(id)) { next.delete(id) } else { next.add(id) }
+      return next
+    })
+  }
+
+  const selectAllShipments = () => setSelectedShipmentIds(new Set(activeShipments.map(s => s.id)))
+  const deselectAllShipments = () => setSelectedShipmentIds(new Set())
+
+  const selectedShipments = activeShipments.filter(s => selectedShipmentIds.has(s.id))
 
   // ── Load Traffic on mount ──────────────────────────────────────────
 
@@ -301,8 +323,8 @@ export default function RouteOptimizer({ driverId }: { driverId: string }) {
       toast('Enter your current location', 'error')
       return
     }
-    if (activeShipments.length === 0) {
-      toast('No active shipments to optimize', 'error')
+    if (selectedShipments.length === 0) {
+      toast('Select at least one shipment to optimize', 'error')
       return
     }
 
@@ -310,7 +332,7 @@ export default function RouteOptimizer({ driverId }: { driverId: string }) {
     try {
       const headers = await getHeaders()
 
-      // Build stops from active shipments
+      // Build stops from SELECTED shipments only
       const stops: RouteStop[] = [
         {
           id: 'driver-start',
@@ -320,7 +342,7 @@ export default function RouteOptimizer({ driverId }: { driverId: string }) {
         },
       ]
 
-      for (const shipment of activeShipments) {
+      for (const shipment of selectedShipments) {
         if (['accepted', 'assigned'].includes(shipment.status)) {
           stops.push({
             id: `pickup-${shipment.id}`,
@@ -372,8 +394,8 @@ export default function RouteOptimizer({ driverId }: { driverId: string }) {
       toast('Enter your current location', 'error')
       return
     }
-    if (activeShipments.length === 0) {
-      toast('No active shipments for daily plan', 'error')
+    if (selectedShipments.length === 0) {
+      toast('Select at least one shipment for daily plan', 'error')
       return
     }
 
@@ -381,7 +403,7 @@ export default function RouteOptimizer({ driverId }: { driverId: string }) {
     try {
       const headers = await getHeaders()
 
-      const shipments = activeShipments.map(s => ({
+      const shipments = selectedShipments.map(s => ({
         id: s.id,
         pickupAddress: s.pickup_address,
         deliveryAddress: s.delivery_address,
@@ -670,13 +692,104 @@ export default function RouteOptimizer({ driverId }: { driverId: string }) {
         <div className="mt-4 flex items-center gap-2 text-sm text-gray-600">
           <Truck className="h-4 w-4" />
           <span>
-            <span className="font-semibold text-gray-900">{activeShipments.length}</span> active shipment{activeShipments.length !== 1 ? 's' : ''} loaded
+            <span className="font-semibold text-gray-900">{selectedShipments.length}</span> of <span className="font-semibold text-gray-900">{activeShipments.length}</span> shipment{activeShipments.length !== 1 ? 's' : ''} selected
           </span>
           {activeShipments.length === 0 && (
             <span className="text-xs text-amber-600 ml-2">Pick up loads from Available Jobs first</span>
           )}
         </div>
       </div>
+
+      {/* ── Shipment Picker ───────────────────────────────────────── */}
+      {activeShipments.length > 0 && (
+        <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+          <div className="flex items-center justify-between px-5 py-3 border-b border-gray-100">
+            <div className="flex items-center gap-2">
+              <MousePointerClick className="h-4 w-4 text-amber-500" />
+              <h3 className="text-sm font-semibold text-gray-900">Select Shipments to Include</h3>
+              <span className="text-xs text-gray-400 ml-1">
+                ({selectedShipments.length}/{activeShipments.length})
+              </span>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={selectAllShipments}
+                className="text-xs text-amber-600 hover:text-amber-700 font-medium px-2 py-1 rounded hover:bg-amber-50 transition-colors"
+              >
+                Select All
+              </button>
+              <span className="text-gray-300">|</span>
+              <button
+                onClick={deselectAllShipments}
+                className="text-xs text-gray-500 hover:text-gray-700 font-medium px-2 py-1 rounded hover:bg-gray-50 transition-colors"
+              >
+                Clear
+              </button>
+            </div>
+          </div>
+          <div className="divide-y divide-gray-50 max-h-[320px] overflow-y-auto">
+            {activeShipments.map(shipment => {
+              const isSelected = selectedShipmentIds.has(shipment.id)
+              return (
+                <button
+                  key={shipment.id}
+                  onClick={() => toggleShipment(shipment.id)}
+                  className={`w-full flex items-center gap-3 px-5 py-3 text-left transition-colors ${
+                    isSelected ? 'bg-amber-50/60 hover:bg-amber-50' : 'hover:bg-gray-50 opacity-60'
+                  }`}
+                >
+                  {/* Checkbox */}
+                  {isSelected ? (
+                    <CheckSquare className="h-5 w-5 text-amber-500 shrink-0" />
+                  ) : (
+                    <Square className="h-5 w-5 text-gray-300 shrink-0" />
+                  )}
+
+                  {/* Shipment Details */}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-0.5">
+                      <p className={`text-sm font-medium truncate ${isSelected ? 'text-gray-900' : 'text-gray-500'}`}>
+                        {shipment.title}
+                      </p>
+                      <span className={`text-[10px] px-1.5 py-0.5 rounded-full border font-medium ${
+                        shipment.status === 'in_transit' || shipment.status === 'picked_up'
+                          ? 'bg-orange-50 text-orange-600 border-orange-200'
+                          : 'bg-blue-50 text-blue-600 border-blue-200'
+                      }`}>
+                        {shipment.status.replace(/_/g, ' ')}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-4 text-[11px] text-gray-500">
+                      <span className="flex items-center gap-1 truncate">
+                        <MapPin className="h-3 w-3 text-blue-400 shrink-0" /> {shipment.pickup_address}
+                      </span>
+                      <span className="text-gray-300">→</span>
+                      <span className="flex items-center gap-1 truncate">
+                        <MapPin className="h-3 w-3 text-green-400 shrink-0" /> {shipment.delivery_address}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Price */}
+                  {shipment.estimated_price && (
+                    <span className={`text-sm font-semibold shrink-0 ${isSelected ? 'text-green-600' : 'text-gray-400'}`}>
+                      ${shipment.estimated_price.toFixed(0)}
+                    </span>
+                  )}
+                </button>
+              )
+            })}
+          </div>
+          {selectedShipments.length > 0 && selectedShipments.length < activeShipments.length && (
+            <div className="px-5 py-2.5 bg-amber-50 border-t border-amber-200">
+              <p className="text-xs text-amber-700">
+                <strong>{selectedShipments.length}</strong> shipment{selectedShipments.length !== 1 ? 's' : ''} will be optimized.
+                {activeShipments.length - selectedShipments.length} excluded from this route.
+              </p>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* ── Optimize Tab Content ──────────────────────────────────── */}
       {activeTab === 'optimize' && optimizedRoute && (
