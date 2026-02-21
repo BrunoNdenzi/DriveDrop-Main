@@ -27,6 +27,8 @@ import {
   Route,
   Target,
   Coffee,
+  Locate,
+  Crosshair,
 } from 'lucide-react'
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api/v1'
@@ -163,6 +165,9 @@ export default function RouteOptimizer({ driverId }: { driverId: string }) {
   const [benjiResponse, setBenjiResponse] = useState<{ answer: string; suggestions: string[] } | null>(null)
   const [loadingBenji, setLoadingBenji] = useState(false)
   const [mapExpanded, setMapExpanded] = useState(true)
+  const [detectingLocation, setDetectingLocation] = useState(false)
+  const locationInputRef = useRef<HTMLInputElement>(null)
+  const autocompleteRef = useRef<google.maps.places.Autocomplete | null>(null)
 
   // ── Auth Token ──────────────────────────────────────────────────────
 
@@ -179,6 +184,88 @@ export default function RouteOptimizer({ driverId }: { driverId: string }) {
       Authorization: `Bearer ${token}`,
     }
   }, [getAuthToken])
+
+  // ── GPS Location Detect ────────────────────────────────────────────
+
+  const detectCurrentLocation = useCallback(() => {
+    if (!navigator.geolocation) {
+      toast('Geolocation not supported by your browser', 'error')
+      return
+    }
+    setDetectingLocation(true)
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        const coords = { lat: pos.coords.latitude, lng: pos.coords.longitude }
+        if (window.google) {
+          try {
+            const geocoder = new google.maps.Geocoder()
+            const result = await geocoder.geocode({ location: coords })
+            if (result.results[0]) {
+              setDriverLocation(result.results[0].formatted_address)
+            } else {
+              setDriverLocation(`${coords.lat.toFixed(5)}, ${coords.lng.toFixed(5)}`)
+            }
+          } catch {
+            setDriverLocation(`${coords.lat.toFixed(5)}, ${coords.lng.toFixed(5)}`)
+          }
+        } else {
+          setDriverLocation(`${coords.lat.toFixed(5)}, ${coords.lng.toFixed(5)}`)
+        }
+        setDetectingLocation(false)
+        toast('Location detected', 'success')
+      },
+      () => {
+        setDetectingLocation(false)
+        toast('Could not detect location — enter manually', 'warning')
+      },
+      { enableHighAccuracy: true, timeout: 10000 }
+    )
+  }, [])
+
+  // ── Google Places Autocomplete ─────────────────────────────────────
+
+  useEffect(() => {
+    if (!locationInputRef.current || !window.google?.maps?.places) return
+    if (autocompleteRef.current) return // already initialized
+
+    const ac = new google.maps.places.Autocomplete(locationInputRef.current, {
+      types: ['geocode', 'establishment'],
+      componentRestrictions: { country: 'us' },
+      fields: ['formatted_address', 'geometry'],
+    })
+
+    ac.addListener('place_changed', () => {
+      const place = ac.getPlace()
+      if (place?.formatted_address) {
+        setDriverLocation(place.formatted_address)
+      }
+    })
+
+    autocompleteRef.current = ac
+  }, []) // re-check after mount when Google is loaded
+
+  // Retry autocomplete init if Google Maps loads after mount
+  useEffect(() => {
+    if (autocompleteRef.current) return
+    const interval = setInterval(() => {
+      if (window.google?.maps?.places && locationInputRef.current) {
+        const ac = new google.maps.places.Autocomplete(locationInputRef.current, {
+          types: ['geocode', 'establishment'],
+          componentRestrictions: { country: 'us' },
+          fields: ['formatted_address', 'geometry'],
+        })
+        ac.addListener('place_changed', () => {
+          const place = ac.getPlace()
+          if (place?.formatted_address) {
+            setDriverLocation(place.formatted_address)
+          }
+        })
+        autocompleteRef.current = ac
+        clearInterval(interval)
+      }
+    }, 500)
+    return () => clearInterval(interval)
+  }, [])
 
   // ── Load Active Shipments ──────────────────────────────────────────
 
@@ -471,15 +558,30 @@ export default function RouteOptimizer({ driverId }: { driverId: string }) {
           {/* Driver Location */}
           <div>
             <label className="block text-xs font-medium text-gray-600 mb-1">Your Location</label>
-            <div className="relative">
-              <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-              <input
-                type="text"
-                placeholder="Charlotte, NC"
-                value={driverLocation}
-                onChange={e => setDriverLocation(e.target.value)}
-                className="w-full pl-9 pr-3 py-2 text-sm border border-gray-300 rounded-md focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none"
-              />
+            <div className="flex gap-1.5">
+              <div className="relative flex-1">
+                <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                <input
+                  ref={locationInputRef}
+                  type="text"
+                  placeholder="Charlotte, NC"
+                  value={driverLocation}
+                  onChange={e => setDriverLocation(e.target.value)}
+                  className="w-full pl-9 pr-3 py-2 text-sm border border-gray-300 rounded-md focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none"
+                />
+              </div>
+              <button
+                onClick={detectCurrentLocation}
+                disabled={detectingLocation}
+                className="p-2 bg-amber-50 border border-amber-300 rounded-md text-amber-600 hover:bg-amber-100 transition-colors disabled:opacity-50"
+                title="Use current GPS location"
+              >
+                {detectingLocation ? (
+                  <RotateCcw className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Crosshair className="h-4 w-4" />
+                )}
+              </button>
             </div>
           </div>
 
@@ -747,7 +849,7 @@ export default function RouteOptimizer({ driverId }: { driverId: string }) {
                     estimatedArrival: s.estimatedArrival,
                   }))}
                   height="h-[500px]"
-                  showOverlay={false}
+                  showOverlay={true}
                   carolinaInsights={optimizedRoute.carolinaInsights}
                   benjiTips={optimizedRoute.benjiTips}
                   fuelStops={optimizedRoute.fuelStops}
