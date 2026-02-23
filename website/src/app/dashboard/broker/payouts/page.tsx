@@ -389,7 +389,7 @@ export default function PayoutsPage() {
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap">
                       <div className="text-sm text-gray-900">
-                        {payout.shipment?.carrier?.full_name || 'N/A'}
+                        {payout.shipment?.carrier?.first_name ? `${payout.shipment.carrier.first_name} ${payout.shipment.carrier.last_name || ''}`.trim() : 'N/A'}
                       </div>
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap">
@@ -667,7 +667,7 @@ export default function PayoutsPage() {
                   <h4 className="text-sm font-semibold text-gray-900 mb-3">Carrier Information</h4>
                   <div className="bg-gray-50 rounded-md p-4">
                     <p className="text-sm font-medium text-gray-900">
-                      {selectedPayout.shipment.carrier.full_name}
+                      {`${selectedPayout.shipment.carrier.first_name || ''} ${selectedPayout.shipment.carrier.last_name || ''}`.trim() || 'Carrier'}
                     </p>
                     <p className="text-xs text-gray-500">{selectedPayout.shipment.carrier.email}</p>
                   </div>

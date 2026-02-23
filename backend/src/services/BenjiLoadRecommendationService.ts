@@ -30,12 +30,18 @@ export class BenjiLoadRecommendationService {
       // Get driver profile
       const { data: driver, error: driverError } = await supabase
         .from('profiles')
-        .select('*')
+        .select('id, first_name, last_name, email, phone, rating, is_verified')
         .eq('id', driverId)
         .single()
 
       if (driverError || !driver) {
         throw new Error('Driver not found')
+      }
+
+      // Compute full_name from first_name + last_name
+      const driverWithName = {
+        ...driver,
+        full_name: `${driver.first_name || ''} ${driver.last_name || ''}`.trim() || driver.email || 'Driver'
       }
 
       // Get available loads (unassigned, pending/quoted status)
@@ -52,7 +58,7 @@ export class BenjiLoadRecommendationService {
       if (!loads || loads.length === 0) {
         return {
           driver_id: driverId,
-          driver_name: driver.full_name,
+          driver_name: driverWithName.full_name,
           best_match: null,
           good_matches: [],
           consider: [],
@@ -66,7 +72,7 @@ export class BenjiLoadRecommendationService {
 
       // Score all loads for this driver
       const scoredLoads = await Promise.all(
-        loads.map((load: any) => this.scoreLoadForDriver(load, driver))
+        loads.map((load: any) => this.scoreLoadForDriver(load, driverWithName))
       )
 
       // Sort by score (highest first)
@@ -78,11 +84,11 @@ export class BenjiLoadRecommendationService {
       const consider = scoredLoads.filter(l => l.match_score >= 50 && l.match_score < 70).slice(0, 5)
 
       // Generate personalized insights
-      const insights = await this.generateInsights(driver, scoredLoads, best_match)
+      const insights = await this.generateInsights(driverWithName, scoredLoads, best_match)
 
       return {
         driver_id: driverId,
-        driver_name: driver.full_name,
+        driver_name: driverWithName.full_name,
         best_match,
         good_matches,
         consider,
@@ -110,9 +116,27 @@ export class BenjiLoadRecommendationService {
     const reasons: string[] = []
 
     // 1. PROXIMITY SCORE (35% weight)
+    // Driver doesn't have a location column — estimate from last completed delivery
+    let driverLocation = { coordinates: [-97.7431, 30.2672] as [number, number] } // Default Austin, TX
+    try {
+      const { data: lastShipment } = await supabase
+        .from('shipments')
+        .select('delivery_location')
+        .eq('driver_id', driver.id)
+        .eq('status', 'completed')
+        .order('updated_at', { ascending: false })
+        .limit(1)
+        .single()
+      
+      if (lastShipment?.delivery_location?.coordinates) {
+        driverLocation = lastShipment.delivery_location
+      }
+    } catch { /* use default */ }
+
+    const pickupLoc = load.pickup_location || { coordinates: [-97.7431, 30.2672] }
     const distanceToPickup = this.calculateDistance(
-      driver.location || { coordinates: [-97.7431, 30.2672] },
-      load.pickup_location
+      driverLocation,
+      pickupLoc
     )
 
     if (distanceToPickup < 10) {
@@ -139,8 +163,10 @@ export class BenjiLoadRecommendationService {
     }
 
     // 3. EARNINGS SCORE (25% weight)
-    const estimatedEarnings = load.estimated_price * 0.80 // 80% to driver
-    const pricePerMile = load.estimated_price / (load.estimated_distance_km * 0.621371)
+    const estimatedEarnings = (load.estimated_price || 0) * 0.80 // 80% to driver
+    const distanceKm = load.estimated_distance_km || load.distance || 100
+    const distanceMiles = distanceKm * 0.621371
+    const pricePerMile = distanceMiles > 0 ? (load.estimated_price || 0) / distanceMiles : 0
 
     if (pricePerMile > 2.5) {
       scores.earnings = 100
@@ -302,8 +328,8 @@ export class BenjiLoadRecommendationService {
       confidence += 10
     }
 
-    // Boost if driver has history
-    if (driver.completed_shipments > 20) {
+    // Boost if driver has history (check rating as proxy)
+    if (driver.rating && driver.rating > 4.0) {
       confidence += 10
     }
 
@@ -314,11 +340,15 @@ export class BenjiLoadRecommendationService {
    * Calculate distance between two points (in miles)
    */
   private calculateDistance(
-    point1: { coordinates: [number, number] },
-    point2: { coordinates: [number, number] }
+    point1: { coordinates: [number, number] } | null | undefined,
+    point2: { coordinates: [number, number] } | null | undefined
   ): number {
+    if (!point1?.coordinates || !point2?.coordinates) return 50 // Default 50 miles if no location data
+
     const [lon1, lat1] = point1.coordinates
     const [lon2, lat2] = point2.coordinates
+
+    if (!isFinite(lon1) || !isFinite(lat1) || !isFinite(lon2) || !isFinite(lat2)) return 50
 
     const R = 3958.8 // Earth radius in miles
     const dLat = this.toRad(lat2 - lat1)
@@ -340,9 +370,10 @@ export class BenjiLoadRecommendationService {
   }
 
   private areCitiesNear(
-    loc1: { coordinates: [number, number] },
-    loc2: { coordinates: [number, number] }
+    loc1: { coordinates: [number, number] } | null | undefined,
+    loc2: { coordinates: [number, number] } | null | undefined
   ): boolean {
+    if (!loc1?.coordinates || !loc2?.coordinates) return false
     const distance = this.calculateDistance(loc1, loc2)
     return distance < 30
   }

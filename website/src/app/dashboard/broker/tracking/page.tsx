@@ -124,7 +124,7 @@ export default function BrokerTrackingPage() {
       const term = searchTerm.toLowerCase();
       filtered = filtered.filter(s =>
         s.id.toLowerCase().includes(term) ||
-        s.assignment.carrier?.full_name?.toLowerCase().includes(term)
+        `${s.assignment.carrier?.first_name || ''} ${s.assignment.carrier?.last_name || ''}`.toLowerCase().includes(term)
       );
     }
 
@@ -355,7 +355,7 @@ export default function BrokerTrackingPage() {
                   {/* Carrier */}
                   <div className="flex items-center gap-2 text-xs text-gray-600 border-t pt-3">
                     <User className="h-3 w-3" />
-                    <span>{shipment.assignment.carrier?.full_name || 'Unknown Carrier'}</span>
+                    <span>{shipment.assignment.carrier?.first_name ? `${shipment.assignment.carrier.first_name} ${shipment.assignment.carrier.last_name || ''}`.trim() : 'Unknown Carrier'}</span>
                   </div>
 
                   {/* Last Update */}
@@ -431,7 +431,7 @@ export default function BrokerTrackingPage() {
                     <div className="flex items-center gap-2">
                       <User className="h-4 w-4 text-gray-400" />
                       <span className="text-sm text-gray-900">
-                        {selectedShipment.assignment.carrier?.full_name || 'N/A'}
+                        {selectedShipment.assignment.carrier?.first_name ? `${selectedShipment.assignment.carrier.first_name} ${selectedShipment.assignment.carrier.last_name || ''}`.trim() : 'N/A'}
                       </span>
                     </div>
                     {selectedShipment.assignment.carrier?.phone && (

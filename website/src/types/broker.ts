@@ -500,6 +500,8 @@ export interface BrokerProfileWithUser extends BrokerProfile {
   profile?: {
     id: string;
     email: string;
+    first_name?: string;
+    last_name?: string;
     full_name?: string;
     phone?: string;
   };
@@ -510,6 +512,8 @@ export interface BrokerCarrierWithDetails extends BrokerCarrier {
   carrier?: {
     id: string;
     email: string;
+    first_name?: string;
+    last_name?: string;
     full_name?: string;
     phone?: string;
   };
@@ -521,6 +525,8 @@ export interface BrokerAssignmentWithDetails extends BrokerAssignment {
   carrier?: {
     id: string;
     email: string;
+    first_name?: string;
+    last_name?: string;
     full_name?: string;
     phone?: string;
   };
@@ -547,6 +553,8 @@ export interface LoadBoardWithDetails extends LoadBoard {
   posted_by_user?: {
     id: string;
     email: string;
+    first_name?: string;
+    last_name?: string;
     full_name?: string;
   };
   bids?: LoadBoardBid[];
@@ -558,6 +566,8 @@ export interface LoadBoardBidWithDetails extends LoadBoardBid {
   carrier?: {
     id: string;
     email: string;
+    first_name?: string;
+    last_name?: string;
     full_name?: string;
   };
 }
@@ -570,6 +580,8 @@ export interface BrokerPayoutWithDetails extends BrokerPayout {
     carrier?: {
       id: string;
       email: string;
+      first_name?: string;
+      last_name?: string;
       full_name?: string;
       phone?: string;
     };
