@@ -79,7 +79,7 @@ export class BenjiDispatcherService {
       }
 
       // Map to Driver interface with computed full_name
-      const drivers = (rawDrivers || []).map(d => ({
+      const drivers = (rawDrivers || []).map((d: any) => ({
         ...d,
         full_name: `${d.first_name || ''} ${d.last_name || ''}`.trim() || d.email || 'Unknown Driver'
       }))
