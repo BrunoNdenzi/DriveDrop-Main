@@ -73,7 +73,7 @@ export default function CarriersPage() {
     if (searchTerm) {
       const term = searchTerm.toLowerCase();
       filtered = filtered.filter(c =>
-        c.carrier?.full_name?.toLowerCase().includes(term) ||
+        (`${c.carrier?.first_name || ''} ${c.carrier?.last_name || ''}`.toLowerCase()).includes(term) ||
         c.carrier?.email?.toLowerCase().includes(term) ||
         c.carrier?.phone?.toLowerCase().includes(term)
       );
@@ -380,13 +380,15 @@ export default function CarriersPage() {
                         <div className="flex-shrink-0">
                           <div className="h-9 w-9 rounded-full bg-teal-100 flex items-center justify-center">
                             <span className="text-lg font-medium text-teal-500">
-                              {carrier.carrier?.full_name?.charAt(0) || 'C'}
+                              {carrier.carrier?.first_name?.charAt(0) || carrier.carrier?.last_name?.charAt(0) || 'C'}
                             </span>
                           </div>
                         </div>
                         <div className="flex-1">
                           <h3 className="text-lg font-medium text-gray-900">
-                            {carrier.carrier?.full_name || 'Unknown Carrier'}
+                            {carrier.carrier?.first_name && carrier.carrier?.last_name
+                              ? `${carrier.carrier.first_name} ${carrier.carrier.last_name}`
+                              : carrier.carrier?.email || 'Unknown Carrier'}
                           </h3>
                           <div className="mt-1 flex items-center space-x-4 text-sm text-gray-500">
                             <span>{carrier.carrier?.email}</span>

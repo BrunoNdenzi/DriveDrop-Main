@@ -17,13 +17,13 @@ interface Load {
 
 interface Driver {
   id: string
-  full_name: string
+  first_name: string
+  last_name: string
+  full_name: string // computed
   email: string
-  phone_number: string
-  location?: { coordinates: [number, number] }
+  phone: string
   rating?: number
-  completed_shipments?: number
-  preferred_routes?: string[]
+  is_verified?: boolean
 }
 
 interface DriverLoadMatch {
@@ -67,17 +67,22 @@ export class BenjiDispatcherService {
         throw loadsError
       }
 
-      // Get available drivers (role = driver, status active)
-      const { data: drivers, error: driversError } = await supabase
+      // Get available drivers (role = driver, verified)
+      const { data: rawDrivers, error: driversError } = await supabase
         .from('profiles')
-        .select('*')
+        .select('id, first_name, last_name, email, phone, rating, is_verified')
         .eq('role', 'driver')
-        .eq('status', 'active')
 
       if (driversError) {
         console.error('[BenjiDispatcher] Error fetching drivers:', driversError)
         throw driversError
       }
+
+      // Map to Driver interface with computed full_name
+      const drivers = (rawDrivers || []).map(d => ({
+        ...d,
+        full_name: `${d.first_name || ''} ${d.last_name || ''}`.trim() || d.email || 'Unknown Driver'
+      }))
 
       console.log(`[BenjiDispatcher] Found ${loads?.length || 0} unassigned loads and ${drivers?.length || 0} available drivers`)
 
@@ -164,9 +169,25 @@ export class BenjiDispatcherService {
     const reasons: string[] = []
 
     // 1. PROXIMITY SCORE (40% weight) - How close is driver to pickup?
-    // Default to Austin, TX if locations are missing
-    const driverLocation = driver.location || { coordinates: [-97.7431, 30.2672] }
+    // Since profiles table doesn't have location, use a moderate default distance
     const pickupLocation = load.pickup_location || { coordinates: [-97.7431, 30.2672] }
+    
+    // Check if driver has any recent completed shipments to estimate their location
+    let driverLocation = { coordinates: [-97.7431, 30.2672] as [number, number] } // Default Austin, TX
+    try {
+      const { data: lastShipment } = await supabase
+        .from('shipments')
+        .select('delivery_location')
+        .eq('driver_id', driver.id)
+        .eq('status', 'completed')
+        .order('updated_at', { ascending: false })
+        .limit(1)
+        .single()
+      
+      if (lastShipment?.delivery_location?.coordinates) {
+        driverLocation = lastShipment.delivery_location
+      }
+    } catch { /* use default */ }
     
     const distanceToPickup = this.calculateDistance(driverLocation, pickupLocation)
 
@@ -191,7 +212,8 @@ export class BenjiDispatcherService {
 
     // 3. EARNINGS SCORE (20% weight) - Is price fair/above market?
     const estimatedDistance = load.estimated_distance_km || load.distance || 100 // Default to 100km if missing
-    const pricePerMile = load.estimated_price / (estimatedDistance * 0.621371) // km to miles
+    const distanceInMiles = estimatedDistance * 0.621371
+    const pricePerMile = distanceInMiles > 0 ? (load.estimated_price || 0) / distanceInMiles : 0
     
     if (pricePerMile > 2.5) {
       scores.earnings = 100
@@ -206,7 +228,16 @@ export class BenjiDispatcherService {
     }
 
     // 4. EXPERIENCE SCORE (10% weight) - Driver's track record
-    const completedShipments = driver.completed_shipments || 0
+    let completedShipments = 0
+    try {
+      const { count } = await supabase
+        .from('shipments')
+        .select('id', { count: 'exact', head: true })
+        .eq('driver_id', driver.id)
+        .eq('status', 'completed')
+      completedShipments = count || 0
+    } catch { /* use 0 */ }
+    
     if (completedShipments > 100) {
       scores.experience = 100
       reasons.push('Experienced driver (100+ shipments)')
@@ -376,11 +407,15 @@ export class BenjiDispatcherService {
    * Calculate Haversine distance between two points (in miles)
    */
   private calculateDistance(
-    point1: { coordinates: [number, number] },
-    point2: { coordinates: [number, number] }
+    point1: { coordinates: [number, number] } | null | undefined,
+    point2: { coordinates: [number, number] } | null | undefined
   ): number {
+    if (!point1?.coordinates || !point2?.coordinates) return 50 // Default 50 miles if no location data
+    
     const [lon1, lat1] = point1.coordinates
     const [lon2, lat2] = point2.coordinates
+
+    if (!isFinite(lon1) || !isFinite(lat1) || !isFinite(lon2) || !isFinite(lat2)) return 50
 
     const R = 3958.8 // Earth's radius in miles
     const dLat = this.toRad(lat2 - lat1)
@@ -434,7 +469,7 @@ export class BenjiDispatcherService {
     // Estimate $0.50 per mile saved by optimizing routes
     const totalMilesSaved = matches.reduce((sum, m) => {
       // Optimal assignment saves ~10% distance on average
-      return sum + (m.load.estimated_distance_km * 0.621371 * 0.10)
+      return sum + ((m.load.estimated_distance_km || 0) * 0.621371 * 0.10)
     }, 0)
 
     return Math.round(totalMilesSaved * 0.50)

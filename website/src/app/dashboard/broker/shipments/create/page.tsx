@@ -37,16 +37,37 @@ export default function CreateBrokerShipmentPage() {
 
       // ShipmentForm passes flat fields like pickupAddress, vehicleMake, etc.
       // Parse address parts from the full address string
+      // Handles formats:
+      //   "123 Main St, Dallas, TX 75201, USA"  (4 parts - Google Places)
+      //   "123 Main St, Dallas, TX 75201"        (3 parts)
+      //   "Dallas, TX 75201"                     (2 parts)
       const parseAddress = (fullAddress: string) => {
         if (!fullAddress) return { address: '', city: '', state: '', zip: '' };
         const parts = fullAddress.split(',').map(p => p.trim());
-        // Typical format: "123 Main St, City, State ZIP" or "123 Main St, City, ST 12345"
-        const address = parts[0] || '';
-        const city = parts[1] || '';
-        const stateZip = (parts[2] || '').trim().split(' ');
-        const state = stateZip[0] || '';
-        const zip = stateZip[1] || '';
-        return { address, city, state, zip };
+        
+        // Remove trailing "USA" / "US" country part if present
+        if (parts.length > 1 && /^(usa|us|united states)$/i.test(parts[parts.length - 1])) {
+          parts.pop();
+        }
+
+        if (parts.length >= 3) {
+          // "123 Main St, Dallas, TX 75201"
+          const address = parts[0] || '';
+          const city = parts[1] || '';
+          const stateZip = (parts[2] || '').trim().split(/\s+/);
+          const state = stateZip[0] || '';
+          const zip = stateZip[1] || '';
+          return { address, city, state, zip };
+        } else if (parts.length === 2) {
+          // "Dallas, TX 75201"
+          const city = parts[0] || '';
+          const stateZip = (parts[1] || '').trim().split(/\s+/);
+          const state = stateZip[0] || '';
+          const zip = stateZip[1] || '';
+          return { address: fullAddress, city, state, zip };
+        } else {
+          return { address: fullAddress, city: '', state: '', zip: '' };
+        }
       };
 
       const pickup = parseAddress(shipmentData.pickupAddress);

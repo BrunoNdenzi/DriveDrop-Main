@@ -41,6 +41,7 @@ const navItems = [
   { href: '/dashboard/admin/reports', label: 'Reports', icon: BarChart3 },
   // Commercial Expansion
   { href: '/dashboard/admin/commercial', label: 'Commercial Accounts', icon: Building2 },
+  { href: '/dashboard/admin/brokers', label: 'Broker Management', icon: Shield },
   { href: '/dashboard/admin/integrations', label: 'Integrations', icon: Plug },
   { href: '/dashboard/admin/bol', label: 'BOL Management', icon: FileText },
   { href: '/dashboard/admin/ai-review', label: 'AI Review Queue', icon: Bot },
