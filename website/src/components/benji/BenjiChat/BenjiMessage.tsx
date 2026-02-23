@@ -1,8 +1,9 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { User, Bot, Clock } from 'lucide-react';
+import { User, Bot, Clock, FileText, Image as ImageIcon, ExternalLink } from 'lucide-react';
 import { format } from 'date-fns';
+import type { ChatAttachment } from './BenjiChat';
 
 export interface BenjiMessageProps {
   id: string;
@@ -11,6 +12,7 @@ export interface BenjiMessageProps {
   timestamp: Date;
   confidence?: number;
   suggestions?: string[];
+  attachments?: ChatAttachment[];
   onSuggestionClick?: (suggestion: string) => void;
 }
 
@@ -20,6 +22,7 @@ export const BenjiMessage = ({
   timestamp, 
   confidence,
   suggestions,
+  attachments,
   onSuggestionClick 
 }: BenjiMessageProps) => {
   const isUser = role === 'user';
@@ -55,6 +58,43 @@ export const BenjiMessage = ({
               : 'bg-white border border-gray-200 text-gray-800'
           }`}
         >
+          {/* Attachments */}
+          {attachments && attachments.length > 0 && (
+            <div className="mb-2 space-y-1.5">
+              {attachments.map((att, idx) => (
+                <a
+                  key={idx}
+                  href={att.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className={`flex items-center gap-2 rounded-md p-2 text-xs transition-colors ${
+                    isUser
+                      ? 'bg-blue-400/30 hover:bg-blue-400/50 text-white'
+                      : 'bg-gray-50 hover:bg-gray-100 text-gray-700 border border-gray-200'
+                  }`}
+                >
+                  {att.type.startsWith('image/') ? (
+                    <ImageIcon className="w-4 h-4 flex-shrink-0" />
+                  ) : (
+                    <FileText className="w-4 h-4 flex-shrink-0" />
+                  )}
+                  <span className="truncate flex-1">{att.name}</span>
+                  <ExternalLink className="w-3 h-3 flex-shrink-0 opacity-60" />
+                </a>
+              ))}
+              {/* Inline image preview for image attachments */}
+              {attachments.filter(a => a.type.startsWith('image/')).map((att, idx) => (
+                <img
+                  key={`preview-${idx}`}
+                  src={att.url}
+                  alt={att.name}
+                  className="rounded-md max-w-full max-h-40 object-cover mt-1"
+                  loading="lazy"
+                />
+              ))}
+            </div>
+          )}
+
           <p className="text-sm leading-relaxed whitespace-pre-wrap">{content}</p>
           
           {/* Confidence Score (Benji only) */}

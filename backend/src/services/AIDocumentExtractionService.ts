@@ -23,6 +23,7 @@
 import { createClient } from '@supabase/supabase-js';
 import OpenAI from 'openai';
 import { FEATURE_FLAGS } from '../config/features';
+import { SERVICE_MODEL_MAP, aiUsageTracker } from '../config/ai.config';
 
 // Initialize Supabase client
 const supabase = createClient(
@@ -229,11 +230,14 @@ export class AIDocumentExtractionService {
         throw new Error('OpenAI API key not configured');
       }
 
-      console.log(`Processing document with GPT-4o Vision: ${documentUrl}`);
+      const modelConfig = SERVICE_MODEL_MAP['document-ocr'];
+      console.log(`Processing document with ${modelConfig.model} Vision: ${documentUrl}`);
+
+      const startTime = Date.now();
 
       // Use GPT-4o Vision to extract text from the image
       const response = await openai.chat.completions.create({
-        model: 'gpt-4o',
+        model: modelConfig.model,
         messages: [
           {
             role: 'system',
@@ -258,6 +262,25 @@ export class AIDocumentExtractionService {
         ],
         max_tokens: 2000,
         temperature: 0.1,
+      });
+
+      const durationMs = Date.now() - startTime;
+
+      // Track token usage
+      const promptTokens = response.usage?.prompt_tokens || 0;
+      const completionTokens = response.usage?.completion_tokens || 0;
+      const totalTokens = response.usage?.total_tokens || 0;
+      const estimatedCost = aiUsageTracker.calculateCost(promptTokens, completionTokens, modelConfig);
+
+      aiUsageTracker.track({
+        service: 'document-ocr',
+        model: modelConfig.model,
+        promptTokens,
+        completionTokens,
+        totalTokens,
+        estimatedCost,
+        timestamp: new Date().toISOString(),
+        durationMs,
       });
 
       const extractedText = response.choices[0]?.message?.content || '';
@@ -286,10 +309,13 @@ export class AIDocumentExtractionService {
         throw new Error('OpenAI API key not configured');
       }
 
-      console.log(`Extracting structured data from ${documentType} document`);
+      const modelConfig = SERVICE_MODEL_MAP['document-extraction'];
+      console.log(`Extracting structured data from ${documentType} document using ${modelConfig.model}`);
+
+      const startTime = Date.now();
 
       const completion = await openai.chat.completions.create({
-        model: 'gpt-4o',
+        model: modelConfig.model,
         messages: [
           {
             role: 'system',
@@ -320,6 +346,25 @@ Rules:
         response_format: { type: 'json_object' },
         temperature: 0.1,
         max_tokens: 1500,
+      });
+
+      const durationMs = Date.now() - startTime;
+
+      // Track token usage
+      const promptTokens = completion.usage?.prompt_tokens || 0;
+      const completionTokens = completion.usage?.completion_tokens || 0;
+      const totalTokens = completion.usage?.total_tokens || 0;
+      const estimatedCost = aiUsageTracker.calculateCost(promptTokens, completionTokens, modelConfig);
+
+      aiUsageTracker.track({
+        service: 'document-extraction',
+        model: modelConfig.model,
+        promptTokens,
+        completionTokens,
+        totalTokens,
+        estimatedCost,
+        timestamp: new Date().toISOString(),
+        durationMs,
       });
 
       const content = completion.choices[0]?.message?.content;

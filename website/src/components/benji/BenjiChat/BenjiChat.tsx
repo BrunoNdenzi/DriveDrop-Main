@@ -2,11 +2,28 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Send, Bot, Sparkles, Minimize2, Maximize2 } from 'lucide-react';
+import { X, Send, Bot, Sparkles, Minimize2, Maximize2, Paperclip, FileText, Image as ImageIcon, XCircle } from 'lucide-react';
 import { BenjiMessage, BenjiMessageProps } from './BenjiMessage';
 import { BenjiTypingIndicator } from './BenjiTypingIndicator';
 import { aiService } from '@/services/aiService';
+import { getSupabaseBrowserClient } from '@/lib/supabase-client';
 import toast from 'react-hot-toast';
+
+const ALLOWED_FILE_TYPES = [
+  'image/jpeg', 'image/png', 'image/gif', 'image/webp',
+  'application/pdf',
+  'text/csv', 'text/plain',
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', // xlsx
+  'application/vnd.ms-excel', // xls
+];
+const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+
+export interface ChatAttachment {
+  name: string;
+  url: string;
+  type: string;
+  size: number;
+}
 
 export interface BenjiChatProps {
   context?: 'dashboard' | 'shipment' | 'tracking' | 'profile';
@@ -26,8 +43,11 @@ export const BenjiChat = ({
   const [messages, setMessages] = useState<BenjiMessageProps[]>([]);
   const [inputValue, setInputValue] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [attachments, setAttachments] = useState<ChatAttachment[]>([]);
+  const [isUploading, setIsUploading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Auto-scroll to bottom
   const scrollToBottom = () => {
@@ -111,17 +131,22 @@ export const BenjiChat = ({
   };
 
   const handleSend = async () => {
-    if (!inputValue.trim() || isLoading) return;
+    if ((!inputValue.trim() && attachments.length === 0) || isLoading) return;
+
+    const currentAttachments = [...attachments];
+    const messageContent = inputValue.trim() || (currentAttachments.length > 0 ? `[Attached: ${currentAttachments.map(a => a.name).join(', ')}]` : '');
 
     const userMessage: BenjiMessageProps = {
       id: Date.now().toString(),
       role: 'user',
-      content: inputValue,
+      content: messageContent,
       timestamp: new Date(),
+      attachments: currentAttachments.length > 0 ? currentAttachments : undefined,
     };
 
     setMessages(prev => [...prev, userMessage]);
     setInputValue('');
+    setAttachments([]);
     setIsLoading(true);
 
     try {
@@ -130,12 +155,13 @@ export const BenjiChat = ({
         role: m.role,
         content: m.content
       }));
-      chatMessages.push({ role: 'user' as const, content: inputValue });
+      chatMessages.push({ role: 'user' as const, content: messageContent });
 
       const response = await aiService.chat(chatMessages, {
         userType,
         currentPage: context,
         shipmentId,
+        attachments: currentAttachments.length > 0 ? currentAttachments : undefined,
       });
 
       const aiResponse: BenjiMessageProps = {
@@ -170,6 +196,77 @@ export const BenjiChat = ({
   const handleSuggestionClick = (suggestion: string) => {
     setInputValue(suggestion);
     inputRef.current?.focus();
+  };
+
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    const file = files[0];
+
+    // Validate file type
+    if (!ALLOWED_FILE_TYPES.includes(file.type)) {
+      toast.error('Unsupported file type. Please upload images, PDFs, CSVs, or text files.');
+      return;
+    }
+
+    // Validate file size
+    if (file.size > MAX_FILE_SIZE) {
+      toast.error('File too large. Maximum size is 10MB.');
+      return;
+    }
+
+    setIsUploading(true);
+
+    try {
+      const supabase = getSupabaseBrowserClient();
+      const fileName = `${Date.now()}-${file.name.replace(/[^a-zA-Z0-9._-]/g, '_')}`;
+      const filePath = `benji-attachments/${userType}/${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('documents')
+        .upload(filePath, file, {
+          contentType: file.type,
+          upsert: false,
+        });
+
+      if (uploadError) {
+        throw new Error(uploadError.message);
+      }
+
+      const { data: urlData } = supabase.storage
+        .from('documents')
+        .getPublicUrl(filePath);
+
+      const attachment: ChatAttachment = {
+        name: file.name,
+        url: urlData.publicUrl,
+        type: file.type,
+        size: file.size,
+      };
+
+      setAttachments(prev => [...prev, attachment]);
+      toast.success(`${file.name} attached`);
+    } catch (err: any) {
+      console.error('File upload error:', err);
+      toast.error('Failed to upload file. Please try again.');
+    } finally {
+      setIsUploading(false);
+      // Reset file input
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  };
+
+  const removeAttachment = (index: number) => {
+    setAttachments(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const formatFileSize = (bytes: number) => {
+    if (bytes < 1024) return `${bytes}B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)}KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(1)}MB`;
   };
 
   return (
@@ -257,27 +354,80 @@ export const BenjiChat = ({
 
                 {/* Input */}
                 <div className="border-t border-gray-200 p-4 bg-white">
+                  {/* Attachment Previews */}
+                  {attachments.length > 0 && (
+                    <div className="mb-2 flex flex-wrap gap-2">
+                      {attachments.map((att, idx) => (
+                        <div
+                          key={idx}
+                          className="flex items-center gap-1.5 bg-blue-50 border border-blue-200 rounded-lg px-2.5 py-1.5 text-xs"
+                        >
+                          {att.type.startsWith('image/') ? (
+                            <ImageIcon className="w-3.5 h-3.5 text-blue-500 flex-shrink-0" />
+                          ) : (
+                            <FileText className="w-3.5 h-3.5 text-blue-500 flex-shrink-0" />
+                          )}
+                          <span className="text-blue-800 max-w-[120px] truncate">{att.name}</span>
+                          <span className="text-blue-500">({formatFileSize(att.size)})</span>
+                          <button
+                            onClick={() => removeAttachment(idx)}
+                            className="text-blue-400 hover:text-red-500 transition-colors ml-0.5"
+                          >
+                            <XCircle className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Upload Progress */}
+                  {isUploading && (
+                    <div className="mb-2 flex items-center gap-2 text-xs text-blue-600">
+                      <div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+                      Uploading file...
+                    </div>
+                  )}
+
                   <div className="flex items-center space-x-2">
+                    {/* Hidden file input */}
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept={ALLOWED_FILE_TYPES.join(',')}
+                      onChange={handleFileSelect}
+                      className="hidden"
+                    />
+
+                    {/* Attachment button */}
+                    <button
+                      onClick={() => fileInputRef.current?.click()}
+                      disabled={isLoading || isUploading}
+                      className="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors rounded-full hover:bg-gray-100"
+                      title="Attach file"
+                    >
+                      <Paperclip className="w-5 h-5" />
+                    </button>
+
                     <input
                       ref={inputRef}
                       type="text"
                       value={inputValue}
                       onChange={(e) => setInputValue(e.target.value)}
                       onKeyPress={(e) => e.key === 'Enter' && handleSend()}
-                      placeholder="Ask Benji anything..."
+                      placeholder={attachments.length > 0 ? 'Add a message or send...' : 'Ask Benji anything...'}
                       disabled={isLoading}
                       className="flex-1 px-4 py-3 bg-gray-100 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
                     />
                     <button
                       onClick={handleSend}
-                      disabled={!inputValue.trim() || isLoading}
+                      disabled={(!inputValue.trim() && attachments.length === 0) || isLoading}
                       className="w-8 h-8 bg-blue-500 rounded-2xl flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed transition-all"
                     >
                       <Send className="w-5 h-5 text-white" />
                     </button>
                   </div>
                   <p className="text-xs text-gray-400 mt-2 text-center">
-                    Benji is powered by AI · May occasionally make mistakes
+                    Benji is powered by AI · Supports images, PDFs &amp; CSV attachments
                   </p>
                 </div>
               </>

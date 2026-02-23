@@ -17,7 +17,11 @@ import {
   Camera,
   CheckCircle,
   Clock,
-  Truck
+  Truck,
+  Image,
+  ShieldCheck,
+  AlertTriangle,
+  Eye
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { toast } from '@/components/ui/toast'
@@ -37,6 +41,10 @@ interface Shipment {
   vehicle_model: string
   vehicle_year: number
   is_operable: boolean
+  is_accident_recovery: boolean
+  client_vehicle_photos: any
+  pickup_verified: boolean
+  pickup_verification_status: string | null
   client: {
     first_name: string
     last_name: string
@@ -342,8 +350,121 @@ export default function DriverShipmentDetailPage() {
                   <p className="text-sm text-gray-500">Distance</p>
                   <p className="font-medium">{shipment.distance} miles</p>
                 </div>
+                {shipment.is_accident_recovery && (
+                  <div className="col-span-2">
+                    <div className="bg-yellow-50 border border-yellow-200 rounded-md p-3">
+                      <p className="text-sm font-medium text-yellow-800 flex items-center gap-2">
+                        <AlertTriangle className="h-4 w-4" />
+                        Accident Recovery Vehicle
+                      </p>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
+
+            {/* Client Vehicle Photos */}
+            {shipment.client_vehicle_photos && (() => {
+              try {
+                const photos = typeof shipment.client_vehicle_photos === 'string'
+                  ? JSON.parse(shipment.client_vehicle_photos)
+                  : shipment.client_vehicle_photos
+
+                // Handle both array and object formats
+                const photoEntries: [string, any][] = Array.isArray(photos)
+                  ? photos.map((url: string, i: number) => [`Photo ${i + 1}`, url] as [string, any])
+                  : Object.entries(photos).flatMap(([key, value]: [string, any]) => {
+                      if (Array.isArray(value)) {
+                        return value.filter(Boolean).map((url: string, i: number) => [`${key} ${i + 1}`, url] as [string, any])
+                      }
+                      return value ? [[key, value] as [string, any]] : []
+                    })
+
+                if (photoEntries.length === 0) return null
+
+                return (
+                  <div className="bg-white rounded-md p-4 border border-gray-200">
+                    <div className="flex items-center gap-3 mb-4">
+                      <div className="p-2 bg-blue-100 rounded-md">
+                        <Image className="h-5 w-5 text-blue-600" />
+                      </div>
+                      <div>
+                        <h3 className="font-semibold text-gray-900">Client Vehicle Photos</h3>
+                        <p className="text-sm text-gray-500">{photoEntries.length} photo(s) submitted by client</p>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                      {photoEntries.map(([key, url]: [string, any], index: number) => (
+                        <div key={index} className="relative aspect-video bg-gray-100 rounded-md overflow-hidden group cursor-pointer">
+                          <img
+                            src={url}
+                            alt={`${key} view`}
+                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
+                          />
+                          <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-2">
+                            <p className="text-white text-xs font-medium capitalize">{key}</p>
+                          </div>
+                          <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <a
+                              href={url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="bg-white/90 p-1.5 rounded-full shadow-sm hover:bg-white"
+                            >
+                              <Eye className="h-3.5 w-3.5 text-gray-700" />
+                            </a>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                    <p className="text-xs text-gray-500 mt-3">
+                      Compare these photos with the actual vehicle during pickup verification.
+                    </p>
+                  </div>
+                )
+              } catch (error) {
+                console.error('Error parsing vehicle photos:', error)
+                return null
+              }
+            })()}
+
+            {/* Pickup Verification Action */}
+            {(shipment.status === 'driver_arrived' || shipment.status === 'accepted' || shipment.status === 'driver_en_route') && !shipment.pickup_verified && (
+              <div className="bg-amber-50 rounded-md p-4 border border-amber-200">
+                <div className="flex items-start gap-3">
+                  <ShieldCheck className="h-6 w-6 text-amber-600 mt-0.5" />
+                  <div className="flex-1">
+                    <h3 className="font-semibold text-amber-900">Pickup Verification Required</h3>
+                    <p className="text-sm text-amber-700 mt-1">
+                      Before picking up the vehicle, verify its condition matches the client&apos;s submitted photos. 
+                      Take photos, report any issues, and confirm the vehicle details.
+                    </p>
+                    <Link href={`/dashboard/driver/pickup-verification/${shipment.id}`}>
+                      <Button className="mt-3 bg-amber-500 hover:bg-amber-600 text-white" size="sm">
+                        <Camera className="h-4 w-4 mr-2" />
+                        Start Pickup Verification
+                      </Button>
+                    </Link>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Verification Completed Badge */}
+            {shipment.pickup_verified && (
+              <div className="bg-green-50 rounded-md p-4 border border-green-200">
+                <div className="flex items-center gap-3">
+                  <ShieldCheck className="h-5 w-5 text-green-600" />
+                  <div>
+                    <h3 className="font-semibold text-green-900">Pickup Verified</h3>
+                    <p className="text-sm text-green-700">
+                      Vehicle condition verified at pickup
+                      {shipment.pickup_verification_status === 'issues_reported' && ' — issues were reported'}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Sidebar */}

@@ -1,9 +1,13 @@
 /**
  * AI-Powered Features Routes
  * Document extraction, natural language shipments, bulk uploads
+ * 
+ * Includes: Rate limiting, token tracking, response caching
  */
 import { Router, Request, Response } from 'express';
 import { authenticate } from '@middlewares/auth.middleware';
+import { aiRateLimit } from '../middlewares/ai-rate-limit.middleware';
+import { aiUsageTracker, aiResponseCache } from '../config/ai.config';
 import { AIDocumentExtractionService } from '../services/AIDocumentExtractionService';
 import { NaturalLanguageShipmentService } from '../services/NaturalLanguageShipmentService';
 import { BulkUploadService } from '../services/BulkUploadService';
@@ -21,7 +25,7 @@ const bulkService = new BulkUploadService();
  * POST /api/v1/ai/extract-document
  * Extract vehicle data from uploaded document image (registration, title, insurance)
  */
-router.post('/extract-document', authenticate, async (req: Request, res: Response): Promise<void> => {
+router.post('/extract-document', authenticate, aiRateLimit('document'), async (req: Request, res: Response): Promise<void> => {
   try {
     const { fileUrl, documentType, shipmentId } = req.body || {};
 
@@ -80,7 +84,7 @@ router.post('/extract-document', authenticate, async (req: Request, res: Respons
  * Create shipment from natural language prompt
  * Example: "Ship my 2023 Honda Civic from Los Angeles to New York next week"
  */
-router.post('/natural-language-shipment', authenticate, async (req: Request, res: Response): Promise<void> => {
+router.post('/natural-language-shipment', authenticate, aiRateLimit('shipment'), async (req: Request, res: Response): Promise<void> => {
   try {
     const { prompt, inputMethod = 'text' } = req.body;
     const userId = req.user?.id;
@@ -277,7 +281,7 @@ router.post('/review-extraction/:extractionId', authenticate, async (req: Reques
  * POST /api/v1/ai/chat
  * Benji AI Chat - Context-aware conversational assistant
  */
-router.post('/chat', authenticate, async (req: Request, res: Response): Promise<void> => {
+router.post('/chat', authenticate, aiRateLimit('chat'), async (req: Request, res: Response): Promise<void> => {
   try {
     const { messages, context } = req.body;
 
@@ -298,6 +302,7 @@ router.post('/chat', authenticate, async (req: Request, res: Response): Promise<
       userType: context?.userType || 'client',
       currentPage: context?.currentPage,
       shipmentId: context?.shipmentId,
+      attachments: context?.attachments,
     };
 
     console.log('Benji chat request:', {
@@ -427,6 +432,112 @@ router.get('/loads/recommendations/:driverId', authenticate, async (req: Request
       error: 'Failed to generate load recommendations',
       details: error.message,
     });
+  }
+});
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// Admin: AI Usage & Cost Tracking
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+/**
+ * GET /api/v1/ai/usage/summary
+ * Get AI usage statistics and cost breakdown (admin only)
+ */
+router.get('/usage/summary', authenticate, async (req: Request, res: Response): Promise<void> => {
+  try {
+    if (req.user?.role !== 'admin') {
+      res.status(403).json({ error: 'Admin access required' });
+      return;
+    }
+
+    const { startDate, endDate } = req.query;
+    const summary = aiUsageTracker.getSummary(
+      startDate as string | undefined,
+      endDate as string | undefined
+    );
+
+    res.status(200).json({
+      success: true,
+      usage: summary,
+      timestamp: new Date().toISOString(),
+    });
+  } catch (error: any) {
+    console.error('Usage summary error:', error);
+    res.status(500).json({ error: 'Failed to get usage summary', details: error.message });
+  }
+});
+
+/**
+ * GET /api/v1/ai/usage/recent
+ * Get recent AI calls with token details (admin only)
+ */
+router.get('/usage/recent', authenticate, async (req: Request, res: Response): Promise<void> => {
+  try {
+    if (req.user?.role !== 'admin') {
+      res.status(403).json({ error: 'Admin access required' });
+      return;
+    }
+
+    const limit = parseInt(req.query['limit'] as string) || 50;
+    const recent = aiUsageTracker.getRecent(limit);
+
+    res.status(200).json({
+      success: true,
+      entries: recent,
+      count: recent.length,
+      timestamp: new Date().toISOString(),
+    });
+  } catch (error: any) {
+    console.error('Recent usage error:', error);
+    res.status(500).json({ error: 'Failed to get recent usage', details: error.message });
+  }
+});
+
+/**
+ * GET /api/v1/ai/cache/stats
+ * Get response cache statistics (admin only)
+ */
+router.get('/cache/stats', authenticate, async (req: Request, res: Response): Promise<void> => {
+  try {
+    if (req.user?.role !== 'admin') {
+      res.status(403).json({ error: 'Admin access required' });
+      return;
+    }
+
+    const stats = aiResponseCache.getStats();
+
+    res.status(200).json({
+      success: true,
+      cache: stats,
+      timestamp: new Date().toISOString(),
+    });
+  } catch (error: any) {
+    console.error('Cache stats error:', error);
+    res.status(500).json({ error: 'Failed to get cache stats', details: error.message });
+  }
+});
+
+/**
+ * POST /api/v1/ai/cache/clear
+ * Clear the AI response cache (admin only)
+ */
+router.post('/cache/clear', authenticate, async (req: Request, res: Response): Promise<void> => {
+  try {
+    if (req.user?.role !== 'admin') {
+      res.status(403).json({ error: 'Admin access required' });
+      return;
+    }
+
+    aiResponseCache.clear();
+
+    res.status(200).json({
+      success: true,
+      message: 'AI response cache cleared',
+      timestamp: new Date().toISOString(),
+    });
+  } catch (error: any) {
+    console.error('Cache clear error:', error);
+    res.status(500).json({ error: 'Failed to clear cache', details: error.message });
   }
 });
 

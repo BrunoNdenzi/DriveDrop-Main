@@ -315,6 +315,7 @@ class AIService {
       userType?: 'client' | 'driver' | 'admin' | 'broker'
       currentPage?: string
       shipmentId?: string
+      attachments?: Array<{ name: string; url: string; type: string; size: number }>
     }
   ): Promise<{
     success: boolean

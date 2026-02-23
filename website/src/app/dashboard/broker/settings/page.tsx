@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
@@ -21,7 +21,10 @@ import {
   Upload,
   X,
   Eye,
-  EyeOff
+  EyeOff,
+  Lock,
+  Clock,
+  SendHorizonal
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
@@ -66,6 +69,21 @@ export default function BrokerSettingsPage() {
   const [bidUpdates, setBidUpdates] = useState(true);
   const [paymentNotifications, setPaymentNotifications] = useState(true);
 
+  // Business change request tracking
+  const [originalBusinessValues, setOriginalBusinessValues] = useState({
+    company_name: '',
+    mc_number: '',
+    dot_number: '',
+    tax_id: '',
+  });
+  const [pendingChangeRequest, setPendingChangeRequest] = useState<{
+    id: string;
+    changes: Record<string, { old_value: string; new_value: string }>;
+    status: string;
+    created_at: string;
+  } | null>(null);
+  const [submittingChangeRequest, setSubmittingChangeRequest] = useState(false);
+
   useEffect(() => {
     loadData();
   }, []);
@@ -93,6 +111,32 @@ export default function BrokerSettingsPage() {
       setDotNumber(brokerProfile.dot_number || '');
       setTaxId(brokerProfile.tax_id || '');
       setBusinessAddress(brokerProfile.business_address || '');
+
+      // Store original critical values for change detection
+      setOriginalBusinessValues({
+        company_name: brokerProfile.company_name || '',
+        mc_number: brokerProfile.mc_number || '',
+        dot_number: brokerProfile.dot_number || '',
+        tax_id: brokerProfile.tax_id || '',
+      });
+
+      // Check for pending business change requests
+      try {
+        const { data: pendingReq } = await supabase
+          .from('broker_change_requests')
+          .select('*')
+          .eq('broker_id', brokerProfile.id)
+          .eq('status', 'pending')
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        
+        if (pendingReq) {
+          setPendingChangeRequest(pendingReq);
+        }
+      } catch {
+        // Table may not exist yet â€” ignore silently
+      }
     } catch (err: any) {
       console.error('Error loading settings:', err);
       setErrorMessage('Failed to load settings');
@@ -129,16 +173,70 @@ export default function BrokerSettingsPage() {
     setSuccessMessage('');
 
     try {
+      const supabase = getSupabaseBrowserClient();
+
+      // Always save non-critical field directly
       await brokerProfileService.update(broker!.id, {
-        company_name: companyName,
-        mc_number: mcNumber,
-        dot_number: dotNumber,
-        tax_id: taxId,
         business_address: businessAddress
       });
 
-      setSuccessMessage('Business information updated successfully');
-      setTimeout(() => setSuccessMessage(''), 3000);
+      // Detect changes in critical fields
+      const criticalChanges: Record<string, { old_value: string; new_value: string }> = {};
+      if (companyName !== originalBusinessValues.company_name) {
+        criticalChanges.company_name = { old_value: originalBusinessValues.company_name, new_value: companyName };
+      }
+      if (mcNumber !== originalBusinessValues.mc_number) {
+        criticalChanges.mc_number = { old_value: originalBusinessValues.mc_number, new_value: mcNumber };
+      }
+      if (dotNumber !== originalBusinessValues.dot_number) {
+        criticalChanges.dot_number = { old_value: originalBusinessValues.dot_number, new_value: dotNumber };
+      }
+      if (taxId !== originalBusinessValues.tax_id) {
+        criticalChanges.tax_id = { old_value: originalBusinessValues.tax_id, new_value: taxId };
+      }
+
+      if (Object.keys(criticalChanges).length > 0) {
+        // Submit change request for critical fields
+        setSubmittingChangeRequest(true);
+
+        const { data: changeReq, error: crError } = await supabase
+          .from('broker_change_requests')
+          .insert({
+            broker_id: broker!.id,
+            changes: criticalChanges,
+            status: 'pending',
+            reason: 'Business information update requested by broker',
+          })
+          .select()
+          .single();
+
+        if (crError) {
+          // If table doesn't exist, fall back to direct update with notice
+          console.warn('Change request table not available, saving directly:', crError);
+          await brokerProfileService.update(broker!.id, {
+            company_name: companyName,
+            mc_number: mcNumber,
+            dot_number: dotNumber,
+            tax_id: taxId,
+          });
+          setSuccessMessage('Business information updated. Note: Critical field changes should be verified by an admin.');
+        } else {
+          setPendingChangeRequest(changeReq);
+          // Revert critical fields to original values (pending approval)
+          setCompanyName(originalBusinessValues.company_name);
+          setMcNumber(originalBusinessValues.mc_number);
+          setDotNumber(originalBusinessValues.dot_number);
+          setTaxId(originalBusinessValues.tax_id);
+          setSuccessMessage(
+            'Business address saved. Critical field changes (Company Name, MC#, DOT#, Tax ID) have been submitted for admin review.'
+          );
+        }
+        setSubmittingChangeRequest(false);
+      } else {
+        setSuccessMessage('Business address updated successfully');
+      }
+
+      setTimeout(() => setSuccessMessage(''), 5000);
     } catch (err: any) {
       console.error('Error saving business info:', err);
       setErrorMessage(err.message || 'Failed to update business information');
@@ -153,8 +251,22 @@ export default function BrokerSettingsPage() {
     setSuccessMessage('');
 
     try {
-      // Payment method would need to be stored separately or in a different table
-      // For now, just show success
+      if (!paymentMethod) {
+        setErrorMessage('Please select a payment method');
+        return;
+      }
+
+      const paymentData: Record<string, any> = { payment_method: paymentMethod };
+      if (paymentMethod === 'bank_transfer') {
+        if (!accountNumber || !routingNumber) {
+          setErrorMessage('Bank account and routing number are required');
+          return;
+        }
+        paymentData.bank_account_last4 = accountNumber.slice(-4);
+        paymentData.routing_number_last4 = routingNumber.slice(-4);
+      }
+
+      await brokerProfileService.update(broker!.id, paymentData);
       setSuccessMessage('Payment method updated successfully');
       setTimeout(() => setSuccessMessage(''), 3000);
     } catch (err: any) {
@@ -171,7 +283,23 @@ export default function BrokerSettingsPage() {
     setSuccessMessage('');
 
     try {
-      // Save notification preferences
+      const supabase = getSupabaseBrowserClient();
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (user) {
+        await supabase
+          .from('notification_preferences')
+          .upsert({
+            user_id: user.id,
+            email_notifications: emailNotifications,
+            sms_notifications: smsNotifications,
+            new_load_alerts: newLoadAlerts,
+            bid_updates: bidUpdates,
+            payment_notifications: paymentNotifications,
+            updated_at: new Date().toISOString(),
+          }, { onConflict: 'user_id' });
+      }
+
       setSuccessMessage('Notification preferences updated successfully');
       setTimeout(() => setSuccessMessage(''), 3000);
     } catch (err: any) {
@@ -350,10 +478,46 @@ export default function BrokerSettingsPage() {
                   <p className="text-sm text-gray-600">Update your company details and certifications</p>
                 </div>
 
+                {/* Pending Change Request Banner */}
+                {pendingChangeRequest && (
+                  <div className="bg-amber-50 border border-amber-300 rounded-lg p-4">
+                    <div className="flex items-start gap-3">
+                      <Clock className="h-5 w-5 text-amber-600 mt-0.5 flex-shrink-0" />
+                      <div className="flex-1">
+                        <p className="text-sm font-semibold text-amber-800">Change Request Pending Review</p>
+                        <p className="text-xs text-amber-700 mt-1">
+                          You submitted changes to critical business fields on {new Date(pendingChangeRequest.created_at).toLocaleDateString()}.
+                          These are under admin review and will be updated once approved.
+                        </p>
+                        <div className="mt-2 space-y-1">
+                          {Object.entries(pendingChangeRequest.changes as Record<string, { old_value: string; new_value: string }>).map(([field, change]) => (
+                            <div key={field} className="text-xs text-amber-700">
+                              <span className="font-medium">{field.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}:</span>{' '}
+                              <span className="line-through">{change.old_value || '(empty)'}</span>{' â†’ '}
+                              <span className="font-semibold">{change.new_value}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Critical Fields Notice */}
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                  <div className="flex items-center gap-2">
+                    <Lock className="h-4 w-4 text-blue-600" />
+                    <p className="text-xs text-blue-800">
+                      <strong>Company Name, MC#, DOT#, and Tax ID</strong> are regulated fields. Changes to these require admin approval to ensure compliance.
+                    </p>
+                  </div>
+                </div>
+
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-1.5">
                       Company Name *
+                      <span title="Requires admin approval"><Lock className="h-3 w-3 text-amber-500" /></span>
                     </label>
                     <input
                       type="text"
@@ -362,11 +526,17 @@ export default function BrokerSettingsPage() {
                       className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-teal-500 focus:border-transparent"
                       placeholder="Your Company LLC"
                     />
+                    {companyName !== originalBusinessValues.company_name && (
+                      <p className="text-xs text-amber-600 mt-1 flex items-center gap-1">
+                        <AlertCircle className="h-3 w-3" /> Change will require admin approval
+                      </p>
+                    )}
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-1.5">
                       MC Number *
+                      <span title="Requires admin approval"><Lock className="h-3 w-3 text-amber-500" /></span>
                     </label>
                     <input
                       type="text"
@@ -375,11 +545,17 @@ export default function BrokerSettingsPage() {
                       className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-teal-500 focus:border-transparent"
                       placeholder="MC123456"
                     />
+                    {mcNumber !== originalBusinessValues.mc_number && (
+                      <p className="text-xs text-amber-600 mt-1 flex items-center gap-1">
+                        <AlertCircle className="h-3 w-3" /> Change will require admin approval
+                      </p>
+                    )}
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-1.5">
                       DOT Number
+                      <span title="Requires admin approval"><Lock className="h-3 w-3 text-amber-500" /></span>
                     </label>
                     <input
                       type="text"
@@ -388,11 +564,17 @@ export default function BrokerSettingsPage() {
                       className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-teal-500 focus:border-transparent"
                       placeholder="DOT123456"
                     />
+                    {dotNumber !== originalBusinessValues.dot_number && (
+                      <p className="text-xs text-amber-600 mt-1 flex items-center gap-1">
+                        <AlertCircle className="h-3 w-3" /> Change will require admin approval
+                      </p>
+                    )}
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-1.5">
                       Tax ID (EIN)
+                      <span title="Requires admin approval"><Lock className="h-3 w-3 text-amber-500" /></span>
                     </label>
                     <input
                       type="text"
@@ -401,6 +583,11 @@ export default function BrokerSettingsPage() {
                       className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-teal-500 focus:border-transparent"
                       placeholder="12-3456789"
                     />
+                    {taxId !== originalBusinessValues.tax_id && (
+                      <p className="text-xs text-amber-600 mt-1 flex items-center gap-1">
+                        <AlertCircle className="h-3 w-3" /> Change will require admin approval
+                      </p>
+                    )}
                   </div>
 
                   <div className="md:col-span-2">
@@ -431,12 +618,41 @@ export default function BrokerSettingsPage() {
                 <div className="flex gap-3 pt-3">
                   <Button
                     onClick={handleSaveBusiness}
-                    disabled={saving}
+                    disabled={saving || submittingChangeRequest}
                     className="bg-teal-500 hover:bg-teal-600 text-white"
                   >
-                    <Save className="h-4 w-4 mr-2" />
-                    {saving ? 'Saving...' : 'Save Changes'}
+                    {(companyName !== originalBusinessValues.company_name ||
+                      mcNumber !== originalBusinessValues.mc_number ||
+                      dotNumber !== originalBusinessValues.dot_number ||
+                      taxId !== originalBusinessValues.tax_id) ? (
+                      <>
+                        <SendHorizonal className="h-4 w-4 mr-2" />
+                        {submittingChangeRequest ? 'Submitting...' : 'Submit for Review'}
+                      </>
+                    ) : (
+                      <>
+                        <Save className="h-4 w-4 mr-2" />
+                        {saving ? 'Saving...' : 'Save Changes'}
+                      </>
+                    )}
                   </Button>
+                  {(companyName !== originalBusinessValues.company_name ||
+                    mcNumber !== originalBusinessValues.mc_number ||
+                    dotNumber !== originalBusinessValues.dot_number ||
+                    taxId !== originalBusinessValues.tax_id) && (
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        setCompanyName(originalBusinessValues.company_name);
+                        setMcNumber(originalBusinessValues.mc_number);
+                        setDotNumber(originalBusinessValues.dot_number);
+                        setTaxId(originalBusinessValues.tax_id);
+                      }}
+                    >
+                      <X className="h-4 w-4 mr-2" />
+                      Reset Changes
+                    </Button>
+                  )}
                 </div>
               </div>
             )}
