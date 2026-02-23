@@ -27,6 +27,7 @@
 import { createClient } from '@supabase/supabase-js';
 import OpenAI from 'openai';
 import { FEATURE_FLAGS } from '../config/features';
+import { SERVICE_MODEL_MAP, aiUsageTracker } from '../config/ai.config';
 import { googleMapsService } from './google-maps.service';
 import { pricingService, VehicleType } from './pricing.service';
 
@@ -165,7 +166,8 @@ export class NaturalLanguageShipmentService {
         return this.fallbackParsing(input);
       }
 
-      console.log(`Parsing natural language with GPT-4: "${input.input_text}"`);
+      const modelConfig = SERVICE_MODEL_MAP['nl-shipment'];
+      console.log(`Parsing natural language with ${modelConfig.model}: "${input.input_text}"`);
 
       const systemPrompt = `You are Benji, an AI assistant for a vehicle shipping platform.
 Extract structured shipment data from natural language input.
@@ -189,21 +191,43 @@ Return ONLY valid JSON with this EXACT structure:
 
 ONLY include fields with actual values - use null for missing data. Location should be as specific as possible from the input.`;
 
+      const startTime = Date.now();
+
       const completion = await openai.chat.completions.create({
-        model: 'gpt-4o',
+        model: modelConfig.model,
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: input.input_text },
         ],
         response_format: { type: 'json_object' },
-        temperature: 0.1,
-        max_tokens: 1000,
+        temperature: modelConfig.temperature,
+        max_tokens: modelConfig.maxTokens,
       });
+
+      const durationMs = Date.now() - startTime;
 
       const content = completion.choices[0]?.message?.content;
       if (!content) {
         throw new Error('No response from GPT-4');
       }
+
+      // Track token usage
+      const promptTokens = completion.usage?.prompt_tokens || 0;
+      const completionTokens = completion.usage?.completion_tokens || 0;
+      const totalTokens = completion.usage?.total_tokens || 0;
+      const estimatedCost = aiUsageTracker.calculateCost(promptTokens, completionTokens, modelConfig);
+
+      aiUsageTracker.track({
+        service: 'nl-shipment',
+        model: modelConfig.model,
+        promptTokens,
+        completionTokens,
+        totalTokens,
+        estimatedCost,
+        userId: input.user_id,
+        timestamp: new Date().toISOString(),
+        durationMs,
+      });
 
       const parsed = JSON.parse(content) as ParsedShipmentData;
       console.log('Parsed data:', JSON.stringify(parsed, null, 2));

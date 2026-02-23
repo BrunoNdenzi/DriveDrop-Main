@@ -1,4 +1,5 @@
 import OpenAI from 'openai';
+import { SERVICE_MODEL_MAP, aiUsageTracker, aiResponseCache } from '../config/ai.config';
 
 const openai = new OpenAI({
   apiKey: process.env['OPENAI_API_KEY'],
@@ -14,12 +15,21 @@ export interface ChatContext {
   userId: string;
   currentPage?: string;
   shipmentId?: string;
+  attachments?: Array<{ name: string; url: string; type: string; size: number }>;
 }
 
 export interface ChatResponse {
   message: string;
   confidence: number;
   suggestions?: string[];
+  tokenUsage?: {
+    promptTokens: number;
+    completionTokens: number;
+    totalTokens: number;
+    estimatedCost: number;
+    model: string;
+  };
+  cached?: boolean;
 }
 
 class BenjiChatService {
@@ -30,6 +40,8 @@ Current Context:
 - User Type: ${context.userType}
 - Page: ${context.currentPage || 'dashboard'}
 ${context.shipmentId ? `- Active Shipment: ${context.shipmentId}` : ''}
+${context.attachments && context.attachments.length > 0 ? `- User Attachments: ${context.attachments.map(a => `${a.name} (${a.type})`).join(', ')}
+  Note: The user has attached file(s). Acknowledge the attachment(s) and explain how you can help with them. For images, you can note you've received them. For documents (PDF, CSV), note that you've received them and offer to help interpret or process the data.` : ''}
 
 Your Personality:
 - Friendly but professional
@@ -136,22 +148,57 @@ Key Features to Highlight:
 
   async chat(messages: ChatMessage[], context: ChatContext): Promise<ChatResponse> {
     try {
+      const modelConfig = SERVICE_MODEL_MAP['benji-chat'];
       const systemPrompt = this.getSystemPrompt(context);
 
+      // Check cache for the last user message
+      const lastUserMsg = messages.filter(m => m.role === 'user').pop()?.content || '';
+      const cached = aiResponseCache.get('benji-chat', lastUserMsg);
+      if (cached) {
+        return {
+          message: cached.response,
+          confidence: 0.90,
+          suggestions: cached.suggestions || this.generateSuggestions(context, cached.response),
+          cached: true,
+        };
+      }
+
+      const startTime = Date.now();
+
       const completion = await openai.chat.completions.create({
-        model: 'gpt-4o',
+        model: modelConfig.model,
         messages: [
           { role: 'system', content: systemPrompt },
           ...messages,
         ],
-        max_tokens: 300,
-        temperature: 0.7,
+        max_tokens: modelConfig.maxTokens,
+        temperature: modelConfig.temperature,
         presence_penalty: 0.1,
         frequency_penalty: 0.1,
       });
 
+      const durationMs = Date.now() - startTime;
+
       const message = completion.choices[0]?.message?.content || 
         "I'm having trouble responding right now. Please try again.";
+
+      // Track token usage
+      const promptTokens = completion.usage?.prompt_tokens || 0;
+      const completionTokens = completion.usage?.completion_tokens || 0;
+      const totalTokens = completion.usage?.total_tokens || 0;
+      const estimatedCost = aiUsageTracker.calculateCost(promptTokens, completionTokens, modelConfig);
+
+      aiUsageTracker.track({
+        service: 'benji-chat',
+        model: modelConfig.model,
+        promptTokens,
+        completionTokens,
+        totalTokens,
+        estimatedCost,
+        userId: context.userId,
+        timestamp: new Date().toISOString(),
+        durationMs,
+      });
 
       // Calculate confidence based on completion metadata
       const confidence = this.calculateConfidence(completion);
@@ -159,10 +206,20 @@ Key Features to Highlight:
       // Generate contextual suggestions
       const suggestions = this.generateSuggestions(context, message);
 
+      // Cache the response for common queries
+      aiResponseCache.set('benji-chat', lastUserMsg, message, suggestions);
+
       return {
         message,
         confidence,
         suggestions,
+        tokenUsage: {
+          promptTokens,
+          completionTokens,
+          totalTokens,
+          estimatedCost,
+          model: modelConfig.model,
+        },
       };
     } catch (error: any) {
       console.error('Benji chat error:', error);

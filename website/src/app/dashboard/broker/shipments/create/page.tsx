@@ -30,13 +30,30 @@ export default function CreateBrokerShipmentPage() {
       const { data: brokerProfile } = await supabase
         .from('broker_profiles')
         .select('default_commission_rate')
-        .eq('user_id', user.id)
+        .eq('profile_id', user.id)
         .single();
 
       const commissionRate = brokerProfile?.default_commission_rate || 15;
 
+      // ShipmentForm passes flat fields like pickupAddress, vehicleMake, etc.
+      // Parse address parts from the full address string
+      const parseAddress = (fullAddress: string) => {
+        if (!fullAddress) return { address: '', city: '', state: '', zip: '' };
+        const parts = fullAddress.split(',').map(p => p.trim());
+        // Typical format: "123 Main St, City, State ZIP" or "123 Main St, City, ST 12345"
+        const address = parts[0] || '';
+        const city = parts[1] || '';
+        const stateZip = (parts[2] || '').trim().split(' ');
+        const state = stateZip[0] || '';
+        const zip = stateZip[1] || '';
+        return { address, city, state, zip };
+      };
+
+      const pickup = parseAddress(shipmentData.pickupAddress);
+      const delivery = parseAddress(shipmentData.deliveryAddress);
+
       // Calculate broker commission and platform fee
-      const totalPrice = shipmentData.estimated_price;
+      const totalPrice = shipmentData.estimatedPrice || 0;
       const brokerCommission = (totalPrice * commissionRate) / 100;
       const platformFee = (totalPrice * 10) / 100; // 10% platform fee
 
@@ -45,32 +62,32 @@ export default function CreateBrokerShipmentPage() {
         .from('broker_shipments')
         .insert({
           broker_id: user.id,
-          client_name: shipmentData.clientName || 'N/A',
-          client_email: shipmentData.clientEmail || '',
-          client_phone: shipmentData.clientPhone || '',
+          client_name: shipmentData.clientName || shipmentData.customerName || 'N/A',
+          client_email: shipmentData.clientEmail || shipmentData.customerEmail || '',
+          client_phone: shipmentData.clientPhone || shipmentData.customerPhone || '',
           
-          pickup_address: shipmentData.pickup.address,
-          pickup_city: shipmentData.pickup.city,
-          pickup_state: shipmentData.pickup.state,
-          pickup_zip: shipmentData.pickup.zipCode,
-          pickup_latitude: shipmentData.pickup.lat,
-          pickup_longitude: shipmentData.pickup.lng,
+          pickup_address: pickup.address || shipmentData.pickupAddress,
+          pickup_city: pickup.city,
+          pickup_state: pickup.state,
+          pickup_zip: pickup.zip,
+          pickup_latitude: shipmentData.pickupCoordinates?.lat || null,
+          pickup_longitude: shipmentData.pickupCoordinates?.lng || null,
           
-          delivery_address: shipmentData.delivery.address,
-          delivery_city: shipmentData.delivery.city,
-          delivery_state: shipmentData.delivery.state,
-          delivery_zip: shipmentData.delivery.zipCode,
-          delivery_latitude: shipmentData.delivery.lat,
-          delivery_longitude: shipmentData.delivery.lng,
+          delivery_address: delivery.address || shipmentData.deliveryAddress,
+          delivery_city: delivery.city,
+          delivery_state: delivery.state,
+          delivery_zip: delivery.zip,
+          delivery_latitude: shipmentData.deliveryCoordinates?.lat || null,
+          delivery_longitude: shipmentData.deliveryCoordinates?.lng || null,
           
-          vehicle_year: shipmentData.vehicle.year,
-          vehicle_make: shipmentData.vehicle.make,
-          vehicle_model: shipmentData.vehicle.model,
-          vehicle_type: shipmentData.vehicle.type,
-          vehicle_condition: shipmentData.vehicle.condition,
-          vehicle_vin: shipmentData.vehicle.vin || null,
+          vehicle_year: shipmentData.vehicleYear ? parseInt(shipmentData.vehicleYear) : null,
+          vehicle_make: shipmentData.vehicleMake || '',
+          vehicle_model: shipmentData.vehicleModel || '',
+          vehicle_type: shipmentData.vehicleType || '',
+          vehicle_condition: shipmentData.isOperable ? 'running' : 'non-running',
+          vehicle_vin: shipmentData.vehicleVin || null,
           
-          distance_miles: shipmentData.distance,
+          distance_miles: shipmentData.distance || 0,
           estimated_price: totalPrice,
           broker_commission: brokerCommission,
           platform_fee: platformFee,
@@ -78,10 +95,10 @@ export default function CreateBrokerShipmentPage() {
           pickup_date: shipmentData.pickupDate || null,
           delivery_date: shipmentData.deliveryDate || null,
           
-          transport_type: shipmentData.transportType || 'open',
+          transport_type: shipmentData.shipmentType || 'open',
           is_operable: shipmentData.isOperable !== false,
           
-          notes: shipmentData.notes || null,
+          notes: shipmentData.specialInstructions || null,
           status: 'pending_quote',
         })
         .select()

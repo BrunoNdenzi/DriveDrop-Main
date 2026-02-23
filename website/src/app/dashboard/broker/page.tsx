@@ -52,7 +52,7 @@ function BrokerDashboardContent() {
       // Get current user
       const { data: { user }, error: authError } = await supabase.auth.getUser();
       if (authError || !user) {
-        router.push('/auth/signin');
+        router.push('/login');
         return;
       }
 

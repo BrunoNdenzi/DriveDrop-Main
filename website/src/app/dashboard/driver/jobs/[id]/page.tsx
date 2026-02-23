@@ -16,7 +16,9 @@ import {
   ArrowLeft,
   Clock,
   Info,
-  Car
+  Car,
+  Image,
+  Eye
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { BenjiChat } from '@/components/benji/BenjiChat'
@@ -51,6 +53,7 @@ interface JobDetails {
   item_value: number
   is_fragile: boolean
   client_id: string
+  client_vehicle_photos: any
   client: {
     first_name: string
     last_name: string
@@ -323,6 +326,69 @@ export default function JobDetailPage() {
               </div>
             </div>
           </div>
+
+          {/* Client Vehicle Photos */}
+          {job.client_vehicle_photos && (() => {
+            try {
+              const photos = typeof job.client_vehicle_photos === 'string'
+                ? JSON.parse(job.client_vehicle_photos)
+                : job.client_vehicle_photos
+
+              // Handle both array and object formats
+              const photoEntries: [string, any][] = Array.isArray(photos)
+                ? photos.map((url: string, i: number) => [`Photo ${i + 1}`, url] as [string, any])
+                : Object.entries(photos).flatMap(([key, value]: [string, any]) => {
+                    if (Array.isArray(value)) {
+                      return value.filter(Boolean).map((url: string, i: number) => [`${key} ${i + 1}`, url] as [string, any])
+                    }
+                    return value ? [[key, value] as [string, any]] : []
+                  })
+
+              if (photoEntries.length === 0) return null
+
+              return (
+                <div className="bg-white rounded-md p-4 border border-gray-200">
+                  <div className="flex items-center gap-3 mb-4">
+                    <Image className="h-5 w-5 text-blue-500" />
+                    <div>
+                      <h2 className="text-sm font-semibold text-gray-900">Client Vehicle Photos</h2>
+                      <p className="text-xs text-gray-500">{photoEntries.length} photo(s) submitted by client</p>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                    {photoEntries.map(([key, url]: [string, any], index: number) => (
+                      <div key={index} className="relative aspect-video bg-gray-100 rounded-md overflow-hidden group cursor-pointer">
+                        <img
+                          src={url}
+                          alt={`${key} view`}
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
+                        />
+                        <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-2">
+                          <p className="text-white text-xs font-medium capitalize">{key}</p>
+                        </div>
+                        <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <a
+                            href={url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="bg-white/90 p-1.5 rounded-full shadow-sm hover:bg-white"
+                          >
+                            <Eye className="h-3.5 w-3.5 text-gray-700" />
+                          </a>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  <p className="text-xs text-gray-500 mt-3">
+                    Review these photos before accepting the job to verify vehicle condition.
+                  </p>
+                </div>
+              )
+            } catch (error) {
+              console.error('Error parsing vehicle photos:', error)
+              return null
+            }
+          })()}
 
           {/* Additional Details */}
           {job.description && (

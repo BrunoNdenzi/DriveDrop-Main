@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { getSupabaseBrowserClient } from '@/lib/supabase-client';
 import { 
@@ -11,59 +11,256 @@ import {
   CheckCircle, 
   XCircle,
   AlertCircle,
-  Loader2
+  Loader2,
+  Edit2,
+  Save,
+  Trash2,
+  RotateCcw,
+  Check,
+  X,
+  AlertTriangle,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { BenjiChat } from '@/components/benji/BenjiChat';
 import { useAuth } from '@/hooks/useAuth';
 
-interface UploadResult {
-  success: number;
-  failed: number;
-  errors: Array<{ row: number; error: string }>;
+// Required fields configuration
+const REQUIRED_FIELDS = [
+  'client_name', 'client_email', 'client_phone',
+  'pickup_address', 'pickup_city', 'pickup_state', 'pickup_zip',
+  'delivery_address', 'delivery_city', 'delivery_state', 'delivery_zip',
+  'vehicle_year', 'vehicle_make', 'vehicle_model', 'vehicle_type',
+  'estimated_price'
+];
+
+const OPTIONAL_FIELDS = [
+  'vehicle_condition', 'vehicle_vin', 'distance_miles',
+  'pickup_date', 'delivery_date', 'transport_type', 'is_operable', 'notes'
+];
+
+// Field labels for display
+const FIELD_LABELS: Record<string, string> = {
+  client_name: 'Client Name',
+  client_email: 'Client Email',
+  client_phone: 'Client Phone',
+  pickup_address: 'Pickup Address',
+  pickup_city: 'Pickup City',
+  pickup_state: 'Pickup State',
+  pickup_zip: 'Pickup ZIP',
+  delivery_address: 'Delivery Address',
+  delivery_city: 'Delivery City',
+  delivery_state: 'Delivery State',
+  delivery_zip: 'Delivery ZIP',
+  vehicle_year: 'Vehicle Year',
+  vehicle_make: 'Vehicle Make',
+  vehicle_model: 'Vehicle Model',
+  vehicle_type: 'Vehicle Type',
+  vehicle_condition: 'Condition',
+  vehicle_vin: 'VIN',
+  estimated_price: 'Price',
+  distance_miles: 'Distance',
+  pickup_date: 'Pickup Date',
+  delivery_date: 'Delivery Date',
+  transport_type: 'Transport',
+  is_operable: 'Operable',
+  notes: 'Notes',
+};
+
+interface ParsedRow {
+  rowIndex: number;
+  data: Record<string, string>;
+  errors: Array<{ field: string; message: string }>;
+  warnings: Array<{ field: string; message: string }>;
+  status: 'valid' | 'error' | 'warning' | 'uploaded' | 'editing';
+  uploadError?: string;
 }
+
+type UploadPhase = 'select' | 'review' | 'uploading' | 'results';
 
 export default function BulkUploadPage() {
   const router = useRouter();
   const { profile } = useAuth();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  
   const [file, setFile] = useState<File | null>(null);
+  const [phase, setPhase] = useState<UploadPhase>('select');
+  const [parsedRows, setParsedRows] = useState<ParsedRow[]>([]);
+  const [headers, setHeaders] = useState<string[]>([]);
   const [uploading, setUploading] = useState(false);
-  const [result, setResult] = useState<UploadResult | null>(null);
-  const [preview, setPreview] = useState<any[]>([]);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [editingRow, setEditingRow] = useState<number | null>(null);
+  const [editData, setEditData] = useState<Record<string, string>>({});
+  const [filterStatus, setFilterStatus] = useState<string>('all');
+
+  // Validate a single row
+  const validateRow = useCallback((data: Record<string, string>, rowIndex: number): ParsedRow => {
+    const errors: Array<{ field: string; message: string }> = [];
+    const warnings: Array<{ field: string; message: string }> = [];
+
+    // Check required fields
+    for (const field of REQUIRED_FIELDS) {
+      if (!data[field]?.trim()) {
+        errors.push({ field, message: `${FIELD_LABELS[field] || field} is required` });
+      }
+    }
+
+    // Validate email format
+    if (data.client_email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.client_email)) {
+      errors.push({ field: 'client_email', message: 'Invalid email format' });
+    }
+
+    // Validate year
+    const year = parseInt(data.vehicle_year);
+    if (data.vehicle_year && (isNaN(year) || year < 1900 || year > 2030)) {
+      errors.push({ field: 'vehicle_year', message: 'Year must be between 1900-2030' });
+    }
+
+    // Validate price
+    const price = parseFloat(data.estimated_price);
+    if (data.estimated_price && (isNaN(price) || price <= 0)) {
+      errors.push({ field: 'estimated_price', message: 'Price must be a positive number' });
+    } else if (price > 0 && price < 100) {
+      warnings.push({ field: 'estimated_price', message: 'Price seems unusually low' });
+    }
+
+    // Validate state abbreviation
+    if (data.pickup_state && data.pickup_state.length !== 2) {
+      warnings.push({ field: 'pickup_state', message: 'Use 2-letter state code (e.g., NC)' });
+    }
+    if (data.delivery_state && data.delivery_state.length !== 2) {
+      warnings.push({ field: 'delivery_state', message: 'Use 2-letter state code (e.g., NC)' });
+    }
+
+    // Validate dates
+    if (data.pickup_date && isNaN(Date.parse(data.pickup_date))) {
+      errors.push({ field: 'pickup_date', message: 'Invalid date format (use YYYY-MM-DD)' });
+    }
+    if (data.delivery_date && isNaN(Date.parse(data.delivery_date))) {
+      errors.push({ field: 'delivery_date', message: 'Invalid date format (use YYYY-MM-DD)' });
+    }
+
+    // Validate VIN length
+    if (data.vehicle_vin && data.vehicle_vin.length !== 17 && data.vehicle_vin.length > 0) {
+      warnings.push({ field: 'vehicle_vin', message: 'VIN should be exactly 17 characters' });
+    }
+
+    return {
+      rowIndex,
+      data,
+      errors,
+      warnings,
+      status: errors.length > 0 ? 'error' : warnings.length > 0 ? 'warning' : 'valid',
+    };
+  }, []);
+
+  // Parse CSV file
+  const parseCSV = useCallback(async (file: File) => {
+    const text = await file.text();
+    const lines = text.split('\n').filter(line => line.trim());
+    
+    if (lines.length < 2) {
+      alert('CSV file must have a header row and at least one data row');
+      return;
+    }
+
+    const csvHeaders = lines[0].split(',').map(h => h.trim().toLowerCase().replace(/"/g, ''));
+    setHeaders(csvHeaders);
+
+    // Check for required headers
+    const missingHeaders = REQUIRED_FIELDS.filter(f => !csvHeaders.includes(f));
+    if (missingHeaders.length > 0) {
+      alert(`Missing required columns: ${missingHeaders.map(h => FIELD_LABELS[h] || h).join(', ')}\n\nPlease download the template to see the correct format.`);
+      return;
+    }
+
+    // Parse data rows with smart CSV parsing (handles commas in quoted fields)
+    const rows: ParsedRow[] = [];
+    for (let i = 1; i < lines.length; i++) {
+      const line = lines[i].trim();
+      if (!line) continue;
+
+      const values: string[] = [];
+      let current = '';
+      let inQuotes = false;
+      for (const char of line) {
+        if (char === '"') {
+          inQuotes = !inQuotes;
+        } else if (char === ',' && !inQuotes) {
+          values.push(current.trim());
+          current = '';
+        } else {
+          current += char;
+        }
+      }
+      values.push(current.trim());
+
+      const rowData: Record<string, string> = {};
+      csvHeaders.forEach((header, idx) => {
+        rowData[header] = values[idx] || '';
+      });
+
+      rows.push(validateRow(rowData, i));
+    }
+
+    setParsedRows(rows);
+    setPhase('review');
+  }, [validateRow]);
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0];
     if (selectedFile) {
+      if (!selectedFile.name.endsWith('.csv')) {
+        alert('Please select a CSV file');
+        return;
+      }
       setFile(selectedFile);
-      setResult(null);
+      setParsedRows([]);
+      setPhase('select');
       parseCSV(selectedFile);
     }
   };
 
-  const parseCSV = async (file: File) => {
-    const text = await file.text();
-    const lines = text.split('\n').filter(line => line.trim());
-    const headers = lines[0].split(',').map(h => h.trim());
-    
-    const data = lines.slice(1, 6).map(line => { // Preview first 5 rows
-      const values = line.split(',').map(v => v.trim());
-      return headers.reduce((obj, header, index) => {
-        obj[header] = values[index] || '';
-        return obj;
-      }, {} as any);
-    });
-
-    setPreview(data);
+  // Start editing a row
+  const startEdit = (rowIndex: number) => {
+    const row = parsedRows.find(r => r.rowIndex === rowIndex);
+    if (!row) return;
+    setEditingRow(rowIndex);
+    setEditData({ ...row.data });
   };
 
+  // Save edit and re-validate
+  const saveEdit = () => {
+    if (editingRow === null) return;
+    
+    const updatedRows = parsedRows.map(row => {
+      if (row.rowIndex === editingRow) {
+        return validateRow(editData, row.rowIndex);
+      }
+      return row;
+    });
+    
+    setParsedRows(updatedRows);
+    setEditingRow(null);
+    setEditData({});
+  };
+
+  // Remove a row
+  const removeRow = (rowIndex: number) => {
+    setParsedRows(prev => prev.filter(r => r.rowIndex !== rowIndex));
+  };
+
+  // Upload all valid rows
   const handleUpload = async () => {
-    if (!file) return;
+    const validRows = parsedRows.filter(r => r.status === 'valid' || r.status === 'warning');
+    if (validRows.length === 0) {
+      alert('No valid rows to upload. Please fix the errors first.');
+      return;
+    }
 
     setUploading(true);
-    const errors: Array<{ row: number; error: string }> = [];
-    let successCount = 0;
+    setPhase('uploading');
+    setUploadProgress(0);
 
     try {
       const supabase = getSupabaseBrowserClient();
@@ -74,125 +271,144 @@ export default function BulkUploadPage() {
         return;
       }
 
-      // Get broker commission rate
       const { data: brokerProfile } = await supabase
         .from('broker_profiles')
         .select('default_commission_rate')
-        .eq('user_id', user.id)
+        .eq('profile_id', user.id)
         .single();
 
       const commissionRate = brokerProfile?.default_commission_rate || 15;
+      const updatedRows = [...parsedRows];
 
-      // Parse CSV
-      const text = await file.text();
-      const lines = text.split('\n').filter(line => line.trim());
-      const headers = lines[0].split(',').map(h => h.trim().toLowerCase());
-      
-      // Process each row
-      for (let i = 1; i < lines.length; i++) {
+      for (let i = 0; i < validRows.length; i++) {
+        const row = validRows[i];
+        const data = row.data;
+
         try {
-          const values = lines[i].split(',').map(v => v.trim());
-          const row: any = {};
-          headers.forEach((header, index) => {
-            row[header] = values[index] || '';
-          });
-
-          // Validate required fields
-          const requiredFields = [
-            'client_name', 'client_email', 'client_phone',
-            'pickup_address', 'pickup_city', 'pickup_state', 'pickup_zip',
-            'delivery_address', 'delivery_city', 'delivery_state', 'delivery_zip',
-            'vehicle_year', 'vehicle_make', 'vehicle_model', 'vehicle_type',
-            'estimated_price'
-          ];
-
-          for (const field of requiredFields) {
-            if (!row[field]) {
-              throw new Error(`Missing required field: ${field}`);
-            }
-          }
-
-          // Calculate commission and fees
-          const totalPrice = parseFloat(row.estimated_price);
+          const totalPrice = parseFloat(data.estimated_price);
           const brokerCommission = (totalPrice * commissionRate) / 100;
           const platformFee = (totalPrice * 10) / 100;
 
-          // Insert shipment
           const { error } = await supabase
             .from('broker_shipments')
             .insert({
               broker_id: user.id,
-              client_name: row.client_name,
-              client_email: row.client_email,
-              client_phone: row.client_phone,
-              
-              pickup_address: row.pickup_address,
-              pickup_city: row.pickup_city,
-              pickup_state: row.pickup_state,
-              pickup_zip: row.pickup_zip,
-              
-              delivery_address: row.delivery_address,
-              delivery_city: row.delivery_city,
-              delivery_state: row.delivery_state,
-              delivery_zip: row.delivery_zip,
-              
-              vehicle_year: parseInt(row.vehicle_year),
-              vehicle_make: row.vehicle_make,
-              vehicle_model: row.vehicle_model,
-              vehicle_type: row.vehicle_type,
-              vehicle_condition: row.vehicle_condition || 'running',
-              vehicle_vin: row.vehicle_vin || null,
-              
-              distance_miles: parseFloat(row.distance_miles || '0'),
+              client_name: data.client_name,
+              client_email: data.client_email,
+              client_phone: data.client_phone,
+              pickup_address: data.pickup_address,
+              pickup_city: data.pickup_city,
+              pickup_state: data.pickup_state,
+              pickup_zip: data.pickup_zip,
+              delivery_address: data.delivery_address,
+              delivery_city: data.delivery_city,
+              delivery_state: data.delivery_state,
+              delivery_zip: data.delivery_zip,
+              vehicle_year: parseInt(data.vehicle_year),
+              vehicle_make: data.vehicle_make,
+              vehicle_model: data.vehicle_model,
+              vehicle_type: data.vehicle_type,
+              vehicle_condition: data.vehicle_condition || 'running',
+              vehicle_vin: data.vehicle_vin || null,
+              distance_miles: parseFloat(data.distance_miles || '0'),
               estimated_price: totalPrice,
               broker_commission: brokerCommission,
               platform_fee: platformFee,
-              
-              pickup_date: row.pickup_date || null,
-              delivery_date: row.delivery_date || null,
-              
-              transport_type: row.transport_type || 'open',
-              is_operable: row.is_operable !== 'false',
-              
-              notes: row.notes || null,
+              pickup_date: data.pickup_date || null,
+              delivery_date: data.delivery_date || null,
+              transport_type: data.transport_type || 'open',
+              is_operable: data.is_operable !== 'false',
+              notes: data.notes || null,
               status: 'pending_quote',
             });
 
           if (error) throw error;
-          successCount++;
+
+          const idx = updatedRows.findIndex(r => r.rowIndex === row.rowIndex);
+          if (idx !== -1) {
+            updatedRows[idx] = { ...updatedRows[idx], status: 'uploaded' };
+          }
         } catch (err: any) {
-          errors.push({ row: i + 1, error: err.message });
+          const idx = updatedRows.findIndex(r => r.rowIndex === row.rowIndex);
+          if (idx !== -1) {
+            updatedRows[idx] = {
+              ...updatedRows[idx],
+              status: 'error',
+              uploadError: err.message || 'Upload failed',
+              errors: [...updatedRows[idx].errors, { field: '_upload', message: err.message || 'Upload failed' }],
+            };
+          }
         }
+
+        setUploadProgress(Math.round(((i + 1) / validRows.length) * 100));
+        setParsedRows([...updatedRows]);
       }
 
-      setResult({
-        success: successCount,
-        failed: errors.length,
-        errors: errors
-      });
-
+      setParsedRows(updatedRows);
+      setPhase('results');
     } catch (err: any) {
       console.error('Upload error:', err);
-      alert('Failed to upload file: ' + err.message);
+      alert('Fatal upload error: ' + err.message);
+      setPhase('review');
     } finally {
       setUploading(false);
     }
   };
 
+  // Retry failed rows
+  const retryFailed = () => {
+    const updated = parsedRows.map(row => {
+      if (row.status === 'error' && row.uploadError) {
+        return validateRow(row.data, row.rowIndex);
+      }
+      return row;
+    });
+    setParsedRows(updated);
+    setPhase('review');
+  };
+
+  // Download template
   const downloadTemplate = () => {
-    const template = `client_name,client_email,client_phone,pickup_address,pickup_city,pickup_state,pickup_zip,delivery_address,delivery_city,delivery_state,delivery_zip,vehicle_year,vehicle_make,vehicle_model,vehicle_type,vehicle_condition,vehicle_vin,estimated_price,distance_miles,pickup_date,delivery_date,transport_type,is_operable,notes
-John Doe,john@example.com,555-1234,123 Main St,Los Angeles,CA,90001,456 Oak Ave,New York,NY,10001,2023,BMW,X5,SUV,running,1HGBH41JXMN109186,1200,2789,2025-01-15,2025-01-20,open,true,Handle with care
-Jane Smith,jane@example.com,555-5678,789 Pine St,Miami,FL,33101,321 Elm St,Chicago,IL,60601,2022,Tesla,Model 3,Sedan,running,5YJ3E1EA0KF123456,950,1377,2025-01-16,2025-01-21,enclosed,true,
-`;
-    
-    const blob = new Blob([template], { type: 'text/csv' });
+    const a = document.createElement('a');
+    a.href = '/drivedrop_bulk_upload_sample.csv';
+    a.download = 'drivedrop_bulk_upload_template.csv';
+    a.click();
+  };
+
+  // Download errors report
+  const downloadErrorReport = () => {
+    const errorRows = parsedRows.filter(r => r.status === 'error');
+    if (errorRows.length === 0) return;
+
+    let csvContent = headers.join(',') + ',errors\n';
+    errorRows.forEach(row => {
+      const values = headers.map(h => `"${(row.data[h] || '').replace(/"/g, '""')}"`);
+      const errorText = row.errors.map(e => `${e.field}: ${e.message}`).join('; ');
+      values.push(`"${errorText}"`);
+      csvContent += values.join(',') + '\n';
+    });
+
+    const blob = new Blob([csvContent], { type: 'text/csv' });
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = 'drivedrop_bulk_upload_template.csv';
+    a.download = 'drivedrop_upload_errors.csv';
     a.click();
     window.URL.revokeObjectURL(url);
   };
+
+  // Stats
+  const stats = {
+    total: parsedRows.length,
+    valid: parsedRows.filter(r => r.status === 'valid').length,
+    warnings: parsedRows.filter(r => r.status === 'warning').length,
+    errors: parsedRows.filter(r => r.status === 'error').length,
+    uploaded: parsedRows.filter(r => r.status === 'uploaded').length,
+  };
+
+  const filteredRows = filterStatus === 'all' 
+    ? parsedRows 
+    : parsedRows.filter(r => r.status === filterStatus);
 
   return (
     <div className="space-y-4">
@@ -207,287 +423,401 @@ Jane Smith,jane@example.com,555-5678,789 Pine St,Miami,FL,33101,321 Elm St,Chica
           </Link>
           <div>
             <h1 className="text-lg font-semibold text-gray-900">Bulk Upload Shipments</h1>
-            <p className="text-gray-600 mt-1">Upload multiple shipments at once using a CSV file</p>
+            <p className="text-gray-600 text-sm mt-1">Upload, validate, edit and submit multiple shipments at once</p>
           </div>
         </div>
       </div>
 
-      {/* Instructions */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="bg-blue-50 border border-blue-200 rounded-md p-4">
-          <div className="flex items-center gap-3 mb-3">
-            <div className="w-10 h-10 bg-blue-600 rounded-md flex items-center justify-center text-white font-bold">
-              1
-            </div>
-            <h3 className="font-semibold text-gray-900">Download Template</h3>
-          </div>
-          <p className="text-sm text-gray-600 mb-4">
-            Download our CSV template with the required format and example data
-          </p>
-          <Button
-            onClick={downloadTemplate}
-            variant="outline"
-            className="w-full border-blue-600 text-blue-600 hover:bg-blue-50"
-          >
-            <Download className="h-4 w-4 mr-2" />
-            Download Template
-          </Button>
-        </div>
-
-        <div className="bg-purple-50 border border-purple-200 rounded-md p-4">
-          <div className="flex items-center gap-3 mb-3">
-            <div className="w-10 h-10 bg-purple-600 rounded-md flex items-center justify-center text-white font-bold">
-              2
-            </div>
-            <h3 className="font-semibold text-gray-900">Fill Your Data</h3>
-          </div>
-          <p className="text-sm text-gray-600 mb-4">
-            Fill in your shipment details following the template format. Ensure all required fields are included
-          </p>
-        </div>
-
-        <div className="bg-green-50 border border-green-200 rounded-md p-4">
-          <div className="flex items-center gap-3 mb-3">
-            <div className="w-10 h-10 bg-green-600 rounded-md flex items-center justify-center text-white font-bold">
-              3
-            </div>
-            <h3 className="font-semibold text-gray-900">Upload CSV</h3>
-          </div>
-          <p className="text-sm text-gray-600 mb-4">
-            Upload your completed CSV file and we'll process all shipments automatically
-          </p>
-        </div>
-      </div>
-
-      {/* Upload Section */}
-      <div className="bg-white rounded-md border border-gray-200 p-4">
-        <div className="max-w-2xl mx-auto">
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept=".csv"
-            onChange={handleFileSelect}
-            className="hidden"
-          />
-
-          {!file ? (
-            <div
-              onClick={() => fileInputRef.current?.click()}
-              className="border border-dashed border-gray-300 rounded-md p-4 text-center cursor-pointer hover:border-blue-500 hover:bg-blue-50 transition-colors"
-            >
-              <FileSpreadsheet className="h-8 w-8 text-gray-400 mx-auto mb-4" />
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                Click to upload CSV file
-              </h3>
-              <p className="text-sm text-gray-600">
-                or drag and drop your file here
-              </p>
-            </div>
-          ) : (
-            <div className="space-y-4">
-              <div className="flex items-center justify-between p-4 bg-gray-50 rounded-md">
-                <div className="flex items-center gap-3">
-                  <FileSpreadsheet className="h-5 w-5 text-blue-600" />
-                  <div>
-                    <p className="font-medium text-gray-900">{file.name}</p>
-                    <p className="text-sm text-gray-600">{(file.size / 1024).toFixed(2)} KB</p>
-                  </div>
-                </div>
-                <Button
-                  variant="ghost"
-                  onClick={() => {
-                    setFile(null);
-                    setPreview([]);
-                    setResult(null);
-                  }}
-                >
-                  <XCircle className="h-5 w-5" />
-                </Button>
+      {/* Phase: Select File */}
+      {phase === 'select' && (
+        <>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="bg-blue-50 border border-blue-200 rounded-md p-4">
+              <div className="flex items-center gap-3 mb-3">
+                <div className="w-10 h-10 bg-blue-600 rounded-md flex items-center justify-center text-white font-bold">1</div>
+                <h3 className="font-semibold text-gray-900">Download Template</h3>
               </div>
-
-              {preview.length > 0 && (
-                <div className="border border-gray-200 rounded-md overflow-hidden">
-                  <div className="bg-gray-50 px-4 py-2 border-b border-gray-200">
-                    <h4 className="font-semibold text-gray-900">Preview (First 5 rows)</h4>
-                  </div>
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-sm">
-                      <thead className="bg-gray-100">
-                        <tr>
-                          {Object.keys(preview[0]).map(key => (
-                            <th key={key} className="px-4 py-2 text-left font-medium text-gray-700">
-                              {key}
-                            </th>
-                          ))}
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {preview.map((row, idx) => (
-                          <tr key={idx} className="border-t border-gray-200">
-                            {Object.values(row).map((value: any, i) => (
-                              <td key={i} className="px-4 py-2 text-gray-600">
-                                {value}
-                              </td>
-                            ))}
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              )}
-
-              <Button
-                onClick={handleUpload}
-                disabled={uploading}
-                className="w-full bg-teal-500 hover:bg-teal-500"
-              >
-                {uploading ? (
-                  <>
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    Processing...
-                  </>
-                ) : (
-                  <>
-                    <Upload className="h-4 w-4 mr-2" />
-                    Upload Shipments
-                  </>
-                )}
+              <p className="text-sm text-gray-600 mb-4">
+                Download our CSV template with 10 example rows to see the exact format
+              </p>
+              <Button onClick={downloadTemplate} variant="outline" className="w-full border-blue-600 text-blue-600 hover:bg-blue-50">
+                <Download className="h-4 w-4 mr-2" />
+                Download Sample CSV
               </Button>
             </div>
-          )}
-        </div>
-      </div>
 
-      {/* Results */}
-      {result && (
-        <div className="bg-white rounded-md border border-gray-200 p-4">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Upload Results</h3>
-          
-          <div className="grid grid-cols-2 gap-4 mb-6">
-            <div className="bg-green-50 border border-green-200 rounded-md p-4">
-              <div className="flex items-center gap-3">
-                <CheckCircle className="h-5 w-5 text-green-600" />
-                <div>
-                  <p className="text-sm font-semibold text-green-600">{result.success}</p>
-                  <p className="text-sm text-gray-600">Successfully Uploaded</p>
-                </div>
+            <div className="bg-purple-50 border border-purple-200 rounded-md p-4">
+              <div className="flex items-center gap-3 mb-3">
+                <div className="w-10 h-10 bg-purple-600 rounded-md flex items-center justify-center text-white font-bold">2</div>
+                <h3 className="font-semibold text-gray-900">Review & Fix Errors</h3>
               </div>
+              <p className="text-sm text-gray-600 mb-4">
+                After uploading, review each row. Fix errors inline without re-uploading the entire file
+              </p>
             </div>
 
-            <div className="bg-red-50 border border-red-200 rounded-md p-4">
-              <div className="flex items-center gap-3">
-                <XCircle className="h-5 w-5 text-red-600" />
-                <div>
-                  <p className="text-sm font-semibold text-red-600">{result.failed}</p>
-                  <p className="text-sm text-gray-600">Failed</p>
-                </div>
+            <div className="bg-green-50 border border-green-200 rounded-md p-4">
+              <div className="flex items-center gap-3 mb-3">
+                <div className="w-10 h-10 bg-green-600 rounded-md flex items-center justify-center text-white font-bold">3</div>
+                <h3 className="font-semibold text-gray-900">Submit Valid Rows</h3>
+              </div>
+              <p className="text-sm text-gray-600 mb-4">
+                Submit all valid rows. Failed rows stay for correction — retry without re-uploading
+              </p>
+            </div>
+          </div>
+
+          <div className="bg-white rounded-md border border-gray-200 p-6">
+            <div className="max-w-2xl mx-auto">
+              <input ref={fileInputRef} type="file" accept=".csv" onChange={handleFileSelect} className="hidden" />
+              <div
+                onClick={() => fileInputRef.current?.click()}
+                className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center cursor-pointer hover:border-teal-500 hover:bg-teal-50/30 transition-colors"
+              >
+                <FileSpreadsheet className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">Click to upload CSV file</h3>
+                <p className="text-sm text-gray-500">Supports .csv files up to 5MB</p>
               </div>
             </div>
           </div>
 
-          {result.errors.length > 0 && (
-            <div className="space-y-2">
-              <h4 className="font-semibold text-gray-900 flex items-center gap-2">
-                <AlertCircle className="h-5 w-5 text-red-600" />
-                Errors
-              </h4>
-              <div className="max-h-60 overflow-y-auto space-y-2">
-                {result.errors.map((error, idx) => (
-                  <div key={idx} className="bg-red-50 border border-red-200 rounded-md p-3">
-                    <p className="text-sm font-medium text-red-900">Row {error.row}</p>
-                    <p className="text-sm text-red-700">{error.error}</p>
-                  </div>
-                ))}
+          <div className="bg-gray-50 border border-gray-200 rounded-md p-4">
+            <h3 className="font-semibold text-gray-900 mb-3">CSV Column Reference</h3>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+              <div>
+                <p className="font-medium text-gray-700 mb-2">Client Info <span className="text-red-500">*required</span></p>
+                <ul className="text-gray-600 space-y-1">
+                  <li>• <code className="bg-gray-200 px-1 rounded text-xs">client_name</code></li>
+                  <li>• <code className="bg-gray-200 px-1 rounded text-xs">client_email</code></li>
+                  <li>• <code className="bg-gray-200 px-1 rounded text-xs">client_phone</code></li>
+                </ul>
+              </div>
+              <div>
+                <p className="font-medium text-gray-700 mb-2">Pickup <span className="text-red-500">*required</span></p>
+                <ul className="text-gray-600 space-y-1">
+                  <li>• <code className="bg-gray-200 px-1 rounded text-xs">pickup_address</code></li>
+                  <li>• <code className="bg-gray-200 px-1 rounded text-xs">pickup_city</code></li>
+                  <li>• <code className="bg-gray-200 px-1 rounded text-xs">pickup_state</code> (2-letter)</li>
+                  <li>• <code className="bg-gray-200 px-1 rounded text-xs">pickup_zip</code></li>
+                </ul>
+              </div>
+              <div>
+                <p className="font-medium text-gray-700 mb-2">Delivery <span className="text-red-500">*required</span></p>
+                <ul className="text-gray-600 space-y-1">
+                  <li>• <code className="bg-gray-200 px-1 rounded text-xs">delivery_address</code></li>
+                  <li>• <code className="bg-gray-200 px-1 rounded text-xs">delivery_city</code></li>
+                  <li>• <code className="bg-gray-200 px-1 rounded text-xs">delivery_state</code> (2-letter)</li>
+                  <li>• <code className="bg-gray-200 px-1 rounded text-xs">delivery_zip</code></li>
+                </ul>
+              </div>
+              <div>
+                <p className="font-medium text-gray-700 mb-2">Vehicle <span className="text-red-500">*required</span></p>
+                <ul className="text-gray-600 space-y-1">
+                  <li>• <code className="bg-gray-200 px-1 rounded text-xs">vehicle_year</code></li>
+                  <li>• <code className="bg-gray-200 px-1 rounded text-xs">vehicle_make</code></li>
+                  <li>• <code className="bg-gray-200 px-1 rounded text-xs">vehicle_model</code></li>
+                  <li>• <code className="bg-gray-200 px-1 rounded text-xs">vehicle_type</code></li>
+                </ul>
+              </div>
+              <div>
+                <p className="font-medium text-gray-700 mb-2">Pricing <span className="text-red-500">*required</span></p>
+                <ul className="text-gray-600 space-y-1">
+                  <li>• <code className="bg-gray-200 px-1 rounded text-xs">estimated_price</code></li>
+                </ul>
+              </div>
+              <div>
+                <p className="font-medium text-gray-700 mb-2">Optional</p>
+                <ul className="text-gray-600 space-y-1">
+                  <li>• <code className="bg-gray-200 px-1 rounded text-xs">vehicle_vin</code></li>
+                  <li>• <code className="bg-gray-200 px-1 rounded text-xs">distance_miles</code></li>
+                  <li>• <code className="bg-gray-200 px-1 rounded text-xs">pickup_date</code> (YYYY-MM-DD)</li>
+                  <li>• <code className="bg-gray-200 px-1 rounded text-xs">delivery_date</code></li>
+                  <li>• <code className="bg-gray-200 px-1 rounded text-xs">transport_type</code> (open/enclosed)</li>
+                  <li>• <code className="bg-gray-200 px-1 rounded text-xs">is_operable</code> (true/false)</li>
+                  <li>• <code className="bg-gray-200 px-1 rounded text-xs">notes</code></li>
+                </ul>
               </div>
             </div>
-          )}
+          </div>
+        </>
+      )}
 
-          <div className="flex gap-3 mt-6">
-            <Button
-              onClick={() => router.push('/dashboard/broker/shipments')}
-              className="flex-1 bg-teal-500 hover:bg-teal-500"
-            >
-              View All Shipments
-            </Button>
-            <Button
-              onClick={() => {
-                setFile(null);
-                setPreview([]);
-                setResult(null);
-              }}
-              variant="outline"
-              className="flex-1"
-            >
-              Upload Another File
-            </Button>
+      {/* Phase: Review & Edit / Results */}
+      {(phase === 'review' || phase === 'results') && (
+        <>
+          {/* File Info & Stats */}
+          <div className="bg-white rounded-md border border-gray-200 p-4">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-3">
+                <FileSpreadsheet className="h-5 w-5 text-blue-600" />
+                <div>
+                  <p className="font-medium text-gray-900">{file?.name}</p>
+                  <p className="text-xs text-gray-500">{stats.total} rows parsed</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                {phase === 'results' && stats.errors > 0 && (
+                  <>
+                    <Button onClick={retryFailed} variant="outline" size="sm">
+                      <RotateCcw className="h-4 w-4 mr-1" />
+                      Fix & Retry Failed
+                    </Button>
+                    <Button onClick={downloadErrorReport} variant="outline" size="sm">
+                      <Download className="h-4 w-4 mr-1" />
+                      Download Errors
+                    </Button>
+                  </>
+                )}
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    setFile(null);
+                    setParsedRows([]);
+                    setPhase('select');
+                    setHeaders([]);
+                    setFilterStatus('all');
+                  }}
+                >
+                  <XCircle className="h-4 w-4 mr-1" />
+                  Clear
+                </Button>
+              </div>
+            </div>
+
+            {/* Status Filter Tabs */}
+            <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+              <button
+                onClick={() => setFilterStatus('all')}
+                className={`p-3 rounded-md border text-center transition-colors ${filterStatus === 'all' ? 'border-teal-500 bg-teal-50' : 'border-gray-200 hover:bg-gray-50'}`}
+              >
+                <p className="text-xl font-bold text-gray-900">{stats.total}</p>
+                <p className="text-xs text-gray-500">Total</p>
+              </button>
+              <button
+                onClick={() => setFilterStatus('valid')}
+                className={`p-3 rounded-md border text-center transition-colors ${filterStatus === 'valid' ? 'border-green-500 bg-green-50' : 'border-gray-200 hover:bg-gray-50'}`}
+              >
+                <p className="text-xl font-bold text-green-600">{stats.valid}</p>
+                <p className="text-xs text-gray-500">Valid</p>
+              </button>
+              <button
+                onClick={() => setFilterStatus('warning')}
+                className={`p-3 rounded-md border text-center transition-colors ${filterStatus === 'warning' ? 'border-yellow-500 bg-yellow-50' : 'border-gray-200 hover:bg-gray-50'}`}
+              >
+                <p className="text-xl font-bold text-yellow-600">{stats.warnings}</p>
+                <p className="text-xs text-gray-500">Warnings</p>
+              </button>
+              <button
+                onClick={() => setFilterStatus('error')}
+                className={`p-3 rounded-md border text-center transition-colors ${filterStatus === 'error' ? 'border-red-500 bg-red-50' : 'border-gray-200 hover:bg-gray-50'}`}
+              >
+                <p className="text-xl font-bold text-red-600">{stats.errors}</p>
+                <p className="text-xs text-gray-500">Errors</p>
+              </button>
+              <button
+                onClick={() => setFilterStatus('uploaded')}
+                className={`p-3 rounded-md border text-center transition-colors ${filterStatus === 'uploaded' ? 'border-blue-500 bg-blue-50' : 'border-gray-200 hover:bg-gray-50'}`}
+              >
+                <p className="text-xl font-bold text-blue-600">{stats.uploaded}</p>
+                <p className="text-xs text-gray-500">Uploaded</p>
+              </button>
+            </div>
+          </div>
+
+          {/* Row List */}
+          <div className="bg-white rounded-md border border-gray-200 overflow-hidden">
+            <div className="max-h-[600px] overflow-y-auto">
+              {filteredRows.length === 0 ? (
+                <div className="p-8 text-center text-gray-500">
+                  <p>No rows match the selected filter</p>
+                </div>
+              ) : (
+                <div className="divide-y divide-gray-100">
+                  {filteredRows.map((row) => (
+                    <div key={row.rowIndex} className={`p-4 ${
+                      row.status === 'uploaded' ? 'bg-green-50/50' :
+                      row.status === 'error' ? 'bg-red-50/50' :
+                      row.status === 'warning' ? 'bg-yellow-50/30' : ''
+                    }`}>
+                      {/* Row Header */}
+                      <div className="flex items-center justify-between mb-1">
+                        <div className="flex items-center gap-3 flex-wrap">
+                          {row.status === 'uploaded' && <CheckCircle className="h-5 w-5 text-green-600 flex-shrink-0" />}
+                          {row.status === 'valid' && <Check className="h-5 w-5 text-green-500 flex-shrink-0" />}
+                          {row.status === 'warning' && <AlertTriangle className="h-5 w-5 text-yellow-500 flex-shrink-0" />}
+                          {row.status === 'error' && <XCircle className="h-5 w-5 text-red-500 flex-shrink-0" />}
+                          <span className="text-sm font-medium text-gray-900">
+                            Row {row.rowIndex}: {row.data.vehicle_year} {row.data.vehicle_make} {row.data.vehicle_model}
+                          </span>
+                          <span className="text-xs text-gray-500">
+                            {row.data.client_name} &middot; {row.data.pickup_city}, {row.data.pickup_state} → {row.data.delivery_city}, {row.data.delivery_state}
+                          </span>
+                          {row.data.estimated_price && (
+                            <span className="text-xs font-medium text-gray-700">${parseFloat(row.data.estimated_price || '0').toLocaleString()}</span>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-1 flex-shrink-0">
+                          {row.status !== 'uploaded' && editingRow !== row.rowIndex && (
+                            <>
+                              <button onClick={() => startEdit(row.rowIndex)} className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded" title="Edit row">
+                                <Edit2 className="h-4 w-4" />
+                              </button>
+                              <button onClick={() => removeRow(row.rowIndex)} className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded" title="Remove row">
+                                <Trash2 className="h-4 w-4" />
+                              </button>
+                            </>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Inline Edit Form */}
+                      {editingRow === row.rowIndex && (
+                        <div className="mt-3 p-4 bg-blue-50 border border-blue-200 rounded-md">
+                          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                            {REQUIRED_FIELDS.map(field => (
+                              <div key={field}>
+                                <label className="block text-xs font-medium text-gray-700 mb-1">
+                                  {FIELD_LABELS[field]} <span className="text-red-500">*</span>
+                                </label>
+                                <input
+                                  type="text"
+                                  value={editData[field] || ''}
+                                  onChange={(e) => setEditData(prev => ({ ...prev, [field]: e.target.value }))}
+                                  className={`w-full px-2 py-1.5 text-sm border rounded focus:ring-1 focus:ring-teal-500 focus:outline-none ${
+                                    !editData[field]?.trim() ? 'border-red-300 bg-red-50' : 'border-gray-300'
+                                  }`}
+                                />
+                              </div>
+                            ))}
+                            {OPTIONAL_FIELDS.filter(f => headers.includes(f)).map(field => (
+                              <div key={field}>
+                                <label className="block text-xs font-medium text-gray-500 mb-1">
+                                  {FIELD_LABELS[field]}
+                                </label>
+                                <input
+                                  type="text"
+                                  value={editData[field] || ''}
+                                  onChange={(e) => setEditData(prev => ({ ...prev, [field]: e.target.value }))}
+                                  className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-teal-500 focus:outline-none"
+                                />
+                              </div>
+                            ))}
+                          </div>
+                          <div className="flex justify-end gap-2 mt-3">
+                            <Button variant="ghost" size="sm" onClick={() => { setEditingRow(null); setEditData({}); }}>
+                              <X className="h-4 w-4 mr-1" /> Cancel
+                            </Button>
+                            <Button size="sm" onClick={saveEdit} className="bg-teal-500 hover:bg-teal-600 text-white">
+                              <Save className="h-4 w-4 mr-1" /> Save & Validate
+                            </Button>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Error/Warning Messages */}
+                      {(row.errors.length > 0 || row.warnings.length > 0) && editingRow !== row.rowIndex && (
+                        <div className="mt-2 space-y-1">
+                          {row.errors.map((err, idx) => (
+                            <div key={`e-${idx}`} className="flex items-center gap-2 text-xs">
+                              <XCircle className="h-3 w-3 text-red-500 flex-shrink-0" />
+                              <span className="text-red-700">
+                                <strong>{FIELD_LABELS[err.field] || err.field}:</strong> {err.message}
+                              </span>
+                              {row.status !== 'uploaded' && (
+                                <button onClick={() => startEdit(row.rowIndex)} className="text-blue-600 hover:underline ml-1">
+                                  Fix →
+                                </button>
+                              )}
+                            </div>
+                          ))}
+                          {row.warnings.map((warn, idx) => (
+                            <div key={`w-${idx}`} className="flex items-center gap-2 text-xs">
+                              <AlertTriangle className="h-3 w-3 text-yellow-500 flex-shrink-0" />
+                              <span className="text-yellow-700">
+                                <strong>{FIELD_LABELS[warn.field] || warn.field}:</strong> {warn.message}
+                              </span>
+                            </div>
+                          ))}
+                          {row.uploadError && (
+                            <div className="flex items-center gap-2 text-xs">
+                              <AlertCircle className="h-3 w-3 text-red-500 flex-shrink-0" />
+                              <span className="text-red-700">
+                                <strong>Upload Error:</strong> {row.uploadError}
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Actions Bar */}
+          <div className="flex items-center justify-between bg-white rounded-md border border-gray-200 p-4">
+            <div className="text-sm text-gray-600">
+              {phase === 'review' && (
+                <>
+                  <strong>{stats.valid + stats.warnings}</strong> rows ready to upload
+                  {stats.errors > 0 && (
+                    <span className="text-red-600 ml-2">
+                      ({stats.errors} with errors — fix them inline or remove)
+                    </span>
+                  )}
+                </>
+              )}
+              {phase === 'results' && (
+                <>
+                  <strong className="text-green-600">{stats.uploaded}</strong> uploaded successfully
+                  {stats.errors > 0 && (
+                    <span className="text-red-600 ml-2">
+                      · <strong>{stats.errors}</strong> failed — fix and retry
+                    </span>
+                  )}
+                </>
+              )}
+            </div>
+            <div className="flex gap-3">
+              {phase === 'results' && (
+                <Button onClick={() => router.push('/dashboard/broker/shipments')} className="bg-teal-500 hover:bg-teal-600 text-white">
+                  View All Shipments
+                </Button>
+              )}
+              {phase === 'review' && (
+                <Button
+                  onClick={handleUpload}
+                  disabled={stats.valid + stats.warnings === 0}
+                  className="bg-teal-500 hover:bg-teal-600 text-white disabled:opacity-50"
+                >
+                  <Upload className="h-4 w-4 mr-2" />
+                  Upload {stats.valid + stats.warnings} Shipment{stats.valid + stats.warnings !== 1 ? 's' : ''}
+                </Button>
+              )}
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* Phase: Uploading */}
+      {phase === 'uploading' && (
+        <div className="bg-white rounded-md border border-gray-200 p-8 text-center">
+          <Loader2 className="h-10 w-10 text-teal-500 mx-auto mb-4 animate-spin" />
+          <h3 className="text-lg font-semibold text-gray-900 mb-2">Uploading Shipments...</h3>
+          <p className="text-gray-600 mb-4">Processing {stats.valid + stats.warnings} rows</p>
+          <div className="max-w-md mx-auto">
+            <div className="w-full bg-gray-200 rounded-full h-3">
+              <div className="bg-teal-500 h-3 rounded-full transition-all duration-300" style={{ width: `${uploadProgress}%` }} />
+            </div>
+            <p className="text-sm text-gray-500 mt-2">{uploadProgress}% complete</p>
           </div>
         </div>
       )}
 
-      {/* Required Fields Info */}
-      <div className="bg-gray-50 border border-gray-200 rounded-md p-4">
-        <h3 className="font-semibold text-gray-900 mb-3">Required CSV Fields</h3>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
-          <div>
-            <p className="font-medium text-gray-700 mb-2">Client Information</p>
-            <ul className="text-gray-600 space-y-1">
-              <li>• client_name</li>
-              <li>• client_email</li>
-              <li>• client_phone</li>
-            </ul>
-          </div>
-          <div>
-            <p className="font-medium text-gray-700 mb-2">Pickup Details</p>
-            <ul className="text-gray-600 space-y-1">
-              <li>• pickup_address</li>
-              <li>• pickup_city</li>
-              <li>• pickup_state</li>
-              <li>• pickup_zip</li>
-            </ul>
-          </div>
-          <div>
-            <p className="font-medium text-gray-700 mb-2">Delivery Details</p>
-            <ul className="text-gray-600 space-y-1">
-              <li>• delivery_address</li>
-              <li>• delivery_city</li>
-              <li>• delivery_state</li>
-              <li>• delivery_zip</li>
-            </ul>
-          </div>
-          <div>
-            <p className="font-medium text-gray-700 mb-2">Vehicle Information</p>
-            <ul className="text-gray-600 space-y-1">
-              <li>• vehicle_year</li>
-              <li>• vehicle_make</li>
-              <li>• vehicle_model</li>
-              <li>• vehicle_type</li>
-            </ul>
-          </div>
-          <div>
-            <p className="font-medium text-gray-700 mb-2">Pricing</p>
-            <ul className="text-gray-600 space-y-1">
-              <li>• estimated_price</li>
-            </ul>
-          </div>
-          <div>
-            <p className="font-medium text-gray-700 mb-2">Optional Fields</p>
-            <ul className="text-gray-600 space-y-1">
-              <li>• vehicle_vin</li>
-              <li>• pickup_date</li>
-              <li>• delivery_date</li>
-              <li>• notes</li>
-            </ul>
-          </div>
-        </div>
-      </div>
-
-      {/* Benji Chat Widget - Help with bulk uploads */}
-      <BenjiChat 
-        context="dashboard" 
-        userId={profile?.id}
-        userType="broker"
-      />
+      {/* Benji Chat Widget */}
+      <BenjiChat context="dashboard" userId={profile?.id} userType="broker" />
     </div>
   );
 }

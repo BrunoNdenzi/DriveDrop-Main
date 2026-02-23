@@ -57,6 +57,7 @@ export default function BrokerShipmentsPage() {
   const router = useRouter();
   const [shipments, setShipments] = useState<BrokerShipment[]>([]);
   const [loading, setLoading] = useState(true);
+  const [errorMessage, setErrorMessage] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<ShipmentStatus | 'all'>('all');
   const [selectedShipments, setSelectedShipments] = useState<string[]>([]);
@@ -85,8 +86,9 @@ export default function BrokerShipmentsPage() {
       if (error) throw error;
 
       setShipments(data || []);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error fetching shipments:', error);
+      setErrorMessage(error.message || 'Failed to load shipments');
     } finally {
       setLoading(false);
     }
@@ -148,6 +150,14 @@ export default function BrokerShipmentsPage() {
 
   return (
     <div className="space-y-4">
+      {/* Error Banner */}
+      {errorMessage && (
+        <div className="bg-red-50 border border-red-200 rounded-lg p-3 flex items-center gap-2">
+          <AlertCircle className="h-4 w-4 text-red-500 flex-shrink-0" />
+          <p className="text-sm text-red-700">{errorMessage}</p>
+        </div>
+      )}
+
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>

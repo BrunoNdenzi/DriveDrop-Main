@@ -8,7 +8,7 @@ import { getSupabaseBrowserClient } from '@/lib/supabase-client'
 interface UserProfile {
   id: string
   email: string
-  role: 'client' | 'driver' | 'admin'
+  role: 'client' | 'driver' | 'admin' | 'broker'
   first_name?: string
   last_name?: string
   phone?: string
@@ -94,7 +94,7 @@ export function useAuth(): UseAuthReturn {
               const fallbackProfile: UserProfile = {
                 id: session.user.id,
                 email: session.user.email || '',
-                role: (session.user.user_metadata?.role as 'client' | 'driver' | 'admin') || 'client',
+                role: (session.user.user_metadata?.role as 'client' | 'driver' | 'admin' | 'broker') || 'client',
                 first_name: session.user.user_metadata?.first_name,
                 last_name: session.user.user_metadata?.last_name,
                 phone: session.user.user_metadata?.phone,

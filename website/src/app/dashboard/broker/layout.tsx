@@ -54,6 +54,22 @@ export default function BrokerDashboardLayout({
     )
   }
 
+  // Role guard: redirect non-broker users to their appropriate dashboard
+  if (!user) {
+    router.push('/login')
+    return null
+  }
+
+  if (profile?.role && profile.role !== 'broker') {
+    const roleRedirects: Record<string, string> = {
+      client: '/dashboard',
+      driver: '/dashboard/driver',
+      admin: '/dashboard/admin',
+    }
+    router.push(roleRedirects[profile.role] || '/dashboard')
+    return null
+  }
+
   const userName = profile?.first_name && profile?.last_name
     ? `${profile.first_name} ${profile.last_name}`
     : profile?.email?.split('@')[0] || 'Broker'

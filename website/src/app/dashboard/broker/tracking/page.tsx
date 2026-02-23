@@ -106,13 +106,11 @@ export default function BrokerTrackingPage() {
 
   const initializeMap = () => {
     // Initialize map (placeholder for actual map library like Mapbox/Google Maps)
-    console.log('Map initialized');
   };
 
   const updateMapMarkers = (shipments: ActiveShipment[]) => {
     // Update markers on the map
     // This would use actual map library API
-    console.log('Updating markers for', shipments.length, 'shipments');
   };
 
   const getFilteredShipments = () => {
