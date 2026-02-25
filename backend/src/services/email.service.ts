@@ -258,87 +258,85 @@ class EmailService {
     logger.info('📨 SEND EMAIL CALLED', {
       to: recipientEmail,
       subject: options.subject,
-      gmailConfigured: this.gmailConfigured,
       brevoConfigured: this.isConfigured,
+      gmailConfigured: this.gmailConfigured,
       timestamp: new Date().toISOString()
     });
 
-    // Try Gmail SMTP first if configured (works for all recipients, not just Gmail)
-    if (this.gmailConfigured) {
-      logger.info('📧 Attempting to send via Gmail SMTP:', { to: recipientEmail });
+    // Try Brevo API first (primary email provider)
+    if (this.isConfigured) {
+      logger.info('📧 Attempting to send via Brevo API:', { to: recipientEmail });
       try {
-        const gmailResult = await this.sendViaGmail(options, sender);
-        if (gmailResult) {
-          logger.info('✅ EMAIL SENT SUCCESSFULLY VIA GMAIL', { to: recipientEmail });
-          return true;
+        // Prepare recipient list
+        const recipients = Array.isArray(options.to)
+          ? options.to.map(email => ({ email }))
+          : [{ email: options.to }];
+
+        // Prepare email data
+        const sendSmtpEmail = new brevo.SendSmtpEmail();
+        sendSmtpEmail.sender = sender;
+        sendSmtpEmail.to = recipients;
+        sendSmtpEmail.subject = options.subject;
+        sendSmtpEmail.htmlContent = options.htmlContent;
+        
+        if (options.textContent) {
+          sendSmtpEmail.textContent = options.textContent;
         }
-        logger.warn('⚠️ Gmail SMTP returned false, falling back to Brevo...');
-      } catch (gmailError: any) {
-        logger.error('❌ Gmail SMTP threw an error:', {
-          error: gmailError.message,
-          stack: gmailError.stack,
-          to: recipientEmail
+
+        if (options.replyTo) {
+          sendSmtpEmail.replyTo = { email: options.replyTo };
+        }
+
+        // Send email via Brevo
+        const response = await this.apiInstance.sendTransacEmail(sendSmtpEmail);
+        
+        logger.info('✅ EMAIL SENT SUCCESSFULLY VIA BREVO', {
+          messageId: (response as any).body?.messageId || 'unknown',
+          to: options.to,
+          subject: options.subject,
+          sender: sender.email,
+        });
+
+        return true;
+      } catch (brevoError: any) {
+        logger.error('❌ Brevo API threw an error, falling back to Gmail SMTP:', {
+          error: brevoError.message,
+          errorBody: brevoError.response?.body || brevoError.body || 'No error body',
+          statusCode: brevoError.response?.statusCode || brevoError.statusCode,
+          to: recipientEmail,
         });
       }
     } else {
-      logger.warn('⚠️ Gmail SMTP NOT CONFIGURED - skipping Gmail attempt', {
-        gmailUser: process.env['GMAIL_USER'] ? 'SET' : 'NOT SET',
-        gmailPassword: process.env['GMAIL_APP_PASSWORD'] ? 'SET' : 'NOT SET'
+      logger.warn('⚠️ Brevo API NOT CONFIGURED - skipping Brevo attempt', {
+        brevoApiKey: process.env['BREVO_API_KEY'] ? 'SET' : 'NOT SET',
       });
     }
 
-    // Fallback to Brevo if Gmail SMTP not configured or failed
-    if (!this.isConfigured) {
-      logger.error('❌ BREVO NOT CONFIGURED - Cannot send email!', {
-        to: recipientEmail,
-        subject: options.subject
-      });
-      return false;
-    }
-
-    try {
-      // Prepare recipient list
-      const recipients = Array.isArray(options.to)
-        ? options.to.map(email => ({ email }))
-        : [{ email: options.to }];
-
-      // Prepare email data
-      const sendSmtpEmail = new brevo.SendSmtpEmail();
-      sendSmtpEmail.sender = sender;
-      sendSmtpEmail.to = recipients;
-      sendSmtpEmail.subject = options.subject;
-      sendSmtpEmail.htmlContent = options.htmlContent;
-      
-      if (options.textContent) {
-        sendSmtpEmail.textContent = options.textContent;
+    // Fallback to Gmail SMTP if Brevo not configured or failed
+    if (this.gmailConfigured) {
+      logger.info('📧 Attempting to send via Gmail SMTP (fallback):', { to: recipientEmail });
+      try {
+        const gmailResult = await this.sendViaGmail(options, sender);
+        if (gmailResult) {
+          logger.info('✅ EMAIL SENT SUCCESSFULLY VIA GMAIL (fallback)', { to: recipientEmail });
+          return true;
+        }
+        logger.warn('⚠️ Gmail SMTP returned false');
+      } catch (gmailError: any) {
+        logger.error('❌ Gmail SMTP fallback also failed:', {
+          error: gmailError.message,
+          to: recipientEmail,
+        });
       }
-
-      if (options.replyTo) {
-        sendSmtpEmail.replyTo = { email: options.replyTo };
-      }
-
-      // Send email via Brevo
-      const response = await this.apiInstance.sendTransacEmail(sendSmtpEmail);
-      
-      logger.info('✅ Email sent via Brevo', {
-        messageId: (response as any).body?.messageId || 'unknown',
-        to: options.to,
-        subject: options.subject,
-        sender: sender.email,
-      });
-
-      return true;
-    } catch (error: any) {
-      logger.error('❌ Failed to send email via Brevo:', {
-        error: error.message,
-        errorBody: error.response?.body || error.body || 'No error body',
-        statusCode: error.response?.statusCode || error.statusCode,
-        to: options.to,
-        subject: options.subject,
-        sender: sender.email,
-      });
-      return false;
+    } else {
+      logger.warn('⚠️ Gmail SMTP NOT CONFIGURED - no fallback available');
     }
+
+    logger.error('❌ ALL EMAIL PROVIDERS FAILED - Cannot send email!', {
+      to: recipientEmail,
+      subject: options.subject,
+    });
+    return false;
   }
 
   /**
