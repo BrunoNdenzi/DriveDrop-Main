@@ -19,6 +19,10 @@ import {
   Check,
   X,
   AlertTriangle,
+  Users,
+  Globe,
+  Clock,
+  ArrowRightLeft,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
@@ -77,6 +81,7 @@ interface ParsedRow {
 }
 
 type UploadPhase = 'select' | 'review' | 'uploading' | 'results';
+type AssignmentStrategy = 'load_board_public' | 'load_board_network' | 'pending_manual';
 
 export default function BulkUploadPage() {
   const router = useRouter();
@@ -92,6 +97,9 @@ export default function BulkUploadPage() {
   const [editingRow, setEditingRow] = useState<number | null>(null);
   const [editData, setEditData] = useState<Record<string, string>>({});
   const [filterStatus, setFilterStatus] = useState<string>('all');
+  const [assignmentStrategy, setAssignmentStrategy] = useState<AssignmentStrategy>('load_board_network');
+  const [uploadedShipmentIds, setUploadedShipmentIds] = useState<string[]>([]);
+  const [loadBoardCount, setLoadBoardCount] = useState(0);
 
   // Validate a single row
   const validateRow = useCallback((data: Record<string, string>, rowIndex: number): ParsedRow => {
@@ -278,7 +286,13 @@ export default function BulkUploadPage() {
         .single();
 
       const commissionRate = brokerProfile?.default_commission_rate || 15;
+      const platformFeeRate = 10; // 10% platform fee
       const updatedRows = [...parsedRows];
+      const newShipmentIds: string[] = [];
+      let boardCount = 0;
+
+      // Determine initial status based on assignment strategy
+      const initialStatus = assignmentStrategy === 'pending_manual' ? 'pending_quote' : 'quoted';
 
       for (let i = 0; i < validRows.length; i++) {
         const row = validRows[i];
@@ -287,9 +301,10 @@ export default function BulkUploadPage() {
         try {
           const totalPrice = parseFloat(data.estimated_price);
           const brokerCommission = (totalPrice * commissionRate) / 100;
-          const platformFee = (totalPrice * 10) / 100;
+          const platformFee = (totalPrice * platformFeeRate) / 100;
 
-          const { error } = await supabase
+          // 1) Create the broker shipment
+          const { data: shipmentData, error } = await supabase
             .from('broker_shipments')
             .insert({
               broker_id: user.id,
@@ -319,10 +334,68 @@ export default function BulkUploadPage() {
               transport_type: data.transport_type || 'open',
               is_operable: data.is_operable !== 'false',
               notes: data.notes || null,
-              status: 'pending_quote',
-            });
+              status: initialStatus,
+              metadata: { assignment_strategy: assignmentStrategy, bulk_upload: true },
+            })
+            .select('id')
+            .single();
 
           if (error) throw error;
+
+          // Track the created shipment ID
+          if (shipmentData?.id) {
+            newShipmentIds.push(shipmentData.id);
+
+            // 2) If assignment strategy involves load board, create load board entry
+            if (assignmentStrategy !== 'pending_manual') {
+              const visibility = assignmentStrategy === 'load_board_network' ? 'network_only' : 'public';
+              const carrierPayout = totalPrice - brokerCommission - platformFee;
+
+              // We store shipment_id as the broker_shipment ID for reference
+              // The load board links to the main shipments table — first create a shipment mirror
+              const { data: mainShipment } = await supabase
+                .from('shipments')
+                .insert({
+                  client_id: user.id,
+                  driver_id: null,
+                  pickup_address: `${data.pickup_address}, ${data.pickup_city}, ${data.pickup_state} ${data.pickup_zip}`,
+                  dropoff_address: `${data.delivery_address}, ${data.delivery_city}, ${data.delivery_state} ${data.delivery_zip}`,
+                  vehicle_year: parseInt(data.vehicle_year),
+                  vehicle_make: data.vehicle_make,
+                  vehicle_model: data.vehicle_model,
+                  vehicle_type: data.vehicle_type,
+                  vehicle_condition: data.vehicle_condition || 'running',
+                  transport_type: data.transport_type || 'open',
+                  is_operable: data.is_operable !== 'false',
+                  distance: parseFloat(data.distance_miles || '0'),
+                  estimated_price: totalPrice,
+                  status: 'quoted',
+                  special_instructions: data.notes || null,
+                })
+                .select('id')
+                .single();
+
+              if (mainShipment?.id) {
+                await supabase.from('load_board').insert({
+                  shipment_id: mainShipment.id,
+                  posted_by: user.id,
+                  visibility,
+                  load_status: 'available',
+                  bidding_enabled: true,
+                  suggested_carrier_payout: carrierPayout,
+                  max_broker_commission: brokerCommission,
+                  expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+                });
+                boardCount++;
+
+                // Link the load board posting back to the broker shipment
+                await supabase
+                  .from('broker_shipments')
+                  .update({ status: 'quoted' })
+                  .eq('id', shipmentData.id);
+              }
+            }
+          }
 
           const idx = updatedRows.findIndex(r => r.rowIndex === row.rowIndex);
           if (idx !== -1) {
@@ -345,6 +418,8 @@ export default function BulkUploadPage() {
       }
 
       setParsedRows(updatedRows);
+      setUploadedShipmentIds(newShipmentIds);
+      setLoadBoardCount(boardCount);
       setPhase('results');
     } catch (err: any) {
       console.error('Upload error:', err);
@@ -756,6 +831,146 @@ export default function BulkUploadPage() {
             </div>
           </div>
 
+          {/* Assignment Strategy (Review phase only) */}
+          {phase === 'review' && (
+            <div className="bg-white rounded-md border border-gray-200 p-4">
+              <h3 className="font-semibold text-gray-900 mb-1 flex items-center gap-2">
+                <ArrowRightLeft className="h-4 w-4 text-purple-600" />
+                Assignment Strategy
+              </h3>
+              <p className="text-sm text-gray-500 mb-4">
+                Choose how uploaded shipments are distributed to carriers after upload
+              </p>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                <button
+                  onClick={() => setAssignmentStrategy('load_board_network')}
+                  className={`p-4 rounded-lg border-2 text-left transition-colors ${
+                    assignmentStrategy === 'load_board_network'
+                      ? 'border-teal-500 bg-teal-50'
+                      : 'border-gray-200 hover:border-gray-300'
+                  }`}
+                >
+                  <div className="flex items-center gap-2 mb-2">
+                    <Users className="h-5 w-5 text-teal-600" />
+                    <span className="font-semibold text-gray-900">Network Carriers Only</span>
+                  </div>
+                  <p className="text-xs text-gray-600">
+                    Post to load board visible only to your network carriers. They can bid or accept directly. Best for established relationships.
+                  </p>
+                  <div className="mt-2 flex items-center gap-1">
+                    <span className="px-1.5 py-0.5 bg-teal-100 text-teal-700 text-xs rounded font-medium">Recommended</span>
+                  </div>
+                </button>
+                <button
+                  onClick={() => setAssignmentStrategy('load_board_public')}
+                  className={`p-4 rounded-lg border-2 text-left transition-colors ${
+                    assignmentStrategy === 'load_board_public'
+                      ? 'border-blue-500 bg-blue-50'
+                      : 'border-gray-200 hover:border-gray-300'
+                  }`}
+                >
+                  <div className="flex items-center gap-2 mb-2">
+                    <Globe className="h-5 w-5 text-blue-600" />
+                    <span className="font-semibold text-gray-900">Public Load Board</span>
+                  </div>
+                  <p className="text-xs text-gray-600">
+                    Post to public load board. All verified drivers can see and bid. Maximizes carrier pool but may attract unknown carriers.
+                  </p>
+                </button>
+                <button
+                  onClick={() => setAssignmentStrategy('pending_manual')}
+                  className={`p-4 rounded-lg border-2 text-left transition-colors ${
+                    assignmentStrategy === 'pending_manual'
+                      ? 'border-purple-500 bg-purple-50'
+                      : 'border-gray-200 hover:border-gray-300'
+                  }`}
+                >
+                  <div className="flex items-center gap-2 mb-2">
+                    <Clock className="h-5 w-5 text-purple-600" />
+                    <span className="font-semibold text-gray-900">Manual Assignment</span>
+                  </div>
+                  <p className="text-xs text-gray-600">
+                    Keep as pending. You assign carriers manually from your shipments page. Full control over each assignment.
+                  </p>
+                </button>
+              </div>
+
+              {/* Commission breakdown preview */}
+              <div className="mt-4 p-3 bg-gray-50 rounded-lg">
+                <h4 className="text-xs font-medium text-gray-700 mb-2">Pricing Breakdown (per shipment)</h4>
+                <div className="grid grid-cols-4 gap-4 text-xs">
+                  <div>
+                    <span className="text-gray-500 block">Broker Commission</span>
+                    <span className="text-purple-700 font-medium">Your configured rate from profile</span>
+                  </div>
+                  <div>
+                    <span className="text-gray-500 block">Platform Fee</span>
+                    <span className="text-green-700 font-medium">10% of total price</span>
+                  </div>
+                  <div>
+                    <span className="text-gray-500 block">Carrier Payout</span>
+                    <span className="text-blue-700 font-medium">Total − Commission − Platform Fee</span>
+                  </div>
+                  <div>
+                    <span className="text-gray-500 block">Visibility</span>
+                    <span className="font-medium">{
+                      assignmentStrategy === 'load_board_network' ? '🔒 Network carriers only' :
+                      assignmentStrategy === 'load_board_public' ? '🌐 All verified drivers' :
+                      '📋 Manual — not posted'
+                    }</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Results Summary (after upload) */}
+          {phase === 'results' && (
+            <div className="bg-white rounded-md border border-gray-200 p-4">
+              <h3 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                <CheckCircle className="h-5 w-5 text-green-600" />
+                Upload Complete
+              </h3>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="bg-green-50 rounded-lg p-3 text-center">
+                  <div className="text-2xl font-bold text-green-700">{stats.uploaded}</div>
+                  <div className="text-xs text-green-600">Shipments Created</div>
+                </div>
+                {loadBoardCount > 0 && (
+                  <div className="bg-blue-50 rounded-lg p-3 text-center">
+                    <div className="text-2xl font-bold text-blue-700">{loadBoardCount}</div>
+                    <div className="text-xs text-blue-600">Posted to Load Board</div>
+                  </div>
+                )}
+                <div className="bg-purple-50 rounded-lg p-3 text-center">
+                  <div className="text-2xl font-bold text-purple-700">
+                    {assignmentStrategy === 'load_board_network' ? 'Network' :
+                     assignmentStrategy === 'load_board_public' ? 'Public' : 'Manual'}
+                  </div>
+                  <div className="text-xs text-purple-600">Assignment Mode</div>
+                </div>
+                {stats.errors > 0 && (
+                  <div className="bg-red-50 rounded-lg p-3 text-center">
+                    <div className="text-2xl font-bold text-red-700">{stats.errors}</div>
+                    <div className="text-xs text-red-600">Failed — Fix & Retry</div>
+                  </div>
+                )}
+              </div>
+              {assignmentStrategy !== 'pending_manual' && (
+                <div className="mt-3 p-3 bg-teal-50 border border-teal-200 rounded-lg text-sm text-teal-800">
+                  <strong>Next steps:</strong> {assignmentStrategy === 'load_board_network'
+                    ? 'Your network carriers will be notified and can view & bid on these shipments. Monitor bids from your shipments page.'
+                    : 'All verified drivers can now see and bid on these shipments on the public load board.'}
+                </div>
+              )}
+              {assignmentStrategy === 'pending_manual' && (
+                <div className="mt-3 p-3 bg-purple-50 border border-purple-200 rounded-lg text-sm text-purple-800">
+                  <strong>Next steps:</strong> Go to your shipments page to manually assign carriers to each shipment or post them to the load board individually.
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Actions Bar */}
           <div className="flex items-center justify-between bg-white rounded-md border border-gray-200 p-4">
             <div className="text-sm text-gray-600">
@@ -771,10 +986,15 @@ export default function BulkUploadPage() {
               )}
               {phase === 'results' && (
                 <>
-                  <strong className="text-green-600">{stats.uploaded}</strong> uploaded successfully
+                  <strong className="text-green-600">{stats.uploaded}</strong> uploaded
+                  {loadBoardCount > 0 && (
+                    <span className="text-blue-600 ml-2">
+                      · <strong>{loadBoardCount}</strong> on load board
+                    </span>
+                  )}
                   {stats.errors > 0 && (
                     <span className="text-red-600 ml-2">
-                      · <strong>{stats.errors}</strong> failed — fix and retry
+                      · <strong>{stats.errors}</strong> failed
                     </span>
                   )}
                 </>
@@ -794,6 +1014,7 @@ export default function BulkUploadPage() {
                 >
                   <Upload className="h-4 w-4 mr-2" />
                   Upload {stats.valid + stats.warnings} Shipment{stats.valid + stats.warnings !== 1 ? 's' : ''}
+                  {assignmentStrategy !== 'pending_manual' && ' & Post to Board'}
                 </Button>
               )}
             </div>

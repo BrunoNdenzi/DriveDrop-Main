@@ -10,7 +10,7 @@
 
 | Service | Plan | Monthly Cost | Annual Cost | Notes |
 |---------|------|-------------|-------------|-------|
-| **Vercel** (Frontend) | Pro | **$20** | $240 | Next.js 14 hosting, auto-deploy from GitHub, edge CDN, analytics. Free tier hard caps at 100 GB bandwidth. |
+| **Vercel** (Frontend) | Pro | **$20** | $240 | Next.js 14 hosting, auto-deploy from GitHub, edge CDN, analytics. |
 | **Railway** (Backend) | Pro | **$20** base + usage | ~$25–50 | Express API server. Pay-per-use compute (vCPU/GB-hr). Estimated ~$5–30 usage on top of $20 base for moderate traffic. |
 | **Supabase** (Database + Auth + Storage) | Pro | **$25** | $300 | PostgreSQL + PostGIS, GoTrue Auth, 8 GB database, 250 GB bandwidth, 100 GB storage, unlimited API requests. Overage: $0.125/GB storage, $0.09/GB bandwidth. |
 | **Domain** (drivedrop.us.com) | Annual | — | **$10–15** | Registrar renewal (Namecheap, GoDaddy, etc.) |
@@ -70,14 +70,13 @@
 
 | Plan | Monthly Cost | Includes | Notes |
 |------|-------------|----------|-------|
-| Brevo Free | **$0** | 300 emails/day (9,000/mo) | Sufficient for early production |
-| Brevo Starter | **$9** | 5,000 emails/mo | When exceeding free tier |
-| Brevo Business | **$18** | 5,000 emails/mo + marketing automation | If needed later |
+| **Brevo Starter** | **$19** | $228/yr | 20,000 emails/mo, no daily sending limit, no Brevo logo, basic reporting & analytics |
 
-> Used for: Welcome emails, shipment notifications, driver approval, password resets.  
+> Primary email provider (Brevo API first, Gmail SMTP fallback).  
+> Used for: Welcome emails, shipment notifications, driver approval, password resets, booking confirmations, delivery receipts.  
 > Domain verified: `noreply@drivedrop.us.com`
 
-**Brevo Subtotal: $0–9/mo**
+**Brevo Subtotal: $19/mo ($228/yr)**
 
 ### 2e. Twilio (SMS & Phone Verification) — *Optional, configured but not active*
 
@@ -165,9 +164,9 @@
 | Domain | ~$1 | $12 |
 | Google Maps | $0 (free credit) | $0 |
 | OpenAI (Benji AI) | $15 | $180 |
-| Brevo (Email) | $0 | $0 |
+| Brevo (Email) | $19 | $228 |
 | Stripe | 2.9% + $0.30/txn | Variable |
-| **TOTAL (Tech)** | **~$86** | **~$1,032** |
+| **TOTAL (Tech)** | **~$105** | **~$1,260** |
 
 ### With Mobile App
 
@@ -176,7 +175,7 @@
 | Apple Developer | — | $99/yr |
 | Google Play Developer | — | $25 one-time |
 | Expo EAS (free tier) | $0 | $0 |
-| **TOTAL (Tech + Mobile)** | **~$86** | **~$1,156** |
+| **TOTAL (Tech + Mobile)** | **~$105** | **~$1,384** |
 
 ### Full Production (with compliance & moderate traffic)
 
@@ -185,14 +184,14 @@
 | Infrastructure (Vercel + Railway + Supabase) | $70–95 | $840–1,140 |
 | Google Maps | $0–58 | $0–700 |
 | OpenAI | $10–38 | $120–460 |
-| Email (Brevo) | $0–9 | $0–108 |
+| Email (Brevo) | $19 | $228 |
 | Stripe | Variable | Variable |
 | Twilio (SMS) | $5–30 | $60–360 |
 | Monitoring (Sentry) | $0–26 | $0–312 |
 | Mobile Distribution | $8 | $124 |
 | Legal / Compliance | $150–400 | $2,000–5,000 |
 | Marketing | $800–3,500 | $9,600–42,000 |
-| **TOTAL (Full)** | **$1,050–4,150** | **$12,750–50,000** |
+| **TOTAL (Full)** | **$1,070–4,170** | **$12,870–50,120** |
 
 ---
 
@@ -200,8 +199,8 @@
 
 | Users/Month | Shipments/Month | Est. Monthly Cost | Key Cost Drivers |
 |-------------|----------------|-------------------|------------------|
-| 0–100 | 0–50 | **$86** | Base infra only |
-| 100–500 | 50–200 | **$120–180** | Moderate API usage |
+| 0–100 | 0–50 | **$105** | Base infra only |
+| 100–500 | 50–200 | **$140–200** | Moderate API usage |
 | 500–2,000 | 200–1,000 | **$250–500** | Google Maps overages, more AI usage |
 | 2,000–10,000 | 1,000–5,000 | **$500–1,500** | Railway compute scaling, Supabase overages |
 | 10,000+ | 5,000+ | **$1,500–5,000+** | Consider Supabase Team ($599), dedicated Railway, CDN |
@@ -219,8 +218,8 @@ DriveDrop earns **10% platform fee** on each shipment.
 | $1,000 | $100.00 | ~$71.00 | ~$0.50 | **~$70.50** |
 | $2,000 | $200.00 | ~$142.00 | ~$0.50 | **~$141.50** |
 
-> At **$86/mo minimum infrastructure cost**, breakeven is ~**3–4 shipments/month** at $500 avg.  
-> With full compliance costs ($150/mo), breakeven is ~**5–6 shipments/month**.
+> At **$105/mo minimum infrastructure cost**, breakeven is ~**3–4 shipments/month** at $500 avg.  
+> With full compliance costs ($150/mo), breakeven is ~**5–7 shipments/month**.
 
 ---
 
@@ -231,7 +230,7 @@ DriveDrop earns **10% platform fee** on each shipment.
 3. **AI response caching** — Duplicate queries served from cache, avoiding repeat API calls.
 4. **Supabase free tier** — Can start on free ($0) before upgrading to Pro when you exceed 500 MB database.
 5. **Railway usage billing** — Only pay for compute used. Idle backend costs ~$5/mo.
-6. **Brevo free tier** — 300 emails/day is enough for first 1,000+ users.
+6. **Brevo Starter plan** — 20,000 emails/mo covers growth well past first 5,000+ users. No daily limit.
 7. **Stripe volume discounts** — Negotiate lower rates after $80K+/mo processing volume.
 
 ---
