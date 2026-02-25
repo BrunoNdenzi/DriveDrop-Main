@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { getSupabaseBrowserClient } from '@/lib/supabase-client';
 import { brokerProfileService, brokerAssignmentService } from '@/services/brokerService';
@@ -19,7 +19,8 @@ import {
   Search,
   X,
   ChevronRight,
-  AlertCircle
+  AlertCircle,
+  Locate
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
@@ -37,8 +38,9 @@ type ActiveShipment = {
 
 export default function BrokerTrackingPage() {
   const router = useRouter();
-  const mapRef = useRef<any>(null);
-  const markersRef = useRef<any[]>([]);
+  const mapRef = useRef<google.maps.Map | null>(null);
+  const mapContainerRef = useRef<HTMLDivElement>(null);
+  const markersRef = useRef<google.maps.Marker[]>([]);
   
   const [loading, setLoading] = useState(true);
   const [broker, setBroker] = useState<BrokerProfile | null>(null);
@@ -49,19 +51,116 @@ export default function BrokerTrackingPage() {
   const [autoRefresh, setAutoRefresh] = useState(true);
   const [lastRefresh, setLastRefresh] = useState<Date>(new Date());
 
+  const initializeMap = useCallback(() => {
+    if (!mapContainerRef.current || !window.google?.maps) return;
+    if (mapRef.current) return; // already initialized
+
+    const map = new google.maps.Map(mapContainerRef.current, {
+      center: { lat: 35.2271, lng: -80.8431 }, // Charlotte, NC default
+      zoom: 7,
+      mapTypeControl: false,
+      streetViewControl: false,
+      fullscreenControl: true,
+      styles: [
+        { featureType: 'poi', elementType: 'labels', stylers: [{ visibility: 'off' }] },
+      ],
+    });
+    mapRef.current = map;
+  }, []);
+
+  const updateMapMarkers = useCallback((shipments: ActiveShipment[]) => {
+    // Clear existing markers
+    markersRef.current.forEach(m => m.setMap(null));
+    markersRef.current = [];
+
+    if (!mapRef.current || !window.google?.maps) return;
+    const bounds = new google.maps.LatLngBounds();
+    const geocoder = new google.maps.Geocoder();
+    let hasPoints = false;
+
+    shipments.forEach(shipment => {
+      const pickupAddr = `${shipment.assignment.load_board?.shipment?.pickup_city}, ${shipment.assignment.load_board?.shipment?.pickup_state}`;
+      const deliveryAddr = `${shipment.assignment.load_board?.shipment?.delivery_city}, ${shipment.assignment.load_board?.shipment?.delivery_state}`;
+
+      // Geocode pickup
+      if (pickupAddr && pickupAddr !== ', ') {
+        geocoder.geocode({ address: pickupAddr }, (results, status) => {
+          if (status === 'OK' && results?.[0]) {
+            const pos = results[0].geometry.location;
+            const marker = new google.maps.Marker({
+              position: pos,
+              map: mapRef.current!,
+              title: `Pickup: ${pickupAddr}`,
+              icon: {
+                path: google.maps.SymbolPath.CIRCLE,
+                scale: 8,
+                fillColor: '#22c55e',
+                fillOpacity: 1,
+                strokeColor: '#fff',
+                strokeWeight: 2,
+              },
+            });
+            markersRef.current.push(marker);
+            bounds.extend(pos);
+            if (hasPoints) mapRef.current?.fitBounds(bounds, 60);
+            hasPoints = true;
+          }
+        });
+      }
+
+      // Geocode delivery
+      if (deliveryAddr && deliveryAddr !== ', ') {
+        geocoder.geocode({ address: deliveryAddr }, (results, status) => {
+          if (status === 'OK' && results?.[0]) {
+            const pos = results[0].geometry.location;
+            const marker = new google.maps.Marker({
+              position: pos,
+              map: mapRef.current!,
+              title: `Delivery: ${deliveryAddr}`,
+              icon: {
+                path: google.maps.SymbolPath.CIRCLE,
+                scale: 8,
+                fillColor: '#ef4444',
+                fillOpacity: 1,
+                strokeColor: '#fff',
+                strokeWeight: 2,
+              },
+            });
+            markersRef.current.push(marker);
+            bounds.extend(pos);
+            mapRef.current?.fitBounds(bounds, 60);
+            hasPoints = true;
+          }
+        });
+      }
+    });
+  }, []);
+
   useEffect(() => {
     loadData();
+
+    // Retry map init until Google Maps loads
+    const mapInterval = setInterval(() => {
+      if (window.google?.maps && mapContainerRef.current && !mapRef.current) {
+        initializeMap();
+        clearInterval(mapInterval);
+      }
+    }, 500);
+    // Also try immediately
     initializeMap();
-    
+
     // Auto-refresh every 30 seconds
-    const interval = setInterval(() => {
+    const refreshInterval = setInterval(() => {
       if (autoRefresh) {
         loadData();
       }
     }, 30000);
 
-    return () => clearInterval(interval);
-  }, [autoRefresh]);
+    return () => {
+      clearInterval(mapInterval);
+      clearInterval(refreshInterval);
+    };
+  }, [autoRefresh, initializeMap]);
 
   const loadData = async () => {
     try {
@@ -102,15 +201,6 @@ export default function BrokerTrackingPage() {
     } finally {
       setLoading(false);
     }
-  };
-
-  const initializeMap = () => {
-    // Initialize map (placeholder for actual map library like Mapbox/Google Maps)
-  };
-
-  const updateMapMarkers = (shipments: ActiveShipment[]) => {
-    // Update markers on the map
-    // This would use actual map library API
   };
 
   const getFilteredShipments = () => {
@@ -375,37 +465,54 @@ export default function BrokerTrackingPage() {
         <div className="lg:col-span-2 space-y-4">
           {/* Map */}
           <div className="bg-white rounded-md border border-gray-200 overflow-hidden">
-            <div className="h-[500px] bg-gray-100 relative">
-              {/* Placeholder for actual map */}
-              <div className="absolute inset-0 flex items-center justify-center">
-                <div className="text-center">
-                  <MapPin className="h-10 w-10 text-gray-400 mx-auto mb-3" />
-                  <p className="text-sm font-semibold text-gray-900 mb-2">Interactive Map</p>
-                  <p className="text-sm text-gray-600 max-w-md">
-                    Real-time tracking map will be displayed here showing all active shipments and driver locations.
-                  </p>
-                  <div className="mt-4 flex items-center justify-center gap-4">
-                    <div className="flex items-center gap-2">
-                      <div className="w-3 h-3 bg-green-500 rounded-full"></div>
-                      <span className="text-xs text-gray-600">Pickup</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
-                      <span className="text-xs text-gray-600">Driver</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <div className="w-3 h-3 bg-red-500 rounded-full"></div>
-                      <span className="text-xs text-gray-600">Delivery</span>
-                    </div>
+            <div className="h-[500px] relative">
+              <div ref={mapContainerRef} className="h-full w-full" />
+              {!mapRef.current && (
+                <div className="absolute inset-0 flex items-center justify-center bg-gray-100">
+                  <div className="text-center">
+                    <MapPin className="h-10 w-10 text-gray-400 mx-auto mb-3" />
+                    <p className="text-sm font-semibold text-gray-900 mb-2">Loading Map...</p>
+                    <p className="text-sm text-gray-600">Initializing Google Maps</p>
                   </div>
                 </div>
-              </div>
+              )}
 
               {/* Map Controls */}
               <div className="absolute top-4 right-4 flex flex-col gap-2">
-                <button className="bg-white p-2 rounded-md shadow hover:bg-gray-50 transition-colors">
+                <button
+                  onClick={() => {
+                    if (mapRef.current && activeShipments.length > 0) {
+                      updateMapMarkers(activeShipments);
+                    }
+                  }}
+                  className="bg-white p-2 rounded-md shadow hover:bg-gray-50 transition-colors"
+                  title="Re-center map"
+                >
+                  <Locate className="h-5 w-5 text-gray-700" />
+                </button>
+                <button
+                  onClick={() => {
+                    if (mapContainerRef.current) {
+                      mapContainerRef.current.requestFullscreen?.();
+                    }
+                  }}
+                  className="bg-white p-2 rounded-md shadow hover:bg-gray-50 transition-colors"
+                  title="Fullscreen"
+                >
                   <Maximize2 className="h-5 w-5 text-gray-700" />
                 </button>
+              </div>
+
+              {/* Legend */}
+              <div className="absolute bottom-4 left-4 bg-white rounded-md shadow px-3 py-2 flex items-center gap-4">
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 bg-green-500 rounded-full"></div>
+                  <span className="text-xs text-gray-600">Pickup</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 bg-red-500 rounded-full"></div>
+                  <span className="text-xs text-gray-600">Delivery</span>
+                </div>
               </div>
             </div>
           </div>

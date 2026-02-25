@@ -15,7 +15,8 @@ import {
   ChevronLeft,
   Calendar,
   Download,
-  Eye
+  Eye,
+  Shield
 } from 'lucide-react'
 
 interface Document {
@@ -29,6 +30,20 @@ interface Document {
   uploaded_at: string
   verified_at?: string
   notes?: string
+}
+
+interface RegistrationDocs {
+  license_front_url: string | null
+  license_back_url: string | null
+  insurance_proof_url: string | null
+  proof_of_address_url: string | null
+  license_number: string | null
+  license_state: string | null
+  license_expiration: string | null
+  insurance_provider: string | null
+  insurance_policy_number: string | null
+  insurance_expiration: string | null
+  submitted_at: string | null
 }
 
 const DOCUMENT_TYPES = [
@@ -48,12 +63,32 @@ export default function DriverDocumentsPage() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const [expiryDate, setExpiryDate] = useState('')
   const [showUploadForm, setShowUploadForm] = useState(false)
+  const [registrationDocs, setRegistrationDocs] = useState<RegistrationDocs | null>(null)
 
   useEffect(() => {
     if (profile) {
       fetchDocuments()
+      fetchRegistrationDocs()
     }
   }, [profile])
+
+  const fetchRegistrationDocs = async () => {
+    if (!profile?.id) return
+    try {
+      const supabase = getSupabaseBrowserClient()
+      const { data } = await supabase
+        .from('driver_applications')
+        .select('license_front_url, license_back_url, insurance_proof_url, proof_of_address_url, license_number, license_state, license_expiration, insurance_provider, insurance_policy_number, insurance_expiration, submitted_at')
+        .eq('email', profile.email)
+        .order('submitted_at', { ascending: false })
+        .limit(1)
+        .maybeSingle()
+      
+      if (data) setRegistrationDocs(data)
+    } catch (err) {
+      console.error('Error fetching registration docs:', err)
+    }
+  }
 
   const fetchDocuments = async () => {
     if (!profile?.id) return
@@ -362,6 +397,71 @@ export default function DriverDocumentsPage() {
                   </>
                 )}
               </button>
+            </div>
+          </div>
+        )}
+
+        {/* Registration Documents Section */}
+        {registrationDocs && (
+          <div className="bg-white rounded-md border">
+            <div className="p-4 border-b">
+              <div className="flex items-center space-x-3">
+                <Shield className="w-5 h-5 text-blue-600" />
+                <div>
+                  <h3 className="font-semibold text-gray-900">Registration Documents</h3>
+                  <span className="text-xs text-gray-500">
+                    Submitted during driver application
+                    {registrationDocs.submitted_at && ` on ${new Date(registrationDocs.submitted_at).toLocaleDateString()}`}
+                  </span>
+                </div>
+              </div>
+            </div>
+            <div className="p-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {registrationDocs.license_front_url && (
+                  <div className="flex items-center justify-between p-3 bg-blue-50 rounded-md border border-blue-200">
+                    <div className="flex-1">
+                      <p className="font-medium text-gray-900 text-sm">Driver&apos;s License (Front)</p>
+                      <p className="text-xs text-gray-500">
+                        {registrationDocs.license_number} &middot; {registrationDocs.license_state}
+                        {registrationDocs.license_expiration && ` &middot; Exp: ${new Date(registrationDocs.license_expiration).toLocaleDateString()}`}
+                      </p>
+                    </div>
+                    <a href={registrationDocs.license_front_url} target="_blank" rel="noopener noreferrer" className="p-2 text-blue-600 hover:bg-blue-100 rounded-md"><Eye className="w-4 h-4" /></a>
+                  </div>
+                )}
+                {registrationDocs.license_back_url && (
+                  <div className="flex items-center justify-between p-3 bg-blue-50 rounded-md border border-blue-200">
+                    <div className="flex-1">
+                      <p className="font-medium text-gray-900 text-sm">Driver&apos;s License (Back)</p>
+                    </div>
+                    <a href={registrationDocs.license_back_url} target="_blank" rel="noopener noreferrer" className="p-2 text-blue-600 hover:bg-blue-100 rounded-md"><Eye className="w-4 h-4" /></a>
+                  </div>
+                )}
+                {registrationDocs.insurance_proof_url && (
+                  <div className="flex items-center justify-between p-3 bg-green-50 rounded-md border border-green-200">
+                    <div className="flex-1">
+                      <p className="font-medium text-gray-900 text-sm">Insurance Proof</p>
+                      <p className="text-xs text-gray-500">
+                        {registrationDocs.insurance_provider} &middot; {registrationDocs.insurance_policy_number}
+                        {registrationDocs.insurance_expiration && ` &middot; Exp: ${new Date(registrationDocs.insurance_expiration).toLocaleDateString()}`}
+                      </p>
+                    </div>
+                    <a href={registrationDocs.insurance_proof_url} target="_blank" rel="noopener noreferrer" className="p-2 text-green-600 hover:bg-green-100 rounded-md"><Eye className="w-4 h-4" /></a>
+                  </div>
+                )}
+                {registrationDocs.proof_of_address_url && (
+                  <div className="flex items-center justify-between p-3 bg-amber-50 rounded-md border border-amber-200">
+                    <div className="flex-1">
+                      <p className="font-medium text-gray-900 text-sm">Proof of Address</p>
+                    </div>
+                    <a href={registrationDocs.proof_of_address_url} target="_blank" rel="noopener noreferrer" className="p-2 text-amber-600 hover:bg-amber-100 rounded-md"><Eye className="w-4 h-4" /></a>
+                  </div>
+                )}
+                {!registrationDocs.license_front_url && !registrationDocs.license_back_url && !registrationDocs.insurance_proof_url && !registrationDocs.proof_of_address_url && (
+                  <p className="text-sm text-gray-500 col-span-2">No documents were submitted during registration.</p>
+                )}
+              </div>
             </div>
           </div>
         )}

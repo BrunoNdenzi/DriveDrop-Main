@@ -161,6 +161,7 @@ export default function RouteOptimizer({ driverId }: { driverId: string }) {
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
     stops: true,
     savings: true,
+    costComparison: true,
     insights: false,
     benji: true,
     fuel: false,
@@ -795,7 +796,13 @@ export default function RouteOptimizer({ driverId }: { driverId: string }) {
       {activeTab === 'optimize' && optimizedRoute && (
         <>
           {/* Summary Cards */}
-          <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
+          <div className="grid grid-cols-2 lg:grid-cols-6 gap-3">
+            <SummaryCard
+              icon={<DollarSign className="h-5 w-5 text-green-600" />}
+              label="Total Earnings"
+              value={`$${activeShipments.filter(s => selectedShipmentIds.has(s.id)).reduce((sum, s) => sum + (s.estimated_price || 0), 0).toFixed(2)}`}
+              highlight
+            />
             <SummaryCard
               icon={<Route className="h-5 w-5 text-amber-500" />}
               label="Total Distance"
@@ -820,8 +827,18 @@ export default function RouteOptimizer({ driverId }: { driverId: string }) {
               icon={<TrendingUp className="h-5 w-5 text-emerald-500" />}
               label="Saved"
               value={`${optimizedRoute.savings.percentImprovement}%`}
-              highlight
             />
+          </div>
+
+          {/* Optimized Shipments Count */}
+          <div className="flex items-center gap-2 px-4 py-3 bg-amber-50 border border-amber-200 rounded-lg">
+            <Package className="h-5 w-5 text-amber-600" />
+            <span className="text-sm font-medium text-amber-800">
+              {optimizedRoute.stops.filter(s => s.type === 'pickup' || s.type === 'delivery').length / 2} optimized shipments
+            </span>
+            <span className="text-xs text-amber-600 ml-auto">
+              Net Profit: ${(activeShipments.filter(s => selectedShipmentIds.has(s.id)).reduce((sum, s) => sum + (s.estimated_price || 0), 0) - optimizedRoute.summary.totalFuelCost).toFixed(2)}
+            </span>
           </div>
 
           {/* Savings Breakdown */}
@@ -852,6 +869,60 @@ export default function RouteOptimizer({ driverId }: { driverId: string }) {
               </div>
             </CollapsibleSection>
           )}
+
+          {/* Cost Comparison — Optimized vs Unoptimized */}
+          <CollapsibleSection
+            title="Cost Comparison"
+            icon={<DollarSign className="h-5 w-5 text-green-600" />}
+            expanded={expandedSections.costComparison}
+            onToggle={() => toggleSection('costComparison')}
+          >
+            {(() => {
+              const totalEarnings = activeShipments
+                .filter(s => selectedShipmentIds.has(s.id))
+                .reduce((sum, s) => sum + (s.estimated_price || 0), 0)
+              const optimizedFuel = optimizedRoute.summary.totalFuelCost
+              const unoptimizedFuel = optimizedFuel + optimizedRoute.savings.fuelCostSaved
+              const optimizedDist = optimizedRoute.summary.totalDistance
+              const unoptimizedDist = optimizedDist + optimizedRoute.savings.distanceSaved
+              const optimizedTime = optimizedRoute.summary.totalDuration
+              const unoptimizedTime = optimizedTime + optimizedRoute.savings.timeSaved
+              const optimizedProfit = totalEarnings - optimizedFuel
+              const unoptimizedProfit = totalEarnings - unoptimizedFuel
+              return (
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                  {/* Unoptimized Column */}
+                  <div className="bg-red-50 rounded-lg p-4 border border-red-200">
+                    <h4 className="text-sm font-semibold text-red-700 mb-3 flex items-center gap-2">
+                      <AlertTriangle className="h-4 w-4" /> Without Optimization
+                    </h4>
+                    <div className="space-y-2 text-sm">
+                      <div className="flex justify-between"><span className="text-red-600">Distance</span><span className="font-medium text-red-700">{unoptimizedDist} mi</span></div>
+                      <div className="flex justify-between"><span className="text-red-600">Time</span><span className="font-medium text-red-700">{Math.round(unoptimizedTime / 60 * 10) / 10} hrs</span></div>
+                      <div className="flex justify-between"><span className="text-red-600">Fuel Cost</span><span className="font-medium text-red-700">${unoptimizedFuel.toFixed(2)}</span></div>
+                      <div className="flex justify-between"><span className="text-red-600">Earnings</span><span className="font-medium text-red-700">${totalEarnings.toFixed(2)}</span></div>
+                      <hr className="border-red-200" />
+                      <div className="flex justify-between font-bold"><span className="text-red-700">Net Profit</span><span className="text-red-800">${unoptimizedProfit.toFixed(2)}</span></div>
+                    </div>
+                  </div>
+                  {/* Optimized Column */}
+                  <div className="bg-emerald-50 rounded-lg p-4 border border-emerald-200">
+                    <h4 className="text-sm font-semibold text-emerald-700 mb-3 flex items-center gap-2">
+                      <CheckCircle className="h-4 w-4" /> With Optimization
+                    </h4>
+                    <div className="space-y-2 text-sm">
+                      <div className="flex justify-between"><span className="text-emerald-600">Distance</span><span className="font-medium text-emerald-700">{optimizedDist} mi</span></div>
+                      <div className="flex justify-between"><span className="text-emerald-600">Time</span><span className="font-medium text-emerald-700">{Math.round(optimizedTime / 60 * 10) / 10} hrs</span></div>
+                      <div className="flex justify-between"><span className="text-emerald-600">Fuel Cost</span><span className="font-medium text-emerald-700">${optimizedFuel.toFixed(2)}</span></div>
+                      <div className="flex justify-between"><span className="text-emerald-600">Earnings</span><span className="font-medium text-emerald-700">${totalEarnings.toFixed(2)}</span></div>
+                      <hr className="border-emerald-200" />
+                      <div className="flex justify-between font-bold"><span className="text-emerald-700">Net Profit</span><span className="text-emerald-800">${optimizedProfit.toFixed(2)}</span></div>
+                    </div>
+                  </div>
+                </div>
+              )
+            })()}
+          </CollapsibleSection>
 
           {/* Optimized Stop Order */}
           <CollapsibleSection

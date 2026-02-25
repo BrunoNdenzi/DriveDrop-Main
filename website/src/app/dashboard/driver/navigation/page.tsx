@@ -210,6 +210,7 @@ export default function DriverNavigationPage() {
     height_ft: 13.5, weight_tons: 40, length_ft: 75, is_hazmat: false, trailer_type: 'car_hauler',
   })
   const [truckSafeMode, setTruckSafeMode] = useState(true)
+  const [showAllBridges, setShowAllBridges] = useState(false)
 
   // ── Load Shipments ────────────────────────────────────────────────
   useEffect(() => {
@@ -818,12 +819,16 @@ export default function DriverNavigationPage() {
                             {dangerBridges.length > 0 ? (
                               <div>
                                 <p className="text-red-700 font-semibold">⛔ {dangerBridges.length} bridge{dangerBridges.length > 1 ? 's' : ''} your vehicle CANNOT fit under</p>
-                                <div className="mt-1 space-y-0.5 max-h-16 overflow-y-auto">
-                                  {dangerBridges.slice(0, 3).map((b, i) => (
+                                <div className={`mt-1 space-y-0.5 ${showAllBridges ? 'max-h-48' : 'max-h-16'} overflow-y-auto transition-all`}>
+                                  {(showAllBridges ? dangerBridges : dangerBridges.slice(0, 3)).map((b, i) => (
                                     <p key={i} className="text-red-600 truncate">{b.location} ({b.clearance_ft}&apos;)</p>
                                   ))}
-                                  {dangerBridges.length > 3 && <p className="text-red-400">+{dangerBridges.length - 3} more</p>}
                                 </div>
+                                {dangerBridges.length > 3 && (
+                                  <button onClick={() => setShowAllBridges(!showAllBridges)} className="text-red-500 hover:text-red-700 text-[10px] font-medium mt-1 underline">
+                                    {showAllBridges ? 'Show less' : `View all ${dangerBridges.length} bridges`}
+                                  </button>
+                                )}
                               </div>
                             ) : tightBridges.length > 0 ? (
                               <p className="text-yellow-700">⚠️ {tightBridges.length} bridge{tightBridges.length > 1 ? 's' : ''} with tight clearance (&lt;1&apos; margin)</p>
