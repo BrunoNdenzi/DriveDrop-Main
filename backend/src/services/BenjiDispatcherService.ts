@@ -54,12 +54,12 @@ export class BenjiDispatcherService {
    */
   async analyzeDispatchOpportunities(): Promise<DispatchAnalysis> {
     try {
-      // Get unassigned loads (status = 'pending' or 'quoted', no driver assigned)
+      // Get unassigned loads (status = 'pending', no driver assigned)
       const { data: loads, error: loadsError } = await supabase
         .from('shipments')
         .select('*')
         .is('driver_id', null)
-        .in('status', ['pending', 'quoted'])
+        .in('status', ['pending'])
         .order('created_at', { ascending: true })
 
       if (loadsError) {

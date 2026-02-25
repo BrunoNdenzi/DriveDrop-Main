@@ -302,7 +302,7 @@ export default function DriverDashboardPage() {
                     </p>
                   </div>
                 </div>
-                <Link href={`/dashboard/driver/active?id=${delivery.id}`}>
+                <Link href={`/dashboard/driver/active/${delivery.id}`}>
                   <Button size="sm" className="w-full h-7 text-xs bg-amber-500 hover:bg-amber-600">
                     View Details
                     <ArrowRight className="h-3 w-3 ml-1" />

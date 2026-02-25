@@ -1,4 +1,4 @@
-import * as brevo from '@getbrevo/brevo';
+﻿import * as brevo from '@getbrevo/brevo';
 import nodemailer from 'nodemailer';
 import { logger } from '../utils/logger';
 
@@ -388,7 +388,7 @@ class EmailService {
           
           <div style="text-align: center; padding: 20px; color: #666; font-size: 12px;">
             <p>© ${new Date().getFullYear()} DriveDrop. All rights reserved.</p>
-            <p>This is an automated message, please do not reply to this email.</p>
+            <p>This is an automated message, please do not reply to this email.</p><p style="margin-top: 8px; color: #888;">Not seeing our emails? Please check your spam or junk folder and mark DriveDrop as a safe sender.</p>
           </div>
         </body>
       </html>
@@ -415,6 +415,7 @@ class EmailService {
       The DriveDrop Team
       
       © ${new Date().getFullYear()} DriveDrop. All rights reserved.
+      Not seeing our emails? Please check your spam or junk folder and mark DriveDrop as a safe sender.
     `;
 
     return this.sendEmail({
@@ -477,7 +478,7 @@ class EmailService {
           
           <div style="text-align: center; padding: 20px; color: #666; font-size: 12px;">
             <p>© ${new Date().getFullYear()} DriveDrop. All rights reserved.</p>
-            <p>This is an automated message, please do not reply to this email.</p>
+            <p>This is an automated message, please do not reply to this email.</p><p style="margin-top: 8px; color: #888;">Not seeing our emails? Please check your spam or junk folder and mark DriveDrop as a safe sender.</p>
           </div>
         </body>
       </html>
@@ -500,6 +501,7 @@ class EmailService {
       The DriveDrop Team
       
       © ${new Date().getFullYear()} DriveDrop. All rights reserved.
+      Not seeing our emails? Please check your spam or junk folder and mark DriveDrop as a safe sender.
     `;
 
     return this.sendEmail({
@@ -567,7 +569,7 @@ class EmailService {
           
           <div style="text-align: center; padding: 20px; color: #666; font-size: 12px;">
             <p>© ${new Date().getFullYear()} DriveDrop. All rights reserved.</p>
-            <p>This is an automated message, please do not reply to this email.</p>
+            <p>This is an automated message, please do not reply to this email.</p><p style="margin-top: 8px; color: #888;">Not seeing our emails? Please check your spam or junk folder and mark DriveDrop as a safe sender.</p>
           </div>
         </body>
       </html>
@@ -589,6 +591,7 @@ class EmailService {
       The DriveDrop Team
       
       © ${new Date().getFullYear()} DriveDrop. All rights reserved.
+      Not seeing our emails? Please check your spam or junk folder and mark DriveDrop as a safe sender.
     `;
 
     return this.sendEmail({
@@ -718,7 +721,7 @@ class EmailService {
           
           <div style="text-align: center; padding: 20px; color: #666; font-size: 12px;">
             <p>© ${new Date().getFullYear()} DriveDrop. All rights reserved.</p>
-            <p>This is an automated message, please do not reply to this email.</p>
+            <p>This is an automated message, please do not reply to this email.</p><p style="margin-top: 8px; color: #888;">Not seeing our emails? Please check your spam or junk folder and mark DriveDrop as a safe sender.</p>
           </div>
         </body>
       </html>
@@ -739,6 +742,7 @@ class EmailService {
       The DriveDrop Team
       
       © ${new Date().getFullYear()} DriveDrop. All rights reserved.
+      Not seeing our emails? Please check your spam or junk folder and mark DriveDrop as a safe sender.
     `;
 
     return this.sendEmail({
@@ -911,7 +915,7 @@ class EmailService {
           <div style="text-align: center; padding: 20px; color: #666; font-size: 12px;">
             <p>Receipt #${data.receiptNumber} | ${data.chargedDate}</p>
             <p>© ${new Date().getFullYear()} DriveDrop. All rights reserved.</p>
-            <p>This is an automated message, please do not reply to this email.</p>
+            <p>This is an automated message, please do not reply to this email.</p><p style="margin-top: 8px; color: #888;">Not seeing our emails? Please check your spam or junk folder and mark DriveDrop as a safe sender.</p>
           </div>
         </body>
       </html>
@@ -959,6 +963,7 @@ class EmailService {
       
       Receipt #${data.receiptNumber} | ${data.chargedDate}
       © ${new Date().getFullYear()} DriveDrop. All rights reserved.
+      Not seeing our emails? Please check your spam or junk folder and mark DriveDrop as a safe sender.
     `;
 
     logger.info('📧 BOOKING CONFIRMATION EMAIL - Calling sendEmail', {
@@ -1115,7 +1120,7 @@ class EmailService {
           <div style="text-align: center; padding: 20px; color: #666; font-size: 12px;">
             <p>Receipt #${data.receiptNumber} | ${data.finalDate}</p>
             <p>© ${new Date().getFullYear()} DriveDrop. All rights reserved.</p>
-            <p>This is an automated message, please do not reply to this email.</p>
+            <p>This is an automated message, please do not reply to this email.</p><p style="margin-top: 8px; color: #888;">Not seeing our emails? Please check your spam or junk folder and mark DriveDrop as a safe sender.</p>
           </div>
         </body>
       </html>
@@ -1159,6 +1164,7 @@ class EmailService {
       
       Receipt #${data.receiptNumber} | ${data.finalDate}
       © ${new Date().getFullYear()} DriveDrop. All rights reserved.
+      Not seeing our emails? Please check your spam or junk folder and mark DriveDrop as a safe sender.
     `;
 
     return this.sendEmail({
@@ -1286,6 +1292,7 @@ class EmailService {
       
       Shipment #${data.shipmentId} | ${data.deliveredDate}
       © ${new Date().getFullYear()} DriveDrop. All rights reserved.
+      Not seeing our emails? Please check your spam or junk folder and mark DriveDrop as a safe sender.
     `;
 
     return this.sendEmail({

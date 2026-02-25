@@ -87,16 +87,20 @@ export default function DriverInvitationsPage() {
 
     try {
       const supabase = getSupabaseBrowserClient();
-      const { error: updateError } = await supabase
+      const { data, error: updateError } = await supabase
         .from('broker_carriers')
         .update({
           relationship_status: 'active',
           invitation_accepted_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
         })
-        .eq('id', invitationId);
+        .eq('id', invitationId)
+        .select();
 
       if (updateError) throw updateError;
+      if (!data || data.length === 0) {
+        throw new Error('Could not update invitation. You may not have permission to accept this invitation. Please contact support.');
+      }
       setSuccess('Invitation accepted! You are now part of this broker network.');
       await loadInvitations();
       setTimeout(() => setSuccess(''), 4000);
@@ -116,7 +120,7 @@ export default function DriverInvitationsPage() {
 
     try {
       const supabase = getSupabaseBrowserClient();
-      const { error: updateError } = await supabase
+      const { data, error: updateError } = await supabase
         .from('broker_carriers')
         .update({
           relationship_status: 'terminated',
@@ -124,9 +128,13 @@ export default function DriverInvitationsPage() {
           terminated_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
         })
-        .eq('id', invitationId);
+        .eq('id', invitationId)
+        .select();
 
       if (updateError) throw updateError;
+      if (!data || data.length === 0) {
+        throw new Error('Could not decline invitation. You may not have permission. Please contact support.');
+      }
       setSuccess('Invitation declined.');
       await loadInvitations();
       setTimeout(() => setSuccess(''), 3000);

@@ -42,7 +42,7 @@ interface Job {
 
 export default function DriverJobsPage() {
   const router = useRouter()
-  const [mode, setMode] = useState<'benji' | 'browse'>('benji')
+  const [mode, setMode] = useState<'benji' | 'browse'>('browse')
   const [jobs, setJobs] = useState<Job[]>([])
   const [filteredJobs, setFilteredJobs] = useState<Job[]>([])
   const [loading, setLoading] = useState(true)

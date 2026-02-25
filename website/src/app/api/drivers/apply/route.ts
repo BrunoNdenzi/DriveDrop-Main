@@ -242,10 +242,10 @@ export async function POST(request: NextRequest) {
 
     // Send welcome/confirmation email via Brevo (preferred method)
     try {
-      const backendUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
+      const backendUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api/v1'
       const firstName = fullName.split(' ')[0]
       
-      await fetch(`${backendUrl}/api/v1/emails/send-welcome`, {
+      await fetch(`${backendUrl}/emails/send-welcome`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

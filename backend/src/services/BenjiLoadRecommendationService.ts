@@ -44,12 +44,12 @@ export class BenjiLoadRecommendationService {
         full_name: `${driver.first_name || ''} ${driver.last_name || ''}`.trim() || driver.email || 'Driver'
       }
 
-      // Get available loads (unassigned, pending/quoted status)
+      // Get available loads (unassigned, pending status)
       const { data: loads, error: loadsError } = await supabase
         .from('shipments')
         .select('*')
         .is('driver_id', null)
-        .in('status', ['pending', 'quoted'])
+        .in('status', ['pending'])
         .order('created_at', { ascending: false })
         .limit(100)
 

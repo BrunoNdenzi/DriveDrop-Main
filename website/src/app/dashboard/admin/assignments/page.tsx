@@ -60,7 +60,7 @@ interface Shipment {
 
 export default function AdminAssignmentsPage() {
   const { profile } = useAuth()
-  const [mode, setMode] = useState<'benji' | 'manual'>('benji')
+  const [mode, setMode] = useState<'benji' | 'manual'>('manual')
   const [shipments, setShipments] = useState<Shipment[]>([])
   const [applications, setApplications] = useState<Record<string, Application[]>>({})
   const [availableDrivers, setAvailableDrivers] = useState<Driver[]>([])
