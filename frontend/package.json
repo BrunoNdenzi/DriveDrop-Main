@@ -1,0 +1,20 @@
+{
+  "name": "@drivedrop/frontend-skeleton",
+  "version": "1.0.0",
+  "description": "DriveDrop frontend skeleton with TypeScript and React Native",
+  "main": "src/index.ts",
+  "scripts": {
+    "lint": "echo \"ESLint would run here: eslint src --ext .ts,.tsx --max-warnings 0\"",
+    "type-check": "echo \"TypeScript would check here: tsc --noEmit\"",
+    "test": "echo \"Tests not implemented yet - see TODO in implementation plan\" && exit 0",
+    "start": "echo \"Start script not implemented - this is a skeleton for future development\"",
+    "build": "echo \"Build script not implemented - this is a skeleton for future development\""
+  },
+  "keywords": ["react-native", "typescript", "mobile", "drivedrop"],
+  "author": "DriveDrop Team",
+  "license": "MIT",
+  "dependencies": {},
+  "devDependencies": {},
+  "private": true,
+  "workspaces": false
+}
