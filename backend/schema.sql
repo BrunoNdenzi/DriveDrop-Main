@@ -226,6 +226,21 @@ CREATE TABLE public.broker_carriers (
   CONSTRAINT broker_carriers_broker_id_fkey FOREIGN KEY (broker_id) REFERENCES public.broker_profiles(id),
   CONSTRAINT broker_carriers_carrier_id_fkey FOREIGN KEY (carrier_id) REFERENCES public.profiles(id)
 );
+CREATE TABLE public.broker_change_requests (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  broker_id uuid NOT NULL,
+  changes jsonb NOT NULL DEFAULT '{}'::jsonb,
+  status text NOT NULL DEFAULT 'pending'::text CHECK (status = ANY (ARRAY['pending'::text, 'approved'::text, 'rejected'::text])),
+  reason text,
+  admin_notes text,
+  reviewed_by uuid,
+  reviewed_at timestamp with time zone,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT broker_change_requests_pkey PRIMARY KEY (id),
+  CONSTRAINT broker_change_requests_broker_id_fkey FOREIGN KEY (broker_id) REFERENCES public.broker_profiles(id),
+  CONSTRAINT broker_change_requests_reviewed_by_fkey FOREIGN KEY (reviewed_by) REFERENCES auth.users(id)
+);
 CREATE TABLE public.broker_documents (
   id uuid NOT NULL DEFAULT uuid_generate_v4(),
   broker_id uuid NOT NULL,

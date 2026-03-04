@@ -22,6 +22,9 @@ import {
   Download,
   Share2,
   MoreVertical,
+  ExternalLink,
+  Copy,
+  CheckCheck,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import Messaging from '@/components/messaging/Messaging'
@@ -93,6 +96,10 @@ export default function ShipmentDetailPage() {
   const [trackingEvents, setTrackingEvents] = useState<TrackingEvent[]>([])
   const [loading, setLoading] = useState(true)
   const [showMessaging, setShowMessaging] = useState(false)
+  const [showSupportModal, setShowSupportModal] = useState(false)
+  const [supportMessage, setSupportMessage] = useState('')
+  const [supportSending, setSupportSending] = useState(false)
+  const [copied, setCopied] = useState(false)
 
   const supabase = getSupabaseBrowserClient()
 
@@ -166,64 +173,116 @@ export default function ShipmentDetailPage() {
     })
   }
 
+  const handleShare = async () => {
+    if (!shipment) return
+    const shareData = {
+      title: `DriveDrop Shipment - ${shipment.vehicle_year} ${shipment.vehicle_make} ${shipment.vehicle_model}`,
+      text: `Track my vehicle shipment from ${shipment.pickup_address} to ${shipment.delivery_address}. Status: ${shipment.status.replace(/_/g, ' ')}`,
+      url: window.location.href,
+    }
+
+    try {
+      if (navigator.share && navigator.canShare?.(shareData)) {
+        await navigator.share(shareData)
+      } else {
+        await navigator.clipboard.writeText(window.location.href)
+        setCopied(true)
+        setTimeout(() => setCopied(false), 2000)
+      }
+    } catch (err) {
+      // User cancelled share or fallback to copy
+      try {
+        await navigator.clipboard.writeText(window.location.href)
+        setCopied(true)
+        setTimeout(() => setCopied(false), 2000)
+      } catch {
+        // Final fallback
+      }
+    }
+  }
+
+  const handleContactSupport = async () => {
+    if (!shipment || !supportMessage.trim()) return
+    setSupportSending(true)
+    try {
+      const subject = encodeURIComponent(`Support Request - Shipment ${shipment.id.slice(0, 8)}`)
+      const body = encodeURIComponent(
+        `Shipment ID: ${shipment.id}\nVehicle: ${shipment.vehicle_year} ${shipment.vehicle_make} ${shipment.vehicle_model}\nStatus: ${shipment.status}\n\n${supportMessage}`
+      )
+      window.open(`mailto:support@drivedrop.us.com?subject=${subject}&body=${body}`, '_blank')
+      setShowSupportModal(false)
+      setSupportMessage('')
+    } catch (err) {
+      console.error('Error contacting support:', err)
+    } finally {
+      setSupportSending(false)
+    }
+  }
+
   const handleDownloadReceipt = async () => {
     if (!shipment) return
 
     try {
-      // Create receipt content
-      const receiptContent = `
-DRIVEDROP RECEIPT
-${'='.repeat(50)}
+      const receiptHtml = `<!DOCTYPE html>
+<html><head><meta charset="utf-8"><title>DriveDrop Receipt</title>
+<style>
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;max-width:600px;margin:0 auto;padding:40px 20px;color:#1a1a1a}
+.header{text-align:center;border-bottom:3px solid #3b82f6;padding-bottom:20px;margin-bottom:24px}
+.logo{font-size:24px;font-weight:bold;color:#3b82f6}
+.receipt-no{font-size:12px;color:#666;margin-top:8px}
+.section{margin-bottom:20px;padding:16px;background:#f9fafb;border-radius:8px;border:1px solid #e5e7eb}
+.section h3{font-size:14px;font-weight:600;color:#374151;margin:0 0 12px 0;text-transform:uppercase;letter-spacing:0.05em}
+.row{display:flex;justify-content:space-between;padding:6px 0;font-size:13px}
+.row .label{color:#6b7280}.row .value{font-weight:500;text-align:right}
+.total{border-top:2px solid #3b82f6;padding-top:12px;margin-top:8px}
+.total .row{font-size:15px;font-weight:600}
+.status-badge{display:inline-block;padding:4px 12px;border-radius:20px;font-size:12px;font-weight:600}
+.paid{background:#dcfce7;color:#166534}.pending{background:#fef3c7;color:#92400e}
+.footer{text-align:center;margin-top:30px;padding-top:20px;border-top:1px solid #e5e7eb;font-size:11px;color:#9ca3af}
+@media print{body{padding:20px}.section{break-inside:avoid}}
+</style></head><body>
+<div class="header">
+<div class="logo">🚗 DriveDrop</div>
+<div style="font-size:18px;font-weight:600;margin-top:8px">Shipment Receipt</div>
+<div class="receipt-no">Receipt #DD-${shipment.id.slice(0, 8).toUpperCase()}</div>
+<div style="font-size:12px;color:#666">${new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</div>
+</div>
+<div class="section"><h3>Vehicle Information</h3>
+<div class="row"><span class="label">Vehicle</span><span class="value">${shipment.vehicle_year} ${shipment.vehicle_make} ${shipment.vehicle_model}</span></div>
+<div class="row"><span class="label">Type</span><span class="value" style="text-transform:capitalize">${shipment.vehicle_type}</span></div>
+<div class="row"><span class="label">Condition</span><span class="value">${shipment.is_operable ? 'Operable' : 'Non-Operable'}</span></div>
+</div>
+<div class="section"><h3>Route Details</h3>
+<div class="row"><span class="label">Pickup</span><span class="value">${shipment.pickup_address}</span></div>
+<div class="row"><span class="label">Delivery</span><span class="value">${shipment.delivery_address}</span></div>
+<div class="row"><span class="label">Distance</span><span class="value">${shipment.distance?.toFixed(0) || 'N/A'} miles</span></div>
+${shipment.pickup_date ? `<div class="row"><span class="label">Pickup Date</span><span class="value">${new Date(shipment.pickup_date).toLocaleDateString()}</span></div>` : ''}
+${shipment.delivery_date ? `<div class="row"><span class="label">Delivery Date</span><span class="value">${new Date(shipment.delivery_date).toLocaleDateString()}</span></div>` : ''}
+</div>
+<div class="section"><h3>Payment Summary</h3>
+<div class="row"><span class="label">Upfront Payment (20%)</span><span class="value">$${(shipment.estimated_price * 0.20).toFixed(2)}</span></div>
+<div class="row"><span class="label">Final Payment (80%)</span><span class="value">$${(shipment.estimated_price * 0.80).toFixed(2)}</span></div>
+<div class="total"><div class="row"><span class="label">Total Amount</span><span class="value" style="color:#3b82f6">$${shipment.estimated_price.toFixed(2)}</span></div></div>
+<div class="row" style="margin-top:8px"><span class="label">Payment Status</span><span class="value"><span class="status-badge ${shipment.payment_status === 'paid' ? 'paid' : 'pending'}">${shipment.payment_status === 'paid' ? '✓ Paid in Full' : 'Pending'}</span></span></div>
+</div>
+<div class="section"><h3>Shipment Status</h3>
+<div class="row"><span class="label">Shipment ID</span><span class="value" style="font-family:monospace;font-size:11px">${shipment.id}</span></div>
+<div class="row"><span class="label">Current Status</span><span class="value" style="text-transform:capitalize">${shipment.status.replace(/_/g, ' ')}</span></div>
+<div class="row"><span class="label">Created</span><span class="value">${new Date(shipment.created_at).toLocaleDateString()}</span></div>
+</div>
+<div class="footer">
+<p>Thank you for choosing DriveDrop!</p>
+<p>For support: support@drivedrop.us.com | drivedrop.us.com</p>
+<p>© ${new Date().getFullYear()} DriveDrop. All rights reserved.</p>
+</div>
+<script>window.onload=function(){window.print()}</script>
+</body></html>`
 
-Receipt Number: DD-${shipment.id}-${shipment.payment_status === 'paid' ? '02' : '01'}
-Date: ${new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
-
-SHIPMENT DETAILS
-${'-'.repeat(50)}
-Shipment ID: ${shipment.id}
-Vehicle: ${shipment.vehicle_year} ${shipment.vehicle_make} ${shipment.vehicle_model}
-Type: ${shipment.vehicle_type}
-
-ROUTE
-${'-'.repeat(50)}
-From: ${shipment.pickup_address}
-To: ${shipment.delivery_address}
-Distance: ${shipment.distance.toFixed(0)} miles
-
-PRICING
-${'-'.repeat(50)}
-Total Amount: $${shipment.estimated_price.toFixed(2)}
-${shipment.payment_status === 'paid' ? `
-Upfront Payment (20%): $${(shipment.estimated_price * 0.20).toFixed(2)}
-Final Payment (80%): $${(shipment.estimated_price * 0.80).toFixed(2)}
-
-Payment Status: PAID IN FULL ✓` : `
-Upfront Payment (20%): $${(shipment.estimated_price * 0.20).toFixed(2)} ✓
-Remaining (80%): $${(shipment.estimated_price * 0.80).toFixed(2)} (Due on delivery)`}
-
-STATUS
-${'-'.repeat(50)}
-Shipment Status: ${shipment.status.toUpperCase().replace('_', ' ')}
-Payment Status: ${shipment.payment_status.toUpperCase().replace('_', ' ')}
-
-${'='.repeat(50)}
-
-Thank you for choosing DriveDrop!
-For support: support@drivedrop.us.com
-
-© ${new Date().getFullYear()} DriveDrop. All rights reserved.
-      `
-
-      // Create blob and download
-      const blob = new Blob([receiptContent], { type: 'text/plain' })
-      const url = URL.createObjectURL(blob)
-      const link = document.createElement('a')
-      link.href = url
-      link.download = `DriveDrop-Receipt-${shipment.id}.txt`
-      document.body.appendChild(link)
-      link.click()
-      document.body.removeChild(link)
-      URL.revokeObjectURL(url)
+      const printWindow = window.open('', '_blank')
+      if (printWindow) {
+        printWindow.document.write(receiptHtml)
+        printWindow.document.close()
+      }
     } catch (error) {
       console.error('Error downloading receipt:', error)
       alert('Failed to download receipt. Please try again.')
@@ -285,9 +344,9 @@ For support: support@drivedrop.us.com
               </h1>
             </div>
             <div className="flex items-center gap-2">
-              <Button variant="outline" size="sm">
-                <Share2 className="h-4 w-4 mr-2" />
-                Share
+              <Button variant="outline" size="sm" onClick={handleShare}>
+                {copied ? <CheckCheck className="h-4 w-4 mr-2 text-green-600" /> : <Share2 className="h-4 w-4 mr-2" />}
+                {copied ? 'Copied!' : 'Share'}
               </Button>
               <Button 
                 variant="outline" 
@@ -637,13 +696,58 @@ For support: support@drivedrop.us.com
               <p className="text-sm text-gray-600 mb-3">
                 Contact our support team for assistance with your shipment.
               </p>
-              <Button variant="outline" className="w-full">
+              <Button variant="outline" className="w-full" onClick={() => setShowSupportModal(true)}>
                 Contact Support
               </Button>
             </div>
           </div>
         </div>
       </div>
+
+      {/* Support Modal */}
+      {showSupportModal && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-md max-w-md w-full overflow-hidden">
+            <div className="p-4 border-b border-gray-200 flex items-center justify-between">
+              <h3 className="text-sm font-semibold text-gray-900">Contact Support</h3>
+              <button onClick={() => setShowSupportModal(false)} className="p-2 hover:bg-gray-100 rounded-md transition-colors">✕</button>
+            </div>
+            <div className="p-4 space-y-4">
+              <div className="bg-blue-50 border border-blue-200 rounded-md p-3">
+                <p className="text-xs text-blue-700">
+                  <strong>Shipment:</strong> {shipment.vehicle_year} {shipment.vehicle_make} {shipment.vehicle_model}
+                </p>
+                <p className="text-xs text-blue-700 mt-1">
+                  <strong>Status:</strong> {shipment.status.replace(/_/g, ' ')}
+                </p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Describe your issue</label>
+                <textarea
+                  value={supportMessage}
+                  onChange={(e) => setSupportMessage(e.target.value)}
+                  rows={4}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-1 focus:ring-blue-500 focus:border-transparent"
+                  placeholder="Tell us what you need help with..."
+                />
+              </div>
+              <div className="flex gap-3">
+                <Button variant="outline" className="flex-1" onClick={() => setShowSupportModal(false)}>Cancel</Button>
+                <Button
+                  className="flex-1 bg-blue-500 hover:bg-blue-600"
+                  onClick={handleContactSupport}
+                  disabled={!supportMessage.trim() || supportSending}
+                >
+                  {supportSending ? 'Opening...' : 'Send via Email'}
+                </Button>
+              </div>
+              <p className="text-xs text-gray-500 text-center">
+                Or email directly: <a href="mailto:support@drivedrop.us.com" className="text-blue-500 hover:underline">support@drivedrop.us.com</a>
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Messaging Modal */}
       {showMessaging && driver && (

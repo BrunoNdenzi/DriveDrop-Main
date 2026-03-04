@@ -19,7 +19,8 @@ import {
   FileText,
   Briefcase,
   TrendingUp,
-  User
+  User,
+  MessageSquare
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import NotificationBell from '@/components/NotificationBell'
@@ -30,6 +31,7 @@ const navItems = [
   { href: '/dashboard/broker/load-board', label: 'Load Board', icon: FileText },
   { href: '/dashboard/broker/assignments', label: 'My Assignments', icon: Briefcase },
   { href: '/dashboard/broker/tracking', label: 'Live Tracking', icon: TrendingUp },
+  { href: '/dashboard/broker/messages', label: 'Messages', icon: MessageSquare },
   { href: '/dashboard/broker/carriers', label: 'Carrier Network', icon: Users },
   { href: '/dashboard/broker/payouts', label: 'Payouts', icon: DollarSign },
   { href: '/dashboard/broker/settings', label: 'Settings', icon: Settings },

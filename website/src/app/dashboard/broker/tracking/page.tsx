@@ -77,13 +77,18 @@ export default function BrokerTrackingPage() {
     const bounds = new google.maps.LatLngBounds();
     const geocoder = new google.maps.Geocoder();
     let hasPoints = false;
+    let geocodeCount = 0;
+    const MAX_GEOCODES = 10; // Limit to avoid rate limits
 
     shipments.forEach(shipment => {
-      const pickupAddr = `${shipment.assignment.load_board?.shipment?.pickup_city}, ${shipment.assignment.load_board?.shipment?.pickup_state}`;
-      const deliveryAddr = `${shipment.assignment.load_board?.shipment?.delivery_city}, ${shipment.assignment.load_board?.shipment?.delivery_state}`;
+      // Use the shipment data from the assignment (loaded via shipments join)
+      const s = shipment.assignment?.shipment;
+      const pickupAddr = s?.pickup_address || s?.pickup_city ? `${s?.pickup_city || ''}, ${s?.pickup_state || ''}` : '';
+      const deliveryAddr = s?.dropoff_address || s?.delivery_city ? `${s?.delivery_city || ''}, ${s?.delivery_state || ''}` : '';
 
-      // Geocode pickup
-      if (pickupAddr && pickupAddr !== ', ') {
+      // Geocode pickup (with rate limit)
+      if (pickupAddr && pickupAddr !== ', ' && geocodeCount < MAX_GEOCODES) {
+        geocodeCount++;
         geocoder.geocode({ address: pickupAddr }, (results, status) => {
           if (status === 'OK' && results?.[0]) {
             const pos = results[0].geometry.location;
@@ -108,8 +113,9 @@ export default function BrokerTrackingPage() {
         });
       }
 
-      // Geocode delivery
-      if (deliveryAddr && deliveryAddr !== ', ') {
+      // Geocode delivery (with rate limit)
+      if (deliveryAddr && deliveryAddr !== ', ' && geocodeCount < MAX_GEOCODES) {
+        geocodeCount++;
         geocoder.geocode({ address: deliveryAddr }, (results, status) => {
           if (status === 'OK' && results?.[0]) {
             const pos = results[0].geometry.location;
@@ -427,7 +433,7 @@ export default function BrokerTrackingPage() {
                       <div className="flex-1">
                         <p className="text-xs text-gray-500">Pickup</p>
                         <p className="text-sm font-medium text-gray-900">
-                          {shipment.assignment.load_board?.shipment?.pickup_city}, {shipment.assignment.load_board?.shipment?.pickup_state}
+                          {shipment.assignment.shipment?.pickup_city || shipment.assignment.shipment?.pickup_address || 'N/A'}
                         </p>
                       </div>
                     </div>
@@ -436,7 +442,7 @@ export default function BrokerTrackingPage() {
                       <div className="flex-1">
                         <p className="text-xs text-gray-500">Delivery</p>
                         <p className="text-sm font-medium text-gray-900">
-                          {shipment.assignment.load_board?.shipment?.delivery_city}, {shipment.assignment.load_board?.shipment?.delivery_state}
+                          {shipment.assignment.shipment?.delivery_city || shipment.assignment.shipment?.dropoff_address || 'N/A'}
                         </p>
                       </div>
                     </div>
@@ -560,12 +566,12 @@ export default function BrokerTrackingPage() {
                   <h4 className="text-xs font-semibold text-gray-500 uppercase mb-2">Vehicle</h4>
                   <div className="space-y-2">
                     <p className="text-sm text-gray-900">
-                      {selectedShipment.assignment.load_board?.shipment?.vehicle_year}{' '}
-                      {selectedShipment.assignment.load_board?.shipment?.vehicle_make}{' '}
-                      {selectedShipment.assignment.load_board?.shipment?.vehicle_model}
+                      {selectedShipment.assignment.shipment?.vehicle_year}{' '}
+                      {selectedShipment.assignment.shipment?.vehicle_make}{' '}
+                      {selectedShipment.assignment.shipment?.vehicle_model}
                     </p>
                     <p className="text-xs text-gray-500">
-                      {selectedShipment.assignment.load_board?.shipment?.vehicle_type}
+                      {selectedShipment.assignment.shipment?.vehicle_type}
                     </p>
                   </div>
                 </div>
@@ -599,8 +605,23 @@ export default function BrokerTrackingPage() {
                   </Button>
                   <Button
                     onClick={() => {
-                      // Center map on this shipment
-                      console.log('Center map on shipment');
+                      if (!selectedShipment || !mapRef.current) return;
+                      if (selectedShipment.currentLat && selectedShipment.currentLng) {
+                        mapRef.current.setCenter({ lat: selectedShipment.currentLat, lng: selectedShipment.currentLng });
+                        mapRef.current.setZoom(14);
+                      } else {
+                        // Geocode pickup address as fallback
+                        const addr = selectedShipment.assignment.shipment?.pickup_address || selectedShipment.assignment.shipment?.pickup_city;
+                        if (addr) {
+                          const geocoder = new google.maps.Geocoder();
+                          geocoder.geocode({ address: addr }, (results, status) => {
+                            if (status === 'OK' && results?.[0]) {
+                              mapRef.current?.setCenter(results[0].geometry.location);
+                              mapRef.current?.setZoom(12);
+                            }
+                          });
+                        }
+                      }
                     }}
                     className="flex-1 bg-teal-500 hover:bg-teal-600 text-white"
                   >

@@ -145,10 +145,10 @@ export default function AssignmentsPage() {
             <div className="p-1.5 bg-purple-50 rounded-md">
               <DollarSign className="h-4 w-4 text-purple-600" />
             </div>
-            <span className="text-xs text-gray-600">Total Revenue</span>
+            <span className="text-xs text-gray-600">Broker Revenue</span>
           </div>
           <p className="text-xl font-bold text-gray-900">
-            ${assignments.reduce((sum, a) => sum + (a.carrier_payout || 0), 0).toLocaleString()}
+            ${assignments.reduce((sum, a) => sum + (a.broker_commission || 0), 0).toLocaleString()}
           </p>
         </div>
       </div>
@@ -278,7 +278,7 @@ export default function AssignmentsPage() {
                     <div className="flex items-center gap-2">
                       <DollarSign className="h-4 w-4 text-gray-400" />
                       <span className="text-sm font-semibold text-gray-900">
-                        ${(assignment.carrier_payout || 0).toLocaleString()}
+                        ${(assignment.broker_commission || assignment.carrier_payout || 0).toLocaleString()}
                       </span>
                     </div>
                   </div>
