@@ -61,13 +61,18 @@ export default function BrokerShipmentsPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<ShipmentStatus | 'all'>('all');
   const [selectedShipments, setSelectedShipments] = useState<string[]>([]);
+  const [page, setPage] = useState(0);
+  const [totalCount, setTotalCount] = useState(0);
+  const [stats, setStats] = useState({ total: 0, pending: 0, active: 0, completed: 0 });
+  const PAGE_SIZE = 25;
 
   useEffect(() => {
     fetchShipments();
-  }, []);
+  }, [statusFilter, page]);
 
   const fetchShipments = async () => {
     try {
+      setLoading(true);
       const supabase = getSupabaseBrowserClient();
       const { data: { user } } = await supabase.auth.getUser();
 
@@ -76,16 +81,44 @@ export default function BrokerShipmentsPage() {
         return;
       }
 
-      // Fetch broker shipments
-      const { data, error } = await supabase
+      // Build query with server-side filtering and pagination
+      let query = supabase
         .from('broker_shipments')
-        .select('*')
+        .select('*', { count: 'exact' })
         .eq('broker_id', user.id)
-        .order('created_at', { ascending: false });
+        .order('created_at', { ascending: false })
+        .range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1);
+
+      if (statusFilter !== 'all') {
+        query = query.eq('status', statusFilter);
+      }
+
+      const { data, error, count } = await query;
 
       if (error) throw error;
 
       setShipments(data || []);
+      setTotalCount(count || 0);
+
+      // Fetch stats only on first load or filter change
+      if (page === 0) {
+        const [pendingRes, activeRes, completedRes] = await Promise.all([
+          supabase.from('broker_shipments').select('id', { count: 'exact', head: true })
+            .eq('broker_id', user.id).in('status', ['pending_quote', 'quoted']),
+          supabase.from('broker_shipments').select('id', { count: 'exact', head: true })
+            .eq('broker_id', user.id).in('status', ['booked', 'assigned', 'in_transit']),
+          supabase.from('broker_shipments').select('id', { count: 'exact', head: true })
+            .eq('broker_id', user.id).eq('status', 'delivered'),
+        ]);
+        const totalRes = await supabase.from('broker_shipments').select('id', { count: 'exact', head: true })
+          .eq('broker_id', user.id);
+        setStats({
+          total: totalRes.count || 0,
+          pending: pendingRes.count || 0,
+          active: activeRes.count || 0,
+          completed: completedRes.count || 0,
+        });
+      }
     } catch (error: any) {
       console.error('Error fetching shipments:', error);
       setErrorMessage(error.message || 'Failed to load shipments');
@@ -93,6 +126,8 @@ export default function BrokerShipmentsPage() {
       setLoading(false);
     }
   };
+
+  const totalPages = Math.ceil(totalCount / PAGE_SIZE);
 
   const getStatusBadge = (status: ShipmentStatus) => {
     const statusConfig = {
@@ -117,27 +152,22 @@ export default function BrokerShipmentsPage() {
   };
 
   const getFilteredShipments = () => {
+    if (!searchTerm) return shipments;
     return shipments.filter(shipment => {
-      const matchesSearch = searchTerm === '' || 
-        shipment.client_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      return shipment.client_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         shipment.vehicle_make.toLowerCase().includes(searchTerm.toLowerCase()) ||
         shipment.vehicle_model.toLowerCase().includes(searchTerm.toLowerCase()) ||
         shipment.pickup_city.toLowerCase().includes(searchTerm.toLowerCase()) ||
         shipment.delivery_city.toLowerCase().includes(searchTerm.toLowerCase());
-
-      const matchesStatus = statusFilter === 'all' || shipment.status === statusFilter;
-
-      return matchesSearch && matchesStatus;
     });
   };
 
   const filteredShipments = getFilteredShipments();
 
-  const stats = {
-    total: shipments.length,
-    pending: shipments.filter(s => s.status === 'pending_quote' || s.status === 'quoted').length,
-    active: shipments.filter(s => s.status === 'booked' || s.status === 'assigned' || s.status === 'in_transit').length,
-    completed: shipments.filter(s => s.status === 'delivered').length,
+  // Reset to first page when status filter changes
+  const handleStatusFilterChange = (newFilter: ShipmentStatus | 'all') => {
+    setPage(0);
+    setStatusFilter(newFilter);
   };
 
   if (loading) {
@@ -254,7 +284,7 @@ export default function BrokerShipmentsPage() {
             <Filter className="h-5 w-5 text-gray-400" />
             <select
               value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value as ShipmentStatus | 'all')}
+              onChange={(e) => handleStatusFilterChange(e.target.value as ShipmentStatus | 'all')}
               className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             >
               <option value="all">All Status</option>
@@ -371,6 +401,36 @@ export default function BrokerShipmentsPage() {
           </div>
         )}
       </div>
+
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div className="bg-white rounded-md border border-gray-200 p-3 flex items-center justify-between">
+          <p className="text-sm text-gray-600">
+            Showing {page * PAGE_SIZE + 1}-{Math.min((page + 1) * PAGE_SIZE, totalCount)} of {totalCount} shipments
+          </p>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setPage(p => Math.max(0, p - 1))}
+              disabled={page === 0}
+            >
+              Previous
+            </Button>
+            <span className="text-sm text-gray-600 mx-2">
+              Page {page + 1} of {totalPages}
+            </span>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))}
+              disabled={page >= totalPages - 1}
+            >
+              Next
+            </Button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

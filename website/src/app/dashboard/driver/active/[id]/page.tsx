@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef, useCallback } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { getSupabaseBrowserClient } from '@/lib/supabase-client'
 import { useAuth } from '@/hooks/useAuth'
@@ -21,7 +21,8 @@ import {
   Image,
   ShieldCheck,
   AlertTriangle,
-  Eye
+  Eye,
+  ExternalLink
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { toast } from '@/components/ui/toast'
@@ -72,6 +73,16 @@ export default function DriverShipmentDetailPage() {
   const [shipment, setShipment] = useState<Shipment | null>(null)
   const [loading, setLoading] = useState(true)
   const [updating, setUpdating] = useState(false)
+  const [confirmAction, setConfirmAction] = useState<string | null>(null)
+  const [showNavMap, setShowNavMap] = useState<'pickup' | 'delivery' | null>(null)
+  const navMapRef = useRef<HTMLDivElement>(null)
+  const navMapInstanceRef = useRef<google.maps.Map | null>(null)
+  const directionsRendererRef = useRef<google.maps.DirectionsRenderer | null>(null)
+  const driverMarkerRef = useRef<google.maps.Marker | null>(null)
+  const watchIdRef = useRef<number | null>(null)
+  const [navDirections, setNavDirections] = useState<{ steps: google.maps.DirectionsStep[]; currentStepIndex: number; totalDistance: string; totalDuration: string; driverLat: number | null; driverLng: number | null } | null>(null)
+  const [navFollowDriver, setNavFollowDriver] = useState(true)
+  const navFollowDriverRef = useRef(true)
   const supabase = getSupabaseBrowserClient()
 
   useEffect(() => {
@@ -110,6 +121,12 @@ export default function DriverShipmentDetailPage() {
   const updateStatus = async (newStatus: string) => {
     if (!shipment) return
 
+    // Enforce pickup verification before allowing "picked_up"
+    if (newStatus === 'picked_up' && !shipment.pickup_verified) {
+      toast('Please complete pickup verification before marking as picked up', 'error')
+      return
+    }
+
     setUpdating(true)
     try {
       const updates: any = { status: newStatus }
@@ -139,6 +156,7 @@ export default function DriverShipmentDetailPage() {
       })
 
       toast(`Status updated to ${STATUS_FLOW.find(s => s.value === newStatus)?.label}`, 'success')
+      setConfirmAction(null)
       fetchShipment()
     } catch (error) {
       console.error('Error updating status:', error)
@@ -146,6 +164,11 @@ export default function DriverShipmentDetailPage() {
     } finally {
       setUpdating(false)
     }
+  }
+
+  const handleStatusAdvance = (newStatus: string) => {
+    // Show confirmation dialog
+    setConfirmAction(newStatus)
   }
 
   const getCurrentStatusIndex = () => {
@@ -161,10 +184,251 @@ export default function DriverShipmentDetailPage() {
     return null
   }
 
-  const openGoogleMaps = (address: string) => {
+  const openInAppNav = useCallback((type: 'pickup' | 'delivery') => {
+    setNavDirections(null)
+    setNavFollowDriver(true)
+    setShowNavMap(type)
+  }, [])
+
+  const openExternalMaps = (address: string) => {
     const encoded = encodeURIComponent(address)
-    window.open(`https://www.google.com/maps/dir/?api=1&destination=${encoded}`, '_blank')
+    // Try native Google Maps navigation deep link (works on mobile)
+    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent)
+    if (isMobile) {
+      window.open(`google.navigation:q=${encoded}`, '_self')
+      // Fallback for iOS / no Google Maps app
+      setTimeout(() => {
+        window.open(`https://www.google.com/maps/dir/?api=1&destination=${encoded}&travelmode=driving`, '_blank')
+      }, 500)
+    } else {
+      window.open(`https://www.google.com/maps/dir/?api=1&destination=${encoded}&travelmode=driving`, '_blank')
+    }
   }
+
+  // Cleanup watchPosition on unmount or nav close
+  useEffect(() => {
+    return () => {
+      if (watchIdRef.current !== null) {
+        navigator.geolocation.clearWatch(watchIdRef.current)
+        watchIdRef.current = null
+      }
+    }
+  }, [])
+
+  // Keep ref in sync with state
+  useEffect(() => {
+    navFollowDriverRef.current = navFollowDriver
+  }, [navFollowDriver])
+
+  // Initialize real-time navigation map when showNavMap changes
+  useEffect(() => {
+    if (!showNavMap || !navMapRef.current || !window.google?.maps || !shipment) return
+
+    // Cleanup previous watch
+    if (watchIdRef.current !== null) {
+      navigator.geolocation.clearWatch(watchIdRef.current)
+      watchIdRef.current = null
+    }
+
+    const address = showNavMap === 'pickup' ? shipment.pickup_address : shipment.delivery_address
+
+    const map = new google.maps.Map(navMapRef.current, {
+      zoom: 15,
+      center: { lat: 35.2271, lng: -80.8431 },
+      mapTypeControl: false,
+      streetViewControl: false,
+      fullscreenControl: false,
+      zoomControl: true,
+      gestureHandling: 'greedy',
+    })
+    navMapInstanceRef.current = map
+
+    // When user pans manually, stop auto-following
+    map.addListener('dragstart', () => {
+      setNavFollowDriver(false)
+      navFollowDriverRef.current = false
+    })
+
+    const directionsService = new google.maps.DirectionsService()
+    const directionsRenderer = new google.maps.DirectionsRenderer({
+      map,
+      suppressMarkers: false,
+      polylineOptions: { strokeColor: '#3b82f6', strokeWeight: 6, strokeOpacity: 0.8 },
+      markerOptions: {
+        zIndex: 10,
+      }
+    })
+    directionsRendererRef.current = directionsRenderer
+
+    // Create driver marker (blue dot like Google Maps)
+    const driverMarker = new google.maps.Marker({
+      map,
+      icon: {
+        path: google.maps.SymbolPath.CIRCLE,
+        scale: 10,
+        fillColor: '#4285F4',
+        fillOpacity: 1,
+        strokeColor: '#ffffff',
+        strokeWeight: 3,
+      },
+      title: 'Your Location',
+      zIndex: 100,
+    })
+    driverMarkerRef.current = driverMarker
+
+    // Accuracy circle
+    const accuracyCircle = new google.maps.Circle({
+      map,
+      strokeColor: '#4285F4',
+      strokeOpacity: 0.2,
+      strokeWeight: 1,
+      fillColor: '#4285F4',
+      fillOpacity: 0.1,
+      center: { lat: 0, lng: 0 },
+      radius: 50,
+      visible: false,
+    })
+
+    const calculateRoute = (origin: google.maps.LatLngLiteral) => {
+      directionsService.route(
+        {
+          origin,
+          destination: address,
+          travelMode: google.maps.TravelMode.DRIVING,
+          provideRouteAlternatives: false,
+        },
+        (result, status) => {
+          if (status === 'OK' && result) {
+            directionsRenderer.setDirections(result)
+            const leg = result.routes[0]?.legs[0]
+            if (leg) {
+              setNavDirections({
+                steps: leg.steps,
+                currentStepIndex: 0,
+                totalDistance: leg.distance?.text || '',
+                totalDuration: leg.duration?.text || '',
+                driverLat: origin.lat,
+                driverLng: origin.lng,
+              })
+            }
+          }
+        }
+      )
+    }
+
+    const findCurrentStep = (driverPos: google.maps.LatLngLiteral, steps: google.maps.DirectionsStep[]): number => {
+      for (let i = steps.length - 1; i >= 0; i--) {
+        const stepEnd = steps[i].end_location
+        const dist = google.maps.geometry?.spherical?.computeDistanceBetween(
+          new google.maps.LatLng(driverPos.lat, driverPos.lng),
+          stepEnd
+        )
+        // If we're within 100m of this step's end, we've likely passed it
+        if (dist !== undefined && dist < 100) {
+          return Math.min(i + 1, steps.length - 1)
+        }
+      }
+      // Check proximity to each step's start
+      for (let i = 0; i < steps.length; i++) {
+        const stepStart = steps[i].start_location
+        const dist = google.maps.geometry?.spherical?.computeDistanceBetween(
+          new google.maps.LatLng(driverPos.lat, driverPos.lng),
+          stepStart
+        )
+        if (dist !== undefined && dist < 200) {
+          return i
+        }
+      }
+      return 0
+    }
+
+    let lastRouteCalcTime = 0
+    const ROUTE_RECALC_INTERVAL = 30000 // Recalculate route every 30 seconds
+
+    // Start real-time position tracking
+    if (navigator.geolocation) {
+      // Initial position
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          const origin = { lat: pos.coords.latitude, lng: pos.coords.longitude }
+          driverMarker.setPosition(origin)
+          accuracyCircle.setCenter(origin)
+          accuracyCircle.setRadius(pos.coords.accuracy)
+          accuracyCircle.setVisible(true)
+          map.setCenter(origin)
+          map.setZoom(16)
+          calculateRoute(origin)
+          lastRouteCalcTime = Date.now()
+        },
+        () => {
+          // Fallback: just geocode destination
+          const geocoder = new google.maps.Geocoder()
+          geocoder.geocode({ address }, (results, geoStatus) => {
+            if (geoStatus === 'OK' && results?.[0]) {
+              map.setCenter(results[0].geometry.location)
+              map.setZoom(14)
+            }
+          })
+        },
+        { enableHighAccuracy: true, timeout: 10000 }
+      )
+
+      // Continuous tracking
+      watchIdRef.current = navigator.geolocation.watchPosition(
+        (pos) => {
+          const driverPos = { lat: pos.coords.latitude, lng: pos.coords.longitude }
+
+          // Update driver marker position smoothly
+          driverMarker.setPosition(driverPos)
+          accuracyCircle.setCenter(driverPos)
+          accuracyCircle.setRadius(pos.coords.accuracy)
+          accuracyCircle.setVisible(true)
+
+          // Auto-center map on driver if following
+          if (navFollowDriverRef.current) {
+            map.panTo(driverPos)
+          }
+
+          // Update current step and ETA
+          setNavDirections(prev => {
+            if (!prev) return prev
+            const currentStepIndex = findCurrentStep(driverPos, prev.steps)
+            return {
+              ...prev,
+              currentStepIndex,
+              driverLat: driverPos.lat,
+              driverLng: driverPos.lng,
+            }
+          })
+
+          // Periodically recalculate the route for updated ETA
+          const now = Date.now()
+          if (now - lastRouteCalcTime > ROUTE_RECALC_INTERVAL) {
+            lastRouteCalcTime = now
+            calculateRoute(driverPos)
+          }
+        },
+        (err) => {
+          console.warn('watchPosition error:', err.message)
+        },
+        {
+          enableHighAccuracy: true,
+          maximumAge: 3000,
+          timeout: 10000,
+        }
+      )
+    }
+
+    return () => {
+      if (watchIdRef.current !== null) {
+        navigator.geolocation.clearWatch(watchIdRef.current)
+        watchIdRef.current = null
+      }
+      driverMarker.setMap(null)
+      accuracyCircle.setMap(null)
+      directionsRenderer.setMap(null)
+    }
+  }, [showNavMap, shipment])
 
   if (loading) {
     return (
@@ -256,9 +520,17 @@ export default function DriverShipmentDetailPage() {
               {/* Next Action Button */}
               {nextStatus && (
                 <div className="mt-4 pt-4 border-t">
+                  {nextStatus.value === 'picked_up' && !shipment.pickup_verified && (
+                    <div className="bg-red-50 border border-red-200 rounded-md p-3 mb-3">
+                      <p className="text-sm text-red-700 flex items-center gap-2">
+                        <AlertTriangle className="h-4 w-4" />
+                        Complete pickup verification before marking as picked up
+                      </p>
+                    </div>
+                  )}
                   <Button
-                    onClick={() => updateStatus(nextStatus.value)}
-                    disabled={updating}
+                    onClick={() => handleStatusAdvance(nextStatus.value)}
+                    disabled={updating || (nextStatus.value === 'picked_up' && !shipment.pickup_verified)}
                     className="w-full bg-amber-500 hover:bg-amber-600"
                     size="lg"
                   >
@@ -269,6 +541,7 @@ export default function DriverShipmentDetailPage() {
                       </>
                     ) : (
                       <>
+                        <span className="text-xs block opacity-75">Tap to complete</span>
                         Mark as {nextStatus.label}
                         <nextStatus.icon className="ml-2 h-5 w-5" />
                       </>
@@ -293,7 +566,7 @@ export default function DriverShipmentDetailPage() {
                   </div>
                 </div>
                 <Button
-                  onClick={() => openGoogleMaps(shipment.pickup_address)}
+                  onClick={() => openInAppNav('pickup')}
                   variant="outline"
                   size="sm"
                 >
@@ -317,7 +590,7 @@ export default function DriverShipmentDetailPage() {
                   </div>
                 </div>
                 <Button
-                  onClick={() => openGoogleMaps(shipment.delivery_address)}
+                  onClick={() => openInAppNav('delivery')}
                   variant="outline"
                   size="sm"
                 >
@@ -551,6 +824,182 @@ export default function DriverShipmentDetailPage() {
           </div>
         </div>
       </div>
+
+      {/* Confirmation Dialog */}
+      {confirmAction && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-md max-w-sm w-full p-6">
+            <div className="text-center mb-4">
+              <div className="mx-auto w-12 h-12 bg-amber-100 rounded-full flex items-center justify-center mb-3">
+                <CheckCircle className="h-6 w-6 text-amber-600" />
+              </div>
+              <h3 className="text-lg font-semibold text-gray-900">Confirm Status Update</h3>
+              <p className="text-sm text-gray-600 mt-2">
+                Are you sure you want to mark this shipment as <strong className="text-amber-600">{STATUS_FLOW.find(s => s.value === confirmAction)?.label}</strong>?
+              </p>
+              {confirmAction === 'driver_arrived' && !shipment?.pickup_verified && (
+                <div className="bg-blue-50 border border-blue-200 rounded-md p-3 mt-3 text-left">
+                  <p className="text-xs text-blue-700 flex items-center gap-2">
+                    <Camera className="h-4 w-4 flex-shrink-0" />
+                    Remember: Take vehicle photos and complete pickup verification after arriving.
+                  </p>
+                </div>
+              )}
+              {confirmAction === 'delivered' && (
+                <div className="bg-green-50 border border-green-200 rounded-md p-3 mt-3 text-left">
+                  <p className="text-xs text-green-700">
+                    This will complete the delivery and notify the client. Make sure the vehicle has been safely delivered.
+                  </p>
+                </div>
+              )}
+            </div>
+            <div className="flex gap-3">
+              <Button variant="outline" className="flex-1" onClick={() => setConfirmAction(null)} disabled={updating}>
+                Cancel
+              </Button>
+              <Button
+                className="flex-1 bg-amber-500 hover:bg-amber-600"
+                onClick={() => updateStatus(confirmAction)}
+                disabled={updating}
+              >
+                {updating ? 'Updating...' : 'Confirm'}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Real-Time Navigation Modal */}
+      {showNavMap && shipment && (
+        <div className="fixed inset-0 bg-black z-50 flex flex-col">
+          {/* Nav Header with ETA */}
+          <div className="bg-[#1a73e8] text-white p-3 flex items-center justify-between safe-area-top">
+            <div className="flex items-center gap-3">
+              <button onClick={() => { setShowNavMap(null); setNavDirections(null) }} className="p-2 hover:bg-white/10 rounded-full">
+                <ArrowLeft className="h-5 w-5" />
+              </button>
+              <div>
+                <h3 className="font-semibold text-sm">
+                  {showNavMap === 'pickup' ? 'Navigate to Pickup' : 'Navigate to Delivery'}
+                </h3>
+                {navDirections && (
+                  <p className="text-xs text-blue-100">
+                    {navDirections.totalDuration} · {navDirections.totalDistance}
+                  </p>
+                )}
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              {!navFollowDriver && (
+                <button
+                  onClick={() => {
+                    setNavFollowDriver(true)
+                    if (navDirections?.driverLat && navDirections?.driverLng && navMapInstanceRef.current) {
+                      navMapInstanceRef.current.panTo({ lat: navDirections.driverLat, lng: navDirections.driverLng })
+                      navMapInstanceRef.current.setZoom(16)
+                    }
+                  }}
+                  className="bg-white/20 hover:bg-white/30 rounded-full p-2"
+                  title="Re-center on your location"
+                >
+                  <Navigation className="h-4 w-4" />
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Current Step Banner */}
+          {navDirections && navDirections.steps.length > 0 && (
+            <div className="bg-[#1a73e8] text-white px-4 pb-3">
+              <div className="bg-white/15 rounded-lg p-3 flex items-start gap-3">
+                <div className="mt-0.5 flex-shrink-0">
+                  <Navigation className="h-6 w-6" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="font-medium text-sm leading-tight" dangerouslySetInnerHTML={{
+                    __html: navDirections.steps[navDirections.currentStepIndex]?.instructions || 'Calculating...'
+                  }} />
+                  <p className="text-xs text-blue-200 mt-1">
+                    {navDirections.steps[navDirections.currentStepIndex]?.distance?.text || ''}{' · '}
+                    Step {navDirections.currentStepIndex + 1} of {navDirections.steps.length}
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Map */}
+          <div ref={navMapRef} className="flex-1 w-full" />
+
+          {/* Bottom Panel - Destination + Actions */}
+          <div className="bg-white border-t border-gray-200 safe-area-bottom">
+            <div className="p-3 flex items-center gap-3 border-b border-gray-100">
+              <div className="p-2 bg-red-100 rounded-full">
+                <MapPin className="h-4 w-4 text-red-600" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-gray-900 truncate">
+                  {showNavMap === 'pickup' ? shipment.pickup_address : shipment.delivery_address}
+                </p>
+                {navDirections && (
+                  <p className="text-xs text-gray-500">
+                    ETA: {navDirections.totalDuration} ({navDirections.totalDistance})
+                  </p>
+                )}
+              </div>
+            </div>
+            <div className="p-3 flex gap-2">
+              <Button
+                variant="outline"
+                className="flex-1"
+                onClick={() => openExternalMaps(showNavMap === 'pickup' ? shipment.pickup_address : shipment.delivery_address)}
+              >
+                <ExternalLink className="h-4 w-4 mr-2" />
+                Google Maps App
+              </Button>
+              <Button
+                className="flex-1 bg-red-500 hover:bg-red-600 text-white"
+                onClick={() => { setShowNavMap(null); setNavDirections(null) }}
+              >
+                End Navigation
+              </Button>
+            </div>
+
+            {/* Step-by-step Directions (collapsible) */}
+            {navDirections && navDirections.steps.length > 0 && (
+              <details className="border-t border-gray-100">
+                <summary className="p-3 text-sm font-medium text-blue-600 cursor-pointer hover:bg-gray-50">
+                  View all {navDirections.steps.length} directions
+                </summary>
+                <div className="max-h-48 overflow-y-auto px-3 pb-3">
+                  {navDirections.steps.map((step, i) => (
+                    <div
+                      key={i}
+                      className={`flex items-start gap-3 py-2 border-b border-gray-50 last:border-0 ${
+                        i === navDirections.currentStepIndex ? 'bg-blue-50 -mx-3 px-3 rounded' : ''
+                      } ${i < navDirections.currentStepIndex ? 'opacity-40' : ''}`}
+                    >
+                      <span className={`flex-shrink-0 w-6 h-6 rounded-full text-xs flex items-center justify-center font-medium ${
+                        i === navDirections.currentStepIndex
+                          ? 'bg-blue-500 text-white'
+                          : i < navDirections.currentStepIndex
+                          ? 'bg-green-100 text-green-600'
+                          : 'bg-gray-100 text-gray-500'
+                      }`}>
+                        {i < navDirections.currentStepIndex ? '✓' : i + 1}
+                      </span>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs text-gray-800" dangerouslySetInnerHTML={{ __html: step.instructions }} />
+                        <p className="text-xs text-gray-400 mt-0.5">{step.distance?.text} · {step.duration?.text}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </details>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   )
 }

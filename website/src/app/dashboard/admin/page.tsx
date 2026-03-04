@@ -16,7 +16,8 @@ import {
   Clock,
   ArrowRight,
   Calendar,
-  BarChart3
+  BarChart3,
+  Building2
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { BenjiChat } from '@/components/benji/BenjiChat'
@@ -25,10 +26,13 @@ interface SystemStats {
   totalUsers: number
   totalClients: number
   totalDrivers: number
+  totalBrokers: number
   totalShipments: number
   activeShipments: number
   completedShipments: number
   totalRevenue: number
+  brokerRevenue: number
+  brokerShipments: number
   pendingApplications: number
 }
 
@@ -45,10 +49,13 @@ export default function AdminDashboardPage() {
     totalUsers: 0,
     totalClients: 0,
     totalDrivers: 0,
+    totalBrokers: 0,
     totalShipments: 0,
     activeShipments: 0,
     completedShipments: 0,
     totalRevenue: 0,
+    brokerRevenue: 0,
+    brokerShipments: 0,
     pendingApplications: 0,
   })
   const [recentActivity, setRecentActivity] = useState<RecentActivity[]>([])
@@ -62,8 +69,10 @@ export default function AdminDashboardPage() {
         const [
           clientsResult,
           driversResult,
+          brokersResult,
           shipmentsResult,
-          jobApplicationsResult
+          jobApplicationsResult,
+          brokerShipmentsResult
         ] = await Promise.all([
           supabase
             .from('profiles')
@@ -74,16 +83,24 @@ export default function AdminDashboardPage() {
             .select('*', { count: 'exact', head: true })
             .eq('role', 'driver'),
           supabase
+            .from('profiles')
+            .select('*', { count: 'exact', head: true })
+            .eq('role', 'broker'),
+          supabase
             .from('shipments')
             .select('status, estimated_price'),
           supabase
             .from('driver_applications')
-            .select('*')
+            .select('*'),
+          supabase
+            .from('broker_shipments')
+            .select('status, total_price, broker_fee')
         ])
 
         const totalClients = clientsResult.count || 0
         const totalDrivers = driversResult.count || 0
-        const totalUsers = totalClients + totalDrivers
+        const totalBrokers = brokersResult.count || 0
+        const totalUsers = totalClients + totalDrivers + totalBrokers
 
         const shipments = shipmentsResult.data || []
         const totalShipments = shipments.length
@@ -97,14 +114,21 @@ export default function AdminDashboardPage() {
         const allApplications = jobApplicationsResult.data || []
         const pendingApplications = allApplications.filter((app: any) => app.status === 'pending').length
 
+        const brokerShips = brokerShipmentsResult.data || []
+        const brokerShipments = brokerShips.length
+        const brokerRevenue = brokerShips.reduce((sum: number, s: any) => sum + (s.broker_fee || 0), 0)
+
         setStats({
           totalUsers,
           totalClients,
           totalDrivers,
+          totalBrokers,
           totalShipments,
           activeShipments,
           completedShipments,
           totalRevenue,
+          brokerRevenue,
+          brokerShipments,
           pendingApplications,
         })
 
@@ -211,7 +235,7 @@ export default function AdminDashboardPage() {
       </div>
 
       {/* Key Metrics Grid */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
         <div className="bg-white rounded-md p-4 border border-gray-200">
           <div className="flex items-center gap-2 mb-2">
             <div className="p-1.5 bg-purple-50 rounded-md">
@@ -221,7 +245,7 @@ export default function AdminDashboardPage() {
           </div>
           <h3 className="text-xl font-bold text-gray-900">{stats.totalUsers}</h3>
           <p className="text-[10px] text-gray-400 mt-1">
-            {stats.totalClients} clients, {stats.totalDrivers} drivers
+            {stats.totalClients} clients, {stats.totalDrivers} drivers, {stats.totalBrokers} brokers
           </p>
         </div>
 
@@ -250,6 +274,19 @@ export default function AdminDashboardPage() {
           </h3>
           <p className="text-[10px] text-gray-400 mt-1">
             {stats.completedShipments} completed
+          </p>
+        </div>
+
+        <div className="bg-white rounded-md p-4 border border-gray-200">
+          <div className="flex items-center gap-2 mb-2">
+            <div className="p-1.5 bg-teal-50 rounded-md">
+              <Building2 className="h-4 w-4 text-teal-600" />
+            </div>
+            <p className="text-xs text-gray-500">Broker Activity</p>
+          </div>
+          <h3 className="text-xl font-bold text-gray-900">{stats.brokerShipments}</h3>
+          <p className="text-[10px] text-gray-400 mt-1">
+            ${stats.brokerRevenue.toFixed(0)} broker fees
           </p>
         </div>
 
@@ -396,6 +433,20 @@ export default function AdminDashboardPage() {
               </div>
             </div>
 
+            {/* Brokers */}
+            <div>
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-xs text-gray-600">Active Brokers</span>
+                <span className="text-xs font-bold text-gray-900">{stats.totalBrokers}</span>
+              </div>
+              <div className="w-full bg-gray-100 rounded-full h-1.5">
+                <div 
+                  className="bg-teal-500 h-1.5 rounded-full"
+                  style={{ width: `${Math.min((stats.totalBrokers / 20) * 100, 100)}%` }}
+                ></div>
+              </div>
+            </div>
+
             {/* Completion Rate */}
             <div>
               <div className="flex items-center justify-between mb-1">
@@ -424,6 +475,12 @@ export default function AdminDashboardPage() {
                 <Button variant="outline" className="w-full justify-start h-7 text-xs" size="sm" data-tour="user-management">
                   <Users className="h-3 w-3 mr-1.5" />
                   Manage Users
+                </Button>
+              </Link>
+              <Link href="/dashboard/admin/brokers">
+                <Button variant="outline" className="w-full justify-start h-7 text-xs" size="sm">
+                  <Building2 className="h-3 w-3 mr-1.5" />
+                  Manage Brokers
                 </Button>
               </Link>
               <Link href="/dashboard/admin/pricing">

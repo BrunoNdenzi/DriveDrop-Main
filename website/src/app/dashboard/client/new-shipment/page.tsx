@@ -16,7 +16,7 @@ export default function NewShipmentPage() {
   const router = useRouter()
   const { profile } = useAuth()
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const [mode, setMode] = useState<CreationMode>('ai')
+  const [mode, setMode] = useState<CreationMode>('traditional')
 
   const handleSubmit = async (shipmentData: any) => {
     setIsSubmitting(true)

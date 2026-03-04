@@ -184,11 +184,12 @@ export default function VehicleProfilesPage() {
     if (!profile?.id) return
 
     try {
-      // Remove primary from all vehicles
+      // Remove primary from all other vehicles first
       await supabase
         .from('user_vehicles')
         .update({ is_primary: false })
         .eq('user_id', profile.id)
+        .neq('id', vehicle.id)
 
       // Set this vehicle as primary
       const { error } = await supabase
