@@ -13,9 +13,17 @@ import {
   Star,
   Ban,
   CheckCircle,
-  Shield
+  Shield,
+  UserPlus,
+  Truck,
+  Eye,
+  EyeOff,
+  X,
+  Loader2
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://drivedrop-main-production.up.railway.app/api/v1'
 
 interface User {
   id: string
@@ -36,6 +44,20 @@ export default function AdminUsersPage() {
   const [searchQuery, setSearchQuery] = useState('')
   const [filterRole, setFilterRole] = useState('all')
   const [filterStatus, setFilterStatus] = useState('all')
+  const [showAddDriver, setShowAddDriver] = useState(false)
+  const [addingDriver, setAddingDriver] = useState(false)
+  const [showPassword, setShowPassword] = useState(false)
+  const [driverForm, setDriverForm] = useState({
+    email: '',
+    password: '',
+    first_name: '',
+    last_name: '',
+    phone: '',
+    vehicle_type: 'open',
+    license_number: '',
+    years_experience: '1',
+  })
+  const [addDriverResult, setAddDriverResult] = useState<{ success: boolean; message: string } | null>(null)
   const supabase = getSupabaseBrowserClient()
 
   useEffect(() => {
@@ -118,8 +140,71 @@ export default function AdminUsersPage() {
       client: 'bg-blue-100 text-blue-800',
       driver: 'bg-orange-100 text-orange-800',
       admin: 'bg-purple-100 text-purple-800',
+      broker: 'bg-teal-100 text-teal-800',
     }
     return colors[role] || 'bg-gray-100 text-gray-800'
+  }
+
+  const handleCreateDriver = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setAddingDriver(true)
+    setAddDriverResult(null)
+
+    try {
+      // Get auth token for API call
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session?.access_token) {
+        setAddDriverResult({ success: false, message: 'Not authenticated. Please log in again.' })
+        return
+      }
+
+      const res = await fetch(`${API_BASE_URL}/admin/drivers/create`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({
+          ...driverForm,
+          years_experience: Number(driverForm.years_experience) || 1,
+          send_welcome_email: true,
+        }),
+      })
+
+      const data = await res.json()
+
+      if (!res.ok) {
+        throw new Error(data.error?.message || data.message || 'Failed to create driver')
+      }
+
+      setAddDriverResult({
+        success: true,
+        message: `Driver "${driverForm.first_name} ${driverForm.last_name}" created successfully! They can log in with ${driverForm.email}`,
+      })
+
+      // Reset form
+      setDriverForm({
+        email: '',
+        password: '',
+        first_name: '',
+        last_name: '',
+        phone: '',
+        vehicle_type: 'open',
+        license_number: '',
+        years_experience: '1',
+      })
+      setShowPassword(false)
+
+      // Refresh user list
+      fetchUsers()
+    } catch (error: any) {
+      setAddDriverResult({
+        success: false,
+        message: error.message || 'Failed to create driver',
+      })
+    } finally {
+      setAddingDriver(false)
+    }
   }
 
   const formatDate = (dateString: string) => {
@@ -162,6 +247,14 @@ export default function AdminUsersPage() {
           <h1 className="text-lg font-semibold text-gray-900">User Management</h1>
           <p className="text-xs text-gray-500">{filteredUsers.length} users</p>
         </div>
+        <Button
+          onClick={() => { setShowAddDriver(true); setAddDriverResult(null) }}
+          className="bg-amber-500 hover:bg-amber-600 text-white"
+          size="sm"
+        >
+          <UserPlus className="h-4 w-4 mr-2" />
+          Add In-House Driver
+        </Button>
       </div>
 
       <div>
@@ -380,6 +473,192 @@ export default function AdminUsersPage() {
           </div>
         )}
       </div>
+
+      {/* Add In-House Driver Modal */}
+      {showAddDriver && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-lg max-w-lg w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-5 border-b border-gray-200 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-amber-100 rounded-lg">
+                  <Truck className="h-5 w-5 text-amber-600" />
+                </div>
+                <div>
+                  <h2 className="text-lg font-semibold text-gray-900">Add In-House Driver</h2>
+                  <p className="text-xs text-gray-500">Create a driver account bypassing registration</p>
+                </div>
+              </div>
+              <button onClick={() => setShowAddDriver(false)} className="p-2 hover:bg-gray-100 rounded-lg">
+                <X className="h-5 w-5 text-gray-400" />
+              </button>
+            </div>
+
+            {addDriverResult && (
+              <div className={`mx-5 mt-4 p-3 rounded-lg text-sm ${
+                addDriverResult.success
+                  ? 'bg-green-50 text-green-800 border border-green-200'
+                  : 'bg-red-50 text-red-800 border border-red-200'
+              }`}>
+                {addDriverResult.success ? (
+                  <div className="flex items-start gap-2">
+                    <CheckCircle className="h-4 w-4 mt-0.5 flex-shrink-0" />
+                    <p>{addDriverResult.message}</p>
+                  </div>
+                ) : (
+                  <p>{addDriverResult.message}</p>
+                )}
+              </div>
+            )}
+
+            <form onSubmit={handleCreateDriver} className="p-5 space-y-4">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">First Name *</label>
+                  <input
+                    type="text"
+                    required
+                    value={driverForm.first_name}
+                    onChange={(e) => setDriverForm(f => ({ ...f, first_name: e.target.value }))}
+                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent"
+                    placeholder="John"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Last Name *</label>
+                  <input
+                    type="text"
+                    required
+                    value={driverForm.last_name}
+                    onChange={(e) => setDriverForm(f => ({ ...f, last_name: e.target.value }))}
+                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent"
+                    placeholder="Doe"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">Email *</label>
+                <input
+                  type="email"
+                  required
+                  value={driverForm.email}
+                  onChange={(e) => setDriverForm(f => ({ ...f, email: e.target.value }))}
+                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent"
+                  placeholder="driver@drivedrop.us.com"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">Temporary Password *</label>
+                <div className="relative">
+                  <input
+                    type={showPassword ? 'text' : 'password'}
+                    required
+                    minLength={8}
+                    value={driverForm.password}
+                    onChange={(e) => setDriverForm(f => ({ ...f, password: e.target.value }))}
+                    className="w-full px-3 py-2 pr-10 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent"
+                    placeholder="Min 8 characters"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                  >
+                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
+                <p className="text-xs text-gray-400 mt-1">Driver should change this on first login</p>
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">Phone</label>
+                <input
+                  type="tel"
+                  value={driverForm.phone}
+                  onChange={(e) => setDriverForm(f => ({ ...f, phone: e.target.value }))}
+                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent"
+                  placeholder="+1 704-123-4567"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Vehicle Type</label>
+                  <select
+                    value={driverForm.vehicle_type}
+                    onChange={(e) => setDriverForm(f => ({ ...f, vehicle_type: e.target.value }))}
+                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent"
+                  >
+                    <option value="open">Open Carrier</option>
+                    <option value="enclosed">Enclosed Carrier</option>
+                    <option value="flatbed">Flatbed</option>
+                    <option value="driveaway">Driveaway</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Experience (years)</label>
+                  <input
+                    type="number"
+                    min="0"
+                    max="50"
+                    value={driverForm.years_experience}
+                    onChange={(e) => setDriverForm(f => ({ ...f, years_experience: e.target.value }))}
+                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">License Number</label>
+                <input
+                  type="text"
+                  value={driverForm.license_number}
+                  onChange={(e) => setDriverForm(f => ({ ...f, license_number: e.target.value }))}
+                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent"
+                  placeholder="NC-DL-12345"
+                />
+              </div>
+
+              <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
+                <p className="text-xs text-amber-800">
+                  <strong>What happens:</strong> This creates a fully active driver account with auto-confirmed email, 
+                  pre-approved driver application, and immediate dashboard access. No registration or approval flow needed.
+                </p>
+              </div>
+
+              <div className="flex gap-3 pt-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="flex-1"
+                  onClick={() => setShowAddDriver(false)}
+                  disabled={addingDriver}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="submit"
+                  className="flex-1 bg-amber-500 hover:bg-amber-600 text-white"
+                  disabled={addingDriver}
+                >
+                  {addingDriver ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Creating...
+                    </>
+                  ) : (
+                    <>
+                      <UserPlus className="h-4 w-4 mr-2" />
+                      Create Driver
+                    </>
+                  )}
+                </Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

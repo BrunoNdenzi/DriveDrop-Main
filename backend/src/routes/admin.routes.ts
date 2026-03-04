@@ -7,6 +7,7 @@ import { authenticate, authorize } from '@middlewares/auth.middleware';
 import { asyncHandler, createError } from '@utils/error';
 import { successResponse } from '@utils/response';
 import { pricingConfigService } from '@services/pricingConfig.service';
+import { supabaseAdmin } from '@lib/supabase';
 
 const router = Router();
 
@@ -129,6 +130,185 @@ router.get('/pricing/config/:id/history', asyncHandler(async (req: Request, res:
 router.post('/pricing/cache/clear', asyncHandler(async (_req: Request, res: Response) => {
   pricingConfigService.clearCache();
   res.status(200).json(successResponse({ cleared: true, timestamp: new Date().toISOString() }));
+}));
+
+// ─── In-House Driver Management ───────────────────────────────────────────────
+
+/**
+ * POST /api/v1/admin/drivers/create
+ * Create an in-house driver (bypasses registration flow)
+ * Body: { email, password, first_name, last_name, phone, vehicle_type, license_number, years_experience }
+ */
+router.post('/drivers/create', asyncHandler(async (req: Request, res: Response) => {
+  const {
+    email,
+    password,
+    first_name,
+    last_name,
+    phone,
+    vehicle_type = 'open',
+    license_number = '',
+    years_experience = 1,
+    send_welcome_email = true,
+  } = req.body;
+
+  // Validate required fields
+  if (!email || !password || !first_name || !last_name) {
+    throw createError(
+      'email, password, first_name, and last_name are required',
+      400,
+      'MISSING_FIELDS'
+    );
+  }
+
+  if (password.length < 8) {
+    throw createError('Password must be at least 8 characters', 400, 'WEAK_PASSWORD');
+  }
+
+  // Step 1: Create auth user via Supabase Admin
+  const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
+    email,
+    password,
+    email_confirm: true, // Auto-confirm email
+    user_metadata: {
+      first_name,
+      last_name,
+      role: 'driver',
+      created_by_admin: true,
+    },
+  });
+
+  if (authError) {
+    throw createError(
+      `Failed to create auth user: ${authError.message}`,
+      400,
+      'AUTH_CREATE_FAILED'
+    );
+  }
+
+  const userId = authData.user.id;
+
+  try {
+    // Step 2: Create profile
+    const { error: profileError } = await supabaseAdmin
+      .from('profiles')
+      .upsert({
+        id: userId,
+        email,
+        first_name,
+        last_name,
+        phone: phone || null,
+        role: 'driver',
+        status: 'active',
+        email_verified: true,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      });
+
+    if (profileError) {
+      // Rollback auth user
+      await supabaseAdmin.auth.admin.deleteUser(userId);
+      throw createError(
+        `Failed to create profile: ${profileError.message}`,
+        500,
+        'PROFILE_CREATE_FAILED'
+      );
+    }
+
+    // Step 3: Create pre-approved driver application
+    const { error: appError } = await supabaseAdmin
+      .from('driver_applications')
+      .insert({
+        user_id: userId,
+        status: 'approved',
+        full_name: `${first_name} ${last_name}`,
+        email,
+        phone: phone || '',
+        vehicle_type,
+        license_number,
+        years_experience: Number(years_experience) || 1,
+        submitted_at: new Date().toISOString(),
+        reviewed_at: new Date().toISOString(),
+        reviewed_by: req.user?.id,
+      });
+
+    if (appError) {
+      console.warn('Driver application insert warning (non-critical):', appError.message);
+      // Non-critical — driver can still function without this record
+    }
+
+    // Step 4: Optionally send welcome email
+    if (send_welcome_email) {
+      try {
+        // Use Supabase's built-in invite or just log — email service can be added
+        console.log(`[Admin] In-house driver created: ${email} (${userId})`);
+      } catch (emailErr) {
+        console.warn('Welcome email failed (non-critical):', emailErr);
+      }
+    }
+
+    res.status(201).json(successResponse({
+      id: userId,
+      email,
+      first_name,
+      last_name,
+      phone,
+      role: 'driver',
+      status: 'active',
+      vehicle_type,
+      created_by: req.user?.id,
+      created_at: new Date().toISOString(),
+    }));
+
+  } catch (err: any) {
+    // If any step fails after auth user creation, try to clean up
+    if (err.code !== 'AUTH_CREATE_FAILED') {
+      try {
+        await supabaseAdmin.auth.admin.deleteUser(userId);
+      } catch (cleanupErr) {
+        console.error('Cleanup of auth user failed:', cleanupErr);
+      }
+    }
+    throw err;
+  }
+}));
+
+/**
+ * GET /api/v1/admin/drivers
+ * List all drivers with their application status
+ */
+router.get('/drivers', asyncHandler(async (_req: Request, res: Response) => {
+  const { data, error } = await supabaseAdmin
+    .from('profiles')
+    .select('id, email, first_name, last_name, phone, role, status, created_at, updated_at')
+    .eq('role', 'driver')
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    throw createError(`Failed to fetch drivers: ${error.message}`, 500, 'FETCH_FAILED');
+  }
+
+  res.status(200).json(successResponse(data));
+}));
+
+/**
+ * DELETE /api/v1/admin/drivers/:id
+ * Deactivate a driver (soft delete — sets status to 'suspended')
+ */
+router.delete('/drivers/:id', asyncHandler(async (req: Request, res: Response) => {
+  const { id } = req.params;
+
+  const { error } = await supabaseAdmin
+    .from('profiles')
+    .update({ status: 'suspended', updated_at: new Date().toISOString() })
+    .eq('id', id)
+    .eq('role', 'driver');
+
+  if (error) {
+    throw createError(`Failed to deactivate driver: ${error.message}`, 500, 'DEACTIVATE_FAILED');
+  }
+
+  res.status(200).json(successResponse({ id, status: 'suspended' }));
 }));
 
 export default router;
