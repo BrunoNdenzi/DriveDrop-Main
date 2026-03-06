@@ -467,6 +467,17 @@ export default function MyShipmentsPage() {
                         )}
                       </div>
                       <div className="flex items-center gap-2">
+                        {shipment.driver_id && ['driver_en_route', 'driver_arrived', 'picked_up', 'in_transit', 'pickup_verified', 'pickup_verification_pending'].includes(shipment.status) && (
+                          <Link href={`/dashboard/client/shipments/${shipment.id}`}>
+                            <Button
+                              size="sm"
+                              className="h-7 text-xs bg-blue-500 hover:bg-blue-600 text-white"
+                            >
+                              <Truck className="h-3 w-3 mr-1" />
+                              Track Live
+                            </Button>
+                          </Link>
+                        )}
                         {shipment.driver_id && (
                           <Button
                             variant="outline"

@@ -109,6 +109,49 @@ export default function ShipmentDetailPage() {
     }
   }, [params.id, profile?.id])
 
+  // Real-time subscription for live progress updates from driver
+  useEffect(() => {
+    if (!params.id) return
+
+    const channel = supabase
+      .channel(`shipment-progress-${params.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'shipments',
+          filter: `id=eq.${params.id}`,
+        },
+        (payload) => {
+          // Update shipment status in real-time
+          if (payload.new) {
+            setShipment(prev => prev ? { ...prev, ...payload.new as any } : prev)
+          }
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'tracking_events',
+          filter: `shipment_id=eq.${params.id}`,
+        },
+        (payload) => {
+          // Add new tracking event to the list in real-time
+          if (payload.new) {
+            setTrackingEvents(prev => [payload.new as TrackingEvent, ...prev])
+          }
+        }
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, [params.id])
+
   const fetchShipmentDetails = async () => {
     if (!profile?.id || !params.id) {
       return
@@ -439,6 +482,38 @@ ${shipment.delivery_date ? `<div class="row"><span class="label">Delivery Date</
                 </div>
               )}
             </div>
+
+            {/* Recent Activity / Tracking Events */}
+            {trackingEvents.length > 0 && (
+              <div className="bg-white rounded-md border border-gray-200 p-4">
+                <h2 className="text-sm font-semibold text-gray-900 mb-4">Recent Activity</h2>
+                <div className="space-y-3">
+                  {trackingEvents.slice(0, 10).map((event) => {
+                    const eventLabel = STATUS_TIMELINE.find(s => s.key === event.event_type)?.label || event.event_type.replace(/_/g, ' ')
+                    const eventTime = new Date(event.created_at)
+                    return (
+                      <div key={event.id} className="flex items-start gap-3 py-2 border-b border-gray-50 last:border-0">
+                        <div className="mt-1 w-2 h-2 rounded-full bg-blue-500 flex-shrink-0" />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-gray-900 capitalize">{eventLabel}</p>
+                          {event.notes && (
+                            <p className="text-xs text-gray-500 mt-0.5">{event.notes}</p>
+                          )}
+                        </div>
+                        <div className="text-right flex-shrink-0">
+                          <p className="text-xs text-gray-400">
+                            {eventTime.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                          </p>
+                          <p className="text-xs text-gray-400">
+                            {eventTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
+                          </p>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
 
             {/* Shipment Details */}
             <div className="bg-white rounded-md border border-gray-200 p-4">

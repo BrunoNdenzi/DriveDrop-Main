@@ -148,7 +148,6 @@ router.post('/drivers/create', asyncHandler(async (req: Request, res: Response) 
     phone,
     vehicle_type = 'open',
     license_number = '',
-    years_experience = 1,
     send_welcome_email = true,
   } = req.body;
 
@@ -199,8 +198,7 @@ router.post('/drivers/create', asyncHandler(async (req: Request, res: Response) 
         last_name,
         phone: phone || null,
         role: 'driver',
-        status: 'active',
-        email_verified: true,
+        is_verified: true,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       });
@@ -216,20 +214,32 @@ router.post('/drivers/create', asyncHandler(async (req: Request, res: Response) 
     }
 
     // Step 3: Create pre-approved driver application
+    // Supply placeholder values for required NOT NULL fields since we're bypassing registration
     const { error: appError } = await supabaseAdmin
       .from('driver_applications')
       .insert({
-        user_id: userId,
-        status: 'approved',
         full_name: `${first_name} ${last_name}`,
+        date_of_birth: '1990-01-01',
         email,
-        phone: phone || '',
-        vehicle_type,
-        license_number,
-        years_experience: Number(years_experience) || 1,
-        submitted_at: new Date().toISOString(),
-        reviewed_at: new Date().toISOString(),
+        phone: phone || '000-000-0000',
+        address: JSON.stringify({ street: 'In-house driver', city: 'Charlotte', state: 'NC', zip: '28202' }),
+        ssn_encrypted: 'IN_HOUSE_DRIVER',
+        license_number: license_number || 'PENDING',
+        license_state: 'NC',
+        license_expiration: '2030-12-31',
+        insurance_provider: 'Company Fleet',
+        insurance_policy_number: 'IN-HOUSE',
+        insurance_expiration: '2030-12-31',
+        coverage_amount: '1000000',
+        background_check_consent: true,
+        data_use_consent: true,
+        insurance_consent: true,
+        terms_accepted: true,
+        status: 'approved',
         reviewed_by: req.user?.id,
+        reviewed_at: new Date().toISOString(),
+        approval_notes: `In-house driver created by admin`,
+        submitted_at: new Date().toISOString(),
       });
 
     if (appError) {
@@ -280,7 +290,7 @@ router.post('/drivers/create', asyncHandler(async (req: Request, res: Response) 
 router.get('/drivers', asyncHandler(async (_req: Request, res: Response) => {
   const { data, error } = await supabaseAdmin
     .from('profiles')
-    .select('id, email, first_name, last_name, phone, role, status, created_at, updated_at')
+    .select('id, email, first_name, last_name, phone, role, is_verified, created_at, updated_at')
     .eq('role', 'driver')
     .order('created_at', { ascending: false });
 
@@ -300,7 +310,7 @@ router.delete('/drivers/:id', asyncHandler(async (req: Request, res: Response) =
 
   const { error } = await supabaseAdmin
     .from('profiles')
-    .update({ status: 'suspended', updated_at: new Date().toISOString() })
+    .update({ is_verified: false, updated_at: new Date().toISOString() })
     .eq('id', id)
     .eq('role', 'driver');
 
@@ -308,7 +318,7 @@ router.delete('/drivers/:id', asyncHandler(async (req: Request, res: Response) =
     throw createError(`Failed to deactivate driver: ${error.message}`, 500, 'DEACTIVATE_FAILED');
   }
 
-  res.status(200).json(successResponse({ id, status: 'suspended' }));
+  res.status(200).json(successResponse({ id, deactivated: true }));
 }));
 
 export default router;
