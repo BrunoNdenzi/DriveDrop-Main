@@ -137,26 +137,46 @@ export default function DriverActiveDeliveriesPage() {
   }
 
   const handleStatusUpdate = async (deliveryId: string, newStatus: string) => {
+    if (!confirm(`Mark this shipment as "${getStatusLabel(newStatus)}"?`)) return
+
     setUpdatingStatus(deliveryId)
     try {
+      const updates: Record<string, any> = { status: newStatus, updated_at: new Date().toISOString() }
+
+      // Add timestamps based on status (must match the detail page behavior)
+      if (newStatus === 'driver_arrived') {
+        updates.driver_arrival_time = new Date().toISOString()
+      } else if (newStatus === 'picked_up') {
+        updates.actual_pickup_time = new Date().toISOString()
+      } else if (newStatus === 'delivered') {
+        updates.actual_delivery_time = new Date().toISOString()
+      }
+
       const { error } = await supabase
         .from('shipments')
-        .update({ status: newStatus })
+        .update(updates)
         .eq('id', deliveryId)
 
       if (error) throw error
 
-      // Update local state
-      setDeliveries(deliveries.map(delivery =>
-        delivery.id === deliveryId
-          ? { ...delivery, status: newStatus }
-          : delivery
-      ))
+      // Insert tracking event so client sees real-time progress
+      await supabase.from('tracking_events').insert({
+        shipment_id: deliveryId,
+        event_type: newStatus,
+        created_by: profile?.id,
+        notes: `Status updated to ${getStatusLabel(newStatus)}`,
+      })
 
-      // If status is delivered, move it out of active deliveries
+      // Update local state
       if (newStatus === 'delivered') {
-        setDeliveries(deliveries.filter(d => d.id !== deliveryId))
+        setDeliveries(prev => prev.filter(d => d.id !== deliveryId))
         alert('Delivery marked as completed! Great job!')
+      } else {
+        setDeliveries(prev => prev.map(delivery =>
+          delivery.id === deliveryId
+            ? { ...delivery, status: newStatus }
+            : delivery
+        ))
       }
     } catch (error) {
       console.error('Error updating status:', error)
@@ -350,32 +370,34 @@ export default function DriverActiveDeliveriesPage() {
 
                     {/* Actions */}
                     <div className="flex flex-col sm:flex-row gap-3">
+                      <Link href={`/dashboard/driver/active/${delivery.id}`} className="flex-1">
+                        <Button className="w-full bg-amber-500 hover:bg-amber-600 text-white">
+                          <Truck className="h-4 w-4 mr-2" />
+                          Manage Delivery
+                          <ArrowRight className="h-4 w-4 ml-2" />
+                        </Button>
+                      </Link>
+
                       {nextStatus && (
                         <Button
                           onClick={() => handleStatusUpdate(delivery.id, nextStatus.value)}
                           disabled={updatingStatus === delivery.id}
-                          className={`flex-1 bg-${nextStatus.color}-600 hover:bg-${nextStatus.color}-700`}
+                          variant="outline"
+                          className="flex-1"
                         >
                           {updatingStatus === delivery.id ? (
                             <>
-                              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-600 mr-2"></div>
                               Updating...
                             </>
                           ) : (
                             <>
                               <CheckCircle className="h-4 w-4 mr-2" />
-                              Mark as {nextStatus.label}
+                              Quick: Mark {nextStatus.label}
                             </>
                           )}
                         </Button>
                       )}
-
-                      <Link href={`/dashboard/driver/active/${delivery.id}`} className={nextStatus ? 'flex-1' : 'w-full'}>
-                        <Button variant="outline" className="w-full">
-                          View Full Details
-                          <ArrowRight className="h-4 w-4 ml-2" />
-                        </Button>
-                      </Link>
                     </div>
 
                     {/* Photo Upload Reminder */}
