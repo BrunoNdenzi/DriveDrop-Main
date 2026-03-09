@@ -58,6 +58,7 @@ interface Shipment {
 }
 
 const STATUS_FLOW = [
+  { value: 'assigned', label: 'Job Assigned', icon: Package, color: 'gray' },
   { value: 'accepted', label: 'Accepted', icon: CheckCircle, color: 'blue' },
   { value: 'driver_en_route', label: 'En Route to Pickup', icon: Truck, color: 'indigo' },
   { value: 'driver_arrived', label: 'Arrived at Pickup', icon: MapPin, color: 'purple' },
@@ -83,6 +84,7 @@ export default function DriverShipmentDetailPage() {
   const [navDirections, setNavDirections] = useState<{ steps: google.maps.DirectionsStep[]; currentStepIndex: number; totalDistance: string; totalDuration: string; driverLat: number | null; driverLng: number | null } | null>(null)
   const [navFollowDriver, setNavFollowDriver] = useState(true)
   const navFollowDriverRef = useRef(true)
+  const navDestinationRef = useRef<string>('')
   const supabase = getSupabaseBrowserClient()
 
   useEffect(() => {
@@ -173,7 +175,16 @@ export default function DriverShipmentDetailPage() {
 
   const getCurrentStatusIndex = () => {
     if (!shipment) return 0
-    return STATUS_FLOW.findIndex(s => s.value === shipment.status)
+    const idx = STATUS_FLOW.findIndex(s => s.value === shipment.status)
+    if (idx >= 0) return idx
+    // Map intermediate statuses to their closest flow position
+    if (shipment.status === 'pickup_verification_pending' || shipment.status === 'pickup_verified') {
+      return STATUS_FLOW.findIndex(s => s.value === 'driver_arrived')
+    }
+    if (shipment.status === 'in_progress') {
+      return STATUS_FLOW.findIndex(s => s.value === 'in_transit')
+    }
+    return 0
   }
 
   const getNextStatus = () => {
@@ -185,10 +196,14 @@ export default function DriverShipmentDetailPage() {
   }
 
   const openInAppNav = useCallback((type: 'pickup' | 'delivery') => {
+    if (!shipment) return
+    // Store destination address in ref so map effect doesn't depend on shipment state
+    navDestinationRef.current = type === 'pickup' ? shipment.pickup_address : shipment.delivery_address
     setNavDirections(null)
     setNavFollowDriver(true)
+    navFollowDriverRef.current = true
     setShowNavMap(type)
-  }, [])
+  }, [shipment])
 
   const openExternalMaps = (address: string) => {
     const encoded = encodeURIComponent(address)
@@ -221,16 +236,18 @@ export default function DriverShipmentDetailPage() {
   }, [navFollowDriver])
 
   // Initialize real-time navigation map when showNavMap changes
+  // IMPORTANT: Only depends on showNavMap, NOT shipment — prevents map rebuild on status updates
   useEffect(() => {
-    if (!showNavMap || !navMapRef.current || !window.google?.maps || !shipment) return
+    if (!showNavMap || !navMapRef.current || !window.google?.maps) return
+
+    const address = navDestinationRef.current
+    if (!address) return
 
     // Cleanup previous watch
     if (watchIdRef.current !== null) {
       navigator.geolocation.clearWatch(watchIdRef.current)
       watchIdRef.current = null
     }
-
-    const address = showNavMap === 'pickup' ? shipment.pickup_address : shipment.delivery_address
 
     const map = new google.maps.Map(navMapRef.current, {
       zoom: 15,
@@ -428,7 +445,7 @@ export default function DriverShipmentDetailPage() {
       accuracyCircle.setMap(null)
       directionsRenderer.setMap(null)
     }
-  }, [showNavMap, shipment])
+  }, [showNavMap])
 
   if (loading) {
     return (

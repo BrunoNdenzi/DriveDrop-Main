@@ -3,7 +3,7 @@
  * Handles real-time price estimation and quote generation
  */
 
-type VehicleType = 'sedan' | 'suv' | 'truck'
+type VehicleType = 'sedan' | 'suv' | 'truck' | 'van' | 'motorcycle'
 
 interface PricingBreakdown {
   baseRatePerMile: number
@@ -29,9 +29,11 @@ const ROAD_MULTIPLIER = 1.15 // Accounts for actual road routes vs straight line
 
 // Base rates table (must match mobile exactly)
 const BASE_RATES: Record<VehicleType, { short: number; mid: number; long: number; accident: number }> = {
-  sedan:  { short: 1.80, mid: 0.95, long: 0.60, accident: 2.50 },
-  suv:    { short: 2.00, mid: 1.05, long: 0.70, accident: 2.75 },
-  truck:  { short: 2.20, mid: 1.15, long: 0.75, accident: 3.00 },
+  sedan:      { short: 1.80, mid: 0.95, long: 0.60, accident: 2.50 },
+  suv:        { short: 2.00, mid: 1.05, long: 0.70, accident: 2.75 },
+  truck:      { short: 2.20, mid: 1.15, long: 0.75, accident: 3.00 },
+  van:        { short: 2.00, mid: 1.05, long: 0.70, accident: 2.75 },
+  motorcycle: { short: 1.50, mid: 0.80, long: 0.50, accident: 2.00 },
 }
 
 class PricingService {
