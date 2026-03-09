@@ -39,6 +39,7 @@ interface ActiveDelivery {
 }
 
 const STATUS_OPTIONS = [
+  { value: 'assigned', label: 'Job Assigned', color: 'gray' },
   { value: 'accepted', label: 'Accepted', color: 'blue' },
   { value: 'driver_en_route', label: 'En Route to Pickup', color: 'purple' },
   { value: 'driver_arrived', label: 'Arrived at Pickup', color: 'yellow' },
@@ -188,16 +189,32 @@ export default function DriverActiveDeliveriesPage() {
 
   const getStatusColor = (status: string) => {
     const statusOption = STATUS_OPTIONS.find(s => s.value === status)
-    return statusOption?.color || 'gray'
+    if (statusOption) return statusOption.color
+    // Fallback for intermediate statuses
+    if (status === 'pickup_verification_pending' || status === 'pickup_verified') return 'yellow'
+    if (status === 'in_progress') return 'indigo'
+    return 'gray'
   }
 
   const getStatusLabel = (status: string) => {
     const statusOption = STATUS_OPTIONS.find(s => s.value === status)
-    return statusOption?.label || status
+    if (statusOption) return statusOption.label
+    if (status === 'pickup_verification_pending') return 'Verifying Pickup'
+    if (status === 'pickup_verified') return 'Pickup Verified'
+    if (status === 'in_progress') return 'In Progress'
+    return status.replace(/_/g, ' ')
   }
 
   const getNextStatus = (currentStatus: string) => {
-    const statusIndex = STATUS_OPTIONS.findIndex(s => s.value === currentStatus)
+    let statusIndex = STATUS_OPTIONS.findIndex(s => s.value === currentStatus)
+    // Map intermediate statuses
+    if (statusIndex < 0) {
+      if (currentStatus === 'pickup_verification_pending' || currentStatus === 'pickup_verified') {
+        statusIndex = STATUS_OPTIONS.findIndex(s => s.value === 'driver_arrived')
+      } else if (currentStatus === 'in_progress') {
+        statusIndex = STATUS_OPTIONS.findIndex(s => s.value === 'in_transit')
+      }
+    }
     if (statusIndex >= 0 && statusIndex < STATUS_OPTIONS.length - 1) {
       return STATUS_OPTIONS[statusIndex + 1]
     }

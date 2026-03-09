@@ -180,13 +180,56 @@ export default function QuoteCalculator() {
     <section id="quote" className="border-b border-border bg-[hsl(var(--surface-field))]">
       {/* Section Header */}
       <div className="px-6 py-3 border-b border-border">
-        <h2 className="text-base font-semibold text-foreground tracking-tight">Request Quote</h2>
+        <h2 className="text-base font-semibold text-foreground tracking-tight">Pricing & Quote</h2>
         <p className="text-xs text-muted-foreground mt-0.5">
-          Calculate shipment cost by route and vehicle type
+          Transparent per-mile pricing — calculate your exact cost instantly
         </p>
       </div>
 
-      <div className="px-6 py-6 max-w-3xl">
+      <div className="px-6 py-6 max-w-4xl mx-auto">
+          {/* Pricing Tiers Overview */}
+          <div className="mb-6">
+            <h3 className="text-sm font-semibold text-foreground mb-3">Per-Mile Rates by Vehicle Type</h3>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
+              <div className="bg-white border border-border rounded-lg p-4 text-center">
+                <div className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Short Distance</div>
+                <div className="text-[10px] text-muted-foreground mb-2">Under 200 miles</div>
+                <div className="space-y-1 text-sm">
+                  <div className="flex justify-between px-2"><span className="text-muted-foreground">Sedan</span><span className="font-semibold">$1.80/mi</span></div>
+                  <div className="flex justify-between px-2"><span className="text-muted-foreground">SUV / Van</span><span className="font-semibold">$2.00/mi</span></div>
+                  <div className="flex justify-between px-2"><span className="text-muted-foreground">Truck</span><span className="font-semibold">$2.20/mi</span></div>
+                  <div className="flex justify-between px-2"><span className="text-muted-foreground">Motorcycle</span><span className="font-semibold">$1.50/mi</span></div>
+                </div>
+              </div>
+              <div className="bg-white border-2 border-primary/30 rounded-lg p-4 text-center relative">
+                <div className="absolute -top-2 left-1/2 -translate-x-1/2 bg-primary text-primary-foreground text-[10px] px-2 py-0.5 rounded-full font-medium">Most Common</div>
+                <div className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Mid Distance</div>
+                <div className="text-[10px] text-muted-foreground mb-2">200–800 miles</div>
+                <div className="space-y-1 text-sm">
+                  <div className="flex justify-between px-2"><span className="text-muted-foreground">Sedan</span><span className="font-semibold">$0.95/mi</span></div>
+                  <div className="flex justify-between px-2"><span className="text-muted-foreground">SUV / Van</span><span className="font-semibold">$1.05/mi</span></div>
+                  <div className="flex justify-between px-2"><span className="text-muted-foreground">Truck</span><span className="font-semibold">$1.15/mi</span></div>
+                  <div className="flex justify-between px-2"><span className="text-muted-foreground">Motorcycle</span><span className="font-semibold">$0.80/mi</span></div>
+                </div>
+              </div>
+              <div className="bg-white border border-border rounded-lg p-4 text-center">
+                <div className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Long Distance</div>
+                <div className="text-[10px] text-muted-foreground mb-2">Over 800 miles</div>
+                <div className="space-y-1 text-sm">
+                  <div className="flex justify-between px-2"><span className="text-muted-foreground">Sedan</span><span className="font-semibold">$0.60/mi</span></div>
+                  <div className="flex justify-between px-2"><span className="text-muted-foreground">SUV / Van</span><span className="font-semibold">$0.70/mi</span></div>
+                  <div className="flex justify-between px-2"><span className="text-muted-foreground">Truck</span><span className="font-semibold">$0.75/mi</span></div>
+                  <div className="flex justify-between px-2"><span className="text-muted-foreground">Motorcycle</span><span className="font-semibold">$0.50/mi</span></div>
+                </div>
+              </div>
+            </div>
+            <div className="flex flex-wrap items-center gap-4 text-xs text-muted-foreground">
+              <span>⚡ Express: +25%</span>
+              <span>📅 Flexible: −5%</span>
+              <span>💰 Minimum: $150</span>
+              <span>💳 Pay 20% upfront, 80% on delivery</span>
+            </div>
+          </div>
           <Card>
             <CardHeader>
               <CardTitle>Shipment Details</CardTitle>
