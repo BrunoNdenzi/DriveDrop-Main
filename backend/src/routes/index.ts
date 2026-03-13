@@ -30,6 +30,9 @@ import webhooksRoutes from './webhooks';
 import aiRoutes from './ai.routes';
 import routeOptimizationRoutes from './routeOptimization.routes';
 
+// Lead Acquisition
+import leadsRoutes from './leads.routes';
+
 const router = Router();
 
 // API welcome message
@@ -60,6 +63,7 @@ router.get('/', (_req, res) => {
       webhooks: '/api/v1/webhooks',
       ai: '/api/v1/ai',
       routeOptimization: '/api/v1/route-optimization',
+      leads: '/api/v1/leads',
     },
   });
 });
@@ -91,5 +95,8 @@ router.use('/webhooks', webhooksRoutes);
 // AI-Powered Features
 router.use('/ai', aiRoutes);
 router.use('/route-optimization', routeOptimizationRoutes);
+
+// Lead Acquisition
+router.use('/leads', leadsRoutes);
 
 export default router;
