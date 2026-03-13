@@ -33,6 +33,9 @@ import routeOptimizationRoutes from './routeOptimization.routes';
 // Lead Acquisition
 import leadsRoutes from './leads.routes';
 
+// Outreach
+import outreachRoutes from './outreach.routes';
+
 const router = Router();
 
 // API welcome message
@@ -64,6 +67,7 @@ router.get('/', (_req, res) => {
       ai: '/api/v1/ai',
       routeOptimization: '/api/v1/route-optimization',
       leads: '/api/v1/leads',
+      outreach: '/api/v1/outreach',
     },
   });
 });
@@ -98,5 +102,8 @@ router.use('/route-optimization', routeOptimizationRoutes);
 
 // Lead Acquisition
 router.use('/leads', leadsRoutes);
+
+// Outreach
+router.use('/outreach', outreachRoutes);
 
 export default router;
