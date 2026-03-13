@@ -274,18 +274,13 @@ export default function DeliveryCompletePage({ params }: { params: { id: string 
         })
         .eq('shipment_id', params.id)
 
-      // Create tracking event
+      // Create tracking event (uses 'notes' column per actual schema)
       await supabase
         .from('tracking_events')
         .insert({
           shipment_id: params.id,
           event_type: 'delivered',
-          description: `Vehicle delivered successfully${clientPresent ? ' and received by client' : ''}`,
-          metadata: {
-            location: location,
-            client_present: clientPresent,
-            photos_count: Object.keys(photoUrls).length
-          },
+          notes: `Vehicle delivered successfully${clientPresent ? ' and received by client' : ''}`,
           created_by: profile?.id
         })
 
