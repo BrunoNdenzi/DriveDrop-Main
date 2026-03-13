@@ -85,6 +85,9 @@ export default function DriverShipmentDetailPage() {
   const [navFollowDriver, setNavFollowDriver] = useState(true)
   const navFollowDriverRef = useRef(true)
   const navDestinationRef = useRef<string>('')
+  const navPickupAddrRef = useRef<string>('')
+  const navDeliveryAddrRef = useRef<string>('')
+  const navDirectionsThrottleRef = useRef<number>(0)
   const supabase = getSupabaseBrowserClient()
 
   useEffect(() => {
@@ -197,7 +200,9 @@ export default function DriverShipmentDetailPage() {
 
   const openInAppNav = useCallback((type: 'pickup' | 'delivery') => {
     if (!shipment) return
-    // Store destination address in ref so map effect doesn't depend on shipment state
+    // Store addresses in refs so map overlay doesn't depend on shipment state
+    navPickupAddrRef.current = shipment.pickup_address
+    navDeliveryAddrRef.current = shipment.delivery_address
     navDestinationRef.current = type === 'pickup' ? shipment.pickup_address : shipment.delivery_address
     setNavDirections(null)
     setNavFollowDriver(true)
@@ -406,17 +411,22 @@ export default function DriverShipmentDetailPage() {
             map.panTo(driverPos)
           }
 
-          // Update current step and ETA
-          setNavDirections(prev => {
-            if (!prev) return prev
-            const currentStepIndex = findCurrentStep(driverPos, prev.steps)
-            return {
-              ...prev,
-              currentStepIndex,
-              driverLat: driverPos.lat,
-              driverLng: driverPos.lng,
-            }
-          })
+          // Throttle direction state updates to max once per 3 seconds to reduce re-renders
+          const now2 = Date.now()
+          if (now2 - navDirectionsThrottleRef.current > 3000) {
+            navDirectionsThrottleRef.current = now2
+            setNavDirections(prev => {
+              if (!prev) return prev
+              const currentStepIndex = findCurrentStep(driverPos, prev.steps)
+              if (currentStepIndex === prev.currentStepIndex) return prev // No change, skip re-render
+              return {
+                ...prev,
+                currentStepIndex,
+                driverLat: driverPos.lat,
+                driverLng: driverPos.lng,
+              }
+            })
+          }
 
           // Periodically recalculate the route for updated ETA
           const now = Date.now()
@@ -886,8 +896,8 @@ export default function DriverShipmentDetailPage() {
         </div>
       )}
 
-      {/* Real-Time Navigation Modal */}
-      {showNavMap && shipment && (
+      {/* Real-Time Navigation Modal — uses refs for addresses so it never depends on shipment state */}
+      {showNavMap && (
         <div className="fixed inset-0 bg-black z-50 flex flex-col">
           {/* Nav Header with ETA */}
           <div className="bg-[#1a73e8] text-white p-3 flex items-center justify-between safe-area-top">
@@ -956,7 +966,7 @@ export default function DriverShipmentDetailPage() {
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium text-gray-900 truncate">
-                  {showNavMap === 'pickup' ? shipment.pickup_address : shipment.delivery_address}
+                  {showNavMap === 'pickup' ? navPickupAddrRef.current : navDeliveryAddrRef.current}
                 </p>
                 {navDirections && (
                   <p className="text-xs text-gray-500">
@@ -969,7 +979,7 @@ export default function DriverShipmentDetailPage() {
               <Button
                 variant="outline"
                 className="flex-1"
-                onClick={() => openExternalMaps(showNavMap === 'pickup' ? shipment.pickup_address : shipment.delivery_address)}
+                onClick={() => openExternalMaps(showNavMap === 'pickup' ? navPickupAddrRef.current : navDeliveryAddrRef.current)}
               >
                 <ExternalLink className="h-4 w-4 mr-2" />
                 Google Maps App

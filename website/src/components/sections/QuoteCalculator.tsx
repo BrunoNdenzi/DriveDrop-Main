@@ -193,7 +193,7 @@ export default function QuoteCalculator() {
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
               <div className="bg-white border border-border rounded-lg p-4 text-center">
                 <div className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Short Distance</div>
-                <div className="text-[10px] text-muted-foreground mb-2">Under 200 miles</div>
+                <div className="text-[10px] text-muted-foreground mb-2">Up to 500 miles</div>
                 <div className="space-y-1 text-sm">
                   <div className="flex justify-between px-2"><span className="text-muted-foreground">Sedan</span><span className="font-semibold">$1.80/mi</span></div>
                   <div className="flex justify-between px-2"><span className="text-muted-foreground">SUV / Van</span><span className="font-semibold">$2.00/mi</span></div>
@@ -204,7 +204,7 @@ export default function QuoteCalculator() {
               <div className="bg-white border-2 border-primary/30 rounded-lg p-4 text-center relative">
                 <div className="absolute -top-2 left-1/2 -translate-x-1/2 bg-primary text-primary-foreground text-[10px] px-2 py-0.5 rounded-full font-medium">Most Common</div>
                 <div className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Mid Distance</div>
-                <div className="text-[10px] text-muted-foreground mb-2">200–800 miles</div>
+                <div className="text-[10px] text-muted-foreground mb-2">500–1,500 miles</div>
                 <div className="space-y-1 text-sm">
                   <div className="flex justify-between px-2"><span className="text-muted-foreground">Sedan</span><span className="font-semibold">$0.95/mi</span></div>
                   <div className="flex justify-between px-2"><span className="text-muted-foreground">SUV / Van</span><span className="font-semibold">$1.05/mi</span></div>
@@ -214,7 +214,7 @@ export default function QuoteCalculator() {
               </div>
               <div className="bg-white border border-border rounded-lg p-4 text-center">
                 <div className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Long Distance</div>
-                <div className="text-[10px] text-muted-foreground mb-2">Over 800 miles</div>
+                <div className="text-[10px] text-muted-foreground mb-2">Over 1,500 miles</div>
                 <div className="space-y-1 text-sm">
                   <div className="flex justify-between px-2"><span className="text-muted-foreground">Sedan</span><span className="font-semibold">$0.60/mi</span></div>
                   <div className="flex justify-between px-2"><span className="text-muted-foreground">SUV / Van</span><span className="font-semibold">$0.70/mi</span></div>

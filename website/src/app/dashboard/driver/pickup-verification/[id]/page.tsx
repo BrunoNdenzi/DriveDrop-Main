@@ -295,18 +295,24 @@ export default function PickupVerificationPage({ params }: { params: { id: strin
       toast('Uploading photos...', 'info')
       const photoUrls = await uploadPhotos()
 
-      // Create pickup verification record
+      // Determine verification outcome
+      const hasMajorIssues = issues.filter(i => i.severity === 'major').length > 0
+      const verificationStatus = hasMajorIssues ? 'major_issues' : issues.length > 0 ? 'minor_differences' : 'matches'
+
+      // Create pickup verification record (matches actual pickup_verifications schema)
       const verificationData = {
         shipment_id: params.id,
         driver_id: profile?.id,
-        pickup_latitude: location.latitude,
-        pickup_longitude: location.longitude,
-        verification_photos: photoUrls,
-        odometer_reading: null, // Could extract from photo
-        issues_reported: issues.length > 0 ? issues : null,
-        verification_notes: verificationNotes || null,
-        verified_at: new Date().toISOString(),
-        status: issues.filter(i => i.severity === 'major').length > 0 ? 'issues_found' : 'verified'
+        pickup_location: `POINT(${location.longitude} ${location.latitude})`,
+        pickup_address_verified: true,
+        driver_photos: Object.entries(photoUrls).map(([key, url]) => ({ type: key, url })),
+        verification_status: verificationStatus,
+        differences_description: verificationNotes || null,
+        cannot_proceed_reason: hasMajorIssues
+          ? (issues.find(i => i.severity === 'major')?.type || 'other')
+          : null,
+        verification_started_at: new Date().toISOString(),
+        verification_completed_at: new Date().toISOString(),
       }
 
       const { error: verificationError } = await supabase
@@ -316,30 +322,29 @@ export default function PickupVerificationPage({ params }: { params: { id: strin
       if (verificationError) throw verificationError
 
       // Update shipment status
+      const now = new Date().toISOString()
       const { error: shipmentError } = await supabase
         .from('shipments')
         .update({ 
-          status: 'picked_up',
-          actual_pickup_time: new Date().toISOString()
+          status: hasMajorIssues ? 'pickup_verification_pending' : 'picked_up',
+          pickup_verified: !hasMajorIssues,
+          pickup_verified_at: hasMajorIssues ? null : now,
+          pickup_verification_status: hasMajorIssues ? 'issues_reported' : 'verified',
+          actual_pickup_time: hasMajorIssues ? null : now,
         })
         .eq('id', params.id)
 
       if (shipmentError) throw shipmentError
 
-      // Create tracking event
+      // Create tracking event (matches actual tracking_events schema: uses 'notes' column)
       await supabase
         .from('tracking_events')
         .insert({
           shipment_id: params.id,
           event_type: 'picked_up',
-          description: issues.length > 0 
+          notes: issues.length > 0 
             ? `Vehicle picked up with ${issues.length} issue(s) reported`
             : 'Vehicle picked up successfully',
-          metadata: {
-            issues_count: issues.length,
-            major_issues: issues.filter(i => i.severity === 'major').length,
-            location: location
-          },
           created_by: profile?.id
         })
 
