@@ -36,6 +36,12 @@ import leadsRoutes from './leads.routes';
 // Outreach
 import outreachRoutes from './outreach.routes';
 
+// Email Campaign System
+import campaignsRoutes from './campaigns.routes';
+import carriersRoutes from './carriers.routes';
+import analyticsRoutes from './analytics.routes';
+import emailWebhooksRoutes from './email-webhooks.routes';
+
 const router = Router();
 
 // API welcome message
@@ -68,6 +74,11 @@ router.get('/', (_req, res) => {
       routeOptimization: '/api/v1/route-optimization',
       leads: '/api/v1/leads',
       outreach: '/api/v1/outreach',
+      // Email Campaign System
+      campaigns: '/api/v1/campaigns',
+      carriers: '/api/v1/carriers',
+      analytics: '/api/v1/analytics',
+      emailWebhooks: '/api/v1/email-webhooks',
     },
   });
 });
@@ -105,5 +116,11 @@ router.use('/leads', leadsRoutes);
 
 // Outreach
 router.use('/outreach', outreachRoutes);
+
+// Email Campaign System
+router.use('/campaigns', campaignsRoutes);
+router.use('/carriers', carriersRoutes);
+router.use('/analytics', analyticsRoutes);
+router.use('/email-webhooks', emailWebhooksRoutes);
 
 export default router;
