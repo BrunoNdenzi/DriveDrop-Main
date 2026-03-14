@@ -26,7 +26,10 @@ import {
   Plug,
   FileText,
   Bot,
-  Target
+  Target,
+  Mail,
+  Truck,
+  TrendingUp
 } from 'lucide-react'
 import NotificationBell from '@/components/NotificationBell'
 import { Button } from '@/components/ui/button'
@@ -47,6 +50,10 @@ const navItems = [
   { href: '/dashboard/admin/bol', label: 'BOL Management', icon: FileText },
   { href: '/dashboard/admin/ai-review', label: 'AI Review Queue', icon: Bot },
   { href: '/dashboard/admin/leads', label: 'Lead Acquisition', icon: Target },
+  // Email Campaign System
+  { href: '/dashboard/admin/campaigns', label: 'Email Campaigns', icon: Mail },
+  { href: '/dashboard/admin/carriers', label: 'Carrier Contacts', icon: Truck },
+  { href: '/dashboard/admin/campaign-analytics', label: 'Campaign Analytics', icon: TrendingUp },
   { href: '/dashboard/admin/settings', label: 'Settings', icon: Settings },
 ]
 
