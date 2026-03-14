@@ -140,26 +140,37 @@ CREATE TABLE IF NOT EXISTS public.outreach_log (
   id uuid NOT NULL DEFAULT uuid_generate_v4(),
   lead_id uuid NOT NULL,
   campaign_id uuid,
-  
+
   channel text NOT NULL CHECK (channel IN ('email', 'sms', 'phone', 'linkedin', 'other')),
   direction text NOT NULL DEFAULT 'outbound' CHECK (direction IN ('outbound', 'inbound')),
-  
+
+  -- Addresses (populated by brevoOutreachService)
+  to_email text,
+  from_email text,
+
   -- Content
   subject text,
   body text,
-  
-  -- Status
-  status text NOT NULL DEFAULT 'sent' CHECK (status IN ('pending', 'sent', 'delivered', 'opened', 'clicked', 'replied', 'bounced', 'failed', 'unsubscribed')),
-  
+
+  -- Status: includes 'dry_run' for warmup/test sends
+  status text NOT NULL DEFAULT 'sent' CHECK (status IN ('pending', 'dry_run', 'sent', 'delivered', 'opened', 'clicked', 'replied', 'bounced', 'failed', 'unsubscribed')),
+
+  -- Brevo-specific tracking
+  brevo_message_id text,
+  error_message text,
+
+  -- Extra payload (tags, etc.)
+  metadata jsonb,
+
   -- Response
   response_text text,
   responded_at timestamptz,
-  
+
   sent_at timestamptz DEFAULT now(),
   sent_by uuid,
-  
+
   created_at timestamptz NOT NULL DEFAULT now(),
-  
+
   CONSTRAINT outreach_log_pkey PRIMARY KEY (id),
   CONSTRAINT outreach_log_lead_id_fkey FOREIGN KEY (lead_id) REFERENCES public.leads(id) ON DELETE CASCADE,
   CONSTRAINT outreach_log_campaign_id_fkey FOREIGN KEY (campaign_id) REFERENCES public.outreach_campaigns(id) ON DELETE SET NULL
@@ -167,6 +178,22 @@ CREATE TABLE IF NOT EXISTS public.outreach_log (
 
 CREATE INDEX IF NOT EXISTS idx_outreach_log_lead ON public.outreach_log(lead_id);
 CREATE INDEX IF NOT EXISTS idx_outreach_log_campaign ON public.outreach_log(campaign_id);
+
+-- Add columns introduced by brevoOutreachService (safe on existing tables)
+ALTER TABLE public.outreach_log ADD COLUMN IF NOT EXISTS to_email text;
+ALTER TABLE public.outreach_log ADD COLUMN IF NOT EXISTS from_email text;
+ALTER TABLE public.outreach_log ADD COLUMN IF NOT EXISTS brevo_message_id text;
+ALTER TABLE public.outreach_log ADD COLUMN IF NOT EXISTS error_message text;
+ALTER TABLE public.outreach_log ADD COLUMN IF NOT EXISTS metadata jsonb;
+
+-- Add 'dry_run' to status check constraint (drop & recreate)
+ALTER TABLE public.outreach_log DROP CONSTRAINT IF EXISTS outreach_log_status_check;
+ALTER TABLE public.outreach_log ADD CONSTRAINT outreach_log_status_check
+  CHECK (status IN ('pending', 'dry_run', 'sent', 'delivered', 'opened', 'clicked', 'replied', 'bounced', 'failed', 'unsubscribed'));
+
+CREATE INDEX IF NOT EXISTS idx_outreach_log_to_email ON public.outreach_log(to_email) WHERE to_email IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_outreach_log_status ON public.outreach_log(status);
+CREATE INDEX IF NOT EXISTS idx_outreach_log_created ON public.outreach_log(created_at DESC);
 
 -- ============================================
 -- DATA IMPORT JOBS - Track CSV/FMCSA imports
@@ -199,6 +226,7 @@ CREATE TABLE IF NOT EXISTS public.lead_import_jobs (
 );
 
 -- Add foreign key for leads.campaign_id after campaigns table exists
+ALTER TABLE public.leads DROP CONSTRAINT IF EXISTS leads_campaign_id_fkey;
 ALTER TABLE public.leads 
   ADD CONSTRAINT leads_campaign_id_fkey 
   FOREIGN KEY (campaign_id) REFERENCES public.outreach_campaigns(id) ON DELETE SET NULL;
@@ -210,15 +238,19 @@ ALTER TABLE public.outreach_log ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.lead_import_jobs ENABLE ROW LEVEL SECURITY;
 
 -- Admin can do everything
+DROP POLICY IF EXISTS "Admin full access on leads" ON public.leads;
 CREATE POLICY "Admin full access on leads" ON public.leads FOR ALL USING (
   EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'admin')
 );
+DROP POLICY IF EXISTS "Admin full access on campaigns" ON public.outreach_campaigns;
 CREATE POLICY "Admin full access on campaigns" ON public.outreach_campaigns FOR ALL USING (
   EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'admin')
 );
+DROP POLICY IF EXISTS "Admin full access on outreach_log" ON public.outreach_log;
 CREATE POLICY "Admin full access on outreach_log" ON public.outreach_log FOR ALL USING (
   EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'admin')
 );
+DROP POLICY IF EXISTS "Admin full access on import_jobs" ON public.lead_import_jobs;
 CREATE POLICY "Admin full access on import_jobs" ON public.lead_import_jobs FOR ALL USING (
   EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'admin')
 );
