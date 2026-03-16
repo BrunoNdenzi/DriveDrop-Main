@@ -1,6 +1,7 @@
 /**
  * Carrier Enrichment Service
- * Finds contact emails for FMCSA carriers using Apollo → Hunter → Snov fallback chain.
+ * Finds contact emails for FMCSA carriers.
+ * Provider priority: Apollo (primary) → Snov (secondary) → Hunter (last resort, non-fatal).
  * Stores enriched records in carrier_contacts table.
  */
 import { supabaseAdmin } from '@lib/supabase';
@@ -58,17 +59,30 @@ class CarrierEnrichmentService {
     let source: EnrichedCarrier['source'] = 'manual';
     let website: string | undefined;
 
-    const domain = fmcsaData.dotNumber
-      ? undefined
-      : this.guessDomain(fmcsaData.companyName) ?? undefined;
+    // Always attempt domain guess — dotNumber is unrelated to whether we can guess a domain
+    let domain = this.guessDomain(fmcsaData.companyName) ?? undefined;
 
-    // --- 1. Apollo people search ---
+    // --- 0. Apollo enrichOrganization — resolve real domain/website before prospecting ---
+    if (apolloService.isEnabled && domain) {
+      try {
+        const org = await apolloService.enrichOrganization(domain);
+        if (org?.website) {
+          const raw = org.website.startsWith('http') ? org.website : `https://${org.website}`;
+          const realDomain = new URL(raw).hostname.replace(/^www\./, '');
+          if (realDomain) domain = realDomain;
+          website = org.website;
+        }
+      } catch {
+        // non-fatal — continue with guessed domain
+      }
+    }
+
+    // --- 1. Apollo searchPeople (PRIMARY) ---
     if (apolloService.isEnabled) {
       try {
-        const domains = domain ? [domain] : undefined;
         const result = await apolloService.searchPeople({
-          ...(domains && { q_organization_domains: domains }),
-          ...(!domains && { q_keywords: fmcsaData.companyName }),
+          ...(domain && { q_organization_domains: [domain] }),
+          ...(!domain && { q_keywords: fmcsaData.companyName }),
           person_titles: ['owner', 'president', 'ceo', 'operations', 'dispatch', 'manager'],
           person_seniorities: ['owner', 'founder', 'c_suite', 'vp', 'director', 'manager'],
           perPage: 3,
@@ -84,7 +98,21 @@ class CarrierEnrichmentService {
       }
     }
 
-    // --- 2. Hunter domain search ---
+    // --- 2. Snov domain prospects (SECONDARY) ---
+    if (!email && snovService.isEnabled && domain) {
+      try {
+        const prospects = await snovService.findEmailsByDomain(domain, 3);
+        const best = prospects[0];
+        if (best?.email) {
+          email = best.email;
+          source = 'snov';
+        }
+      } catch (err: any) {
+        logger.warn(`Snov enrichment failed for ${fmcsaData.dotNumber}: ${err.message}`);
+      }
+    }
+
+    // --- 3. Hunter domain search (LAST RESORT — non-fatal when quota exhausted) ---
     if (!email && hunterService.isEnabled && domain) {
       try {
         const result = await hunterService.domainSearch(domain, 5);
@@ -96,24 +124,10 @@ class CarrierEnrichmentService {
               source = 'hunter';
             }
           }
-          website = `https://${domain}`;
+          if (!website) website = `https://${domain}`;
         }
       } catch (err: any) {
         logger.warn(`Hunter enrichment failed for ${fmcsaData.dotNumber}: ${err.message}`);
-      }
-    }
-
-    // --- 3. Snov domain prospects ---
-    if (!email && snovService.isEnabled && domain) {
-      try {
-        const prospects = await snovService.findEmailsByDomain(domain, 3);
-        const best = prospects[0];
-        if (best?.email) {
-          email = best.email;
-          source = 'snov';
-        }
-      } catch (err: any) {
-        logger.warn(`Snov enrichment failed for ${fmcsaData.dotNumber}: ${err.message}`);
       }
     }
 

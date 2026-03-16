@@ -41,8 +41,8 @@ class BrevoOutreachService {
       process.env['BREVO_API_KEY'] || ''
     );
     this.defaultSender = {
-      email: process.env['BREVO_OUTREACH_SENDER'] || process.env['BREVO_SENDER_ADMIN'] || 'outreach@drivedrop.us.com',
-      name: process.env['BREVO_OUTREACH_NAME'] || 'DriveDrop Team',
+      email: process.env['BREVO_OUTREACH_SENDER'] || process.env['BREVO_SENDER_ADMIN'] || 'carrier@drivedrop.us.com',
+      name: process.env['BREVO_OUTREACH_NAME'] || 'DriveDrop Carrier Team',
     };
   }
 

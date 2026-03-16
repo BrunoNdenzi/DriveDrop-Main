@@ -98,7 +98,7 @@ class OutreachOrchestrator {
 
   /**
    * Find contacts for a company using all available services.
-   * Hunter is primary; falls back to Apollo then Snov.
+   * Apollo is primary; Snov is secondary; Hunter is last-resort (non-fatal when quota-exhausted).
    */
   async findContacts(params: ContactSearchParams): Promise<FoundContact[]> {
     const contacts: FoundContact[] = [];
@@ -112,69 +112,81 @@ class OutreachOrchestrator {
       }
     };
 
-    // --- Hunter.io domain search ---
-    if (hunterService.isEnabled && params.domain) {
-      const result = await hunterService.domainSearch(params.domain, 10);
-      if (result) {
-        for (const e of result.emails) {
-          if (this.matchesTargetTitle(e.position, params.targetTitles)) {
+    // --- 1. Apollo.io people search (PRIMARY) ---
+    if (apolloService.isEnabled) {
+      try {
+        const domains = params.domain ? [params.domain] : undefined;
+        const result = await apolloService.searchPeople({
+          ...(domains && { q_organization_domains: domains }),
+          ...(!domains && { q_keywords: params.companyName }),
+          ...(params.targetTitles && { person_titles: params.targetTitles }),
+          person_seniorities: ['owner', 'founder', 'c_suite', 'vp', 'director', 'manager'],
+          perPage: 5,
+        });
+        for (const c of result.contacts) {
+          if (c.email) {
             const contact: FoundContact = {
-              email: e.email,
-              firstName: e.firstName,
-              lastName: e.lastName,
-              title: e.position,
-              confidence: e.confidence,
-              source: 'hunter',
+              email: c.email,
+              firstName: c.firstName,
+              lastName: c.lastName,
+              title: c.title,
+              confidence: c.emailStatus === 'verified' ? 90 : 65,
+              source: 'apollo',
             };
-            if (e.phone_number) contact.phone = e.phone_number;
-            if (e.linkedin_url) contact.linkedin = e.linkedin_url;
+            if (c.phone) contact.phone = c.phone;
+            if (c.linkedin) contact.linkedin = c.linkedin;
             addContact(contact);
           }
         }
+      } catch (err: any) {
+        logger.warn(`Apollo findContacts failed for "${params.companyName}": ${err.message}`);
       }
     }
 
-    // --- Apollo.io people search ---
-    if (apolloService.isEnabled && contacts.length < 3) {
-      const domains = params.domain ? [params.domain] : undefined;
-      const result = await apolloService.searchPeople({
-        ...(domains && { q_organization_domains: domains }),
-        ...(params.domain ? {} : { q_keywords: params.companyName }),
-        ...(params.targetTitles && { person_titles: params.targetTitles }),
-        person_seniorities: ['owner', 'founder', 'c_suite', 'vp', 'director', 'manager'],
-        perPage: 5,
-      });
-      for (const c of result.contacts) {
-        if (c.email) {
-          const contact: FoundContact = {
-            email: c.email,
-            firstName: c.firstName,
-            lastName: c.lastName,
-            title: c.title,
-            confidence: c.emailStatus === 'verified' ? 90 : 60,
-            source: 'apollo',
-          };
-          if (c.phone) contact.phone = c.phone;
-          if (c.linkedin) contact.linkedin = c.linkedin;
-          addContact(contact);
-        }
-      }
-    }
-
-    // --- Snov.io domain search ---
+    // --- 2. Snov.io domain search (SECONDARY) ---
     if (snovService.isEnabled && contacts.length < 3 && params.domain) {
-      const prospects = await snovService.findEmailsByDomain(params.domain, 5);
-      for (const p of prospects) {
-        if (p.email && this.matchesTargetTitle(p.position, params.targetTitles)) {
-          addContact({
-            email: p.email,
-            firstName: p.firstName,
-            lastName: p.lastName,
-            title: p.position,
-            confidence: 70,
-            source: 'snov',
-          });
+      try {
+        const prospects = await snovService.findEmailsByDomain(params.domain, 5);
+        for (const p of prospects) {
+          if (p.email && this.matchesTargetTitle(p.position, params.targetTitles)) {
+            addContact({
+              email: p.email,
+              firstName: p.firstName,
+              lastName: p.lastName,
+              title: p.position,
+              confidence: 70,
+              source: 'snov',
+            });
+          }
         }
+      } catch (err: any) {
+        logger.warn(`Snov findContacts failed for "${params.companyName}": ${err.message}`);
+      }
+    }
+
+    // --- 3. Hunter.io domain search (LAST RESORT — non-fatal when quota-exhausted) ---
+    if (hunterService.isEnabled && contacts.length < 2 && params.domain) {
+      try {
+        const result = await hunterService.domainSearch(params.domain, 10);
+        if (result) {
+          for (const e of result.emails) {
+            if (this.matchesTargetTitle(e.position, params.targetTitles)) {
+              const contact: FoundContact = {
+                email: e.email,
+                firstName: e.firstName,
+                lastName: e.lastName,
+                title: e.position,
+                confidence: e.confidence,
+                source: 'hunter',
+              };
+              if (e.phone_number) contact.phone = e.phone_number;
+              if (e.linkedin_url) contact.linkedin = e.linkedin_url;
+              addContact(contact);
+            }
+          }
+        }
+      } catch (err: any) {
+        logger.warn(`Hunter findContacts failed for "${params.companyName}": ${err.message}`);
       }
     }
 
@@ -187,28 +199,14 @@ class OutreachOrchestrator {
 
   /**
    * Verify an email address using available services.
-   * Hunter is default; Snov as fallback.
+   * Snov is primary (supports batch + OAuth); Hunter is fallback (non-fatal when quota-exhausted).
    * Returns safe=true only for clearly deliverable addresses.
    */
   async verifyEmail(params: VerifyParams): Promise<VerifyResult> {
     const { email } = params;
     const source = params.source || 'auto';
 
-    // Hunter first
-    if ((source === 'hunter' || source === 'auto') && hunterService.isEnabled) {
-      const result = await hunterService.verifyEmail(email);
-      if (result) {
-        return {
-          email,
-          safe: result.result === 'deliverable',
-          score: result.score,
-          details: result,
-          source: 'hunter',
-        };
-      }
-    }
-
-    // Snov fallback
+    // Snov first (PRIMARY)
     if ((source === 'snov' || source === 'auto') && snovService.isEnabled) {
       const result = await snovService.verifyEmail(email);
       if (result) {
@@ -222,7 +220,21 @@ class OutreachOrchestrator {
       }
     }
 
-    // No service available
+    // Hunter fallback (non-fatal when quota-exhausted)
+    if ((source === 'hunter' || source === 'auto') && hunterService.isEnabled) {
+      const result = await hunterService.verifyEmail(email);
+      if (result) {
+        return {
+          email,
+          safe: result.result === 'deliverable',
+          score: result.score,
+          details: result,
+          source: 'hunter',
+        };
+      }
+    }
+
+    // No service available or both failed
     return {
       email,
       safe: false,
@@ -261,19 +273,21 @@ class OutreachOrchestrator {
   // ----------------------------------------------------------------
 
   /**
-   * Enrich a company's profile using SerpAPI + Apollo
+   * Enrich a company's profile using Apollo (primary) + SerpAPI (secondary, non-fatal).
    */
   async enrichCompany(params: {
     name: string;
     domain?: string;
     state?: string;
   }): Promise<{ serpInfo: CompanyInfo | null; apolloInfo: any | null }> {
-    const [serpInfo, apolloInfo] = await Promise.all([
-      serpService.enrichCompany(params.name, params.state),
-      params.domain && apolloService.isEnabled
-        ? apolloService.enrichOrganization(params.domain)
-        : Promise.resolve(null),
-    ]);
+    const apolloInfo = params.domain && apolloService.isEnabled
+      ? await apolloService.enrichOrganization(params.domain).catch(() => null)
+      : null;
+
+    // SerpAPI is best-effort — quota-exhausted is already non-fatal in serpService
+    const serpInfo = serpService.isEnabled
+      ? await serpService.enrichCompany(params.name, params.state).catch(() => null)
+      : null;
 
     return { serpInfo, apolloInfo };
   }

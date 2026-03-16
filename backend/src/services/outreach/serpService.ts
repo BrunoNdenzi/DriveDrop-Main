@@ -60,7 +60,11 @@ class SerpService {
       });
 
       if (!response.ok) {
-        logger.error(`SerpAPI error: ${response.status} ${response.statusText}`);
+        if (response.status === 403 || response.status === 429) {
+          logger.warn(`SerpAPI quota exhausted / rate-limited (${response.status}) — skipping`);
+        } else {
+          logger.error(`SerpAPI error: ${response.status} ${response.statusText}`);
+        }
         return null;
       }
 

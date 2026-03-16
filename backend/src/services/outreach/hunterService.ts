@@ -73,7 +73,13 @@ class HunterService {
       });
 
       if (!response.ok) {
-        logger.error(`Hunter API ${endpoint} error: ${response.status} ${response.statusText}`);
+        if (response.status === 429 || response.status === 402) {
+          logger.warn(`Hunter API quota exhausted / rate-limited (${response.status}) — skipping`);
+        } else if (response.status === 401 || response.status === 403) {
+          logger.warn(`Hunter API auth error (${response.status}) — check HUNTER_API_KEY`);
+        } else {
+          logger.error(`Hunter API ${endpoint} error: ${response.status} ${response.statusText}`);
+        }
         return null;
       }
 

@@ -14,19 +14,34 @@ import { BrevoWebhookEvent } from '../types/campaigns.types';
 const router = Router();
 
 /**
- * Verify the Brevo webhook signature header.
- * Brevo signs requests with HMAC-SHA256 using the webhook secret.
+ * Verify the Brevo webhook token.
+ * Brevo "Token" auth mode sends: Authorization: Bearer <token>
+ * We compare the incoming token to BREVO_WEBHOOK_SECRET using a constant-time check.
  */
-function verifyBrevoSignature(req: Request): boolean {
+function verifyBrevoToken(req: Request): boolean {
   const secret = process.env['BREVO_WEBHOOK_SECRET'];
-  if (!secret) return true; // If no secret configured, skip verification (dev mode)
+  if (!secret) return true; // No secret configured — allow in dev mode
 
-  const signature = req.headers['x-brevo-signature'] as string | undefined;
-  if (!signature) return false;
+  const authHeader = req.headers['authorization'] as string | undefined;
+  if (!authHeader) {
+    logger.warn('Brevo webhook: missing Authorization header');
+    return false;
+  }
 
-  const payload = JSON.stringify(req.body);
-  const expected = crypto.createHmac('sha256', secret).update(payload).digest('hex');
-  return crypto.timingSafeEqual(Buffer.from(signature, 'hex'), Buffer.from(expected, 'hex'));
+  const match = authHeader.match(/^Bearer\s+(\S+)$/i);
+  if (!match || !match[1]) {
+    logger.warn('Brevo webhook: Authorization header is not Bearer scheme');
+    return false;
+  }
+
+  const incoming = Buffer.from(match[1]);
+  const expected = Buffer.from(secret);
+
+  // Constant-length padding so crypto.timingSafeEqual doesn't throw on mismatched lengths
+  const len = Math.max(incoming.length, expected.length);
+  const a = Buffer.concat([incoming, Buffer.alloc(len - incoming.length)]);
+  const b = Buffer.concat([expected, Buffer.alloc(len - expected.length)]);
+  return crypto.timingSafeEqual(a, b) && incoming.length === expected.length;
 }
 
 /**
@@ -37,8 +52,8 @@ function verifyBrevoSignature(req: Request): boolean {
 router.post(
   '/brevo',
   asyncHandler(async (req: Request, res: Response) => {
-    if (!verifyBrevoSignature(req)) {
-      logger.warn('Brevo webhook: invalid signature');
+    if (!verifyBrevoToken(req)) {
+      logger.warn('Brevo webhook: invalid token');
       return res.status(401).json({ error: 'Invalid signature' });
     }
 
