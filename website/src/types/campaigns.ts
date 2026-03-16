@@ -104,6 +104,8 @@ export interface CarrierContact {
   dot_number: string
   companyName: string
   company_name: string
+  contactType: 'carrier' | 'broker' | 'dealership' | 'shipper'
+  contact_type: 'carrier' | 'broker' | 'dealership' | 'shipper'
   mcNumber?: string
   mc_number?: string
   email?: string

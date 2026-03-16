@@ -299,7 +299,8 @@ class CampaignManagerService {
     let query = supabaseAdmin
       .from('carrier_contacts')
       .select('id, email, company_name, state, power_units, email_verified')
-      .not('email', 'is', null);
+      .not('email', 'is', null)
+      .eq('contact_type', 'carrier'); // campaigns only target FMCSA carrier contacts
 
     if (audience?.states && audience.states.length > 0) {
       query = query.in('state', audience.states);

@@ -86,6 +86,7 @@ router.get(
     const emailVerified = req.query['emailVerified'];
     const search = req.query['search'] as string | undefined;
     const hasEmail = req.query['hasEmail'];
+    const contactType = req.query['contactType'] as string | undefined;
 
     let query = supabaseAdmin
       .from('carrier_contacts')
@@ -99,6 +100,8 @@ router.get(
     if (hasEmail === 'true') query = query.not('email', 'is', null);
     if (hasEmail === 'false') query = query.is('email', null);
     if (search) query = query.ilike('company_name', `%${search}%`);
+    if (contactType) query = query.eq('contact_type', contactType);
+    else query = query.eq('contact_type', 'carrier'); // default to carriers unless explicitly set
 
     const { data, error, count } = await query;
     if (error) return res.status(500).json(errorResponse(error.message));
@@ -130,7 +133,7 @@ router.get(
 router.patch(
   '/:id',
   asyncHandler(async (req: Request, res: Response) => {
-    const allowed = ['email', 'email_verified', 'phone', 'website', 'notes', 'operating_status'];
+    const allowed = ['email', 'email_verified', 'phone', 'website', 'notes', 'operating_status', 'contact_type'];
     const updates: Record<string, any> = { updated_at: new Date().toISOString() };
     for (const key of allowed) {
       if (req.body[key] !== undefined) updates[key] = req.body[key];
@@ -174,6 +177,76 @@ router.post(
       .eq('id', req.params['id']);
 
     return res.json(successResponse({ verified, score }));
+  })
+);
+
+/**
+ * POST /carriers/contact
+ * Manually create a broker, dealership, or shipper contact (no DOT required).
+ */
+router.post(
+  '/contact',
+  asyncHandler(async (req: Request, res: Response) => {
+    const { contact_type, company_name, email, phone, state, city, address, zip, website } = req.body;
+    const validTypes = ['broker', 'dealership', 'shipper'];
+    if (!validTypes.includes(contact_type)) {
+      return res.status(400).json(errorResponse(`contact_type must be one of: ${validTypes.join(', ')}`));
+    }
+    if (!company_name) {
+      return res.status(400).json(errorResponse('company_name is required'));
+    }
+
+    const { data, error } = await supabaseAdmin
+      .from('carrier_contacts')
+      .insert({
+        contact_type,
+        company_name,
+        email: email || null,
+        phone: phone || null,
+        state: state || null,
+        city: city || null,
+        address: address || null,
+        zip: zip || null,
+        website: website || null,
+        operating_status: 'ACTIVE',
+      })
+      .select('*')
+      .single();
+
+    if (error) return res.status(500).json(errorResponse(error.message));
+    return res.status(201).json(successResponse(data));
+  })
+);
+
+/**
+ * GET /carriers/stats
+ * Enrichment progress stats — total, with email, verified, breakdown by contact_type.
+ */
+router.get(
+  '/stats',
+  asyncHandler(async (_req: Request, res: Response) => {
+    const { data, error } = await supabaseAdmin
+      .from('carrier_contacts')
+      .select('contact_type, email, email_verified');
+
+    if (error) return res.status(500).json(errorResponse(error.message));
+
+    const rows = (data as any[]) || [];
+    const byType: Record<string, { total: number; withEmail: number; verified: number }> = {};
+
+    for (const r of rows) {
+      const t = r.contact_type || 'carrier';
+      if (!byType[t]) byType[t] = { total: 0, withEmail: 0, verified: 0 };
+      byType[t].total++;
+      if (r.email) byType[t].withEmail++;
+      if (r.email_verified) byType[t].verified++;
+    }
+
+    const total = rows.length;
+    const withEmail = rows.filter((r: any) => r.email).length;
+    const verified = rows.filter((r: any) => r.email_verified).length;
+
+    return res.json(successResponse({ total, withEmail, verified, byType }));
   })
 );
 

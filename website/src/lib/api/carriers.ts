@@ -19,6 +19,14 @@ export interface ListCarriersParams {
   hasEmail?: boolean
   emailVerified?: boolean
   search?: string
+  contactType?: 'carrier' | 'broker' | 'dealership' | 'shipper'
+}
+
+export interface CarrierStats {
+  total: number
+  withEmail: number
+  verified: number
+  byType: Record<string, { total: number; withEmail: number; verified: number }>
 }
 
 export async function listCarriers(params: ListCarriersParams = {}): Promise<{ carriers: CarrierContact[]; total: number; page: number; limit: number }> {
@@ -30,6 +38,7 @@ export async function listCarriers(params: ListCarriersParams = {}): Promise<{ c
   if (params.hasEmail !== undefined) q.set('hasEmail', String(params.hasEmail))
   if (params.emailVerified !== undefined) q.set('emailVerified', String(params.emailVerified))
   if (params.search) q.set('search', params.search)
+  if (params.contactType) q.set('contactType', params.contactType)
   const res = await fetch(`${API_URL}/api/v1/carriers?${q}`, { headers })
   if (!res.ok) throw new Error('Failed to fetch carriers')
   const json = await res.json()
@@ -90,6 +99,39 @@ export async function verifyCarrierEmail(id: string): Promise<{ verified: boolea
   const headers = await getHeaders()
   const res = await fetch(`${API_URL}/api/v1/carriers/${id}/verify-email`, { method: 'POST', headers })
   if (!res.ok) throw new Error('Verification failed')
+  const json = await res.json()
+  return json.data
+}
+
+export async function getCarrierStats(): Promise<CarrierStats> {
+  const headers = await getHeaders()
+  const res = await fetch(`${API_URL}/api/v1/carriers/stats`, { headers })
+  if (!res.ok) throw new Error('Failed to fetch carrier stats')
+  const json = await res.json()
+  return json.data
+}
+
+export async function createContact(data: {
+  contact_type: 'broker' | 'dealership' | 'shipper'
+  company_name: string
+  email?: string
+  phone?: string
+  state?: string
+  city?: string
+  address?: string
+  zip?: string
+  website?: string
+}): Promise<CarrierContact> {
+  const headers = await getHeaders()
+  const res = await fetch(`${API_URL}/api/v1/carriers/contact`, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify(data),
+  })
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}))
+    throw new Error(err?.error?.message || 'Failed to create contact')
+  }
   const json = await res.json()
   return json.data
 }

@@ -414,6 +414,41 @@ CREATE TABLE public.bulk_uploads (
   CONSTRAINT bulk_uploads_pkey PRIMARY KEY (id),
   CONSTRAINT bulk_uploads_uploaded_by_fkey FOREIGN KEY (uploaded_by) REFERENCES auth.users(id)
 );
+CREATE TABLE public.campaign_conversions (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  campaign_id uuid NOT NULL,
+  recipient_id uuid NOT NULL,
+  conversion_type text NOT NULL CHECK (conversion_type = ANY (ARRAY['signup'::text, 'booking'::text, 'contact'::text, 'demo_request'::text])),
+  user_id uuid,
+  value_usd numeric DEFAULT 0,
+  converted_at timestamp with time zone NOT NULL DEFAULT now(),
+  metadata jsonb DEFAULT '{}'::jsonb,
+  CONSTRAINT campaign_conversions_pkey PRIMARY KEY (id),
+  CONSTRAINT campaign_conversions_campaign_fkey FOREIGN KEY (campaign_id) REFERENCES public.email_campaigns(id),
+  CONSTRAINT campaign_conversions_recipient_fkey FOREIGN KEY (recipient_id) REFERENCES public.campaign_recipients(id)
+);
+CREATE TABLE public.campaign_recipients (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  campaign_id uuid NOT NULL,
+  carrier_contact_id uuid NOT NULL,
+  status text NOT NULL DEFAULT 'pending'::text CHECK (status = ANY (ARRAY['pending'::text, 'sent'::text, 'delivered'::text, 'opened'::text, 'clicked'::text, 'bounced'::text, 'failed'::text, 'unsubscribed'::text])),
+  sent_at timestamp with time zone,
+  delivered_at timestamp with time zone,
+  opened_at timestamp with time zone,
+  clicked_at timestamp with time zone,
+  bounced_at timestamp with time zone,
+  open_count integer DEFAULT 0,
+  click_count integer DEFAULT 0,
+  last_opened_at timestamp with time zone,
+  last_clicked_at timestamp with time zone,
+  error_message text,
+  bounce_type text,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  updated_at timestamp with time zone NOT NULL DEFAULT now(),
+  CONSTRAINT campaign_recipients_pkey PRIMARY KEY (id),
+  CONSTRAINT campaign_recipients_campaign_fkey FOREIGN KEY (campaign_id) REFERENCES public.email_campaigns(id),
+  CONSTRAINT campaign_recipients_contact_fkey FOREIGN KEY (carrier_contact_id) REFERENCES public.carrier_contacts(id)
+);
 CREATE TABLE public.cancellation_records (
   id uuid NOT NULL DEFAULT uuid_generate_v4(),
   shipment_id uuid NOT NULL,
@@ -448,6 +483,31 @@ CREATE TABLE public.cancellation_records (
   CONSTRAINT cancellation_records_cancelled_by_fkey FOREIGN KEY (cancelled_by) REFERENCES public.profiles(id),
   CONSTRAINT cancellation_records_pickup_verification_id_fkey FOREIGN KEY (pickup_verification_id) REFERENCES public.pickup_verifications(id),
   CONSTRAINT cancellation_records_admin_reviewer_id_fkey FOREIGN KEY (admin_reviewer_id) REFERENCES public.profiles(id)
+);
+CREATE TABLE public.carrier_contacts (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  dot_number text NOT NULL UNIQUE,
+  company_name text NOT NULL,
+  mc_number text,
+  email text,
+  email_verified boolean DEFAULT false,
+  email_verification_score integer DEFAULT 0,
+  phone text,
+  website text,
+  address text,
+  city text,
+  state text,
+  zip text,
+  business_type text,
+  power_units integer,
+  drivers integer,
+  operating_status text DEFAULT 'AUTHORIZED'::text,
+  source text,
+  enriched_at timestamp with time zone,
+  last_verified_at timestamp with time zone,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  updated_at timestamp with time zone NOT NULL DEFAULT now(),
+  CONSTRAINT carrier_contacts_pkey PRIMARY KEY (id)
 );
 CREATE TABLE public.client_addresses (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
@@ -711,6 +771,52 @@ CREATE TABLE public.driver_vehicles (
   CONSTRAINT driver_vehicles_pkey PRIMARY KEY (id),
   CONSTRAINT driver_vehicles_driver_id_fkey FOREIGN KEY (driver_id) REFERENCES auth.users(id)
 );
+CREATE TABLE public.email_campaigns (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  name text NOT NULL,
+  subject text NOT NULL,
+  html_content text NOT NULL,
+  text_content text,
+  notes text,
+  tags ARRAY,
+  status text NOT NULL DEFAULT 'draft'::text CHECK (status = ANY (ARRAY['draft'::text, 'scheduled'::text, 'sending'::text, 'completed'::text, 'paused'::text, 'cancelled'::text])),
+  scheduled_at timestamp with time zone,
+  started_at timestamp with time zone,
+  completed_at timestamp with time zone,
+  target_audience jsonb DEFAULT '{}'::jsonb,
+  total_recipients integer DEFAULT 0,
+  daily_limit integer DEFAULT 10,
+  send_rate_per_hour integer DEFAULT 30,
+  warmup_mode boolean DEFAULT true,
+  sent_count integer DEFAULT 0,
+  delivered_count integer DEFAULT 0,
+  opened_count integer DEFAULT 0,
+  clicked_count integer DEFAULT 0,
+  bounced_count integer DEFAULT 0,
+  unsubscribed_count integer DEFAULT 0,
+  conversion_count integer DEFAULT 0,
+  created_by uuid,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  updated_at timestamp with time zone NOT NULL DEFAULT now(),
+  CONSTRAINT email_campaigns_pkey PRIMARY KEY (id)
+);
+CREATE TABLE public.email_events (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  campaign_id uuid NOT NULL,
+  recipient_id uuid NOT NULL,
+  event_type text NOT NULL CHECK (event_type = ANY (ARRAY['sent'::text, 'delivered'::text, 'opened'::text, 'clicked'::text, 'bounced'::text, 'spam'::text, 'unsubscribed'::text])),
+  ip_address text,
+  user_agent text,
+  location jsonb,
+  device_type text,
+  link_url text,
+  link_label text,
+  event_time timestamp with time zone NOT NULL DEFAULT now(),
+  metadata jsonb DEFAULT '{}'::jsonb,
+  CONSTRAINT email_events_pkey PRIMARY KEY (id),
+  CONSTRAINT email_events_campaign_fkey FOREIGN KEY (campaign_id) REFERENCES public.email_campaigns(id),
+  CONSTRAINT email_events_recipient_fkey FOREIGN KEY (recipient_id) REFERENCES public.campaign_recipients(id)
+);
 CREATE TABLE public.email_logs (
   id uuid NOT NULL DEFAULT uuid_generate_v4(),
   user_id uuid,
@@ -725,6 +831,15 @@ CREATE TABLE public.email_logs (
   created_at timestamp with time zone DEFAULT now(),
   CONSTRAINT email_logs_pkey PRIMARY KEY (id),
   CONSTRAINT email_logs_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
+);
+CREATE TABLE public.email_suppression_list (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  email text NOT NULL UNIQUE,
+  reason text NOT NULL CHECK (reason = ANY (ARRAY['unsubscribed'::text, 'bounced_hard'::text, 'spam_complaint'::text, 'manual'::text, 'invalid'::text])),
+  source text,
+  notes text,
+  added_at timestamp with time zone NOT NULL DEFAULT now(),
+  CONSTRAINT email_suppression_list_pkey PRIMARY KEY (id)
 );
 CREATE TABLE public.gate_passes (
   id uuid NOT NULL DEFAULT uuid_generate_v4(),
