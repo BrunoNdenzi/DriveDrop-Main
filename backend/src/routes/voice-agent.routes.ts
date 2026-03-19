@@ -124,7 +124,7 @@ router.post('/webhook', asyncHandler(async (req: Request, res: Response) => {
     res.json({
       assistant: {
         name:      'Maya',
-        voice:     { provider: '11labs', voiceId: 'bella' },
+        voice:     { provider: 'openai', voiceId: 'shimmer' },
         serverUrl,
         model: {
           provider: 'openai',
