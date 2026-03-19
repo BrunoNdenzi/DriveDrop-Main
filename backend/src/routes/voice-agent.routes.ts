@@ -128,24 +128,25 @@ router.post('/webhook', asyncHandler(async (req: Request, res: Response) => {
       transcript:  msg.transcript?.slice(0, 200),
     });
 
-    try {
-      await supabaseAdmin.from('voice_call_logs').insert({
-        vapi_call_id:     call?.id,
-        direction:        call?.type === 'inboundPhoneCall' ? 'inbound' : 'outbound',
-        call_type:        call?.metadata?.['campaign'] ?? 'client_support',
-        caller_phone:     call?.customer?.number,
-        duration_seconds: durationSec,
-        ended_reason:     msg.endedReason,
-        cost_usd:         msg.cost ?? call?.cost,
-        transcript:       msg.transcript,
-        summary:          msg.summary,
-        recording_url:    msg.recordingUrl ?? call?.recordingUrl,
-        metadata:         call?.metadata ?? {},
-        started_at:       call?.startedAt,
-        ended_at:         call?.endedAt,
-      });
-    } catch (err) {
-      logger.error('Failed to save call log to Supabase', { err });
+    const { error: dbError } = await supabaseAdmin.from('voice_call_logs').insert({
+      vapi_call_id:     call?.id,
+      direction:        call?.type === 'inboundPhoneCall' ? 'inbound' : 'outbound',
+      call_type:        call?.metadata?.['campaign'] ?? 'client_support',
+      caller_phone:     call?.customer?.number,
+      duration_seconds: durationSec,
+      ended_reason:     msg.endedReason,
+      cost_usd:         msg.cost ?? call?.cost,
+      transcript:       msg.transcript,
+      summary:          msg.summary,
+      recording_url:    msg.recordingUrl ?? call?.recordingUrl,
+      metadata:         call?.metadata ?? {},
+      started_at:       call?.startedAt,
+      ended_at:         call?.endedAt,
+    });
+    if (dbError) {
+      logger.error('Failed to save call log to Supabase', { error: dbError.message, details: dbError.details, hint: dbError.hint });
+    } else {
+      logger.info('Call log saved to Supabase', { callId: call?.id });
     }
 
     res.json({ result: 'ok' });
