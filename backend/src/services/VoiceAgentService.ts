@@ -726,7 +726,7 @@ export class VoiceAgentService {
       },
       assistant: {
         name:             'Alex',
-        voice:            { provider: '11labs', voiceId: 'adam' },
+        voice:            { provider: 'openai', voiceId: 'echo' },
         serverUrl:        SERVER_URL,
         model: {
           provider: 'openai',
@@ -765,7 +765,7 @@ export class VoiceAgentService {
       customer: { number: params.phone, name: params.driverName },
       assistant: {
         name:      'Sam',
-        voice:     { provider: '11labs', voiceId: 'rachel' },
+        voice:     { provider: 'openai', voiceId: 'nova' },
         serverUrl: SERVER_URL,
         model: {
           provider: 'openai',
@@ -797,7 +797,7 @@ export class VoiceAgentService {
       customer: { number: params.phone, name: params.clientName },
       assistant: {
         name:      'Maya',
-        voice:     { provider: '11labs', voiceId: 'bella' },
+        voice:     { provider: 'openai', voiceId: 'shimmer' },
         serverUrl: SERVER_URL,
         model: {
           provider: 'openai',
@@ -853,7 +853,7 @@ export class VoiceAgentService {
 
     const assistantPayload = {
       name:      'DriveDrop-Maya',
-      voice:     { provider: '11labs', voiceId: 'bella' },
+      voice:     { provider: 'openai', voiceId: 'shimmer' },
       serverUrl: SERVER_URL,
       model: {
         provider: 'openai',
@@ -913,7 +913,7 @@ export class VoiceAgentService {
       customer:      { number: toPhone },
       assistant: {
         name:      'Maya',
-        voice:     { provider: '11labs', voiceId: 'bella' },
+        voice:     { provider: 'openai', voiceId: 'shimmer' },
         serverUrl: SERVER_URL,
         model: {
           provider: 'openai',
