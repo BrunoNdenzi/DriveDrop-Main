@@ -20,6 +20,7 @@ import { authenticate, authorize }   from '@middlewares/auth.middleware';
 import { asyncHandler }              from '@utils/error';
 import { successResponse }           from '@utils/response';
 import { logger }                    from '@utils/logger';
+import { supabaseAdmin }              from '@lib/supabase';
 import { voiceAgentService, VoiceAgentTools } from '@services/VoiceAgentService';
 
 const router = Router();
@@ -39,10 +40,23 @@ router.post('/webhook', asyncHandler(async (req: Request, res: Response) => {
     message?: {
       type: string;
       functionCall?: { name: string; parameters: Record<string, any> };
-      call?: { id: string; metadata?: Record<string, any> };
+      call?: {
+        id: string;
+        type?: string;
+        assistantId?: string;
+        phoneNumberId?: string;
+        customer?: { number?: string; name?: string };
+        startedAt?: string;
+        endedAt?: string;
+        cost?: number;
+        metadata?: Record<string, any>;
+        recordingUrl?: string;
+      };
       transcript?: string;
+      summary?: string;
       endedReason?: string;
       cost?: number;
+      recordingUrl?: string;
     };
   };
 
@@ -101,14 +115,39 @@ router.post('/webhook', asyncHandler(async (req: Request, res: Response) => {
 
   // ── End-of-call report ─────────────────────────────────────────────────────
   if (msg.type === 'end-of-call-report') {
+    const call = msg.call;
+    const durationSec = call?.startedAt && call?.endedAt
+      ? Math.round((new Date(call.endedAt).getTime() - new Date(call.startedAt).getTime()) / 1000)
+      : null;
+
     logger.info('Call ended', {
-      callId:      msg.call?.id,
+      callId:      call?.id,
       endedReason: msg.endedReason,
       cost:        msg.cost,
-      transcript:  msg.transcript?.slice(0, 200), // log first 200 chars
+      duration:    durationSec,
+      transcript:  msg.transcript?.slice(0, 200),
     });
 
-    // TODO: persist call transcript to Supabase voice_call_logs table
+    try {
+      await supabaseAdmin.from('voice_call_logs').insert({
+        vapi_call_id:     call?.id,
+        direction:        call?.type === 'inboundPhoneCall' ? 'inbound' : 'outbound',
+        call_type:        call?.metadata?.['campaign'] ?? 'client_support',
+        caller_phone:     call?.customer?.number,
+        duration_seconds: durationSec,
+        ended_reason:     msg.endedReason,
+        cost_usd:         msg.cost ?? call?.cost,
+        transcript:       msg.transcript,
+        summary:          msg.summary,
+        recording_url:    msg.recordingUrl ?? call?.recordingUrl,
+        metadata:         call?.metadata ?? {},
+        started_at:       call?.startedAt,
+        ended_at:         call?.endedAt,
+      });
+    } catch (err) {
+      logger.error('Failed to save call log to Supabase', { err });
+    }
+
     res.json({ result: 'ok' });
     return;
   }
@@ -123,7 +162,7 @@ router.post('/webhook', asyncHandler(async (req: Request, res: Response) => {
     const serverUrl = `${process.env['API_URL'] || 'https://drivedrop-main-production.up.railway.app'}/api/v1/voice/webhook`;
     res.json({
       assistant: {
-        name:      'Maya',
+        name:      'Benji',
         voice:     { provider: 'openai', voiceId: 'shimmer' },
         serverUrl,
         model: {
@@ -132,7 +171,7 @@ router.post('/webhook', asyncHandler(async (req: Request, res: Response) => {
           messages: [{ role: 'system', content: VOICE_PERSONAS.client_support }],
           tools:    VAPI_TOOLS,
         },
-        firstMessage: "Hi, you've reached DriveDrop! I'm Maya. How can I help you today — are you looking to ship a vehicle, or checking on an existing order?",
+        firstMessage: "Hi, you've reached DriveDrop! I'm Benji. How can I help you today — are you looking to ship a vehicle, or checking on an existing order?",
         endCallFunctionEnabled: true,
         recordingEnabled:       true,
         maxDurationSeconds:     600,
