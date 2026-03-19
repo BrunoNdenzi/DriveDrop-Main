@@ -149,7 +149,7 @@ Never be pushy. If they say no twice, respect it: "No worries at all — I'll ma
   client_support: `
 ${BASE_PERSONALITY}
 ${OPERATIONS_KNOWLEDGE}
-Your name is Maya, and you're DriveDrop's client support assistant.
+Your name is Benji, and you're DriveDrop's client support assistant.
 
 Your goal: Help clients with anything related to their vehicle shipments — tracking, quotes, booking, cancellations, payments, or concerns.
 
@@ -796,7 +796,7 @@ export class VoiceAgentService {
       phoneNumberId: PHONE_NUMBER_ID,
       customer: { number: params.phone, name: params.clientName },
       assistant: {
-        name:      'Maya',
+        name:      'Benji',
         voice:     { provider: 'openai', voiceId: 'shimmer' },
         serverUrl: SERVER_URL,
         model: {
@@ -805,7 +805,7 @@ export class VoiceAgentService {
           messages: [{ role: 'system', content: VOICE_PERSONAS.client_support }],
           tools:    VAPI_TOOLS,
         },
-        firstMessage: `Hi ${params.clientName}, this is Maya from DriveDrop. ${params.message} I can also send you a tracking link by text if that's helpful.`,
+        firstMessage: `Hi ${params.clientName}, this is Benji from DriveDrop. ${params.message} I can also send you a tracking link by text if that's helpful.`,
         endCallFunctionEnabled: true,
         recordingEnabled:       true,
         maxDurationSeconds:     180,
@@ -849,10 +849,10 @@ export class VoiceAgentService {
    * Call POST /api/v1/voice/setup once after first deploy.
    */
   async setupInboundAssistant(): Promise<{ assistantId: string; phoneNumberId: string; message: string }> {
-    logger.info('Voice agent setup: creating/updating Maya inbound assistant');
+    logger.info('Voice agent setup: creating/updating Benji inbound assistant');
 
     const assistantPayload = {
-      name:      'DriveDrop-Maya',
+      name:      'DriveDrop-Benji',
       voice:     { provider: 'openai', voiceId: 'shimmer' },
       serverUrl: SERVER_URL,
       model: {
@@ -861,25 +861,25 @@ export class VoiceAgentService {
         messages: [{ role: 'system', content: VOICE_PERSONAS.client_support }],
         tools:    VAPI_TOOLS,
       },
-      firstMessage: "Hi, you've reached DriveDrop! I'm Maya. How can I help you today — are you looking to ship a vehicle, or checking on an existing order?",
+      firstMessage: "Hi, you've reached DriveDrop! I'm Benji. How can I help you today — are you looking to ship a vehicle, or checking on an existing order?",
       endCallFunctionEnabled: true,
       recordingEnabled:       true,
       maxDurationSeconds:     600,
     };
 
-    // Check if a DriveDrop-Maya assistant already exists
+    // Check if a DriveDrop-Benji assistant already exists
     const assistants: any[] = await this.vapiRequest('/assistant?limit=100', 'GET').catch(() => []);
     const existing = Array.isArray(assistants)
-      ? assistants.find((a: any) => a.name === 'DriveDrop-Maya')
+      ? assistants.find((a: any) => a.name === 'DriveDrop-Benji' || a.name === 'DriveDrop-Maya')
       : null;
 
     let assistantId: string;
     if (existing) {
-      logger.info(`Updating existing DriveDrop-Maya assistant (${existing.id})`);
+      logger.info(`Updating existing assistant → DriveDrop-Benji (${existing.id})`);
       const updated = await this.vapiRequest(`/assistant/${existing.id}`, 'PATCH', assistantPayload);
       assistantId = updated.id;
     } else {
-      logger.info('Creating new DriveDrop-Maya assistant');
+      logger.info('Creating new DriveDrop-Benji assistant');
       const created = await this.vapiRequest('/assistant', 'POST', assistantPayload);
       assistantId = created.id;
     }
@@ -912,7 +912,7 @@ export class VoiceAgentService {
       phoneNumberId: PHONE_NUMBER_ID,
       customer:      { number: toPhone },
       assistant: {
-        name:      'Maya',
+        name:      'Benji',
         voice:     { provider: 'openai', voiceId: 'shimmer' },
         serverUrl: SERVER_URL,
         model: {
@@ -921,7 +921,7 @@ export class VoiceAgentService {
           messages: [{ role: 'system', content: VOICE_PERSONAS.client_support }],
           tools:    VAPI_TOOLS,
         },
-        firstMessage: "Hi! This is Maya from DriveDrop — just running a quick test call. Everything's working great! You can hang up anytime.",
+        firstMessage: "Hi! This is Benji from DriveDrop — just running a quick test call. Everything's working great! You can hang up anytime.",
         endCallFunctionEnabled: true,
         recordingEnabled:       true,
         maxDurationSeconds:     120,
