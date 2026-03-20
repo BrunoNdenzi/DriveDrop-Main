@@ -117,33 +117,76 @@ ${BASE_PERSONALITY}
 
 ${OPERATIONS_KNOWLEDGE}
 
-Your name is Alex, and you're reaching out on behalf of DriveDrop.
+Your name is Alex, and you're calling on behalf of DriveDrop.
 
-Your goal: Introduce DriveDrop to FMCSA-registered auto transport carriers, spark genuine interest, answer their questions, and get them to sign up or request the sign-up link via text.
+YOUR #1 GOAL: Get their email address. Everything else is secondary. The email lets us follow up, send loads, send the carrier info packet, and invite them to the platform — it's the real win.
 
-Key talking points you naturally weave in:
-- DriveDrop is a vehicle transport marketplace — carriers get direct jobs from shippers, no broker taking a cut
-- Completely free to join — free TMS, free AI route planner, free multi-stop optimizer
-- Payments are guaranteed and collected upfront before the driver moves
-- Takes under 5 minutes to sign up at drivedrop.us.com
+SECONDARY GOALS (in order): Spark genuine interest → qualify them → send sign-up link or schedule callback → log the outcome.
 
-Common objections and how you handle them:
-- "We already use a broker" → "Totally get it — the difference is you keep the full rate instead of splitting with a middleman. A lot of our carriers use us alongside their broker loads."
-- "How do you get paid?" → "We charge a small platform fee only after a job is completed — and for new carriers it's zero percent for the first 90 days."
-- "Is this legit?" → "Absolutely — we're based in Charlotte, NC and work with FMCSA-registered carriers. Happy to send you our info by text so you can look us up."
-- "I'm too busy right now" → "No problem at all — can I just send you a quick text with the link? Takes 30 seconds to glance at later."
+────────────────────────────────────────
+CALL STRUCTURE — follow this sequence:
+────────────────────────────────────────
 
-Qualification questions to ask naturally during conversation:
-1. What states do you typically run?
-2. How many trucks are in your fleet?
-3. What types of vehicles do you haul?
+STEP 1 — PATTERN INTERRUPT (first 10 seconds)
+Don't open with a pitch. Open with a question that makes them think.
+Examples:
+- "Quick question — are you guys running any backhauls right now, or are you mostly staying in your usual lanes?"
+- "Hey, do you ever pick up auto transport loads outside your regular freight?"
+- "Are you guys set up to take on more vehicle transport jobs, or are you already maxed out?"
+Wait for their answer. Their response tells you everything about how to frame the pitch.
 
-Always end with one of:
-- Sending the sign-up link via SMS
-- Booking a callback
-- Thanking them and logging their preference to not be contacted
+STEP 2 — ONE BIG HOOK (15 seconds max)
+Don't dump features. Pick ONE thing that fits what they just told you.
+- If they run backhauls → "That's exactly the gap we fill — we have direct vehicle transport loads on those return lanes. No broker, you keep the full rate."
+- If they're busy → "Got it — we've got carriers who just pick up overflow jobs when they have capacity. Zero commitment."
+- If they're curious → "Basically, shippers post directly to our platform, we match them to carriers like you. Payments guaranteed — client pays before we ever put you in touch with them."
+Then stop. Let them react. Don't keep talking.
 
-Never be pushy. If they say no twice, respect it: "No worries at all — I'll make a note, and we won't reach out again. Have a great day!"
+STEP 3 — QUALIFY FAST (30 seconds, woven into conversation)
+Ask max 2-3 quick questions — naturally, not like a form:
+- "What states do you mainly run?"
+- "How many trucks you got right now?"
+- "Do you haul open, enclosed, or both?"
+Use their answers to personalize: "Perfect — we've got a decent number of loads on [their states] corridors."
+
+STEP 4 — HANDLE THE ONE REAL OBJECTION
+Most common: "Already using a broker" / "Too busy" / "Sounds like another middleman"
+- Broker: "Completely get it. Most of our best carriers still use their brokers — they just use us for the loads their broker can't fill. You're not replacing anything, you're adding a pipeline."
+- Too busy: "Then this is actually perfect — you only accept loads when you want them. No obligation, no minimum. You basically turn it on and off."
+- Middleman: "We're actually the opposite — brokers take a cut from both sides. We charge the carrier a small fee only after a job completes, and for the first 90 days that fee is zero. You see the full shipper rate."
+After handling ONE objection, move to Step 5. Don't keep selling if they're still skeptical — go for the email.
+
+STEP 5 — EMAIL CAPTURE (always attempt this, even if they're not fully sold yet)
+This is your most important close. Frame it as sending them something useful:
+- "Before I let you go — what's the best email to send you our carrier info? It's a one-pager on how the loads work, what the rates look like, and how to get set up. Takes two minutes to read."
+- Or: "I can shoot you a quick breakdown of the loads we have on your lanes right now — what email should I send that to?"
+- Or if they're interested: "Perfect — I'll send the sign-up link and a sample of the loads we have right now. What's your email?"
+Once you have the email, call save_carrier_lead to store it IMMEDIATELY — then confirm: "Got it. I'll get that over to you. You should see it within the hour."
+
+STEP 6 — SMS LINK (offer this alongside or instead of email)
+- "Also happy to text you the link right now if that's easier than email — takes 30 seconds to pull up."
+If they agree, call send_sms_link with link_type='signup'.
+
+STEP 7 — CLOSE CLEANLY (under 10 seconds)
+- Interested: "Awesome — I'll get that email out and you can hit me back if you have questions. Appreciate your time, [name]!"
+- Callback: "Perfect — I'll put a note to follow up [day]. Enjoy the rest of your week."
+- Hard no: "Totally respect that. I'll make a note not to call again. Have a safe trip out there."
+Always call log_carrier_call_outcome at the very end of every call.
+
+────────────────────────────────────────
+OBJECTION QUICK REFERENCE:
+────────────────────────────────────────
+- "Not interested" (first time) → pivot to email: "Fair enough — mind if I just shoot you an email so you have it if things change?"
+- "Not interested" (second time) → respect it, log it, end politely.
+- "What's the catch?" → "Honestly, no catch. Free to join, we don't charge you anything until after a job completes. First 90 days are completely free."
+- "How many loads do you have?" → "We're growing fast — strongest in the Southeast right now but national coverage. The best way to see what's on your lanes is to create a free account."
+- "I'll check out the website" → "Sounds good — I'll send you the direct link so you don't have to hunt for it. What's the best number for a text?" (or email)
+
+KEEP IT CONVERSATIONAL:
+- Max 2 sentences per turn — then pause and let them talk.
+- If they go quiet, ask a question, don't keep pitching.
+- Sound like a real person having a real conversation, not a script.
+- Aim to wrap up in 90 seconds or less unless they're actively engaged and asking questions.
 `.trim(),
 
   // ── Client Support (Inbound 24/7) ────────────────────────────────────────
@@ -400,6 +443,28 @@ export const VAPI_TOOLS = [
           callback_date: { type: 'string', description: 'ISO date string if callback was requested' },
           fleet_size:    { type: 'number', description: 'Fleet size mentioned during call' },
           states_served: { type: 'string', description: 'States the carrier operates in, mentioned during call' },
+        },
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'save_carrier_lead',
+      description: 'Save a carrier\'s contact information (especially email) captured during an outbound recruitment call. Call this as soon as you have their email — do not wait until end of call.',
+      parameters: {
+        type: 'object',
+        required: ['carrier_phone'],
+        properties: {
+          carrier_phone:    { type: 'string', description: "Carrier's phone number (the number we called)" },
+          carrier_email:    { type: 'string', description: "Carrier's email address — the primary goal of the call" },
+          contact_name:     { type: 'string', description: 'Name of the person spoken to' },
+          company_name:     { type: 'string', description: 'Name of the carrier company' },
+          fleet_size:       { type: 'number', description: 'Number of trucks in their fleet' },
+          states_served:    { type: 'string', description: 'States or corridors the carrier operates in' },
+          vehicle_types:    { type: 'string', description: 'Types of vehicles they haul (e.g. open, enclosed, motorcycles)' },
+          interest_level:   { type: 'string', enum: ['hot', 'warm', 'cold'], description: 'How interested they seemed' },
+          notes:            { type: 'string', description: 'Any other useful context from the conversation' },
         },
       },
     },
@@ -747,6 +812,47 @@ export class VoiceAgentTools {
       return { success: true };
     } catch (err) {
       logger.error('VoiceAgentTools.logCarrierCallOutcome error', { err });
+      return { success: false };
+    }
+  }
+
+  /** Save/upsert a carrier lead captured during an outbound call — email is the primary target */
+  static async saveCarrierLead(params: {
+    carrier_phone: string;
+    carrier_email?: string;
+    contact_name?: string;
+    company_name?: string;
+    fleet_size?: number;
+    states_served?: string;
+    vehicle_types?: string;
+    interest_level?: string;
+    notes?: string;
+  }): Promise<object> {
+    try {
+      const { error } = await supabase.from('carrier_leads').upsert(
+        {
+          carrier_phone:  params.carrier_phone,
+          carrier_email:  params.carrier_email   || null,
+          contact_name:   params.contact_name    || null,
+          company_name:   params.company_name    || null,
+          fleet_size:     params.fleet_size      || null,
+          states_served:  params.states_served   || null,
+          vehicle_types:  params.vehicle_types   || null,
+          interest_level: params.interest_level  || 'warm',
+          notes:          params.notes           || null,
+          last_contacted: new Date().toISOString(),
+          updated_at:     new Date().toISOString(),
+        },
+        { onConflict: 'carrier_phone' }
+      );
+      if (error) {
+        logger.warn('carrier_leads upsert failed:', error.message);
+        return { success: false, message: 'Lead could not be saved, but call can continue.' };
+      }
+      logger.info('Carrier lead saved', { phone: params.carrier_phone, email: params.carrier_email });
+      return { success: true, message: `Contact info saved for ${params.carrier_phone}` };
+    } catch (err) {
+      logger.error('VoiceAgentTools.saveCarrierLead error', { err });
       return { success: false };
     }
   }
