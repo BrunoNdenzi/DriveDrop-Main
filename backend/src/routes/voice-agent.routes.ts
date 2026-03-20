@@ -100,6 +100,9 @@ router.post('/webhook', asyncHandler(async (req: Request, res: Response) => {
         case 'log_carrier_call_outcome':
           result = await VoiceAgentTools.logCarrierCallOutcome(parameters as any);
           break;
+        case 'save_carrier_lead':
+          result = await VoiceAgentTools.saveCarrierLead(parameters as any);
+          break;
         case 'create_shipment':
           result = await VoiceAgentTools.createShipment(parameters as any);
           break;
@@ -163,10 +166,61 @@ router.post('/webhook', asyncHandler(async (req: Request, res: Response) => {
   // When you assign your Vapi phone number with "assistant routing" mode,
   // Vapi will POST here and expect { assistant: { ... } } back.
   if (msg.type === 'assistant-request') {
-    // Default inbound: route to client support (Maya)
-    // serverUrl at the assistant level = where Vapi sends function-call events
     const { VAPI_TOOLS, VOICE_PERSONAS } = await import('@services/VoiceAgentService');
     const serverUrl = `${process.env['API_URL'] || 'https://drivedrop-main-production.up.railway.app'}/api/v1/voice/webhook`;
+
+    // Try to identify the caller by their phone number so Benji can greet them by name
+    // and already knows their shipment history — no need to ask who they are.
+    const callerPhone = msg.call?.customer?.number ?? '';
+    let callerContext = '';
+    let firstMessage = "Hi, you've reached DriveDrop! I'm Benji. How can I help you today — are you looking to ship a vehicle, or checking on an existing order?";
+
+    if (callerPhone) {
+      try {
+        const phoneDigits = callerPhone.replace(/\D/g, '').slice(-10);
+        const { data: profile } = await supabaseAdmin
+          .from('profiles')
+          .select('id, first_name, last_name, email, phone')
+          .ilike('phone', `%${phoneDigits}%`)
+          .maybeSingle();
+
+        if (profile) {
+          // Look up their most recent active / recent shipment
+          const { data: recentShipment } = await supabaseAdmin
+            .from('shipments')
+            .select('id, status, vehicle_make, vehicle_model, vehicle_year, pickup_address, delivery_address')
+            .eq('client_id', profile.id)
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .maybeSingle();
+
+          const name = profile.first_name || 'there';
+
+          if (recentShipment) {
+            const statusMap: Record<string, string> = {
+              pending:          'waiting for a driver to be assigned',
+              driver_assigned:  'driver assigned and preparing to pick up',
+              driver_en_route:  'driver on the way to pickup',
+              driver_arrived:   'driver has arrived at pickup',
+              picked_up:        'vehicle picked up and on the way',
+              in_transit:       'in transit',
+              delivered:        'delivered',
+              completed:        'completed',
+            };
+            const statusReadable = statusMap[recentShipment.status] || recentShipment.status;
+            const vehicle = `${recentShipment.vehicle_year} ${recentShipment.vehicle_make} ${recentShipment.vehicle_model}`;
+            callerContext = `\n\n[CALLER CONTEXT — inject naturally into the conversation]\nThe caller is an existing DriveDrop client. Profile: ${profile.first_name} ${profile.last_name || ''} | email: ${profile.email} | phone: ${callerPhone}.\nMost recent shipment: ${vehicle} from ${recentShipment.pickup_address} to ${recentShipment.delivery_address} — currently ${statusReadable} (ID: ${recentShipment.id}).\nGreet them by first name straight away. You ALREADY know who they are — do NOT ask for their name or phone number again.`;
+            firstMessage = `Hi ${name}! This is Benji from DriveDrop. Good to hear from you — can I help you with your ${vehicle} shipment, or is there something else I can do for you today?`;
+          } else {
+            callerContext = `\n\n[CALLER CONTEXT]\nThe caller is an existing DriveDrop client with no active shipments: ${profile.first_name} ${profile.last_name || ''} | email: ${profile.email}.\nGreet them by first name. You know who they are — no need to ask.`;
+            firstMessage = `Hi ${name}! This is Benji from DriveDrop. How can I help you today?`;
+          }
+        }
+      } catch (lookupErr) {
+        logger.warn('Caller profile lookup failed (non-fatal)', { callerPhone, err: lookupErr });
+      }
+    }
+
     res.json({
       assistant: {
         name:      'Benji',
@@ -175,10 +229,10 @@ router.post('/webhook', asyncHandler(async (req: Request, res: Response) => {
         model: {
           provider: 'openai',
           model:    'gpt-4o',
-          messages: [{ role: 'system', content: VOICE_PERSONAS.client_support }],
+          messages: [{ role: 'system', content: VOICE_PERSONAS.client_support + callerContext }],
           tools:    VAPI_TOOLS,
         },
-        firstMessage: "Hi, you've reached DriveDrop! I'm Benji. How can I help you today — are you looking to ship a vehicle, or checking on an existing order?",
+        firstMessage,
         endCallFunctionEnabled: true,
         recordingEnabled:       true,
         maxDurationSeconds:     600,
