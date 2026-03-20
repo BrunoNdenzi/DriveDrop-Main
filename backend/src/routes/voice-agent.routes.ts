@@ -100,6 +100,12 @@ router.post('/webhook', asyncHandler(async (req: Request, res: Response) => {
         case 'log_carrier_call_outcome':
           result = await VoiceAgentTools.logCarrierCallOutcome(parameters as any);
           break;
+        case 'create_shipment':
+          result = await VoiceAgentTools.createShipment(parameters as any);
+          break;
+        case 'send_confirmation_email':
+          result = await VoiceAgentTools.sendConfirmationEmail(parameters as any);
+          break;
         default:
           logger.warn(`Unknown voice agent function: ${name}`);
       }

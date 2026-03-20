@@ -22,6 +22,7 @@ import { supabaseAdmin } from '@lib/supabase';
 import { calculateQuoteWithDynamicConfig } from './pricing.service';
 import { googleMapsService } from './google-maps.service';
 import { twilioService } from './twilio.service';
+import { emailService } from './email.service';
 
 const supabase = supabaseAdmin;
 
@@ -159,10 +160,34 @@ When a client calls:
 3. Use the available tools to get live data from the system
 4. Answer their question clearly and confirm they're satisfied before ending
 
+BOOKING A SHIPMENT (when a client wants to ship a vehicle):
+Follow these steps in order — do not skip any:
+1. Run get_price_quote first: you need their pickup location, delivery location, and vehicle type to quote a price.
+2. Collect ALL of these details (ask naturally, one or two at a time):
+   - Full pickup address (city & state minimum)
+   - Full delivery address (city & state minimum)
+   - Vehicle year, make, and model (e.g. "2019 Ford F-150")
+   - Vehicle type (sedan/SUV/pickup/luxury/motorcycle/heavy)
+   - Is the vehicle operable (does it drive)? Default yes.
+   - Their full name
+   - Their email address (for the confirmation)
+   - Their phone number
+   - Preferred pickup date (optional — if they don't have one, that's fine)
+3. Read back ALL the details clearly: "Just to confirm — I'd be booking a [year] [make] [model] from [pickup] to [delivery], around [X] miles. The quoted price is $[quote]. I have your name as [name] and I'll send the confirmation to [email]. Does everything sound right?"
+4. ONLY after the client says "yes", "confirmed", "sounds good", "go ahead", or similar explicit agreement — call create_shipment with all the collected data.
+5. Immediately after create_shipment succeeds, call send_confirmation_email.
+6. Tell the client: "You're all set! I've booked that for you. Your booking reference is [first 8 chars of shipment_id] and I've sent a confirmation email to [email]. You'll hear from us as soon as a driver is assigned. Is there anything else I can help with?"
+
+IMPORTANT booking rules:
+- NEVER call create_shipment without the client's explicit verbal approval.
+- NEVER guess or fill in the email address — always confirm it verbally.
+- If the client is unsure about any detail, take your time — this is important.
+- If create_shipment fails, apologize and suggest they book online at www.drivedrop.us.com or call back.
+
 Things you can do:
 - Look up shipment status and location in real-time
 - Give a price quote for a new shipment
-- Help create a new shipment request (collect pickup, delivery, vehicle, date)
+- Book a new shipment (with client approval)
 - Explain cancellation policy and refund eligibility
 - Provide delivery ETAs
 - Escalate to a human for damage claims, disputes, or complex billing
@@ -375,6 +400,49 @@ export const VAPI_TOOLS = [
           callback_date: { type: 'string', description: 'ISO date string if callback was requested' },
           fleet_size:    { type: 'number', description: 'Fleet size mentioned during call' },
           states_served: { type: 'string', description: 'States the carrier operates in, mentioned during call' },
+        },
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'create_shipment',
+      description: 'Create a new shipment booking after the client has verbally confirmed they want to proceed. Always call get_price_quote first and collect all required details before calling this. Requires explicit confirmation from the client.',
+      parameters: {
+        type: 'object',
+        required: ['client_name', 'client_email', 'client_phone', 'pickup_address', 'delivery_address', 'vehicle_type', 'vehicle_make', 'vehicle_model', 'vehicle_year', 'quote_amount', 'distance_miles'],
+        properties: {
+          client_name:      { type: 'string', description: "Client's full name" },
+          client_email:     { type: 'string', description: "Client's email address for confirmation" },
+          client_phone:     { type: 'string', description: "Client's phone number" },
+          pickup_address:   { type: 'string', description: 'Full pickup address including city and state' },
+          delivery_address: { type: 'string', description: 'Full delivery address including city and state' },
+          vehicle_type:     { type: 'string', enum: ['sedan', 'suv', 'pickup', 'luxury', 'motorcycle', 'heavy'], description: 'Vehicle category' },
+          vehicle_make:     { type: 'string', description: 'e.g. Ford, Toyota, BMW' },
+          vehicle_model:    { type: 'string', description: 'e.g. F-150, Camry, 3 Series' },
+          vehicle_year:     { type: 'number', description: 'Four-digit year, e.g. 2021' },
+          vehicle_vin:      { type: 'string', description: 'Vehicle VIN if provided (optional)' },
+          is_operable:      { type: 'boolean', description: 'Whether the vehicle drives under its own power. Default true.' },
+          quote_amount:     { type: 'number', description: 'Quoted price in USD as returned by get_price_quote' },
+          distance_miles:   { type: 'number', description: 'Distance in miles as returned by get_price_quote' },
+          pickup_date:      { type: 'string', description: 'Requested pickup date in ISO format, optional' },
+        },
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'send_confirmation_email',
+      description: 'Send a booking confirmation email to the client after the shipment has been successfully created with create_shipment.',
+      parameters: {
+        type: 'object',
+        required: ['shipment_id', 'client_email', 'client_name'],
+        properties: {
+          shipment_id:  { type: 'string', description: 'The shipment UUID returned by create_shipment' },
+          client_email: { type: 'string', description: "Client's email address" },
+          client_name:  { type: 'string', description: "Client's full name" },
         },
       },
     },
@@ -680,6 +748,151 @@ export class VoiceAgentTools {
     } catch (err) {
       logger.error('VoiceAgentTools.logCarrierCallOutcome error', { err });
       return { success: false };
+    }
+  }
+
+  /** Create a new shipment booking from a voice call — stores booking in DB */
+  static async createShipment(params: {
+    client_name: string;
+    client_email: string;
+    client_phone: string;
+    pickup_address: string;
+    delivery_address: string;
+    vehicle_type: string;
+    vehicle_make: string;
+    vehicle_model: string;
+    vehicle_year: number;
+    vehicle_vin?: string;
+    is_operable?: boolean;
+    quote_amount: number;
+    distance_miles: number;
+    pickup_date?: string;
+  }): Promise<object> {
+    try {
+      // Try to resolve an existing profile by phone
+      const phoneDigits = params.client_phone.replace(/\D/g, '').slice(-10);
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('id')
+        .ilike('phone', `%${phoneDigits}%`)
+        .maybeSingle();
+
+      const { data: shipment, error } = await supabaseAdmin
+        .from('shipments')
+        .insert({
+          client_id:        profile?.id ?? null,
+          status:           'pending',
+          pickup_address:   params.pickup_address,
+          delivery_address: params.delivery_address,
+          vehicle_type:     params.vehicle_type,
+          vehicle_year:     params.vehicle_year,
+          vehicle_make:     params.vehicle_make,
+          vehicle_model:    params.vehicle_model,
+          distance:         params.distance_miles,
+          estimated_price:  params.quote_amount,
+          pickup_date:      params.pickup_date || null,
+          title:            `${params.vehicle_year} ${params.vehicle_make} ${params.vehicle_model}`,
+          description:      `Voice booking | Customer: ${params.client_name} | Phone: ${params.client_phone} | Email: ${params.client_email}${params.vehicle_vin ? ` | VIN: ${params.vehicle_vin}` : ''}`,
+          created_at:       new Date().toISOString(),
+          updated_at:       new Date().toISOString(),
+        })
+        .select('id')
+        .single();
+
+      if (error) {
+        logger.error('Voice createShipment DB error', { error: error.message });
+        return { success: false, message: 'There was a problem saving the booking. Please try again.' };
+      }
+
+      logger.info('Voice booking created', { shipmentId: shipment.id, client: params.client_name });
+      return {
+        success:     true,
+        shipment_id: shipment.id,
+        message:     `Shipment booked! Your booking reference is ${shipment.id.slice(0, 8).toUpperCase()}. I'll send the confirmation email now.`,
+      };
+    } catch (err) {
+      logger.error('VoiceAgentTools.createShipment error', { err });
+      return { success: false, message: 'Unable to create the shipment right now. Please call back or visit our website.' };
+    }
+  }
+
+  /** Send a booking confirmation email after a voice-booking shipment is created */
+  static async sendConfirmationEmail(params: {
+    shipment_id: string;
+    client_email: string;
+    client_name: string;
+  }): Promise<object> {
+    try {
+      const { data: shipment } = await supabase
+        .from('shipments')
+        .select('id, vehicle_type, vehicle_year, vehicle_make, vehicle_model, pickup_address, delivery_address, distance, estimated_price, pickup_date, delivery_date, created_at')
+        .eq('id', params.shipment_id)
+        .single();
+
+      if (!shipment) {
+        return { success: false, message: 'Could not find the shipment to send the confirmation.' };
+      }
+
+      const distanceMiles  = Math.round(Number(shipment.distance) || 0);
+      const totalPrice     = Number(shipment.estimated_price) || 0;
+      const vehicleType    = (shipment.vehicle_type || 'sedan') as string;
+      const distanceBand   = distanceMiles <= 500 ? 'short' : distanceMiles <= 1500 ? 'mid' : 'long';
+
+      // Base rate lookup consistent with pricing.service.ts BASE_RATES (standard tier)
+      const BASE_RATE_MAP: Record<string, Record<string, number>> = {
+        sedan:      { short: 1.80, mid: 0.95, long: 0.60 },
+        suv:        { short: 2.00, mid: 1.05, long: 0.70 },
+        pickup:     { short: 2.20, mid: 1.15, long: 0.75 },
+        luxury:     { short: 3.00, mid: 1.80, long: 1.25 },
+        motorcycle: { short: 1.50, mid: 0.85, long: 0.55 },
+        heavy:      { short: 3.50, mid: 2.25, long: 1.80 },
+      };
+      const baseRate = BASE_RATE_MAP[vehicleType]?.[distanceBand] ?? 1.80;
+      const rawPrice = baseRate * distanceMiles;
+      const upfrontAmount  = totalPrice * 0.20;
+      const remainingAmount = totalPrice * 0.80;
+      const firstName      = params.client_name.split(' ')[0] || params.client_name;
+
+      await emailService.sendBookingConfirmationEmail({
+        firstName,
+        email:           params.client_email,
+        shipmentId:      shipment.id,
+        trackingUrl:     `${APP_URL}/dashboard/shipments/${shipment.id}`,
+
+        pickupAddress:   shipment.pickup_address,
+        deliveryAddress: shipment.delivery_address,
+        vehicleYear:     String(shipment.vehicle_year || ''),
+        vehicleMake:     shipment.vehicle_make     || '',
+        vehicleModel:    shipment.vehicle_model    || '',
+        vehicleType,
+        estimatedDeliveryDate: shipment.delivery_date
+          ? new Date(shipment.delivery_date).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })
+          : '',
+
+        distanceMiles,
+        distanceBand,
+        baseRate,
+        rawPrice,
+        deliverySpeedMultiplier: 1.0,
+        deliverySpeedType:       'standard',
+        fuelAdjustmentPercent:   0,
+        fuelPricePerGallon:      3.70,
+        bulkDiscountPercent:     0,
+        subtotal:                totalPrice,
+        totalPrice,
+
+        upfrontAmount,
+        remainingAmount,
+        paymentMethod:   'voice booking',
+        chargedDate:     new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }),
+        receiptNumber:   `DD-${shipment.id.slice(0, 8).toUpperCase()}-01`,
+      });
+
+      logger.info('Voice booking confirmation email sent', { shipmentId: shipment.id, email: params.client_email });
+      return { success: true, message: `Confirmation email sent to ${params.client_email}` };
+    } catch (err) {
+      logger.error('VoiceAgentTools.sendConfirmationEmail error', { err });
+      return { success: false, message: 'Unable to send the confirmation email right now, but your booking is saved.' };
     }
   }
 }
