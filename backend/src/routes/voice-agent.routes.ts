@@ -117,8 +117,8 @@ router.post('/webhook', asyncHandler(async (req: Request, res: Response) => {
       result = { error: 'Tool execution failed. Please continue the conversation.' };
     }
 
-    // Vapi expects { result: <serialized string OR object> }
-    res.json({ result });
+    // Vapi strictly requires result to be a JSON string, not a raw object
+    res.json({ result: JSON.stringify(result) });
     return;
   }
 
@@ -227,15 +227,31 @@ router.post('/webhook', asyncHandler(async (req: Request, res: Response) => {
         voice:     { provider: 'openai', voiceId: 'shimmer' },
         serverUrl,
         model: {
-          provider: 'openai',
-          model:    'gpt-4o',
-          messages: [{ role: 'system', content: VOICE_PERSONAS.client_support + callerContext }],
-          tools:    VAPI_TOOLS,
+          provider:    'openai',
+          model:       'gpt-4o',
+          temperature: 0.7,
+          messages:    [{ role: 'system', content: VOICE_PERSONAS.client_support + callerContext }],
+          tools:       VAPI_TOOLS,
         },
         firstMessage,
-        endCallFunctionEnabled: true,
-        recordingEnabled:       true,
-        maxDurationSeconds:     600,
+        endCallFunctionEnabled:        true,
+        recordingEnabled:              true,
+        maxDurationSeconds:            600,
+        backchannelingEnabled:         true,
+        responseDelaySeconds:          0.4,
+        numWordsToInterruptAssistant:  2,
+        backgroundSound:               'off',
+        silenceTimeoutSeconds:         30,
+        messagePlan: {
+          idleMessages:       ["Still there?", "Hey, you still with me?"],
+          idleTimeoutSeconds: 15,
+        },
+        transcriber: {
+          provider:    'deepgram',
+          model:       'nova-2',
+          language:    'en-US',
+          smartFormat: true,
+        },
       },
     });
     return;

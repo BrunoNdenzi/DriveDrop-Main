@@ -243,6 +243,26 @@ Things you can NOT do (escalate to human):
 
 If you need to escalate: "Let me connect you with one of our team members who can handle this directly — they'll be with you shortly."
 
+CONVERSATION STYLE:
+- Sound warm, genuine, and relaxed — like a helpful friend who works at DriveDrop
+- Use natural verbal fillers while thinking: "Let me just pull that up for you...", "One sec..."
+- Acknowledge what they said before responding: "Got it", "Totally", "Makes sense"
+- Keep responses short — 1-3 sentences, then check in: "Does that make sense?" / "Sound good?"
+- Never read out long lists — distill info conversationally
+
+WHEN TOOLS FAIL (tools can fail — do not let it derail the call):
+- If get_price_quote fails or returns an error: DO NOT give up. Use this ballpark guide:
+  Sedan: $200-450 under 600mi, $450-800 cross-country
+  SUV/Truck: ~15% more than sedan
+  Luxury (BMW/Mercedes/Porsche): ~50% more than sedan
+  Non-operable/inoperable: add 35-50% to the estimate
+  Expedited: +25%
+  Say: "Our quote tool is having a moment — but for a [vehicle] going [X] miles you're typically looking at around $[estimate]. I'd love to have someone confirm the exact number for you. Can I get your email or phone?"
+- If send_sms_link fails: NEVER say the text was sent. Be honest: "Hmm, the text didn't go through on my end — sorry about that. You can grab the app at drivedrop.us.com directly, or give me your email and I'll have someone follow up."
+- If get_shipment_status fails: "I'm having trouble pulling that up right now — our system may be briefly down. Try tracking at drivedrop.us.com/track or call back in a few minutes and I'll get it right up."
+- If create_shipment fails: "Something went sideways on my end — the booking didn't save. You can book directly at drivedrop.us.com, or give me your contact info and I'll make sure someone follows up within the hour."
+- NEVER confirm an action that a tool reported as failed. Always be honest, then offer an alternative immediately.
+
 Tone: reassuring, patient, calm. The client may be stressed about their car. Acknowledge their feelings before jumping to solutions.
 `.trim(),
 
@@ -1044,20 +1064,42 @@ export class VoiceAgentService {
         name:   params.companyName,
       },
       assistant: {
-        name:             'Alex',
-        voice:            { provider: 'openai', voiceId: 'echo' },
-        serverUrl:        SERVER_URL,
+        name:      'Alex',
+        voice:     { provider: 'openai', voiceId: 'echo' },
+        serverUrl: SERVER_URL,
         model: {
-          provider: 'openai',
-          model:    'gpt-4o',
-          messages: [{ role: 'system', content: VOICE_PERSONAS.carrier_recruitment }],
-          tools:    VAPI_TOOLS,
+          provider:    'openai',
+          model:       'gpt-4o',
+          temperature: 0.8,
+          messages:    [{ role: 'system', content: VOICE_PERSONAS.carrier_recruitment }],
+          tools:       VAPI_TOOLS,
         },
-        firstMessage: `Hi, is this ${params.companyName}? Great — my name is Alex, I'm calling from DriveDrop. We work with auto transport carriers like yourself, and I just wanted to take 60 seconds to tell you about something that could get you more loads without any broker fees. Is now an okay time?`,
-        endCallFunctionEnabled: true,
-        recordingEnabled:       true,
-        hipaaEnabled:           false,
-        maxDurationSeconds:     300,
+        // Pattern-interrupt opener — question, not a pitch
+        firstMessage:                  `Hey, quick question — does your company ever move vehicles? Like auto transport loads?`,
+        endCallFunctionEnabled:        true,
+        recordingEnabled:              true,
+        hipaaEnabled:                  false,
+        maxDurationSeconds:            300,
+        backchannelingEnabled:         true,
+        responseDelaySeconds:          0.6,
+        numWordsToInterruptAssistant:  2,
+        backgroundSound:               'office',
+        silenceTimeoutSeconds:         25,
+        messagePlan: {
+          idleMessages:       ["Hey, you still there?"],
+          idleTimeoutSeconds: 12,
+        },
+        transcriber: {
+          provider:    'deepgram',
+          model:       'nova-2',
+          language:    'en-US',
+          smartFormat: true,
+        },
+        voicemailDetection: {
+          provider:                'twilio',
+          enabled:                 true,
+          voicemailDetectionTypes: ['machine_end_beep', 'machine_end_silence'],
+        },
       },
       metadata: {
         campaign:     'carrier_recruitment',
@@ -1119,15 +1161,25 @@ export class VoiceAgentService {
         voice:     { provider: 'openai', voiceId: 'shimmer' },
         serverUrl: SERVER_URL,
         model: {
-          provider: 'openai',
-          model:    'gpt-4o',
-          messages: [{ role: 'system', content: VOICE_PERSONAS.client_support }],
-          tools:    VAPI_TOOLS,
+          provider:    'openai',
+          model:       'gpt-4o',
+          temperature: 0.7,
+          messages:    [{ role: 'system', content: VOICE_PERSONAS.client_support }],
+          tools:       VAPI_TOOLS,
         },
-        firstMessage: `Hi ${params.clientName}, this is Benji from DriveDrop. ${params.message} I can also send you a tracking link by text if that's helpful.`,
-        endCallFunctionEnabled: true,
-        recordingEnabled:       true,
-        maxDurationSeconds:     180,
+        firstMessage:                  `Hi ${params.clientName}, it's Benji from DriveDrop. ${params.message} Happy to answer any questions — and I can text you the tracking link too if that's easier.`,
+        endCallFunctionEnabled:        true,
+        recordingEnabled:              true,
+        maxDurationSeconds:            180,
+        backchannelingEnabled:         true,
+        responseDelaySeconds:          0.4,
+        numWordsToInterruptAssistant:  2,
+        transcriber: {
+          provider:    'deepgram',
+          model:       'nova-2',
+          language:    'en-US',
+          smartFormat: true,
+        },
       },
       metadata: {
         campaign:    'client_notification',
@@ -1175,15 +1227,32 @@ export class VoiceAgentService {
       voice:     { provider: 'openai', voiceId: 'shimmer' },
       serverUrl: SERVER_URL,
       model: {
-        provider: 'openai',
-        model:    'gpt-4o',
-        messages: [{ role: 'system', content: VOICE_PERSONAS.client_support }],
-        tools:    VAPI_TOOLS,
+        provider:    'openai',
+        model:       'gpt-4o',
+        temperature: 0.7,
+        messages:    [{ role: 'system', content: VOICE_PERSONAS.client_support }],
+        tools:       VAPI_TOOLS,
       },
-      firstMessage: "Hi, you've reached DriveDrop! I'm Benji. How can I help you today — are you looking to ship a vehicle, or checking on an existing order?",
-      endCallFunctionEnabled: true,
-      recordingEnabled:       true,
-      maxDurationSeconds:     600,
+      firstMessage:                  "Hi, you've reached DriveDrop! I'm Benji — how can I help you today?",
+      endCallFunctionEnabled:        true,
+      recordingEnabled:              true,
+      maxDurationSeconds:            600,
+      // Conversation quality
+      backchannelingEnabled:         true,   // "mm-hmm", "right" while user speaks
+      responseDelaySeconds:          0.4,    // slight human pause before replying
+      numWordsToInterruptAssistant:  2,      // user can cut in after 2 words
+      backgroundSound:               'off',  // no background noise for clean inbound
+      silenceTimeoutSeconds:         30,
+      messagePlan: {
+        idleMessages:       ["Still there?", "Hey, you still with me?"],
+        idleTimeoutSeconds: 15,
+      },
+      transcriber: {
+        provider:    'deepgram',
+        model:       'nova-2',
+        language:    'en-US',
+        smartFormat: true,
+      },
     };
 
     // Check if a DriveDrop-Benji assistant already exists
