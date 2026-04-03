@@ -979,6 +979,12 @@ export class VoiceAgentTools {
       }
       logger.info('Carrier lead saved', { phone: params.carrier_phone, email: params.carrier_email });
 
+      // Fire carrier SMS with sign-up link — non-blocking
+      const signupLink = `${APP_URL}/drivers/register?utm_source=voice&utm_campaign=carrier_call`;
+      const smsBody = `Hey${params.contact_name ? ` ${params.contact_name.split(' ')[0]}` : ''}! Here's the DriveDrop carrier info we talked about — sign up free (90 days no fee): ${signupLink}`;
+      twilioService.sendSMS({ to: params.carrier_phone, message: smsBody })
+        .catch(err => logger.warn('Carrier recruitment SMS failed (non-fatal)', { err }));
+
       // Fire carrier welcome email asynchronously — non-blocking, call continues regardless
       if (params.carrier_email) {
         const firstName = params.contact_name?.split(' ')[0] || 'there';
