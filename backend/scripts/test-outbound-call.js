@@ -9,10 +9,10 @@ const PHONE_NUMBER_ID  = process.env.VAPI_PHONE_NUMBER_ID;
 const API_URL          = process.env.API_URL || 'https://drivedrop-main-production.up.railway.app';
 const SERVER_URL       = `${API_URL}/api/v1/voice/webhook`;
 
-const TO_PHONE         = '+19803242352';
-const COMPANY_NAME     = 'Test Carrier';
-const CITY             = 'Charlotte';
-const STATE            = 'NC';
+const TEST_NUMBERS = [
+  { phone: '+19803242352', company: 'Test Carrier A', city: 'Charlotte', state: 'NC' },
+  { phone: '+17045247921', company: 'Test Carrier B', city: 'Charlotte', state: 'NC' },
+];
 
 async function vapi(path, method, body) {
   const res = await fetch(`https://api.vapi.ai${path}`, {
@@ -164,23 +164,23 @@ const CARRIER_TOOLS = [
   },
 ];
 
-async function main() {
-  console.log(`📞  Calling ${TO_PHONE} as Alex (carrier recruitment) ...`);
-  console.log(`   Webhook : ${SERVER_URL}`);
+async function callOne({ phone, company, city, state }) {
+  console.log(`\n📞  Calling ${phone} (${company}) ...`);
 
   const call = await vapi('/call', 'POST', {
     phoneNumberId: PHONE_NUMBER_ID,
-    customer: { number: TO_PHONE, name: COMPANY_NAME },
+    customer: { number: phone, name: company },
     assistant: {
       name:  'Alex',
       // ElevenLabs "Adam" — the most natural-sounding male outbound voice on Vapi
       voice: {
         provider:  '11labs',
-        voiceId:   'pNInz6obpgDQGcFmaJgB', // Adam — warm, confident, American male
-        stability: 0.45,      // slightly lower = more natural variation in tone
-        similarityBoost: 0.80,
-        style: 0.35,
-        useSpeakerBoost: true,
+        voiceId:         'pNInz6obpgDQGcFmaJgB', // Adam — warm, confident, American male
+        stability:       0.70,  // higher = more consistent, less pitch-swing
+        similarityBoost: 0.75,
+        style:           0.10,  // low = relaxed, not salesy/performative
+        speed:           0.93,  // slightly slower = more human, less rushed
+        useSpeakerBoost: false, // off = softer, less "broadcast" quality
       },
       serverUrl: SERVER_URL,
       model: {
@@ -226,17 +226,29 @@ async function main() {
     },
     metadata: {
       campaign:     'carrier_recruitment',
-      company_name: COMPANY_NAME,
-      city:         CITY,
-      state:        STATE,
+      company_name: company,
+      city,
+      state,
     },
   });
 
   console.log(`✅  Call initiated!`);
   console.log(`   Call ID : ${call.id}`);
   console.log(`   From    : +1 (704) 937-5246`);
-  console.log(`   To      : ${TO_PHONE}`);
-  console.log(`\n📋  Check Vapi dashboard → Calls for live status.`);
+  console.log(`   To      : ${phone}`);
+}
+
+async function main() {
+  console.log(`🚀  Firing ${TEST_NUMBERS.length} test calls (V3 Alex prompt)`);
+  console.log(`   Webhook : ${SERVER_URL}\n`);
+
+  for (const target of TEST_NUMBERS) {
+    await callOne(target);
+    // brief pause between calls to avoid race on phone number
+    await new Promise(r => setTimeout(r, 2000));
+  }
+
+  console.log(`\n📋  Check Vapi dashboard → Calls for live transcripts.`);
 }
 
 main().catch(err => {

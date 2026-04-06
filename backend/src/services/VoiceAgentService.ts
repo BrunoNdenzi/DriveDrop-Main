@@ -1252,7 +1252,15 @@ export class VoiceAgentService {
       },
       assistant: {
         name:      'Alex',
-        voice:     { provider: 'openai', voiceId: 'echo' },
+        voice:     {
+          provider:        '11labs',
+          voiceId:         'pNInz6obpgDQGcFmaJgB', // ElevenLabs Adam — warm, natural American male
+          stability:       0.70,  // higher = consistent tone, no pitch swings
+          similarityBoost: 0.75,
+          style:           0.10,  // low = relaxed, not salesy
+          speed:           0.93,  // slightly slower — more human, less rushed
+          useSpeakerBoost: false, // off = softer, less broadcast quality
+        },
         serverUrl: SERVER_URL,
         model: {
           provider:    'openai',
