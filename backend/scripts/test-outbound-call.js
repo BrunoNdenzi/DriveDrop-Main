@@ -9,7 +9,7 @@ const PHONE_NUMBER_ID  = process.env.VAPI_PHONE_NUMBER_ID;
 const API_URL          = process.env.API_URL || 'https://drivedrop-main-production.up.railway.app';
 const SERVER_URL       = `${API_URL}/api/v1/voice/webhook`;
 
-const TO_PHONE         = '+19803242352';
+const TO_PHONE         = '+17045247921';
 const COMPANY_NAME     = 'Test Carrier';
 const CITY             = 'Charlotte';
 const STATE            = 'NC';
@@ -174,45 +174,51 @@ async function main() {
     customer: { number: TO_PHONE, name: COMPANY_NAME },
     assistant: {
       name:  'Alex',
-      voice: { provider: 'openai', voiceId: 'echo' },
+      // ElevenLabs "Adam" — the most natural-sounding male outbound voice on Vapi
+      voice: {
+        provider:  '11labs',
+        voiceId:   'pNInz6obpgDQGcFmaJgB', // Adam — warm, confident, American male
+        stability: 0.45,      // slightly lower = more natural variation in tone
+        similarityBoost: 0.80,
+        style: 0.35,
+        useSpeakerBoost: true,
+      },
       serverUrl: SERVER_URL,
       model: {
         provider:    'openai',
         model:       'gpt-4o',
-        temperature: 0.8,          // more natural, less robotic responses
+        temperature: 0.85,
         messages: [{ role: 'system', content: CARRIER_PROMPT }],
         tools:    CARRIER_TOOLS,
       },
-      // Opens with a human-sounding question, not a company intro
-      firstMessage: `Hey, quick question — does your company ever move vehicles? Like auto transport?`,
-      endCallFunctionEnabled:    true,
-      recordingEnabled:          true,
-      maxDurationSeconds:        300,
-      // ── Conversation feel ──────────────────────────────────────────────────
-      // Backchanneling: Alex says "mm-hmm", "right", "yeah" while user is talking
-      backchannelingEnabled:     true,
-      // Slight realistic pause before Alex responds (feels human, not instant)
-      responseDelaySeconds:      0.6,
-      // How many words user needs to say to interrupt Alex mid-sentence
-      numWordsToInterruptAssistant: 2,
-      // Ambient office sound in background — makes it feel like a real call
-      backgroundSound:           'office',
-      // ── Silence / idle handling ────────────────────────────────────────────
-      silenceTimeoutSeconds:     30,
+      // Opens with a direct question — no company intro, no "hello is this X"
+      firstMessage: `Hey, quick question — does your company move vehicles at all? Auto transport?`,
+      endCallFunctionEnabled:       true,
+      recordingEnabled:             true,
+      maxDurationSeconds:           300,
+      // ── Conversation feel ───────────────────────────────────────────────
+      backchannelingEnabled:        true,   // "mm-hmm", "right" while they speak
+      responseDelaySeconds:         0.5,    // natural human pause before responding
+      numWordsToInterruptAssistant: 2,      // easy to cut in
+      backgroundSound:              'office',
+      // ── Silence handling ───────────────────────────────────────────────
+      silenceTimeoutSeconds:        35,
       messagePlan: {
-        // Only nudge once after 12s of dead silence, not every 8s
-        idleMessages:       ["Hey, you still there?"],
-        idleTimeoutSeconds: 12,
+        // Only nudge if there's been dead silence well into the call
+        // idleTimeoutSeconds starts counting from call connect — 20s gives
+        // enough room for normal conversation pauses without false-firing
+        idleMessages:       ["You with me?"],
+        idleMessageMaxSpokenCount: 1,   // say it at most once
+        idleTimeoutSeconds: 20,
       },
-      // ── Voice endpointing ─────────────────────────────────────────────────
-      // Deepgram nova-2 transcriber — better at handling natural speech gaps
+      // ── Transcriber ────────────────────────────────────────────────────
       transcriber: {
         provider:    'deepgram',
         model:       'nova-2',
         language:    'en-US',
         smartFormat: true,
       },
-      // ── Voicemail detection ───────────────────────────────────────────────
+      // ── Voicemail detection ─────────────────────────────────────────────
       voicemailDetection: {
         provider:                'twilio',
         enabled:                 true,
