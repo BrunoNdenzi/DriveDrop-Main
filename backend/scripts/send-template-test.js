@@ -17,8 +17,8 @@ const TEST_VARS = {
   utmMedium: 'outreach',
 };
 
-const TARGET_EMAIL = 'brunondenzi80@gmail.com';
-const TARGET_NAME  = 'Bruno';
+const TARGET_EMAIL = 'infos@calkons.com';
+const TARGET_NAME  = 'Benson';
 
 // ---------------------------------------------------------------------------
 // Template (mirrors carrierOutreach.ts — introduction)

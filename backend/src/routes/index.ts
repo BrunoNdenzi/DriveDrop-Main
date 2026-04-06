@@ -42,6 +42,9 @@ import carriersRoutes from './carriers.routes';
 import analyticsRoutes from './analytics.routes';
 import emailWebhooksRoutes from './email-webhooks.routes';
 
+// Voice Agent
+import voiceAgentRoutes from './voice-agent.routes';
+
 const router = Router();
 
 // API welcome message
@@ -79,6 +82,8 @@ router.get('/', (_req, res) => {
       carriers: '/api/v1/carriers',
       analytics: '/api/v1/analytics',
       emailWebhooks: '/api/v1/email-webhooks',
+      // Voice Agent
+      voice: '/api/v1/voice',
     },
   });
 });
@@ -122,5 +127,8 @@ router.use('/campaigns', campaignsRoutes);
 router.use('/carriers', carriersRoutes);
 router.use('/analytics', analyticsRoutes);
 router.use('/email-webhooks', emailWebhooksRoutes);
+
+// Voice Agent
+router.use('/voice', voiceAgentRoutes);
 
 export default router;
