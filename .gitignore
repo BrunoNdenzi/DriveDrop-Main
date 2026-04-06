@@ -86,3 +86,7 @@ temp/
 
 # Yarn Integrity file
 .yarn-integrity
+
+# Large data files
+scripts/FMCSA_CENSUS1.csv
+*.csv
