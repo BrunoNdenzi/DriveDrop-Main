@@ -5,6 +5,11 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 
+# Large data files — never commit CSVs (can exceed GitHub's 100MB limit)
+*.csv
+*.xlsx
+*.xls
+
 # Environment variables
 .env
 .env.local
