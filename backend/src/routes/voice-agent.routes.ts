@@ -137,7 +137,7 @@ router.post('/webhook', asyncHandler(async (req: Request, res: Response) => {
       transcript:  msg.transcript?.slice(0, 200),
     });
 
-    const { error: dbError } = await supabaseAdmin.from('voice_call_logs').insert({
+    const { error: dbError } = await supabaseAdmin.from('voice_call_logs').upsert({
       vapi_call_id:     call?.id,
       direction:        call?.type === 'inboundPhoneCall' ? 'inbound' : 'outbound',
       call_type:        call?.metadata?.['campaign'] ?? 'client_support',
@@ -151,7 +151,7 @@ router.post('/webhook', asyncHandler(async (req: Request, res: Response) => {
       metadata:         call?.metadata ?? {},
       started_at:       call?.startedAt,
       ended_at:         call?.endedAt,
-    });
+    }, { onConflict: 'vapi_call_id' });
     if (dbError) {
       logger.error('Failed to save call log to Supabase', { error: dbError.message, details: dbError.details, hint: dbError.hint });
     } else {
