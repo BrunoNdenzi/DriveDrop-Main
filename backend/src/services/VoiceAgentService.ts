@@ -1263,8 +1263,8 @@ export class VoiceAgentService {
         },
         serverUrl: SERVER_URL,
         model: {
-          provider:    'openai',
-          model:       'gpt-4o',
+          provider:    'groq',
+          model:       'llama-3.3-70b-versatile',
           temperature: 0.65,
           messages:    [{ role: 'system', content: VOICE_PERSONAS.carrier_recruitment }],
           tools:       VAPI_TOOLS,
@@ -1276,7 +1276,7 @@ export class VoiceAgentService {
         hipaaEnabled:                  false,
         maxDurationSeconds:            300,
         backchannelingEnabled:         true,
-        responseDelaySeconds:          0.6,
+        responseDelaySeconds:          0.3,  // Groq ~80ms TTFT — tighter pause sounds natural
         numWordsToInterruptAssistant:  2,
         backgroundSound:               'office',
         silenceTimeoutSeconds:         25,

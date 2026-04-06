@@ -184,8 +184,8 @@ async function callOne({ phone, company, city, state }) {
       },
       serverUrl: SERVER_URL,
       model: {
-        provider:    'openai',
-        model:       'gpt-4o',
+        provider:    'groq',
+        model:       'llama-3.3-70b-versatile',
         temperature: 0.65,
         messages: [{ role: 'system', content: CARRIER_PROMPT }],
         tools:    CARRIER_TOOLS,
@@ -197,7 +197,7 @@ async function callOne({ phone, company, city, state }) {
       maxDurationSeconds:           300,
       // ── Conversation feel ───────────────────────────────────────────────
       backchannelingEnabled:        true,   // "mm-hmm", "right" while they speak
-      responseDelaySeconds:         0.5,    // natural human pause before responding
+      responseDelaySeconds:         0.3,    // Groq is ~80ms TTFT — tighter pause feels natural
       numWordsToInterruptAssistant: 2,      // easy to cut in
       backgroundSound:              'office',
       // ── Silence handling ───────────────────────────────────────────────
