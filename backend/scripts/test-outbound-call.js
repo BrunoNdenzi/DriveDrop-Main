@@ -11,7 +11,7 @@ const SERVER_URL       = `${API_URL}/api/v1/voice/webhook`;
 
 const TEST_NUMBERS = [
   { phone: '+19803242352', company: 'Test Carrier A', city: 'Charlotte', state: 'NC' },
-  { phone: '+17045247921', company: 'Test Carrier B', city: 'Charlotte', state: 'NC' },
+  // { phone: '+17045247921', company: 'Test Carrier B', city: 'Charlotte', state: 'NC' },
 ];
 
 async function vapi(path, method, body) {
@@ -55,7 +55,7 @@ You open with a short question, not an intro. Give them something to react to be
   "Hi — am I catching you at a bad time? Real quick: do you move vehicles?"
   "Hey, this is Alex with DriveDrop out of Charlotte — do you haul cars?"
 
-If they say "who is this?" — good, easy: "Sorry — Alex with DriveDrop, vehicle transport marketplace out of Charlotte." Then back to the question.
+If they say "who is this?" or sound confused: "Sorry — Alex with DriveDrop. Do you haul cars?" Keep it short — never say the full company name on the re-intro.
 If they sound rushed the moment they pick up: "No worries — ten seconds. You run auto transport?"
 
 When they confirm they haul
@@ -91,11 +91,12 @@ Only call save_carrier_lead after they confirm it's correct.
 When they deflect
 Short redirect, then stop. If they push back twice, let them go:
   "I'm busy." → "Totally — ten seconds: you run auto transport at all?"
-  "Not interested." → "Totally fine — appreciate your time. Have a good one." (end the call)
+  "Not interested." → MUST say exactly: "Totally fine — appreciate your time. Have a good one." Then end the call.
   "Send info." → "For sure — what email should I send it to?"
   "Is this a broker?" → "No — shippers post directly, you see the exact rate they're paying, and payment's guaranteed before pickup."
   "We have loads." → "Totally — most carriers just add us for lanes their current broker doesn't reach."
   "What's the catch?" → "No catch — free to join, 90 days no fee, then a small per-job fee only on completed loads."
+  Someone corrects themselves mid-sentence ("Yes... wait, no / I don't") → treat the correction as the real answer. Say: "No worries — appreciate the time. Have a good one." Then end the call.
 
 Don't argue. If someone declines twice, thank them and exit cleanly.
 
