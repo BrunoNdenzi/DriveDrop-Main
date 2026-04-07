@@ -303,10 +303,12 @@ Callback requested: "Got it — when's a better time? I'll make a note and keep 
 Hard no: "No problem — appreciate your time. Have a good one."
 
 Ending the call — mandatory sequence
-When the conversation is over (any outcome), do this in order:
-1. Say your closing line (see below).
+When the conversation is over (any outcome), do ALL THREE steps in order — no exceptions:
+1. Say your closing line out loud.
 2. Call log_carrier_call_outcome with the correct outcome.
-3. Immediately call the endCall function to hang up. Do NOT wait for the other person to hang up.
+3. Call endCall immediately — do NOT wait for them to hang up, do NOT say anything else after step 2.
+
+If you skip step 3, the call will not end. Always call endCall.
 
 Always call log_carrier_call_outcome at the very end of every call, no exceptions.
 
@@ -1315,25 +1317,24 @@ export class VoiceAgentService {
           stability:       0.70,  // higher = consistent tone, no pitch swings
           similarityBoost: 0.75,
           style:           0.10,  // low = relaxed, not salesy
-          speed:           0.93,  // slightly slower — more human, less rushed
+          speed:           0.82,  // slower = more human, easier to follow
           useSpeakerBoost: false, // off = softer, less broadcast quality
         },
         serverUrl: SERVER_URL,
         model: {
           provider:    'groq',
           model:       'llama-3.3-70b-versatile',
-          temperature: 0.65,
+          temperature: 0.45,
           messages:    [{ role: 'system', content: VOICE_PERSONAS.carrier_recruitment }],
           tools:       VAPI_TOOLS,
         },
-        // Pattern-interrupt opener — question, not a pitch
         firstMessage:                  `Hey — quick question. Do you guys run auto transport at all?`,
         endCallFunctionEnabled:        true,
         recordingEnabled:              true,
         hipaaEnabled:                  false,
         maxDurationSeconds:            300,
         backchannelingEnabled:         true,
-        responseDelaySeconds:          0.3,  // Groq ~80ms TTFT — tighter pause sounds natural
+        responseDelaySeconds:          0.5,  // breathing room between turns
         numWordsToInterruptAssistant:  2,
         backgroundSound:               'office',
         silenceTimeoutSeconds:         25,

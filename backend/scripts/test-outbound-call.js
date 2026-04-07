@@ -10,8 +10,8 @@ const API_URL          = process.env.API_URL || 'https://drivedrop-main-producti
 const SERVER_URL       = `${API_URL}/api/v1/voice/webhook`;
 
 const TEST_NUMBERS = [
-  // { phone: '+19803242352', company: 'Test Carrier A', city: 'Charlotte', state: 'NC' },
-  { phone: '+17045247921', company: 'Test Carrier B', city: 'Charlotte', state: 'NC' },
+  { phone: '+19803242352', company: 'Test Carrier A', city: 'Charlotte', state: 'NC' },
+  // { phone: '+17045247921', company: 'Test Carrier B', city: 'Charlotte', state: 'NC' },
 ];
 
 async function vapi(path, method, body) {
@@ -206,7 +206,7 @@ async function callOne({ phone, company, city, state }) {
         stability:       0.70,  // higher = more consistent, less pitch-swing
         similarityBoost: 0.75,
         style:           0.10,  // low = relaxed, not salesy/performative
-        speed:           0.93,  // slightly slower = more human, less rushed
+        speed:           0.82,  // slower = more human, easier to follow
         useSpeakerBoost: false, // off = softer, less "broadcast" quality
       },
       serverUrl: SERVER_URL,
@@ -224,7 +224,7 @@ async function callOne({ phone, company, city, state }) {
       maxDurationSeconds:           300,
       // ── Conversation feel ───────────────────────────────────────────────
       backchannelingEnabled:        true,   // "mm-hmm", "right" while they speak
-      responseDelaySeconds:         0.3,    // Groq is ~80ms TTFT — tighter pause feels natural
+      responseDelaySeconds:         0.5,    // breathing room between turns
       numWordsToInterruptAssistant: 2,      // easy to cut in
       backgroundSound:              'office',
       // ── Silence handling ───────────────────────────────────────────────
