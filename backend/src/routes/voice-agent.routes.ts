@@ -125,16 +125,47 @@ router.post('/webhook', asyncHandler(async (req: Request, res: Response) => {
   // ── End-of-call report ─────────────────────────────────────────────────────
   if (msg.type === 'end-of-call-report') {
     const call = msg.call;
-    const durationSec = call?.startedAt && call?.endedAt
-      ? Math.round((new Date(call.endedAt).getTime() - new Date(call.startedAt).getTime()) / 1000)
+
+    // When the user hangs up (ended_reason: call.in-progress.sip-completed-call),
+    // Vapi's webhook payload arrives with empty transcript/cost/summary.
+    // Fall back to the Vapi REST API to retrieve complete call data.
+    let transcript  = msg.transcript  ?? null;
+    let summary     = msg.summary     ?? null;
+    let cost        = msg.cost        ?? call?.cost ?? null;
+    let startedAt   = call?.startedAt ?? null;
+    let endedAt     = call?.endedAt   ?? null;
+    let recordingUrl = msg.recordingUrl ?? call?.recordingUrl ?? null;
+
+    if (!transcript && call?.id && process.env['VAPI_API_KEY']) {
+      try {
+        const vapiRes  = await fetch(`https://api.vapi.ai/call/${call.id}`, {
+          headers: { Authorization: `Bearer ${process.env['VAPI_API_KEY']}` },
+        });
+        if (vapiRes.ok) {
+          const vapiCall = await vapiRes.json() as Record<string, any>;
+          transcript   = vapiCall['transcript']   ?? transcript;
+          summary      = vapiCall['summary']      ?? summary;
+          cost         = vapiCall['cost']         ?? cost;
+          startedAt    = vapiCall['startedAt']    ?? startedAt;
+          endedAt      = vapiCall['endedAt']      ?? endedAt;
+          recordingUrl = vapiCall['recordingUrl'] ?? recordingUrl;
+          logger.info('Fetched full call data from Vapi API', { callId: call.id });
+        }
+      } catch (fetchErr) {
+        logger.warn('Vapi API fallback fetch failed (non-fatal)', { callId: call?.id, err: fetchErr });
+      }
+    }
+
+    const durationSec = startedAt && endedAt
+      ? Math.round((new Date(endedAt).getTime() - new Date(startedAt).getTime()) / 1000)
       : null;
 
     logger.info('Call ended', {
       callId:      call?.id,
       endedReason: msg.endedReason,
-      cost:        msg.cost,
+      cost,
       duration:    durationSec,
-      transcript:  msg.transcript?.slice(0, 200),
+      transcript:  transcript?.slice(0, 200),
     });
 
     const { error: dbError } = await supabaseAdmin.from('voice_call_logs').upsert({
@@ -144,13 +175,13 @@ router.post('/webhook', asyncHandler(async (req: Request, res: Response) => {
       caller_phone:     call?.customer?.number,
       duration_seconds: durationSec,
       ended_reason:     msg.endedReason,
-      cost_usd:         msg.cost ?? call?.cost,
-      transcript:       msg.transcript,
-      summary:          msg.summary,
-      recording_url:    msg.recordingUrl ?? call?.recordingUrl,
+      cost_usd:         cost,
+      transcript,
+      summary,
+      recording_url:    recordingUrl,
       metadata:         call?.metadata ?? {},
-      started_at:       call?.startedAt,
-      ended_at:         call?.endedAt,
+      started_at:       startedAt,
+      ended_at:         endedAt,
     }, { onConflict: 'vapi_call_id' });
     if (dbError) {
       logger.error('Failed to save call log to Supabase', { error: dbError.message, details: dbError.details, hint: dbError.hint });

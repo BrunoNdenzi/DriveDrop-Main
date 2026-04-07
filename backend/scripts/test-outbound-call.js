@@ -10,8 +10,8 @@ const API_URL          = process.env.API_URL || 'https://drivedrop-main-producti
 const SERVER_URL       = `${API_URL}/api/v1/voice/webhook`;
 
 const TEST_NUMBERS = [
-  { phone: '+19803242352', company: 'Test Carrier A', city: 'Charlotte', state: 'NC' },
-  // { phone: '+17045247921', company: 'Test Carrier B', city: 'Charlotte', state: 'NC' },
+  // { phone: '+19803242352', company: 'Test Carrier A', city: 'Charlotte', state: 'NC' },
+  { phone: '+17045247921', company: 'Test Carrier B', city: 'Charlotte', state: 'NC' },
 ];
 
 async function vapi(path, method, body) {
@@ -104,6 +104,12 @@ Closing the call
 Email captured: "Perfect — appreciate it. I'll send that over now. Stay safe out there."
 Callback requested: "Got it — when's a better time? I'll make a note and keep it short."
 Hard no: "No problem — appreciate your time. Have a good one."
+
+Ending the call — mandatory sequence
+When the conversation is over (any outcome), do this in order:
+1. Say your closing line (see below).
+2. Call log_carrier_call_outcome with the correct outcome.
+3. Immediately call the endCall function to hang up. Do NOT wait for the other person to hang up.
 
 Always call log_carrier_call_outcome at the very end of every call, no exceptions.
 
