@@ -612,7 +612,7 @@ export const VAPI_TOOLS = [
     messages: [{ type: 'request-start', content: '' }],
     function: {
       name: 'save_carrier_lead',
-      description: 'Save a carrier\'s contact information (especially email) captured during an outbound recruitment call. Call this as soon as you have their email — do not wait until end of call.',
+      description: 'Save carrier contact info. Call ONLY after the carrier verbally confirms the email read-back is correct (they said "yes", "that\'s right", "correct", or similar). After this tool succeeds, you MUST speak the closing line out loud, then call log_carrier_call_outcome, then call endCall. Do NOT call this tool mid-conversation — wait for confirmed read-back.',
       parameters: {
         type: 'object',
         required: ['carrier_phone'],
@@ -1116,7 +1116,10 @@ export class VoiceAgentTools {
         }).catch(err => logger.warn('Carrier welcome email failed (non-fatal)', { err }));
       }
 
-      return { success: true, message: `Contact info saved for ${params.carrier_phone}` };
+      return {
+        success: true,
+        message: `Lead saved. Now complete the call in order: (1) say out loud "Perfect — appreciate it. I'll send that over now. Stay safe out there.", (2) call log_carrier_call_outcome with outcome='interested', (3) call endCall. Do not skip any step.`,
+      };
     } catch (err) {
       logger.error('VoiceAgentTools.saveCarrierLead error', { err });
       return { success: false };

@@ -135,7 +135,7 @@ const CARRIER_TOOLS = [
     messages: [{ type: 'request-start', content: '' }],
     function: {
       name: 'save_carrier_lead',
-      description: "Save carrier contact info captured during the call. Call immediately when you get their email.",
+      description: "Save carrier contact info. Call ONLY after the carrier verbally confirms the email read-back is correct (they said 'yes', 'that's right', 'correct', or similar). After this tool succeeds, you MUST speak the closing line out loud, then call log_carrier_call_outcome, then call endCall. Do NOT call this tool mid-conversation — wait for confirmed read-back.",
       parameters: {
         type: 'object',
         required: ['carrier_phone'],

@@ -126,35 +126,17 @@ router.post('/webhook', asyncHandler(async (req: Request, res: Response) => {
   if (msg.type === 'end-of-call-report') {
     const call = msg.call;
 
-    // When the user hangs up (ended_reason: call.in-progress.sip-completed-call),
-    // Vapi's webhook payload arrives with empty transcript/cost/summary.
-    // Fall back to the Vapi REST API to retrieve complete call data.
-    let transcript  = msg.transcript  ?? null;
-    let summary     = msg.summary     ?? null;
-    let cost        = msg.cost        ?? call?.cost ?? null;
-    let startedAt   = call?.startedAt ?? null;
-    let endedAt     = call?.endedAt   ?? null;
-    let recordingUrl = msg.recordingUrl ?? call?.recordingUrl ?? null;
+    // Respond to Vapi IMMEDIATELY — it has a strict ~5s webhook timeout.
+    // All DB work is async after this point.
+    res.json({ result: 'ok' });
 
-    if (!transcript && call?.id && process.env['VAPI_API_KEY']) {
-      try {
-        const vapiRes  = await fetch(`https://api.vapi.ai/call/${call.id}`, {
-          headers: { Authorization: `Bearer ${process.env['VAPI_API_KEY']}` },
-        });
-        if (vapiRes.ok) {
-          const vapiCall = await vapiRes.json() as Record<string, any>;
-          transcript   = vapiCall['transcript']   ?? transcript;
-          summary      = vapiCall['summary']      ?? summary;
-          cost         = vapiCall['cost']         ?? cost;
-          startedAt    = vapiCall['startedAt']    ?? startedAt;
-          endedAt      = vapiCall['endedAt']      ?? endedAt;
-          recordingUrl = vapiCall['recordingUrl'] ?? recordingUrl;
-          logger.info('Fetched full call data from Vapi API', { callId: call.id });
-        }
-      } catch (fetchErr) {
-        logger.warn('Vapi API fallback fetch failed (non-fatal)', { callId: call?.id, err: fetchErr });
-      }
-    }
+    // Extract whatever Vapi sent in the payload
+    const transcript  = msg.transcript   ?? null;
+    const summary     = msg.summary      ?? null;
+    const cost        = msg.cost         ?? call?.cost         ?? null;
+    const startedAt   = call?.startedAt  ?? null;
+    const endedAt     = call?.endedAt    ?? null;
+    const recordingUrl = msg.recordingUrl ?? call?.recordingUrl ?? null;
 
     const durationSec = startedAt && endedAt
       ? Math.round((new Date(endedAt).getTime() - new Date(startedAt).getTime()) / 1000)
@@ -165,31 +147,77 @@ router.post('/webhook', asyncHandler(async (req: Request, res: Response) => {
       endedReason: msg.endedReason,
       cost,
       duration:    durationSec,
-      transcript:  transcript?.slice(0, 200),
+      hasTranscript: !!transcript,
     });
 
-    const { error: dbError } = await supabaseAdmin.from('voice_call_logs').upsert({
-      vapi_call_id:     call?.id,
-      direction:        call?.type === 'inboundPhoneCall' ? 'inbound' : 'outbound',
-      call_type:        call?.metadata?.['campaign'] ?? 'client_support',
-      caller_phone:     call?.customer?.number,
-      duration_seconds: durationSec,
-      ended_reason:     msg.endedReason,
-      cost_usd:         cost,
-      transcript,
-      summary,
-      recording_url:    recordingUrl,
-      metadata:         call?.metadata ?? {},
-      started_at:       startedAt,
-      ended_at:         endedAt,
-    }, { onConflict: 'vapi_call_id' });
-    if (dbError) {
-      logger.error('Failed to save call log to Supabase', { error: dbError.message, details: dbError.details, hint: dbError.hint });
-    } else {
-      logger.info('Call log saved to Supabase', { callId: call?.id });
+    // Save initial record with whatever data we have now
+    try {
+      const { error: dbError } = await supabaseAdmin.from('voice_call_logs').upsert({
+        vapi_call_id:     call?.id,
+        direction:        call?.type === 'inboundPhoneCall' ? 'inbound' : 'outbound',
+        call_type:        call?.metadata?.['campaign'] ?? 'client_support',
+        caller_phone:     call?.customer?.number,
+        duration_seconds: durationSec,
+        ended_reason:     msg.endedReason,
+        cost_usd:         cost,
+        transcript,
+        summary,
+        recording_url:    recordingUrl,
+        metadata:         call?.metadata ?? {},
+        started_at:       startedAt,
+        ended_at:         endedAt,
+      }, { onConflict: 'vapi_call_id' });
+      if (dbError) {
+        logger.error('Failed to save initial call log', { error: dbError.message });
+      } else {
+        logger.info('Initial call log saved', { callId: call?.id });
+      }
+    } catch (e) {
+      logger.error('Exception saving initial call log', { callId: call?.id, err: e });
     }
 
-    res.json({ result: 'ok' });
+    // If transcript is empty (happens when user hangs up / SIP completion),
+    // Vapi needs ~12s to finish processing before the transcript is available.
+    // Schedule a delayed backfill to patch the record once Vapi is ready.
+    if (!transcript && call?.id && process.env['VAPI_API_KEY']) {
+      setTimeout(async () => {
+        try {
+          const vapiRes = await fetch(`https://api.vapi.ai/call/${call.id}`, {
+            headers: { Authorization: `Bearer ${process.env['VAPI_API_KEY']}` },
+          });
+          if (!vapiRes.ok) {
+            logger.warn('Vapi backfill: non-OK response', { callId: call.id, status: vapiRes.status });
+            return;
+          }
+          const vapiCall = await vapiRes.json() as Record<string, any>;
+          if (!vapiCall['transcript']) {
+            logger.info('Vapi backfill: transcript still empty after 12s', { callId: call.id });
+            return;
+          }
+          const backfillDuration = vapiCall['startedAt'] && vapiCall['endedAt']
+            ? Math.round((new Date(vapiCall['endedAt']).getTime() - new Date(vapiCall['startedAt']).getTime()) / 1000)
+            : durationSec;
+          const { error: backfillErr } = await supabaseAdmin.from('voice_call_logs').upsert({
+            vapi_call_id:     call.id,
+            transcript:       vapiCall['transcript'],
+            summary:          vapiCall['summary']      ?? summary,
+            cost_usd:         vapiCall['cost']         ?? cost,
+            recording_url:    vapiCall['recordingUrl'] ?? recordingUrl,
+            started_at:       vapiCall['startedAt']    ?? startedAt,
+            ended_at:         vapiCall['endedAt']      ?? endedAt,
+            duration_seconds: backfillDuration,
+          }, { onConflict: 'vapi_call_id' });
+          if (backfillErr) {
+            logger.error('Vapi backfill upsert failed', { callId: call.id, error: backfillErr.message });
+          } else {
+            logger.info('Transcript backfilled from Vapi API', { callId: call.id });
+          }
+        } catch (backfillEx) {
+          logger.warn('Vapi backfill exception (non-fatal)', { callId: call?.id, err: backfillEx });
+        }
+      }, 12000);
+    }
+
     return;
   }
 
