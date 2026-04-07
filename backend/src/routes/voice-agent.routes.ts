@@ -39,7 +39,14 @@ router.post('/webhook', asyncHandler(async (req: Request, res: Response) => {
   const body = req.body as {
     message?: {
       type: string;
+      // Legacy Vapi format (kept for backward compat)
       functionCall?: { name: string; parameters: Record<string, any> };
+      // Current Vapi format — tool-calls event
+      toolCallList?: Array<{
+        id: string;
+        type: string;
+        function: { name: string; arguments: string }; // arguments is a JSON string
+      }>;
       call?: {
         id: string;
         type?: string;
@@ -68,56 +75,72 @@ router.post('/webhook', asyncHandler(async (req: Request, res: Response) => {
 
   logger.info('Voice webhook received', { type: msg.type, callId: msg.call?.id });
 
-  // ── Handle tool/function calls from the agent ──────────────────────────────
+  // ── Shared tool dispatcher ────────────────────────────────────────────────
+  const executeTool = async (name: string, parameters: Record<string, any>): Promise<object> => {
+    switch (name) {
+      case 'get_shipment_status':
+        return VoiceAgentTools.getShipmentStatus(parameters as any);
+      case 'get_price_quote':
+        return VoiceAgentTools.getPriceQuote(parameters as any);
+      case 'get_available_loads':
+        return VoiceAgentTools.getAvailableLoads(parameters as any);
+      case 'update_shipment_status':
+        return VoiceAgentTools.updateShipmentStatus(parameters as any);
+      case 'get_driver_earnings':
+        return VoiceAgentTools.getDriverEarnings(parameters as any);
+      case 'send_sms_link':
+        return VoiceAgentTools.sendSmsLink(parameters as any);
+      case 'get_admin_stats':
+        return VoiceAgentTools.getAdminStats(parameters as any);
+      case 'log_carrier_call_outcome':
+        return VoiceAgentTools.logCarrierCallOutcome(parameters as any);
+      case 'save_carrier_lead':
+        return VoiceAgentTools.saveCarrierLead(parameters as any);
+      case 'create_shipment':
+        return VoiceAgentTools.createShipment(parameters as any);
+      case 'send_confirmation_email':
+        return VoiceAgentTools.sendConfirmationEmail(parameters as any);
+      default:
+        logger.warn(`Unknown voice agent function: ${name}`);
+        return { error: `Unknown function: ${name}` };
+    }
+  };
+
+  // ── Current Vapi format: tool-calls (Vapi switched from function-call) ─────
+  // Response format: { results: [{ toolCallId, result: string }] }
+  if (msg.type === 'tool-calls' && msg.toolCallList?.length) {
+    const results = await Promise.all(
+      msg.toolCallList.map(async (toolCall) => {
+        const name = toolCall.function?.name ?? '';
+        let parameters: Record<string, any> = {};
+        try { parameters = JSON.parse(toolCall.function?.arguments ?? '{}'); } catch { /* malformed JSON */ }
+
+        logger.info('Tool call (tool-calls format)', { name, callId: msg.call?.id });
+        let result: object;
+        try {
+          result = await executeTool(name, parameters);
+        } catch (err) {
+          logger.error('Voice agent tool execution error', { name, err });
+          result = { error: 'Tool execution failed. Please continue the conversation.' };
+        }
+        return { toolCallId: toolCall.id, result: JSON.stringify(result) };
+      }),
+    );
+    res.json({ results });
+    return;
+  }
+
+  // ── Legacy Vapi format: function-call (kept for backward compat) ──────────
   if (msg.type === 'function-call' && msg.functionCall) {
     const { name, parameters } = msg.functionCall;
-
+    logger.info('Tool call (function-call format)', { name, callId: msg.call?.id });
     let result: object = { error: 'Unknown function' };
-
     try {
-      switch (name) {
-        case 'get_shipment_status':
-          result = await VoiceAgentTools.getShipmentStatus(parameters as any);
-          break;
-        case 'get_price_quote':
-          result = await VoiceAgentTools.getPriceQuote(parameters as any);
-          break;
-        case 'get_available_loads':
-          result = await VoiceAgentTools.getAvailableLoads(parameters as any);
-          break;
-        case 'update_shipment_status':
-          result = await VoiceAgentTools.updateShipmentStatus(parameters as any);
-          break;
-        case 'get_driver_earnings':
-          result = await VoiceAgentTools.getDriverEarnings(parameters as any);
-          break;
-        case 'send_sms_link':
-          result = await VoiceAgentTools.sendSmsLink(parameters as any);
-          break;
-        case 'get_admin_stats':
-          result = await VoiceAgentTools.getAdminStats(parameters as any);
-          break;
-        case 'log_carrier_call_outcome':
-          result = await VoiceAgentTools.logCarrierCallOutcome(parameters as any);
-          break;
-        case 'save_carrier_lead':
-          result = await VoiceAgentTools.saveCarrierLead(parameters as any);
-          break;
-        case 'create_shipment':
-          result = await VoiceAgentTools.createShipment(parameters as any);
-          break;
-        case 'send_confirmation_email':
-          result = await VoiceAgentTools.sendConfirmationEmail(parameters as any);
-          break;
-        default:
-          logger.warn(`Unknown voice agent function: ${name}`);
-      }
+      result = await executeTool(name, parameters);
     } catch (err) {
       logger.error('Voice agent tool execution error', { name, err });
       result = { error: 'Tool execution failed. Please continue the conversation.' };
     }
-
-    // Vapi strictly requires result to be a JSON string, not a raw object
     res.json({ result: JSON.stringify(result) });
     return;
   }
