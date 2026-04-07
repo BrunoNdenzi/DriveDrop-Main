@@ -278,7 +278,7 @@ Ask for it tied to what they just told you. Keep it natural:
   "Perfect — what's the best email to send you the loads on those lanes and the sign-up link?"
   "Mind if I shoot you a one-pager? Takes two minutes to read — what email should I use?"
 
-If they'd rather text: "Yeah, totally — is this the best number?" Then call send_sms_link with link_type='signup'.
+If they'd rather text: "Yeah, totally — is this the best number?" Then call save_carrier_lead with carrier_phone set to their number and carrier_email left empty (include contact_name, company_name, states_served, fleet_size — anything collected). It will automatically fire the sign-up SMS. Do NOT also call send_sms_link — that would double-text them.
 
 Reading it back — always, every time
 When they give an email, you spell it back before logging it:
@@ -961,6 +961,22 @@ export class VoiceAgentTools {
       if (error) {
         logger.warn('carrier_call_logs insert failed — table may not exist yet:', error.message);
       }
+
+      // Send callback confirmation SMS so the carrier knows we heard them
+      if (params.outcome === 'callback_requested') {
+        let callbackMsg = `Hey — Alex from DriveDrop here. Confirmed: I'll follow back up with you soon. Any questions in the meantime: (704) 937-5246 or drivedrop.us.com.`;
+        if (params.callback_date) {
+          try {
+            const dateStr = new Date(params.callback_date).toLocaleDateString('en-US', {
+              weekday: 'long', month: 'long', day: 'numeric',
+            });
+            callbackMsg = `Hey — Alex from DriveDrop. Confirmed: I'll follow up on ${dateStr}. Any questions before then: (704) 937-5246.`;
+          } catch { /* fallback to generic */ }
+        }
+        twilioService.sendSMS({ to: params.carrier_phone, message: callbackMsg })
+          .catch(err => logger.warn('Callback confirmation SMS failed (non-fatal)', { err }));
+      }
+
       return { success: true };
     } catch (err) {
       logger.error('VoiceAgentTools.logCarrierCallOutcome error', { err });
@@ -1011,7 +1027,20 @@ export class VoiceAgentTools {
 
       // Fire carrier welcome email asynchronously — non-blocking, call continues regardless
       if (params.carrier_email) {
-        const firstName = params.contact_name?.split(' ')[0] || 'there';
+        const firstName    = params.contact_name?.split(' ')[0] || 'there';
+        const displayName  = params.company_name
+          ? `${firstName} at ${params.company_name}`
+          : firstName;
+        // Build call-context line from what Alex collected mid-conversation
+        const contextParts: string[] = [];
+        if (params.states_served) contextParts.push(`your ${params.states_served} lanes`);
+        if (params.fleet_size)    contextParts.push(`${params.fleet_size}-truck operation`);
+        const callContextHtml = contextParts.length
+          ? `<p style="color:#374151;line-height:1.6;">Based on what you mentioned about ${contextParts.join(' and ')} — here\'s exactly what DriveDrop brings to the table:</p>`
+          : ``;
+        const callContextText = contextParts.length
+          ? `Based on your ${contextParts.join(' and ')} — here's what DriveDrop brings:\n\n`
+          : ``;
         const emailHtml = `
 <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;background:#f9fafb;">
   <div style="background:#111827;padding:28px 32px;text-align:center;">
@@ -1019,7 +1048,8 @@ export class VoiceAgentTools {
     <p style="color:#9ca3af;font-size:13px;margin:6px 0 0;">Vehicle Transport Marketplace &middot; Charlotte, NC</p>
   </div>
   <div style="padding:32px;background:#fff;">
-    <h2 style="color:#111827;font-size:20px;margin:0 0 16px;">Hey ${firstName} &mdash; great talking to you.</h2>
+    <h2 style="color:#111827;font-size:20px;margin:0 0 16px;">Hey ${displayName} &mdash; great talking to you.</h2>
+    ${callContextHtml}
     <p style="color:#374151;line-height:1.6;">As promised, here&apos;s the quick breakdown on DriveDrop and what it means for your operation:</p>
     <table style="width:100%;border-collapse:collapse;margin:20px 0;">
       <tr>
@@ -1064,7 +1094,7 @@ export class VoiceAgentTools {
   </div>
 </div>`.trim();
 
-        const emailText = `Hey ${firstName},\n\nGreat talking to you. Here's the quick DriveDrop carrier breakdown as promised:\n\n3 THINGS THAT MATTER:\n1. Full shipper rate — no broker cut. Shippers post directly, you see the full rate.\n2. Payment guaranteed before pickup. 20% deposit before load is assigned, balance on delivery.\n3. 0% platform fee for 90 days. Free TMS, AI route optimizer, load board included.\n\nSign up free (under 5 min): https://www.drivedrop.us.com/drivers/register\n\nQuestions? Call/text (704) 937-5246 or reply to this email.\n\nAlex\nDriveDrop | drivedrop.us.com`;
+        const emailText = `Hey ${displayName},\n\nGreat talking to you. ${callContextText}Here's the quick DriveDrop carrier breakdown as promised:\n\n3 THINGS THAT MATTER:\n1. Full shipper rate — no broker cut. Shippers post directly, you see the full rate.\n2. Payment guaranteed before pickup. 20% deposit before load is assigned, balance on delivery.\n3. 0% platform fee for 90 days. Free TMS, AI route optimizer, load board included.\n\nSign up free (under 5 min): https://www.drivedrop.us.com/drivers/register\n\nQuestions? Call/text (704) 937-5246 or reply to this email.\n\nAlex\nDriveDrop | drivedrop.us.com`;
 
         emailService.sendEmail({
           to:           params.carrier_email,
