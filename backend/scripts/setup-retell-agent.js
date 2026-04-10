@@ -214,43 +214,83 @@ async function retell(path, method, body) {
 async function main() {
   console.log('🚀  Setting up Alex on Retell AI...\n');
 
-  // ── Step 1: Create the Retell LLM ─────────────────────────────────────────
-  console.log('1/4  Creating Retell LLM (Alex brain)...');
-  const llm = await retell('/create-retell-llm', 'POST', {
-    model:              'gpt-4o-mini',  // fast + follows complex instructions well
-    model_temperature:  0.45,
-    general_prompt:     ALEX_PROMPT,
-    // opening_line is injected per-call via retell_llm_dynamic_variables
-    begin_message:      '{{opening_line}}',
-    general_tools:      ALEX_TOOLS,
-  });
-  console.log(`   ✅  LLM created: ${llm.llm_id}`);
+  // ── Step 1: Create (or reuse) the Retell LLM ──────────────────────────────
+  // If RETELL_LLM_ID is already set (e.g. from a previous partial run), skip creation.
+  let llmId = process.env.RETELL_LLM_ID;
+  if (llmId) {
+    console.log(`1/4  Reusing existing LLM: ${llmId} (RETELL_LLM_ID already set)`);
+  } else {
+    console.log('1/4  Creating Retell LLM (Alex brain)...');
+    const llm = await retell('/create-retell-llm', 'POST', {
+      model:              'gpt-4o-mini',
+      model_temperature:  0.45,
+      general_prompt:     ALEX_PROMPT,
+      begin_message:      '{{opening_line}}',
+      general_tools:      ALEX_TOOLS,
+    });
+    llmId = llm.llm_id;
+    console.log(`   ✅  LLM created: ${llmId}`);
+  }
 
   // ── Step 2: Create the Retell Agent ───────────────────────────────────────
   console.log('2/4  Creating Retell Agent...');
   const agent = await retell('/create-agent', 'POST', {
-    agent_name:                     'Alex — DriveDrop Carrier Recruiter',
-    llm_websocket_url:              llm.llm_websocket_url,
-    // ElevenLabs Adam — warm, confident American male (same voice as Vapi)
-    voice_id:                       '11labs-pNInz6obpgDQGcFmaJgB',
-    voice_speed:                    0.82,   // slightly slower = more human
-    voice_temperature:              0.7,    // some natural variation
-    responsiveness:                 0.9,    // fast response, 0–1
-    interruption_sensitivity:       0.8,    // easy to cut in
-    enable_backchannel:             true,   // "mm-hmm", "right" while they speak
-    backchannel_frequency:          0.5,
-    ambient_sound:                  'office',
-    ambient_sound_volume:           0.3,
-    language:                       'en-US',
-    webhook_url:                    WEBHOOK_URL,
-    max_call_duration_ms:           300_000, // 5 minutes
-    enable_voicemail_detection:     true,
+    // Required: link this agent to the LLM
+    response_engine: { type: 'retell-llm', llm_id: llmId },
+    agent_name:      'Alex — DriveDrop Carrier Recruiter',
+
+    // ElevenLabs Adam — warm, confident American male
+    // Find your voice ID in the Retell dashboard → Voice Library
+    voice_id:          '11labs-pNInz6obpgDQGcFmaJgB',
+    voice_speed:       0.82,        // slightly slower = more human
+    voice_temperature: 0.7,         // some natural pitch variation
+    voice_model:       'eleven_turbo_v2_5',
+
+    interruption_sensitivity: 0.8,  // easy to cut in [0–1]
+    responsiveness:           0.9,  // fast response [0–1]
+    enable_backchannel:       true,
+    backchannel_frequency:    0.5,
+    backchannel_words:        ['yeah', 'uh-huh', 'totally', 'got it'],
+
+    ambient_sound:       'call-center',
+    ambient_sound_volume: 0.3,
+
+    language:        'en-US',
+    normalize_for_speech: true,
+
+    webhook_url:    WEBHOOK_URL,
+    webhook_events: ['call_started', 'call_ended', 'call_analyzed'],
+
+    max_call_duration_ms:       300_000,   // 5 minutes
+    end_call_after_silence_ms:  35_000,    // hang up after 35s silence
+    reminder_trigger_ms:        20_000,    // nudge after 20s idle
+    reminder_max_count:         1,
+
+    // Voicemail: leave a message then hang up
     voicemail_detection_timeout_ms: 30_000,
-    voicemail_message:              'Hey, this is Alex with DriveDrop — vehicle transport marketplace out of Charlotte. We work directly with carriers, no broker, payment guaranteed before pickup, free for the first 90 days. Give us a call back at 704-937-5246 or check drivedrop.us.com. Have a good one.',
-    end_call_after_silence_ms:      35_000,  // hang up after 35s silence
-    reminder_trigger_ms:            20_000,  // nudge after 20s idle
-    reminder_max_count:             1,
-    normalize_for_speech:           true,
+    voicemail_option: {
+      action: {
+        type: 'static_text',
+        text: 'Hey, this is Alex with DriveDrop — vehicle transport marketplace out of Charlotte. We work directly with carriers, no broker, payment guaranteed before pickup, free for the first 90 days. Give us a call back at 704-937-5246 or check drivedrop.us.com. Have a good one.',
+      },
+    },
+
+    // IVR: hang up immediately
+    ivr_option: {
+      action: { type: 'hangup' },
+    },
+
+    timezone: 'America/New_York',
+
+    // Post-call analysis
+    post_call_analysis_data: [
+      {
+        type: 'enum',
+        name: 'call_outcome',
+        description: 'Outcome of the carrier recruitment call.',
+        choices: ['interested', 'not_interested', 'voicemail', 'no_answer', 'callback_requested'],
+      },
+    ],
   });
   console.log(`   ✅  Agent created: ${agent.agent_id}`);
 
@@ -270,7 +310,7 @@ async function main() {
       const encodedNumber = encodeURIComponent(TWILIO_NUMBER);
       await retell(`/update-phone-number/${encodedNumber}`, 'PATCH', {
         outbound_agent_id: agent.agent_id,
-        inbound_agent_id:  agent.agent_id,  // Alex handles inbound from carriers too
+        inbound_agent_id:  agent.agent_id,
       });
       console.log(`   ✅  Agent assigned to ${TWILIO_NUMBER}`);
     } catch (err) {
@@ -282,11 +322,11 @@ async function main() {
     console.log('4/4  Skipping agent assignment');
   }
 
-  // ── Done — print what to add to .env ──────────────────────────────────────
+  // ── Done ──────────────────────────────────────────────────────────────────
   console.log('\n' + '═'.repeat(60));
   console.log('  ✅  SETUP COMPLETE — add these to backend/.env and Railway:');
   console.log('═'.repeat(60));
-  console.log(`RETELL_LLM_ID=${llm.llm_id}`);
+  console.log(`RETELL_LLM_ID=${llmId}`);
   console.log(`RETELL_AGENT_ID=${agent.agent_id}`);
   console.log(`RETELL_PHONE_NUMBER=${TWILIO_NUMBER || '<your-twilio-number>'}`);
   console.log('═'.repeat(60));
