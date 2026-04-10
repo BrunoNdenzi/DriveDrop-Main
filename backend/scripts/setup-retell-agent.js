@@ -2,17 +2,17 @@
  * One-time setup: create Alex (carrier recruiter) on Retell AI.
  *
  * What this does:
- *   1. Creates a Retell LLM with the full Alex prompt + all tools
- *   2. Creates a Retell Agent with ElevenLabs Adam voice + behavior settings
- *   3. Imports your Twilio phone number into Retell
+ *   1. Creates a Retell LLM with the full Alex prompt + all tools  (skipped if RETELL_LLM_ID already in .env)
+ *   2. Creates a Retell Agent with ElevenLabs John voice + behavior settings
+ *   3. Imports your Twilio phone number into Retell   (skipped if Twilio SIP trunk not configured)
  *   4. Links the agent to the phone number
  *
  * Run once:
  *   node backend/scripts/setup-retell-agent.js
  *
- * Prerequisites:
- *   - Add RETELL_API_KEY to backend/.env (get it from dashboard.retellai.com → API Keys)
- *   - TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_PHONE_NUMBER must be in backend/.env
+ * For phone number (required for outbound calls), choose ONE of:
+ *   A) Add payment to Retell → run: node backend/scripts/retell-buy-number.js
+ *   B) Set up Twilio Elastic SIP Trunk → add RETELL_TWILIO_TERM_URI to .env → re-run this script
  *
  * After running:
  *   - Copy the RETELL_AGENT_ID and RETELL_LLM_ID printed at the end into backend/.env
@@ -239,9 +239,8 @@ async function main() {
     response_engine: { type: 'retell-llm', llm_id: llmId },
     agent_name:      'Alex — DriveDrop Carrier Recruiter',
 
-    // ElevenLabs Adam — warm, confident American male
-    // Find your voice ID in the Retell dashboard → Voice Library
-    voice_id:          '11labs-pNInz6obpgDQGcFmaJgB',
+    // ElevenLabs John — warm, confident American male (Middle Aged)
+    voice_id:          '11labs-John',
     voice_speed:       0.82,        // slightly slower = more human
     voice_temperature: 0.7,         // some natural pitch variation
     voice_model:       'eleven_turbo_v2_5',

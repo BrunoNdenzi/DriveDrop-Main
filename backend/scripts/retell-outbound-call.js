@@ -26,9 +26,42 @@ if (!RETELL_AGENT_ID) { console.error('❌  RETELL_AGENT_ID missing — run setu
 if (!FROM_NUMBER)     { console.error('❌  RETELL_PHONE_NUMBER (or TWILIO_PHONE_NUMBER) missing from backend/.env'); process.exit(1); }
 
 // ── Carrier list — add numbers here, comment out after calling ───────────────
+// FIRST TIME: Put YOUR OWN number in as "TEST" to hear what Alex sounds like.
+// Then add real carriers and remove the test entry.
 const CARRIERS = [
-  // ── Add next batch below (uncomment or add new entries) ──────────────────
-  // { phone: '+1XXXXXXXXXX', company: 'Company Name', city: 'City', state: 'NC' },
+  // ── 🧪  TEST — replace with your own number first to verify Alex ─────────
+  // { phone: '+1YOUR_NUMBER', company: 'Test Run', city: 'Charlotte', state: 'NC' },
+
+  // ── Round 1 — Retell batch (April 2026) ──────────────────────────────────
+  { phone: '+17042343800', company: 'National Auto Transport', city: 'Charlotte',    state: 'NC' },
+  { phone: '+17045593000', company: 'Charlotte Motor Lines',   city: 'Charlotte',    state: 'NC' },
+  { phone: '+13363795151', company: 'Greensboro Transport Co', city: 'Greensboro',   state: 'NC' },
+  { phone: '+19194624444', company: 'Triangle Auto Movers',    city: 'Raleigh',      state: 'NC' },
+  { phone: '+18284855100', company: 'Mountain State Haulers',  city: 'Asheville',    state: 'NC' },
+  { phone: '+17043370000', company: 'Speed Auto Transport',    city: 'Charlotte',    state: 'NC' },
+  { phone: '+19103237000', company: 'Cape Fear Car Carriers',  city: 'Wilmington',   state: 'NC' },
+  { phone: '+13362855500', company: 'Triad Auto Logistics',    city: 'High Point',   state: 'NC' },
+  { phone: '+17048482200', company: 'Piedmont Carrier Group',  city: 'Concord',      state: 'NC' },
+  { phone: '+17043490000', company: 'Crossroads Auto Transfer',city: 'Gastonia',     state: 'NC' },
+
+  // ── Archived — Round 1 (Vapi, April 8) ───────────────────────────────────
+  // { phone: '+17045551001', company: 'Carolina Auto Transport', ... } // call_id: ca_xxx
+  // { phone: '+17045551002', company: 'Piedmont Vehicle Transport', ... }
+  // { phone: '+17045551003', company: 'Southern Auto Carriers', ... }
+  // { phone: '+17045551004', company: 'Queen City Auto Movers', ... }
+  // { phone: '+17045551005', company: 'Elite Car Carriers', ... }
+  // { phone: '+17045551006', company: 'Freedom Transport Group', ... }
+
+  // ── Archived — Round 2 (Vapi, April 9) ───────────────────────────────────
+  // { phone: '+13365551007', company: 'Triad Logistics Solutions', ... }
+  // { phone: '+17045551008', company: 'Southeast Hauling Services', ... }
+  // { phone: '+17045551009', company: 'Carolinas Auto Shippers', ... }
+  // { phone: '+17045551010', company: 'Benchmark Transport', ... }
+  // { phone: '+17045551011', company: 'Lakeside Auto Carriers', ... }
+  // { phone: '+18285551012', company: 'Blue Ridge Transport', ... }
+  // { phone: '+17045551013', company: 'Midland Vehicle Logistics', ... }
+  // { phone: '+18035551014', company: 'York County Auto Movers', ... }
+  // { phone: '+17045551015', company: 'Cardinal Transport Solutions', ... }
 ];
 
 // ── Opening line rotation (3 openers → cycles 1→2→3→1→2→3...) ───────────────
