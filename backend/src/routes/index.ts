@@ -42,8 +42,10 @@ import carriersRoutes from './carriers.routes';
 import analyticsRoutes from './analytics.routes';
 import emailWebhooksRoutes from './email-webhooks.routes';
 
-// Voice Agent
+// Voice Agent (Vapi)
 import voiceAgentRoutes from './voice-agent.routes';
+// Voice Agent (Retell)
+import retellAgentRoutes from './retell-agent.routes';
 
 const router = Router();
 
@@ -82,8 +84,9 @@ router.get('/', (_req, res) => {
       carriers: '/api/v1/carriers',
       analytics: '/api/v1/analytics',
       emailWebhooks: '/api/v1/email-webhooks',
-      // Voice Agent
-      voice: '/api/v1/voice',
+      // Voice Agents
+      voice:   '/api/v1/voice',
+      retell:  '/api/v1/retell',
     },
   });
 });
@@ -128,7 +131,9 @@ router.use('/carriers', carriersRoutes);
 router.use('/analytics', analyticsRoutes);
 router.use('/email-webhooks', emailWebhooksRoutes);
 
-// Voice Agent
+// Voice Agent (Vapi)
 router.use('/voice', voiceAgentRoutes);
+// Voice Agent (Retell)
+router.use('/retell', retellAgentRoutes);
 
 export default router;
