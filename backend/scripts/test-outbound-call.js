@@ -10,8 +10,25 @@ const API_URL          = process.env.API_URL || 'https://drivedrop-main-producti
 const SERVER_URL       = `${API_URL}/api/v1/voice/webhook`;
 
 const TEST_NUMBERS = [
-  { phone: '+19803242352', company: 'Test Carrier A', city: 'Charlotte', state: 'NC' },
-  // { phone: '+17045247921', company: 'Test Carrier B', city: 'Charlotte', state: 'NC' },
+  // ── Charlotte-area carrier list ──────────────────────────────────────────
+  // ROUND 1 — fired 2026-04-08:
+  // { phone: '+17043752200', company: 'Carolina Auto Transport LLC',  city: 'Charlotte',    state: 'NC' }, // 019d6e9c-6f9b
+  // { phone: '+17047824100', company: 'Piedmont Vehicle Carriers',    city: 'Concord',      state: 'NC' }, // 019d6e9c-812e
+  // { phone: '+17048537700', company: 'Southern Auto Haulers Inc',    city: 'Gastonia',     state: 'NC' }, // 019d6e9c-9276
+  // { phone: '+17045963300', company: 'Queen City Transport Group',   city: 'Charlotte',    state: 'NC' }, // 019d6e9c-a3ff
+  // { phone: '+17047995500', company: 'Elite Car Carriers LLC',       city: 'Mooresville',  state: 'NC' }, // 019d6e9c-b54e
+  // { phone: '+17042894400', company: 'Freedom Transport Solutions',  city: 'Monroe',       state: 'NC' }, // 019d6e9c-ca87
+  // ROUND 2 — fired 2026-04-09:
+  // { phone: '+13368826600', company: 'Triad Vehicle Logistics',      city: 'High Point',   state: 'NC' }, // 019d7335-a311
+  // { phone: '+18033297100', company: 'Southeast Hauling Co',         city: 'Rock Hill',    state: 'SC' }, // 019d7335-b656
+  // { phone: '+17049332800', company: 'Carolinas Auto Movers',        city: 'Kannapolis',   state: 'NC' }, // 019d7335-c9ef
+  // { phone: '+17049483900', company: 'Benchmark Car Transport',      city: 'Huntersville', state: 'NC' }, // 019d7335-dd78
+  // { phone: '+17048925200', company: 'Lakeside Auto Carriers',       city: 'Cornelius',    state: 'NC' }, // 019d7335-ef10
+  // { phone: '+17048714600', company: 'Blue Ridge Transport LLC',     city: 'Statesville',  state: 'NC' }, // 019d7336-0d8f
+  // { phone: '+17048883100', company: 'Midland Vehicle Shippers',     city: 'Midland',      state: 'NC' }, // 019d7336-28d5
+  // { phone: '+18035476200', company: 'York County Auto Haulers',     city: 'Fort Mill',    state: 'SC' }, // 019d7336-3d57
+  // { phone: '+17046338800', company: 'Cardinal Transport Services',  city: 'Salisbury',    state: 'NC' }, // 019d7336-4f70
+  // ── Add next batch below ─────────────────────────────────────────────────
 ];
 
 async function vapi(path, method, body) {
@@ -21,7 +38,14 @@ async function vapi(path, method, body) {
     ...(body ? { body: JSON.stringify(body) } : {}),
   });
   const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(`Vapi ${method} ${path} → ${res.status}: ${JSON.stringify(data)}`);
+  if (!res.ok) {
+    const err = new Error(`Vapi ${method} ${path} → ${res.status}: ${JSON.stringify(data)}`);
+    // Flag daily-limit errors so the caller can stop gracefully
+    if (typeof data.message === 'string' && data.message.includes('Daily Outbound Call Limit')) {
+      err.isDailyLimit = true;
+    }
+    throw err;
+  }
   return data;
 }
 
@@ -194,7 +218,15 @@ const CARRIER_TOOLS = [
   },
 ];
 
+const OPENERS = [
+  `Hey — quick question. Do you guys run auto transport at all?`,
+  `Hi — am I catching you at a bad time? Real quick: do you move vehicles?`,
+  `Hey, this is Alex with DriveDrop out of Charlotte — do you haul cars?`,
+];
+let _openerIdx = 0;
+
 async function callOne({ phone, company, city, state }) {
+  const firstMessage = OPENERS[_openerIdx++ % OPENERS.length];
   console.log(`\n📞  Calling ${phone} (${company}) ...`);
 
   const call = await vapi('/call', 'POST', {
@@ -220,8 +252,8 @@ async function callOne({ phone, company, city, state }) {
         messages: [{ role: 'system', content: CARRIER_PROMPT }],
         tools:    CARRIER_TOOLS,
       },
-      // Opens with a direct question — no company intro, no "hello is this X"
-      firstMessage: `Hey — quick question. Do you guys run auto transport at all?`,
+      // Opens with a direct question — rotates across 3 openers per call
+      firstMessage,
       endCallFunctionEnabled:       true,
       recordingEnabled:             true,
       maxDurationSeconds:           300,
@@ -269,16 +301,37 @@ async function callOne({ phone, company, city, state }) {
 }
 
 async function main() {
-  console.log(`🚀  Firing ${TEST_NUMBERS.length} test calls (V3 Alex prompt)`);
+  console.log(`🚀  Firing ${TEST_NUMBERS.length} outbound carrier calls`);
   console.log(`   Webhook : ${SERVER_URL}\n`);
 
-  for (const target of TEST_NUMBERS) {
-    await callOne(target);
-    // brief pause between calls to avoid race on phone number
-    await new Promise(r => setTimeout(r, 2000));
+  let ok = 0, failed = 0;
+  for (let i = 0; i < TEST_NUMBERS.length; i++) {
+    const target = TEST_NUMBERS[i];
+    try {
+      await callOne(target);
+      ok++;
+    } catch (err) {
+      // ── Daily limit hit — stop immediately, tell user where to resume ──
+      if (err.isDailyLimit) {
+        console.error(`\n⛔  Vapi daily outbound limit reached after ${ok} call(s).`);
+        console.error(`   Stopped at: ${target.phone} (${target.company})`);
+        console.error(`\n   ➜  To resume tomorrow, comment out the first ${ok} number(s) in TEST_NUMBERS`);
+        console.error(`      (or just re-run — already-called numbers are commented out above).`);
+        console.error(`   ➜  To remove the limit permanently: import your Twilio number into Vapi.`);
+        console.error(`\n📋  ${ok} initiated before limit was hit.`);
+        process.exit(0);
+      }
+      console.error(`❌  Failed for ${target.phone} (${target.company}): ${err.message}`);
+      failed++;
+    }
+    // 3s gap between calls — avoids Vapi race on same phone number
+    if (i < TEST_NUMBERS.length - 1) await new Promise(r => setTimeout(r, 3000));
   }
 
-  console.log(`\n📋  Check Vapi dashboard → Calls for live transcripts.`);
+  console.log(`\n📋  Done — ${ok} initiated, ${failed} failed.`);
+  console.log(`   Vapi dashboard → Calls for live transcripts.`);
+  console.log(`   Supabase → carrier_leads table for saved leads.`);
+  console.log(`   Supabase → carrier_call_logs table for outcomes.`);
 }
 
 main().catch(err => {

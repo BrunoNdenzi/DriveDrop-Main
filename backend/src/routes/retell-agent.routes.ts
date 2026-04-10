@@ -17,7 +17,6 @@
 import { Router, Request, Response }  from 'express';
 import { authenticate, authorize }     from '@middlewares/auth.middleware';
 import { asyncHandler }                from '@utils/error';
-import { successResponse }             from '@utils/response';
 import { logger }                      from '@utils/logger';
 import { supabaseAdmin }               from '@lib/supabase';
 import { VoiceAgentTools }             from '@services/VoiceAgentService';
@@ -26,7 +25,6 @@ const router = Router();
 
 const RETELL_API_KEY = process.env['RETELL_API_KEY'] || '';
 const RETELL_BASE    = 'https://api.retellai.com';
-const API_URL        = process.env['API_URL'] || 'https://drivedrop-main-production.up.railway.app';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Tool dispatcher (public — Retell POSTs here each time the agent calls a tool)
@@ -104,7 +102,7 @@ router.post('/webhook', asyncHandler(async (req: Request, res: Response) => {
   // Acknowledge immediately — Retell expects a quick 200
   res.json({ received: true });
 
-  logger.info('Retell webhook event', { event, call_id: call?.call_id });
+  logger.info('Retell webhook event', { event, call_id: call?.['call_id'] });
 
   if (event === 'call_ended' && call) {
     const durationMs =
@@ -206,7 +204,7 @@ router.post('/call/carrier', authenticate, authorize(['admin']), asyncHandler(as
   }
 
   logger.info('Retell outbound call initiated', { call_id: callData['call_id'], to: phone });
-  res.json(successResponse(callData, 'Outbound call initiated'));
+  res.json({ success: true, message: 'Outbound call initiated', data: callData });
 }));
 
 export default router;

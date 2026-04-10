@@ -21,21 +21,26 @@
  */
 require('dotenv').config({ path: require('path').join(__dirname, '../.env') });
 
-const VAPI_API_KEY = process.env.VAPI_API_KEY;
-const API_URL      = process.env.API_URL || 'https://drivedrop-main-production.up.railway.app';
-const SERVER_URL   = `${API_URL}/api/v1/voice/webhook`;
+const VAPI_API_KEY    = process.env.VAPI_API_KEY;    // private key — server-side only
+const VAPI_PUBLIC_KEY = process.env.VAPI_PUBLIC_KEY; // public key — required for /call/web
+const API_URL         = process.env.API_URL || 'https://drivedrop-main-production.up.railway.app';
+const SERVER_URL      = `${API_URL}/api/v1/voice/webhook`;
 
 const persona = (process.argv[2] || 'alex').toLowerCase();
 
-if (!VAPI_API_KEY) {
-  console.error('❌  VAPI_API_KEY must be set in .env');
+if (!VAPI_PUBLIC_KEY) {
+  console.error('\n❌  VAPI_PUBLIC_KEY is not set in backend/.env');
+  console.error('   1. Go to dashboard.vapi.ai → top-right menu → API Keys');
+  console.error('   2. Copy the PUBLIC key (starts with a different value than your private key)');
+  console.error('   3. Add to backend/.env:  VAPI_PUBLIC_KEY=your_public_key_here\n');
   process.exit(1);
 }
 
-async function vapi(path, method, body) {
+async function vapi(path, method, body, usePublicKey = false) {
+  const key = usePublicKey ? VAPI_PUBLIC_KEY : VAPI_API_KEY;
   const res = await fetch(`https://api.vapi.ai${path}`, {
     method,
-    headers: { Authorization: `Bearer ${VAPI_API_KEY}`, 'Content-Type': 'application/json' },
+    headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
     ...(body ? { body: JSON.stringify(body) } : {}),
   });
   const data = await res.json().catch(() => ({}));
@@ -337,7 +342,7 @@ async function main() {
   const name    = isAlex ? 'Alex' : 'Benji';
   const prompt  = isAlex ? ALEX_PROMPT : BENJI_PROMPT;
   const tools   = isAlex ? ALEX_TOOLS  : BENJI_TOOLS;
-  const first   = isAlex
+  const firstMessage = isAlex
     ? `Hey — quick question. Do you guys run auto transport at all?`
     : `Hi, you've reached DriveDrop! I'm Benji. How can I help you today?`;
 
@@ -352,7 +357,7 @@ async function main() {
     : `\n   You are the client. Try: "I want to ship my car from Charlotte to Miami"\n`
   );
 
-  // POST /call/web — no phone number needed, returns webCallUrl
+  // POST /call/web — requires PUBLIC key, no phone number needed, returns webCallUrl
   const call = await vapi('/call/web', 'POST', {
     assistant: {
       name,
@@ -386,7 +391,7 @@ async function main() {
       test_mode: true,
       web_call:  true,
     },
-  });
+  }, /* usePublicKey = */ true);
 
   console.log(`✅  Web call created!`);
   console.log(`   Call ID : ${call.id}`);
