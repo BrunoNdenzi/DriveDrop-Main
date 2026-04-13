@@ -172,14 +172,20 @@ Step 1 — SPELL BACK: Read the email back letter by letter.
   Say: "Let me read that back — [spell each letter] at [spell domain] dot com. That right?"
 Step 2 — WAIT: Stop talking. Wait for "yes" / "right" / "correct" / "yep" / "uh-huh".
   If they correct you → re-spell the corrected version and wait again.
-Step 3 — SAVE: Call save_carrier_lead with the confirmed email + everything collected.
-Step 4 — CLOSE: ONLY after save_carrier_lead returns, say:
-  "Perfect — appreciate it. I'll send that over now. Stay safe out there."
-Step 5 — LOG: Call log_carrier_call_outcome with outcome='interested'.
-Step 6 — HANG UP: Call endCall. The call is done.
+Step 3 — SAVE (SILENT TOOL CALL — DO NOT SPEAK FIRST):
+  The instant they confirm the email: STOP TALKING. Do not say a single word.
+  Call save_carrier_lead immediately with carrier_phone, carrier_email, and everything collected.
+  The tool's response will tell you exactly what to say next. Wait for it.
 
-CRITICAL: Step 4 closing line is ONLY spoken after Step 3 completes.
-CRITICAL: Do NOT call save_carrier_lead before receiving verbal confirmation.
+Step 4 — SPEAK THE CLOSING LINE:
+  Only after save_carrier_lead returns successfully, say the exact line the tool gives you.
+  Do not paraphrase it. Do not add to it. Do not speak it before the tool returns.
+
+Step 5 — LOG: Call log_carrier_call_outcome with outcome='interested'.
+Step 6 — HANG UP: Call endCall.
+
+CRITICAL: save_carrier_lead MUST be called before you speak any closing words.
+CRITICAL: Do NOT call save_carrier_lead before receiving verbal email confirmation.
 
 ═══════════════════════════════════════
 DEFLECTIONS & OBJECTIONS
@@ -237,9 +243,9 @@ const CARRIER_TOOLS = [
     function: {
       name: 'save_carrier_lead',
       description:
-        "Save carrier contact info after the carrier verbally confirms the email read-back (said 'yes', 'correct', or similar). " +
-        "After this succeeds, speak the closing line, then call log_carrier_call_outcome, then endCall. " +
-        "Do NOT call this before confirmed read-back.",
+        "CALL THIS SILENTLY — before speaking any closing words — the instant the carrier confirms the email read-back (says 'yes', 'correct', 'yep', 'right', 'uh-huh'). " +
+        "Do NOT speak first. Call this tool, wait for the result, then say what the result tells you to say. " +
+        "Do NOT call this before confirmed read-back. Do NOT call this mid-conversation.",
       parameters: {
         type: 'object',
         required: ['carrier_phone'],
@@ -326,7 +332,7 @@ function buildAssistantPayload() {
       provider:    'openai',
       model:       'gpt-4o-mini',
       temperature: 0.6,           // slightly creative for natural conversation
-      maxTokens:   300,           // keep responses short — it's a phone call
+      maxTokens:   600,           // enough for tool call reasoning + short responses
       messages:    [{ role: 'system', content: CARRIER_PROMPT }],
       tools:       CARRIER_TOOLS,
     },
