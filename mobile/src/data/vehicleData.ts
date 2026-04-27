@@ -36,8 +36,20 @@ export const USA_VEHICLE_DATA: VehicleMake[] = [
     models: ["300", "Pacifica", "Voyager"]
   },
   {
+    name: "Club Car",
+    models: ["Onward", "Tempo", "Precedent", "Villager", "Carryall", "Transporter"]
+  },
+  {
+    name: "Cushman",
+    models: ["Hauler 800", "Hauler 1200", "Hauler Pro", "Shuttle 2", "Shuttle 4", "Shuttle 6", "Shuttle 8"]
+  },
+  {
     name: "Dodge",
     models: ["Challenger", "Charger", "Durango", "Grand Caravan", "Journey", "Ram 1500", "Ram 2500", "Ram 3500", "Ram ProMaster"]
+  },
+  {
+    name: "E-Z-GO",
+    models: ["RXV Elite", "RXV Freedom", "TXT Elite", "TXT Freedom", "Express S4", "Express S6", "2Five", "72V"]
   },
   {
     name: "Ford",
@@ -52,6 +64,14 @@ export const USA_VEHICLE_DATA: VehicleMake[] = [
     models: ["Acadia", "Canyon", "Hummer EV", "Sierra 1500", "Sierra 2500HD", "Sierra 3500HD", "Terrain", "Yukon", "Yukon XL"]
   },
   {
+    name: "Garia",
+    models: ["Via", "Monaco", "Mansory Edition", "Park Street", "Golf Car"]
+  },
+  {
+    name: "GEM",
+    models: ["e2", "e4", "e6", "eL XD", "eM 1400"]
+  },
+  {
     name: "Honda",
     models: ["Accord", "Civic", "CR-V", "HR-V", "Insight", "Odyssey", "Passport", "Pilot", "Ridgeline"]
   },
@@ -62,6 +82,10 @@ export const USA_VEHICLE_DATA: VehicleMake[] = [
   {
     name: "Infiniti",
     models: ["Q50", "Q60", "QX50", "QX55", "QX60", "QX80"]
+  },
+  {
+    name: "Icon",
+    models: ["i20", "i40", "i60", "i80"]
   },
   {
     name: "Jaguar",
@@ -120,8 +144,16 @@ export const USA_VEHICLE_DATA: VehicleMake[] = [
     models: ["Ascent", "BRZ", "Crosstrek", "Forester", "Impreza", "Legacy", "Outback", "Solterra", "WRX"]
   },
   {
+    name: "Star EV",
+    models: ["Captiva", "Captiva 4", "Classic", "Classic 4", "Sirius", "Sirius+", "Sport 2+2", "Sport 4+2"]
+  },
+  {
     name: "Tesla",
     models: ["Model 3", "Model S", "Model X", "Model Y", "Cybertruck", "Roadster"]
+  },
+  {
+    name: "Tomberlin",
+    models: ["Emerge E2", "Emerge E4", "Emerge E4 LE", "Emerge E4 SS", "Emerge E2 LE", "Emerge E2 SS"]
   },
   {
     name: "Toyota",
@@ -134,6 +166,10 @@ export const USA_VEHICLE_DATA: VehicleMake[] = [
   {
     name: "Volvo",
     models: ["C40 Recharge", "S60", "S90", "V60", "V90", "XC40", "XC60", "XC90"]
+  },
+  {
+    name: "Yamaha",
+    models: ["Drive2 PTV", "Drive2 QuieTech EFI", "Adventurer Sport 2+2", "Adventurer Super Hauler", "Concierge 4", "Concierge 6", "Umax One", "Umax Two", "Umax Rally 2+2"]
   }
 ];
 
