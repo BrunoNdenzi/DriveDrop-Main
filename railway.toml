@@ -1,5 +1,4 @@
 [build]
-builder = "NIXPACKS"
 watchPatterns = ["backend/**/*"]
 
 [deploy]
