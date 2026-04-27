@@ -444,7 +444,16 @@ export default function ShipmentForm({ onSubmit, isSubmitting, showClientFields 
               <select
                 id="vehicleType"
                 value={formData.vehicleType}
-                onChange={(e) => updateFormData('vehicleType', e.target.value)}
+                onChange={(e) => {
+                  updateFormData('vehicleType', e.target.value)
+                  // Clear make and model when type changes
+                  if (formData.vehicleMake) {
+                    updateFormData('vehicleMake', '')
+                  }
+                  if (formData.vehicleModel) {
+                    updateFormData('vehicleModel', '')
+                  }
+                }}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 required
                 data-tour="vehicle-selection"
@@ -456,6 +465,7 @@ export default function ShipmentForm({ onSubmit, isSubmitting, showClientFields 
                 <option value="Van">Van</option>
                 <option value="Coupe">Coupe</option>
                 <option value="Motorcycle">Motorcycle</option>
+                <option value="Golf Cart">Golf Cart</option>
                 <option value="RV/Trailer">RV/Trailer</option>
                 <option value="Boat">Boat</option>
               </select>
@@ -487,6 +497,7 @@ export default function ShipmentForm({ onSubmit, isSubmitting, showClientFields 
                     updateFormData('vehicleModel', '')
                   }
                 }}
+                vehicleType={formData.vehicleType}
                 placeholder="Select vehicle make"
                 className="w-full"
               />

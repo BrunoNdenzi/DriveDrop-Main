@@ -3,7 +3,7 @@
  * Handles real-time price estimation and quote generation
  */
 
-type VehicleType = 'sedan' | 'suv' | 'truck' | 'van' | 'motorcycle'
+type VehicleType = 'sedan' | 'suv' | 'truck' | 'van' | 'motorcycle' | 'golfcart'
 
 interface PricingBreakdown {
   baseRatePerMile: number
@@ -34,6 +34,7 @@ const BASE_RATES: Record<VehicleType, { short: number; mid: number; long: number
   truck:      { short: 2.20, mid: 1.15, long: 0.75, accident: 3.00 },
   van:        { short: 2.00, mid: 1.05, long: 0.70, accident: 2.75 },
   motorcycle: { short: 1.50, mid: 0.80, long: 0.50, accident: 2.00 },
+  golfcart:   { short: 1.30, mid: 0.75, long: 0.50, accident: 1.80 },
 }
 
 class PricingService {
@@ -132,6 +133,9 @@ class PricingService {
       'hatchback': 'sedan',
       'van': 'suv',
       'crossover': 'suv',
+      'motorcycle': 'motorcycle',
+      'golf cart': 'golfcart',
+      'golfcart': 'golfcart',
     }
     
     return mapping[vehicleType.toLowerCase()] || 'sedan'

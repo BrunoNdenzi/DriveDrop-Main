@@ -191,8 +191,22 @@ export const USA_VEHICLE_DATA: VehicleMake[] = [
   }
 ];
 
-export const getVehicleMakes = (): string[] => {
-  return USA_VEHICLE_DATA.map(make => make.name).sort();
+export const getVehicleMakes = (vehicleType?: string): string[] => {
+  let filteredData = USA_VEHICLE_DATA;
+  
+  // Filter by vehicle type if provided
+  if (vehicleType) {
+    filteredData = USA_VEHICLE_DATA.filter(make => {
+      // If no types array, it's a standard car (sedan/suv/truck/etc)
+      if (!make.types || make.types.length === 0) {
+        return vehicleType !== 'Golf Cart' && vehicleType !== 'Motorcycle' && vehicleType !== 'RV/Trailer' && vehicleType !== 'Boat';
+      }
+      // If has types array, check if it matches the selected type
+      return make.types.includes(vehicleType);
+    });
+  }
+  
+  return filteredData.map(make => make.name).sort();
 };
 
 export const getModelsForMake = (makeName: string): string[] => {
@@ -200,11 +214,25 @@ export const getModelsForMake = (makeName: string): string[] => {
   return make ? make.models.sort() : [];
 };
 
-export const searchVehicleMakes = (query: string): string[] => {
-  if (!query.trim()) return getVehicleMakes();
+export const searchVehicleMakes = (query: string, vehicleType?: string): string[] => {
+  if (!query.trim()) return getVehicleMakes(vehicleType);
+  
+  let filteredData = USA_VEHICLE_DATA;
+  
+  // Filter by vehicle type if provided
+  if (vehicleType) {
+    filteredData = USA_VEHICLE_DATA.filter(make => {
+      // If no types array, it's a standard car
+      if (!make.types || make.types.length === 0) {
+        return vehicleType !== 'Golf Cart' && vehicleType !== 'Motorcycle' && vehicleType !== 'RV/Trailer' && vehicleType !== 'Boat';
+      }
+      // If has types array, check if it matches the selected type
+      return make.types.includes(vehicleType);
+    });
+  }
   
   const lowerQuery = query.toLowerCase();
-  return USA_VEHICLE_DATA
+  return filteredData
     .filter(make => make.name.toLowerCase().includes(lowerQuery))
     .map(make => make.name)
     .sort();

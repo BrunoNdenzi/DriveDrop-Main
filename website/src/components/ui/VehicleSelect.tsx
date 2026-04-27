@@ -10,6 +10,7 @@ interface VehicleSelectProps {
   value: string
   onChange: (value: string) => void
   selectedMake?: string // Required when type is 'model'
+  vehicleType?: string // Vehicle type for filtering makes
   placeholder?: string
   disabled?: boolean
   className?: string
@@ -22,6 +23,7 @@ export function VehicleSelect({
   value,
   onChange,
   selectedMake,
+  vehicleType,
   placeholder,
   disabled = false,
   className,
@@ -39,7 +41,7 @@ export function VehicleSelect({
   // Get options based on type
   const getOptions = (): string[] => {
     if (type === 'make') {
-      return searchQuery ? searchVehicleMakes(searchQuery) : getVehicleMakes()
+      return searchQuery ? searchVehicleMakes(searchQuery, vehicleType) : getVehicleMakes(vehicleType)
     } else {
       if (!selectedMake) return []
       return searchQuery 
