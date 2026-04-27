@@ -12,7 +12,7 @@ export const VEHICLE_TYPE_CATEGORIES = {
   sedan: ['Sedan', 'Coupe', 'Hatchback', 'Convertible'],
   suv: ['SUV', 'Crossover', 'Wagon'],
   truck: ['Truck', 'Pickup', 'Van', 'Commercial'],
-  other: ['Motorcycle', 'RV', 'Trailer', 'Boat', 'Other']
+  other: ['Motorcycle', 'Golf Cart', 'RV', 'Trailer', 'Boat', 'Other']
 }
 
 export const USA_VEHICLE_DATA: VehicleMake[] = [

@@ -2,7 +2,7 @@ import { logger } from '@utils/logger';
 import { pricingConfigService } from './pricingConfig.service';
 
 // Vehicle categories supported
-export type VehicleType = 'sedan' | 'suv' | 'pickup' | 'luxury' | 'motorcycle' | 'heavy';
+export type VehicleType = 'sedan' | 'suv' | 'pickup' | 'luxury' | 'motorcycle' | 'golfcart' | 'heavy';
 
 interface PricingInput {
   vehicleType: VehicleType;
@@ -56,6 +56,7 @@ const BASE_RATES: Record<VehicleType, { short: number; mid: number; long: number
   pickup:     { short: 2.20, mid: 1.15, long: 0.75, accident: 3.00 },
   luxury:     { short: 3.00, mid: 1.80, long: 1.25, accident: 4.00 },
   motorcycle: { short: 1.50, mid: 0.85, long: 0.55, accident: 2.00 },
+  golfcart:   { short: 1.30, mid: 0.75, long: 0.50, accident: 1.80 },
   heavy:      { short: 3.50, mid: 2.25, long: 1.80, accident: 4.50 },
 };
 

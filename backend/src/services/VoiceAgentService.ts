@@ -73,9 +73,9 @@ PRICING
 Pricing is based on vehicle type × distance. Always use get_price_quote tool for exact prices. Use these for quick estimates:
 
 Distance bands:
-  Short (under 500 miles):   sedan $1.80/mi  |  SUV $2.00/mi  |  pickup $2.20/mi  |  luxury $3.00/mi  |  motorcycle $1.50/mi  |  heavy $3.50/mi
-  Mid   (500–1,500 miles):   sedan $0.95/mi  |  SUV $1.05/mi  |  pickup $1.15/mi  |  luxury $1.80/mi  |  motorcycle $0.85/mi  |  heavy $2.25/mi
-  Long  (1,500+ miles):      sedan $0.60/mi  |  SUV $0.70/mi  |  pickup $0.75/mi  |  luxury $1.25/mi  |  motorcycle $0.55/mi  |  heavy $1.80/mi
+  Short (under 500 miles):   sedan $1.80/mi  |  SUV $2.00/mi  |  pickup $2.20/mi  |  luxury $3.00/mi  |  motorcycle $1.50/mi  |  golf cart $1.30/mi  |  heavy $3.50/mi
+  Mid   (500–1,500 miles):   sedan $0.95/mi  |  SUV $1.05/mi  |  pickup $1.15/mi  |  luxury $1.80/mi  |  motorcycle $0.85/mi  |  golf cart $0.75/mi  |  heavy $2.25/mi
+  Long  (1,500+ miles):      sedan $0.60/mi  |  SUV $0.70/mi  |  pickup $0.75/mi  |  luxury $1.25/mi  |  motorcycle $0.55/mi  |  golf cart $0.50/mi  |  heavy $1.80/mi
 
 Minimum quote: $150 (any shipment). Minimum distance threshold: 100 miles.
 
@@ -349,7 +349,7 @@ Follow these steps in order — do not skip any:
    - Full pickup address (city & state minimum)
    - Full delivery address (city & state minimum)
    - Vehicle year, make, and model (e.g. "2019 Ford F-150")
-   - Vehicle type (sedan/SUV/pickup/luxury/motorcycle/heavy)
+   - Vehicle type (sedan/SUV/pickup/luxury/motorcycle/golfcart/heavy)
    - Is the vehicle operable (does it drive)? Default yes.
    - Their full name
    - Their email address (for the confirmation)
@@ -507,7 +507,7 @@ export const VAPI_TOOLS = [
         properties: {
           pickup_location:   { type: 'string', description: 'Pickup city, state or full address' },
           delivery_location: { type: 'string', description: 'Delivery city, state or full address' },
-          vehicle_type:      { type: 'string', enum: ['sedan', 'suv', 'pickup', 'luxury', 'motorcycle', 'heavy'], description: 'Type of vehicle to be transported' },
+          vehicle_type:      { type: 'string', enum: ['sedan', 'suv', 'pickup', 'luxury', 'motorcycle', 'golfcart', 'heavy'], description: 'Type of vehicle to be transported' },
           is_operable:       { type: 'boolean', description: 'Whether the vehicle is operable (drives). Default true.' },
         },
       },
@@ -645,7 +645,7 @@ export const VAPI_TOOLS = [
           client_phone:     { type: 'string', description: "Client's phone number" },
           pickup_address:   { type: 'string', description: 'Full pickup address including city and state' },
           delivery_address: { type: 'string', description: 'Full delivery address including city and state' },
-          vehicle_type:     { type: 'string', enum: ['sedan', 'suv', 'pickup', 'luxury', 'motorcycle', 'heavy'], description: 'Vehicle category' },
+          vehicle_type:     { type: 'string', enum: ['sedan', 'suv', 'pickup', 'luxury', 'motorcycle', 'golfcart', 'heavy'], description: 'Vehicle category' },
           vehicle_make:     { type: 'string', description: 'e.g. Ford, Toyota, BMW' },
           vehicle_model:    { type: 'string', description: 'e.g. F-150, Camry, 3 Series' },
           vehicle_year:     { type: 'number', description: 'Four-digit year, e.g. 2021' },
