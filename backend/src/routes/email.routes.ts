@@ -117,6 +117,13 @@ router.post('/send-driver-application-approved', asyncHandler(async (req: Reques
 
   const loginUrl = `${process.env['FRONTEND_URL'] || 'https://drivedrop.us.com'}/login`;
 
+  // Build admin comment HTML if provided
+  const adminCommentHtml = adminComment ? `
+    <div style="background-color:#eff6ff;border-left:3px solid #3b82f6;padding:12px 16px;margin:20px 0;border-radius:0 6px 6px 0;font-size:13px;color:#1e40af;">
+      <strong>Admin Note:</strong> ${adminComment}
+    </div>
+  ` : '';
+
   const success = await brevoService.sendEmail({
     to: [{ email, name: fullName || firstName }],
     templateType: 'driver_application_approved',
@@ -126,7 +133,7 @@ router.post('/send-driver-application-approved', asyncHandler(async (req: Reques
       email,
       temporaryPassword,
       loginUrl,
-      adminComment: adminComment || ''
+      adminCommentHtml
     }
   });
 
@@ -159,6 +166,14 @@ router.post('/send-admin-driver-application', asyncHandler(async (req: Request, 
 
   const reviewUrl = `${process.env['FRONTEND_URL'] || 'https://drivedrop.us.com'}/dashboard/admin/driver-applications`;
 
+  // Format documents status as a simple string
+  const documentsStatus = [
+    `${licenseFrontUrl ? '✓' : '✗'} Driver License (Front)`,
+    `${licenseBackUrl ? '✓' : '✗'} Driver License (Back)`,
+    `${proofOfAddressUrl ? '✓' : '✗'} Proof of Address`,
+    `${insuranceProofUrl ? '✓' : '✗'} Insurance Document`
+  ].join('<br>');
+
   const success = await brevoService.sendEmail({
     to: [{ email: 'infos@drivedrop.us.com', name: 'DriveDrop Admin' }],
     templateType: 'admin_driver_application',
@@ -169,10 +184,7 @@ router.post('/send-admin-driver-application', asyncHandler(async (req: Request, 
       licenseState: licenseState || 'N/A',
       applicationId: applicationId.substring(0, 8).toUpperCase(),
       submittedAt: submittedAt || new Date().toLocaleString(),
-      licenseFrontUrl,
-      licenseBackUrl,
-      proofOfAddressUrl,
-      insuranceProofUrl,
+      documentsStatus,
       reviewUrl
     }
   });

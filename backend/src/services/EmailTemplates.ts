@@ -396,11 +396,7 @@ export const EmailTemplates: Record<EmailTemplateType, EmailTemplate> = {
         <strong>💰 Payment Info:</strong> You'll earn 90% of each shipment value. Payouts are processed weekly via your preferred method.
       </div>
 
-      {{#if adminComment}}
-      <div style="background-color:#eff6ff;border-left:3px solid ${DD.blue};padding:12px 16px;margin:20px 0;border-radius:0 6px 6px 0;font-size:13px;color:#1e40af;">
-        <strong>Admin Note:</strong> {{adminComment}}
-      </div>
-      {{/if}}
+      {{adminCommentHtml}}
 
       <p style="color:${DD.sub};font-size:13px;">
         Questions? Contact us at <a href="mailto:support@drivedrop.us.com" style="color:${DD.blue};text-decoration:none;">support@drivedrop.us.com</a>
@@ -447,11 +443,8 @@ export const EmailTemplates: Record<EmailTemplateType, EmailTemplate> = {
       `, DD.purple)}
 
       <div style="background-color:#fffbeb;border-left:3px solid ${DD.amber};padding:16px 20px;margin:20px 0;border-radius:0 6px 6px 0;font-size:13px;line-height:1.8;">
-        <strong style="color:#92400e;">Documents Uploaded:</strong><br>
-        {{#if licenseFrontUrl}}✓{{else}}✗{{/if}} Driver License (Front)<br>
-        {{#if licenseBackUrl}}✓{{else}}✗{{/if}} Driver License (Back)<br>
-        {{#if proofOfAddressUrl}}✓{{else}}✗{{/if}} Proof of Address<br>
-        {{#if insuranceProofUrl}}✓{{else}}✗{{/if}} Insurance Document
+        <strong style="color:#92400e;">Documents Status:</strong><br>
+        {{documentsStatus}}
       </div>
 
       ${btn('Review Application', '{{reviewUrl}}', DD.purple)}
