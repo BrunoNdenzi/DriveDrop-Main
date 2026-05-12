@@ -240,22 +240,22 @@ export async function POST(request: NextRequest) {
 
     console.log('Application inserted successfully:', application.id)
 
-    // Send welcome/confirmation email via Brevo (preferred method)
+    // Send application received confirmation email via Brevo
     try {
       const backendUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api/v1'
       const firstName = fullName.split(' ')[0]
       
-      await fetch(`${backendUrl}/emails/send-welcome`, {
+      await fetch(`${backendUrl}/emails/send-driver-application-received`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           email,
           firstName,
-          lastName: fullName.split(' ').slice(1).join(' '),
-          role: 'driver'
+          fullName,
+          applicationId: application.id
         })
       })
-      console.log('Driver welcome email sent via Brevo'
+      console.log('Driver application received email sent via Brevo'
 )
     } catch (emailError) {
       console.error('Error sending Brevo email:', emailError)

@@ -329,6 +329,137 @@ export const EmailTemplates: Record<EmailTemplateType, EmailTemplate> = {
     `)
   },
 
+  // ─── DRIVER APPLICATION EMAILS ──────────────────────────────────
+  driver_application_received: {
+    subject: 'Driver Application Received — DriveDrop',
+    sender: 'driver',
+    htmlContent: emailBase('Application Received', `
+      <h2 style="margin:0 0 16px;color:${DD.text};font-size:20px;">Thank you, {{firstName}}!</h2>
+      <p>We've received your driver application for the DriveDrop carrier network.</p>
+
+      ${infoBox(`
+        <strong>What happens next?</strong>
+        <ol style="margin:8px 0 0;padding-left:18px;">
+          <li>Our team will review your application and documents</li>
+          <li>We'll initiate your background check</li>
+          <li>You'll receive a decision within 3-5 business days</li>
+          <li>If approved, you'll get login credentials to start accepting loads</li>
+        </ol>
+      `, DD.amber)}
+
+      <div style="background-color:${DD.muted};padding:12px 16px;border-radius:6px;margin:20px 0;font-size:13px;color:${DD.sub};">
+        <strong>Application ID:</strong> <span style="font-family:monospace;">{{applicationId}}</span><br>
+        Keep this for your records.
+      </div>
+
+      <p style="color:${DD.sub};font-size:13px;">
+        Questions? Contact us at <a href="mailto:support@drivedrop.us.com" style="color:${DD.blue};text-decoration:none;">support@drivedrop.us.com</a>
+      </p>
+
+      <p>Thank you for your interest in joining the DriveDrop carrier network!</p>
+      <p><strong>The DriveDrop Team</strong></p>
+    `)
+  },
+
+  driver_application_approved: {
+    subject: 'Application Approved — Welcome to DriveDrop! 🎉',
+    sender: 'driver',
+    htmlContent: emailBase('Application Approved', `
+      <h2 style="margin:0 0 16px;color:${DD.text};font-size:20px;">Congratulations, {{firstName}}!</h2>
+      <p>Your driver application has been <strong style="color:${DD.green};">approved</strong>! You can now start accepting shipments on DriveDrop.</p>
+
+      ${infoBox(`
+        <strong>Your Login Credentials</strong><br><br>
+        <strong>Email:</strong><br>
+        <span style="display:inline-block;font-family:monospace;background-color:#e5e7eb;padding:6px 12px;border-radius:4px;margin:4px 0 12px;">{{email}}</span><br>
+        <strong>Temporary Password:</strong><br>
+        <span style="display:inline-block;font-family:monospace;background-color:#e5e7eb;padding:6px 12px;border-radius:4px;margin:4px 0;word-break:break-all;">{{temporaryPassword}}</span>
+      `, DD.green)}
+
+      <div style="background-color:#fffbeb;border-left:3px solid ${DD.amber};padding:12px 16px;margin:20px 0;border-radius:0 6px 6px 0;font-size:13px;color:#92400e;">
+        <strong>⚠️ Security Notice:</strong> You'll be required to change this password on your first login. Never share your password with anyone.
+      </div>
+
+      ${btn('Log In Now', '{{loginUrl}}', DD.green)}
+
+      ${infoBox(`
+        <strong>Getting Started</strong>
+        <ol style="margin:8px 0 0;padding-left:18px;">
+          <li>Log in to your driver account</li>
+          <li>Complete your profile setup</li>
+          <li>Browse available shipments in your area</li>
+          <li>Accept jobs and start earning!</li>
+        </ol>
+      `)}
+
+      <div style="background-color:#f0fdf4;padding:12px 16px;border-radius:6px;margin:20px 0;font-size:13px;color:#166534;">
+        <strong>💰 Payment Info:</strong> You'll earn 90% of each shipment value. Payouts are processed weekly via your preferred method.
+      </div>
+
+      {{#if adminComment}}
+      <div style="background-color:#eff6ff;border-left:3px solid ${DD.blue};padding:12px 16px;margin:20px 0;border-radius:0 6px 6px 0;font-size:13px;color:#1e40af;">
+        <strong>Admin Note:</strong> {{adminComment}}
+      </div>
+      {{/if}}
+
+      <p style="color:${DD.sub};font-size:13px;">
+        Questions? Contact us at <a href="mailto:support@drivedrop.us.com" style="color:${DD.blue};text-decoration:none;">support@drivedrop.us.com</a>
+      </p>
+
+      <p>Welcome to the team!<br><strong>The DriveDrop Team</strong></p>
+    `)
+  },
+
+  admin_driver_application: {
+    subject: 'New Driver Application Submitted — DriveDrop',
+    sender: 'admin',
+    htmlContent: emailBase('New Driver Application', `
+      <p style="color:${DD.red};font-weight:600;">A new driver application requires review.</p>
+
+      ${infoBox(`
+        <strong>Applicant Information</strong><br>
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:8px;">
+          <tr>
+            <td style="padding:6px 0;color:${DD.sub};width:40%;font-size:13px;"><strong>Full Name:</strong></td>
+            <td style="padding:6px 0;font-size:13px;">{{fullName}}</td>
+          </tr>
+          <tr>
+            <td style="padding:6px 0;color:${DD.sub};font-size:13px;"><strong>Email:</strong></td>
+            <td style="padding:6px 0;font-size:13px;">{{email}}</td>
+          </tr>
+          <tr>
+            <td style="padding:6px 0;color:${DD.sub};font-size:13px;"><strong>Phone:</strong></td>
+            <td style="padding:6px 0;font-size:13px;">{{phone}}</td>
+          </tr>
+          <tr>
+            <td style="padding:6px 0;color:${DD.sub};font-size:13px;"><strong>License State:</strong></td>
+            <td style="padding:6px 0;font-size:13px;">{{licenseState}}</td>
+          </tr>
+          <tr>
+            <td style="padding:6px 0;color:${DD.sub};font-size:13px;"><strong>Application ID:</strong></td>
+            <td style="padding:6px 0;font-size:13px;font-family:monospace;">{{applicationId}}</td>
+          </tr>
+          <tr>
+            <td style="padding:6px 0;color:${DD.sub};font-size:13px;"><strong>Submitted:</strong></td>
+            <td style="padding:6px 0;font-size:13px;">{{submittedAt}}</td>
+          </tr>
+        </table>
+      `, DD.purple)}
+
+      <div style="background-color:#fffbeb;border-left:3px solid ${DD.amber};padding:16px 20px;margin:20px 0;border-radius:0 6px 6px 0;font-size:13px;line-height:1.8;">
+        <strong style="color:#92400e;">Documents Uploaded:</strong><br>
+        {{#if licenseFrontUrl}}✓{{else}}✗{{/if}} Driver License (Front)<br>
+        {{#if licenseBackUrl}}✓{{else}}✗{{/if}} Driver License (Back)<br>
+        {{#if proofOfAddressUrl}}✓{{else}}✗{{/if}} Proof of Address<br>
+        {{#if insuranceProofUrl}}✓{{else}}✗{{/if}} Insurance Document
+      </div>
+
+      ${btn('Review Application', '{{reviewUrl}}', DD.purple)}
+
+      <p style="color:#9ca3af;font-size:12px;text-align:center;">This is an automated notification from the DriveDrop driver application system.</p>
+    `)
+  },
+
   // ─── Placeholders ───────────────────────────────────────────────
   quote_received:       { subject: 'Quote Received', sender: 'client', htmlContent: '' },
   payment_received:     { subject: 'Payment Received', sender: 'client', htmlContent: '' },
