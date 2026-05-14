@@ -298,7 +298,7 @@ function PersonalInfoStep({ defaultValues, onNext }: any) {
         <CardDescription>Please provide your basic information</CardDescription>
       </CardHeader>
       <CardContent>
-        <form onSubmit={handleSubmit(onNext)} className="space-y-4">
+        <form onSubmit={handleSubmit(onNext)} className="space-y-4" noValidate>
           <div>
             <Label htmlFor="fullName">Full Legal Name *</Label>
             <Input {...register('fullName')} placeholder="John Doe" />
@@ -359,7 +359,7 @@ function LicenseStep({ defaultValues, onNext, onBack }: any) {
         <CardDescription>Upload your driver's license information</CardDescription>
       </CardHeader>
       <CardContent>
-        <form onSubmit={handleSubmit(onNext)} className="space-y-4">
+        <form onSubmit={handleSubmit(onNext)} className="space-y-4" noValidate>
           <div>
             <Label htmlFor="licenseNumber">License Number *</Label>
             <Input {...register('licenseNumber')} placeholder="D1234567" />
@@ -439,7 +439,7 @@ function DrivingHistoryStep({ defaultValues, onNext, onBack }: any) {
         <CardDescription>Help us understand your driving record</CardDescription>
       </CardHeader>
       <CardContent>
-        <form onSubmit={handleSubmit(onNext)} className="space-y-6">
+        <form onSubmit={handleSubmit(onNext)} className="space-y-6" noValidate>
           <div className="space-y-4">
             <div className="flex items-start space-x-3">
               <Checkbox 
@@ -505,7 +505,7 @@ function InsuranceStep({ defaultValues, onNext, onBack }: any) {
         <CardDescription>Verify your auto insurance coverage</CardDescription>
       </CardHeader>
       <CardContent>
-        <form onSubmit={handleSubmit(onNext)} className="space-y-4">
+        <form onSubmit={handleSubmit(onNext)} className="space-y-4" noValidate>
           <div>
             <Label htmlFor="insuranceProvider">Insurance Provider *</Label>
             <Input {...register('insuranceProvider')} placeholder="State Farm, Geico, etc." />
@@ -582,7 +582,7 @@ function AgreementsStep({ onSubmit, onBack, isSubmitting }: any) {
         <CardDescription>Please review and accept the following terms</CardDescription>
       </CardHeader>
       <CardContent>
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-6" noValidate>
           <div className="space-y-4">
             <div className="flex items-start space-x-3">
               <Checkbox 
