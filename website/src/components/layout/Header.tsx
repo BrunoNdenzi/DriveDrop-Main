@@ -63,6 +63,14 @@ export default function Header() {
                 Get Quote
               </Link>
               <Link 
+                href="/services" 
+                className={`relative px-4 py-2.5 text-sm font-medium rounded-full transition-all duration-200 ${
+                  isScrolled ? 'text-foreground/80 hover:text-primary hover:bg-primary/5' : 'text-white/80 hover:text-white hover:bg-white/10'
+                }`}
+              >
+                Services
+              </Link>
+              <Link 
                 href="/drivers/register" 
                 className={`relative px-4 py-2.5 text-sm font-medium rounded-full transition-all duration-200 ${
                   isScrolled ? 'text-foreground/80 hover:text-primary hover:bg-primary/5' : 'text-white/80 hover:text-white hover:bg-white/10'
@@ -140,6 +148,14 @@ export default function Header() {
             >
               <span className="w-1 h-1 rounded-full bg-primary mr-3 group-hover:scale-150 transition-transform" />
               Get Quote
+            </Link>
+            <Link
+              href="/services"
+              className="px-6 py-4 text-base font-medium rounded-xl hover:bg-primary/10 hover:text-primary transition-all hover:translate-x-2 flex items-center group"
+              onClick={() => setIsMenuOpen(false)}
+            >
+              <span className="w-1 h-1 rounded-full bg-primary mr-3 group-hover:scale-150 transition-transform" />
+              Services
             </Link>
             <Link
               href="/drivers/register"
