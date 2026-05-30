@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
-import Header from '@/components/layout/Header'
+import ServicesHeader from '@/components/layout/ServicesHeader'
 import Footer from '@/components/layout/Footer'
 import {
   TreePine, Phone, ArrowRight, CheckCircle,
@@ -143,11 +143,11 @@ function QuoteForm() {
 // ── PAGE ─────────────────────────────────────────────────
 export default function TreeRemovalPage() {
   return (
-    <main className="min-h-screen bg-background pt-20">
-      <Header />
+    <main className="min-h-screen bg-background">
+      <ServicesHeader />
 
       {/* ── HERO ─────────────────────────────────────────── */}
-      <section className="relative overflow-hidden bg-slate-950 pt-16 pb-20">
+      <section className="relative overflow-hidden bg-slate-950 pt-[68px]">
 
         {/* Green glow */}
         <div className="pointer-events-none absolute top-0 right-0 w-[600px] h-[500px] rounded-full bg-green-500/8 blur-[140px]" />
@@ -169,7 +169,7 @@ export default function TreeRemovalPage() {
         </div>
 
         <div className="container relative z-10">
-          <Link href="/services" className="inline-flex items-center gap-1.5 text-xs text-white/40 hover:text-white/70 mb-10 transition-colors">
+          <Link href="/services" className="inline-flex items-center gap-1.5 text-xs text-white/40 hover:text-white/70 mb-8 mt-8 transition-colors">
             <ArrowLeft className="h-3.5 w-3.5" />
             All services
           </Link>

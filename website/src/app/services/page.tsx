@@ -1,214 +1,177 @@
 import Link from 'next/link'
-import Header from '@/components/layout/Header'
+import ServicesHeader from '@/components/layout/ServicesHeader'
 import Footer from '@/components/layout/Footer'
-import { ArrowRight, Phone, Layers, TreePine, Package, MapPin, CheckCircle } from 'lucide-react'
+import {
+  ArrowRight, Phone, Layers, TreePine, Package,
+  MapPin, Truck, Wrench, ShieldCheck, Clock, Briefcase, ScrollText
+} from 'lucide-react'
 
 const services = [
   {
     id: 'tiles',
     icon: Layers,
-    tag: 'Supply & Delivery',
     name: 'Premium Tiles',
-    desc: 'Taj Mahal polished porcelain. 24×48 large format. Supply, delivery, and professional installation available — for homeowners and contractors.',
-    features: ['Direct pricing — no middlemen', 'Delivery to your door', 'Professional installation add-on', 'Bulk contractor orders welcome'],
-    cta: 'Get tile pricing',
+    tag: 'Supply & Delivery',
+    tagline: 'Taj Mahal 24×48 polished porcelain — direct supply, curbside delivery, and installation.',
+    attrs: [
+      { icon: Truck, label: 'Delivery included' },
+      { icon: Wrench, label: 'Installation add-on' },
+      { icon: MapPin, label: 'Charlotte area' },
+    ],
+    cta: 'Tile pricing',
     href: '/services/tiles',
     accent: '#f59e0b',
-    accentBg: 'rgba(245,158,11,0.08)',
-    accentBorder: 'rgba(245,158,11,0.2)',
-    num: '01',
   },
   {
     id: 'tree-removal',
     icon: TreePine,
-    tag: 'Licensed Contractor',
     name: 'Tree Removal',
-    desc: 'Licensed tree removal, trimming, and stump grinding for Charlotte homeowners and property managers. Clean, safe, done right.',
-    features: ['Licensed & insured', 'Residential & commercial', 'Full cleanup included', 'Charlotte & surrounding areas'],
-    cta: 'Request a quote',
+    tag: 'Licensed Contractor',
+    tagline: 'Full removal, trimming, stump grinding. Debris hauled. Site left clean.',
+    attrs: [
+      { icon: ShieldCheck, label: 'Licensed & insured' },
+      { icon: Clock, label: 'Emergency response' },
+      { icon: MapPin, label: 'Charlotte area' },
+    ],
+    cta: 'Free assessment',
     href: '/services/tree-removal',
     accent: '#22c55e',
-    accentBg: 'rgba(34,197,94,0.08)',
-    accentBorder: 'rgba(34,197,94,0.2)',
-    num: '02',
   },
   {
     id: 'delivery',
     icon: Package,
-    tag: 'Charlotte Local',
     name: 'Van Delivery',
-    desc: 'Same-city delivery for anything that fits in a van. Furniture, equipment, supplies, business inventory — Charlotte to Charlotte.',
-    features: ['Charlotte metro coverage', 'Business & personal', 'Furniture, goods, equipment', 'Freight forwarder licensed'],
-    cta: 'Book a delivery',
+    tag: 'Local Freight',
+    tagline: 'If it fits in a van, we move it — furniture, business goods, contractor supplies.',
+    attrs: [
+      { icon: Briefcase, label: 'Business & personal' },
+      { icon: ScrollText, label: 'Freight licensed' },
+      { icon: MapPin, label: 'Charlotte metro' },
+    ],
+    cta: 'Book delivery',
     href: '/services/delivery',
     accent: '#3b82f6',
-    accentBg: 'rgba(59,130,246,0.08)',
-    accentBorder: 'rgba(59,130,246,0.2)',
-    num: '03',
   },
 ]
 
 export default function ServicesPage() {
   return (
-    <main className="min-h-screen bg-background pt-20">
-      <Header />
+    <main className="min-h-screen bg-background">
+      <ServicesHeader />
 
       {/* ── HERO ────────────────────────────────────────────────── */}
-      <section className="relative overflow-hidden bg-slate-950 pt-20 pb-24">
-
-        {/* Background text texture */}
-        <div className="pointer-events-none absolute inset-0 flex items-center justify-center overflow-hidden select-none">
-          <span
-            className="text-[22vw] font-black text-white/[0.025] leading-none tracking-tighter whitespace-nowrap"
-            aria-hidden
-          >
-            SERVICES
-          </span>
-        </div>
-
-        {/* Grid lines */}
+      <section className="relative overflow-hidden bg-slate-950 pt-[68px]">
+        {/* Grid texture */}
         <div
           className="pointer-events-none absolute inset-0"
           style={{
-            backgroundImage: 'linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px)',
-            backgroundSize: '60px 60px',
+            backgroundImage:
+              'linear-gradient(rgba(255,255,255,0.025) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.025) 1px, transparent 1px)',
+            backgroundSize: '64px 64px',
           }}
         />
+        {/* Amber glow */}
+        <div className="pointer-events-none absolute -top-40 -left-20 w-[480px] h-[480px] rounded-full bg-amber-500/10 blur-[130px]" />
 
-        {/* Amber glow top-left */}
-        <div className="pointer-events-none absolute -top-32 -left-32 w-[500px] h-[500px] rounded-full bg-amber-500/10 blur-[120px]" />
-
-        <div className="container relative z-10">
-          <div className="max-w-4xl">
-            <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-1.5 mb-8">
-              <MapPin className="h-3.5 w-3.5 text-amber-400" />
-              <span className="text-xs font-medium text-white/70 tracking-widest uppercase">Charlotte, NC</span>
-            </div>
-
-            <h1 className="text-5xl md:text-7xl font-black text-white leading-[0.95] tracking-tight mb-6">
-              More than<br />
-              <span className="text-amber-400">moving cars.</span>
-            </h1>
-
-            <p className="text-lg text-white/50 max-w-xl leading-relaxed mb-10">
-              Three local services. One number. All operated by the same team behind DriveDrop — licensed, reliable, Charlotte-based.
-            </p>
-
-            <a
-              href="tel:+17042662317"
-              className="inline-flex items-center gap-3 bg-amber-500 hover:bg-amber-400 text-black font-bold px-7 py-4 rounded-xl transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
-            >
-              <Phone className="h-5 w-5" />
-              <span>+1 (704) 266-2317</span>
-              <span className="text-black/50 font-normal">— call or text</span>
-            </a>
+        <div className="container relative z-10 py-20 lg:py-24">
+          <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-1.5 mb-8">
+            <MapPin className="h-3.5 w-3.5 text-amber-400" />
+            <span className="text-xs font-semibold text-white/60 tracking-[3px] uppercase">Charlotte, NC</span>
           </div>
+
+          <h1 className="text-6xl md:text-8xl font-black text-white leading-[0.9] tracking-tight mb-6">
+            One team.<br />
+            <span className="text-amber-400">Every project.</span>
+          </h1>
+
+          <p className="text-white/40 text-base md:text-lg max-w-md leading-relaxed mb-10">
+            Local services backed by licensed professionals — all in Charlotte, all on one number.
+          </p>
+
+          <a
+            href="tel:+17042662317"
+            className="inline-flex items-center gap-2.5 bg-amber-500 hover:bg-amber-400 text-black font-bold px-6 py-3.5 rounded-xl text-sm transition-all hover:scale-[1.02] active:scale-[0.98]"
+          >
+            <Phone className="h-4 w-4" />
+            +1 (704) 266-2317
+            <span className="text-black/45 font-normal">— call or text</span>
+          </a>
         </div>
       </section>
 
-      {/* ── SERVICES ───────────────────────────────────────────── */}
-      <section className="py-20 bg-background">
+      {/* ── SERVICES — editorial rows ──────────────────────────── */}
+      <section className="bg-background">
         <div className="container">
-
-          {/* Section label */}
-          <div className="flex items-center gap-4 mb-14">
-            <div className="h-px flex-1 bg-border max-w-[40px]" />
-            <span className="text-xs font-bold text-muted-foreground tracking-[3px] uppercase">What we do</span>
-            <div className="h-px flex-1 bg-border" />
-          </div>
-
-          <div className="space-y-8">
-            {services.map((svc, i) => {
+          <div className="divide-y divide-border">
+            {services.map((svc) => {
               const Icon = svc.icon
               return (
-                <div
+                <Link
                   key={svc.id}
-                  className="group relative rounded-2xl border overflow-hidden transition-all duration-300 hover:shadow-lg hover:-translate-y-0.5"
-                  style={{ borderColor: svc.accentBorder, background: svc.accentBg }}
+                  href={svc.href}
+                  className="group flex items-center gap-5 py-8 md:py-9 -mx-4 px-4 rounded-xl transition-all duration-200 hover:bg-muted/40"
                 >
-                  {/* Large number */}
+                  {/* Service icon */}
                   <div
-                    className="pointer-events-none absolute right-8 top-1/2 -translate-y-1/2 text-[120px] font-black leading-none select-none hidden lg:block"
-                    style={{ color: svc.accent, opacity: 0.07 }}
+                    className="shrink-0 w-[56px] h-[56px] rounded-2xl flex items-center justify-center transition-transform duration-200 group-hover:scale-105"
+                    style={{
+                      background: `${svc.accent}18`,
+                      border: `1px solid ${svc.accent}35`,
+                    }}
                   >
-                    {svc.num}
+                    <Icon className="h-[26px] w-[26px]" style={{ color: svc.accent }} />
                   </div>
 
-                  <div className="relative p-8 md:p-10 flex flex-col md:flex-row md:items-center gap-8">
-
-                    {/* Left: icon + content */}
-                    <div className="flex-1">
-                      <div className="flex items-center gap-3 mb-4">
-                        <div
-                          className="w-10 h-10 rounded-lg flex items-center justify-center"
-                          style={{ background: svc.accent }}
-                        >
-                          <Icon className="h-5 w-5 text-black" />
-                        </div>
-                        <span
-                          className="text-xs font-bold tracking-widest uppercase"
-                          style={{ color: svc.accent }}
-                        >
-                          {svc.tag}
-                        </span>
-                      </div>
-
-                      <h2 className="text-3xl md:text-4xl font-black text-foreground mb-3 tracking-tight">
-                        {svc.name}
-                      </h2>
-
-                      <p className="text-muted-foreground text-base leading-relaxed mb-6 max-w-xl">
-                        {svc.desc}
-                      </p>
-
-                      <ul className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                        {svc.features.map(f => (
-                          <li key={f} className="flex items-center gap-2 text-sm text-muted-foreground">
-                            <CheckCircle className="h-4 w-4 shrink-0" style={{ color: svc.accent }} />
-                            {f}
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-
-                    {/* Right: CTA */}
-                    <div className="shrink-0">
-                      <Link
-                        href={svc.href}
-                        className="inline-flex items-center gap-2 font-bold px-7 py-4 rounded-xl text-sm transition-all duration-200 hover:gap-3 group/btn"
-                        style={{ background: svc.accent, color: '#000' }}
+                  {/* Text */}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex flex-wrap items-center gap-2.5 mb-1">
+                      <span className="text-lg md:text-xl font-black text-foreground">{svc.name}</span>
+                      <span
+                        className="text-[11px] font-bold px-2 py-0.5 rounded-full tracking-wide hidden sm:inline"
+                        style={{ background: `${svc.accent}18`, color: svc.accent }}
                       >
-                        {svc.cta}
-                        <ArrowRight className="h-4 w-4 transition-transform group-hover/btn:translate-x-1" />
-                      </Link>
+                        {svc.tag}
+                      </span>
                     </div>
+                    <p className="text-muted-foreground text-sm leading-relaxed mb-3">{svc.tagline}</p>
 
+                    {/* Attributes — icon + label, semantically relevant */}
+                    <div className="flex flex-wrap gap-x-5 gap-y-1.5">
+                      {svc.attrs.map(({ icon: AttrIcon, label }) => (
+                        <span key={label} className="inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+                          <AttrIcon className="h-3.5 w-3.5 shrink-0" style={{ color: svc.accent }} />
+                          {label}
+                        </span>
+                      ))}
+                    </div>
                   </div>
-                </div>
+
+                  {/* Arrow CTA */}
+                  <div
+                    className="shrink-0 flex items-center gap-2 text-sm font-bold whitespace-nowrap"
+                    style={{ color: svc.accent }}
+                  >
+                    <span className="hidden sm:inline opacity-0 group-hover:opacity-100 transition-opacity">{svc.cta}</span>
+                    <ArrowRight className="h-5 w-5 group-hover:translate-x-1 transition-transform" />
+                  </div>
+                </Link>
               )
             })}
           </div>
-
         </div>
       </section>
 
-      {/* ── ALSO DO VEHICLE SHIPPING ───────────────────────────── */}
-      <section className="bg-slate-950 py-16">
-        <div className="container">
-          <div className="flex flex-col md:flex-row items-center justify-between gap-6">
-            <div>
-              <p className="text-amber-400 text-xs font-bold tracking-widest uppercase mb-2">Also by us</p>
-              <h3 className="text-2xl font-black text-white">Need to ship a vehicle?</h3>
-              <p className="text-white/50 mt-1 text-sm">That's where DriveDrop started — nationwide vehicle transport.</p>
-            </div>
-            <Link
-              href="/"
-              className="inline-flex items-center gap-2 border border-white/20 hover:border-white/40 text-white font-semibold px-6 py-3 rounded-xl transition-all text-sm hover:bg-white/5"
-            >
-              DriveDrop Vehicle Shipping
-              <ArrowRight className="h-4 w-4" />
-            </Link>
-          </div>
+      {/* ── BOTTOM PHONE BAR ───────────────────────────────────── */}
+      <section className="bg-slate-950 py-16 mt-4">
+        <div className="container text-center">
+          <p className="text-white/30 text-xs tracking-widest uppercase mb-4">One number for everything</p>
+          <a
+            href="tel:+17042662317"
+            className="text-4xl md:text-5xl font-black text-white hover:text-amber-400 transition-colors tracking-tight"
+          >
+            +1 (704) 266-2317
+          </a>
+          <p className="text-white/25 text-sm mt-3">Call or text — we'll point you in the right direction</p>
         </div>
       </section>
 
