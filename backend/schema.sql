@@ -484,9 +484,21 @@ CREATE TABLE public.cancellation_records (
   CONSTRAINT cancellation_records_pickup_verification_id_fkey FOREIGN KEY (pickup_verification_id) REFERENCES public.pickup_verifications(id),
   CONSTRAINT cancellation_records_admin_reviewer_id_fkey FOREIGN KEY (admin_reviewer_id) REFERENCES public.profiles(id)
 );
+CREATE TABLE public.carrier_call_logs (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  carrier_phone text NOT NULL,
+  outcome text NOT NULL CHECK (outcome = ANY (ARRAY['interested'::text, 'not_interested'::text, 'callback_requested'::text, 'no_answer'::text, 'voicemail'::text, 'sent_link'::text])),
+  notes text,
+  callback_date timestamp with time zone,
+  fleet_size integer,
+  states_served text,
+  called_at timestamp with time zone NOT NULL DEFAULT now(),
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  CONSTRAINT carrier_call_logs_pkey PRIMARY KEY (id)
+);
 CREATE TABLE public.carrier_contacts (
   id uuid NOT NULL DEFAULT uuid_generate_v4(),
-  dot_number text NOT NULL UNIQUE,
+  dot_number text,
   company_name text NOT NULL,
   mc_number text,
   email text,
@@ -507,7 +519,24 @@ CREATE TABLE public.carrier_contacts (
   last_verified_at timestamp with time zone,
   created_at timestamp with time zone NOT NULL DEFAULT now(),
   updated_at timestamp with time zone NOT NULL DEFAULT now(),
+  contact_type text NOT NULL DEFAULT 'carrier'::text CHECK (contact_type = ANY (ARRAY['carrier'::text, 'broker'::text, 'dealership'::text, 'shipper'::text])),
   CONSTRAINT carrier_contacts_pkey PRIMARY KEY (id)
+);
+CREATE TABLE public.carrier_leads (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  carrier_phone text NOT NULL UNIQUE,
+  carrier_email text,
+  contact_name text,
+  company_name text,
+  fleet_size integer,
+  states_served text,
+  vehicle_types text,
+  interest_level text DEFAULT 'warm'::text CHECK (interest_level = ANY (ARRAY['hot'::text, 'warm'::text, 'cold'::text])),
+  notes text,
+  last_contacted timestamp with time zone NOT NULL DEFAULT now(),
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  updated_at timestamp with time zone NOT NULL DEFAULT now(),
+  CONSTRAINT carrier_leads_pkey PRIMARY KEY (id)
 );
 CREATE TABLE public.client_addresses (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
@@ -1477,4 +1506,22 @@ CREATE TABLE public.user_vehicles (
   updated_at timestamp with time zone NOT NULL DEFAULT now(),
   CONSTRAINT user_vehicles_pkey PRIMARY KEY (id),
   CONSTRAINT user_vehicles_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.profiles(id)
+);
+CREATE TABLE public.voice_call_logs (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  vapi_call_id text UNIQUE,
+  direction text CHECK (direction = ANY (ARRAY['inbound'::text, 'outbound'::text])),
+  call_type text,
+  caller_phone text,
+  duration_seconds integer,
+  ended_reason text,
+  cost_usd numeric,
+  transcript text,
+  summary text,
+  recording_url text,
+  metadata jsonb NOT NULL DEFAULT '{}'::jsonb,
+  started_at timestamp with time zone,
+  ended_at timestamp with time zone,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  CONSTRAINT voice_call_logs_pkey PRIMARY KEY (id)
 );

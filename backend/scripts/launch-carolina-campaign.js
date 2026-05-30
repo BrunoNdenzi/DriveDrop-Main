@@ -15,7 +15,7 @@
 require('dotenv').config();
 const { createClient } = require('@supabase/supabase-js');
 
-const API_BASE = `http://localhost:${process.env.PORT || 3001}/api/v1`;
+const API_BASE = process.env.API_URL ? `${process.env.API_URL}/api/v1` : `http://localhost:${process.env.PORT || 3001}/api/v1`;
 const ADMIN_EMAIL = 'infos@calkons.com';
 const ADMIN_PASSWORD = 'TestAdmin2026!';
 const WARMUP = process.env.OUTREACH_WARMUP !== 'false';

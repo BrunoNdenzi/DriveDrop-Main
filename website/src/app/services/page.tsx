@@ -9,14 +9,16 @@ import {
 const services = [
   {
     id: 'tiles',
+    featured: true,
     icon: Layers,
     name: 'Premium Tiles',
     tag: 'Supply & Delivery',
-    tagline: 'Taj Mahal 24×48 polished porcelain — direct supply, curbside delivery, and installation.',
+    tagline: 'Taj Mahal 24×48 polished porcelain — direct supply, curbside delivery, and professional installation.',
     attrs: [
-      { icon: Truck, label: 'Delivery included' },
+      { icon: Truck, label: 'Curbside delivery' },
       { icon: Wrench, label: 'Installation add-on' },
       { icon: MapPin, label: 'Charlotte area' },
+      { icon: ShieldCheck, label: 'Insured transport' },
     ],
     cta: 'Tile pricing',
     href: '/services/tiles',
@@ -24,10 +26,11 @@ const services = [
   },
   {
     id: 'tree-removal',
+    featured: false,
     icon: TreePine,
     name: 'Tree Removal',
     tag: 'Licensed Contractor',
-    tagline: 'Full removal, trimming, stump grinding. Debris hauled. Site left clean.',
+    tagline: 'Full removal, stump grinding, debris hauled. Site left clean.',
     attrs: [
       { icon: ShieldCheck, label: 'Licensed & insured' },
       { icon: Clock, label: 'Emergency response' },
@@ -39,10 +42,11 @@ const services = [
   },
   {
     id: 'delivery',
+    featured: false,
     icon: Package,
     name: 'Van Delivery',
     tag: 'Local Freight',
-    tagline: 'If it fits in a van, we move it — furniture, business goods, contractor supplies.',
+    tagline: 'Furniture, business goods, contractor materials — if it fits in a van, we move it.',
     attrs: [
       { icon: Briefcase, label: 'Business & personal' },
       { icon: ScrollText, label: 'Freight licensed' },
@@ -85,7 +89,7 @@ export default function ServicesPage() {
           </h1>
 
           <p className="text-white/40 text-base md:text-lg max-w-md leading-relaxed mb-10">
-            Local services backed by licensed professionals — all in Charlotte, all on one number.
+            Licensed, locally operated contractors — tiles, tree work, and van delivery from one Charlotte team.
           </p>
 
           <a
@@ -113,19 +117,26 @@ export default function ServicesPage() {
                 >
                   {/* Service icon */}
                   <div
-                    className="shrink-0 w-[56px] h-[56px] rounded-2xl flex items-center justify-center transition-transform duration-200 group-hover:scale-105"
+                    className={`shrink-0 rounded-2xl flex items-center justify-center transition-transform duration-200 group-hover:scale-105 ${
+                      svc.featured ? 'w-[62px] h-[62px]' : 'w-[56px] h-[56px]'
+                    }`}
                     style={{
                       background: `${svc.accent}18`,
                       border: `1px solid ${svc.accent}35`,
                     }}
                   >
-                    <Icon className="h-[26px] w-[26px]" style={{ color: svc.accent }} />
+                    <Icon
+                      className={svc.featured ? 'h-[28px] w-[28px]' : 'h-[26px] w-[26px]'}
+                      style={{ color: svc.accent }}
+                    />
                   </div>
 
                   {/* Text */}
                   <div className="flex-1 min-w-0">
                     <div className="flex flex-wrap items-center gap-2.5 mb-1">
-                      <span className="text-lg md:text-xl font-black text-foreground">{svc.name}</span>
+                      <span className={`font-black text-foreground ${
+                        svc.featured ? 'text-xl md:text-2xl' : 'text-lg md:text-xl'
+                      }`}>{svc.name}</span>
                       <span
                         className="text-[11px] font-bold px-2 py-0.5 rounded-full tracking-wide hidden sm:inline"
                         style={{ background: `${svc.accent}18`, color: svc.accent }}
@@ -164,7 +175,7 @@ export default function ServicesPage() {
       {/* ── BOTTOM PHONE BAR ───────────────────────────────────── */}
       <section className="bg-slate-950 py-16 mt-4">
         <div className="container text-center">
-          <p className="text-white/30 text-xs tracking-widest uppercase mb-4">One number for everything</p>
+          <p className="text-white/30 text-xs tracking-widest uppercase mb-4">Three services, one number</p>
           <a
             href="tel:+17042662317"
             className="text-4xl md:text-5xl font-black text-white hover:text-amber-400 transition-colors tracking-tight"

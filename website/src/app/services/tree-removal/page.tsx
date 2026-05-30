@@ -14,7 +14,7 @@ const SERVICES = [
   { icon: TreePine, label: 'Full Tree Removal', desc: 'Complete removal including trunk, branches, and hauling away all debris.' },
   { icon: Axe, label: 'Stump Grinding', desc: 'Grind stumps below grade so you can sod, plant, or build over the area.' },
   { icon: Leaf, label: 'Tree Trimming & Pruning', desc: 'Shape, lighten, and maintain your trees for health and curb appeal.' },
-  { icon: AlertTriangle, label: 'Emergency Removal', desc: 'Storm damage, fallen trees, immediate hazard — we respond fast.' },
+  { icon: AlertTriangle, label: 'Emergency Removal', desc: 'Storm damage, fallen limbs, or an active hazard — we prioritize same-day response when we can.', urgent: true },
 ]
 
 // ── LEAD FORM ─────────────────────────────────────────────
@@ -215,16 +215,29 @@ export default function TreeRemovalPage() {
         <div className="container">
           <div className="mb-10">
             <p className="text-green-500 text-xs font-bold tracking-widest uppercase mb-2">Services</p>
-            <h2 className="text-3xl font-black text-foreground">What we handle</h2>
+            <h2 className="text-3xl font-black text-foreground">What we do</h2>
           </div>
 
           <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
             {SERVICES.map(svc => {
               const Icon = svc.icon
               return (
-                <div key={svc.label} className="group rounded-2xl bg-slate-50 dark:bg-slate-900 border border-border hover:border-green-500/30 p-6 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-sm">
-                  <div className="w-10 h-10 rounded-xl bg-green-500/10 flex items-center justify-center mb-4 group-hover:bg-green-500/20 transition-colors">
-                    <Icon className="h-5 w-5 text-green-500" />
+                <div
+                  key={svc.label}
+                  className={`group rounded-2xl border p-6 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-sm ${
+                    (svc as { urgent?: boolean }).urgent
+                      ? 'bg-orange-50 dark:bg-orange-950/15 border-orange-200 dark:border-orange-500/20 hover:border-orange-500/40'
+                      : 'bg-slate-50 dark:bg-slate-900 border-border hover:border-green-500/30'
+                  }`}
+                >
+                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center mb-4 transition-colors ${
+                    (svc as { urgent?: boolean }).urgent
+                      ? 'bg-orange-500/10 group-hover:bg-orange-500/20'
+                      : 'bg-green-500/10 group-hover:bg-green-500/20'
+                  }`}>
+                    <Icon className={`h-5 w-5 ${
+                      (svc as { urgent?: boolean }).urgent ? 'text-orange-500' : 'text-green-500'
+                    }`} />
                   </div>
                   <h3 className="font-bold text-foreground mb-2">{svc.label}</h3>
                   <p className="text-muted-foreground text-sm leading-relaxed">{svc.desc}</p>

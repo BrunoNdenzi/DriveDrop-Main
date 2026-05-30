@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DriveDrop Email Testing Tool</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            padding: 40px;
+            max-width: 600px;
+            width: 100%;
+        }
+
+        h1 {
+            color: #1a202c;
+            margin-bottom: 8px;
+            font-size: 28px;
+        }
+
+        .subtitle {
+            color: #718096;
+            margin-bottom: 32px;
+            font-size: 14px;
+        }
+
+        .test-section {
+            background: #f7fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .test-section h2 {
+            color: #2d3748;
+            font-size: 18px;
+            margin-bottom: 12px;
+        }
+
+        .test-section p {
+            color: #4a5568;
+            font-size: 14px;
+            line-height: 1.6;
+            margin-bottom: 16px;
+        }
+
+        button {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            width: 100%;
+        }
+
+        button:hover {
+            background: #5568d3;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        button:disabled {
+            background: #cbd5e0;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .result {
+            margin-top: 16px;
+            padding: 12px;
+            border-radius: 6px;
+            font-size: 13px;
+            line-height: 1.5;
+        }
+
+        .result.success {
+            background: #c6f6d5;
+            border: 1px solid #9ae6b4;
+            color: #22543d;
+        }
+
+        .result.error {
+            background: #fed7d7;
+            border: 1px solid #fc8181;
+            color: #742a2a;
+        }
+
+        .result.info {
+            background: #bee3f8;
+            border: 1px solid #90cdf4;
+            color: #2c5282;
+        }
+
+        .code {
+            background: #2d3748;
+            color: #e2e8f0;
+            padding: 12px;
+            border-radius: 6px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            overflow-x: auto;
+            margin: 12px 0;
+        }
+
+        .input-group {
+            margin-bottom: 16px;
+        }
+
+        .input-group label {
+            display: block;
+            color: #4a5568;
+            font-size: 14px;
+            font-weight: 500;
+            margin-bottom: 6px;
+        }
+
+        .input-group input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #cbd5e0;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+
+        .input-group input:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 Email Testing Tool</h1>
+        <p class="subtitle">Test your DriveDrop email configuration</p>
+
+        <!-- Test 1: Backend Health -->
+        <div class="test-section">
+            <h2>1. Backend Health Check</h2>
+            <p>Verify that the Railway backend API is accessible</p>
+            <button onclick="testBackendHealth()">Test Backend Connection</button>
+            <div id="backend-result"></div>
+        </div>
+
+        <!-- Test 2: Brevo Email -->
+        <div class="test-section">
+            <h2>2. Brevo Email Test</h2>
+            <p>Send a test welcome email using the backend Brevo service</p>
+            <div class="input-group">
+                <label for="test-email">Your Email Address</label>
+                <input type="email" id="test-email" placeholder="test@example.com" value="">
+            </div>
+            <button onclick="testBrevoEmail()">Send Test Email</button>
+            <div id="brevo-result"></div>
+        </div>
+
+        <!-- Test 3: Full Driver Application Flow -->
+        <div class="test-section">
+            <h2>3. Configuration Summary</h2>
+            <p>Current environment configuration</p>
+            <button onclick="showConfig()">Show Configuration</button>
+            <div id="config-result"></div>
+        </div>
+    </div>
+
+    <script>
+        const BACKEND_URL = 'https://drivedrop-main-production.up.railway.app/api/v1';
+        
+        function showResult(elementId, type, message) {
+            const el = document.getElementById(elementId);
+            el.className = `result ${type}`;
+            el.innerHTML = message;
+        }
+
+        async function testBackendHealth() {
+            const btn = event.target;
+            btn.disabled = true;
+            btn.textContent = 'Testing...';
+            
+            try {
+                const response = await fetch(`${BACKEND_URL.replace('/api/v1', '')}/health`);
+                const data = await response.json();
+                
+                if (data.status === 'ok') {
+                    showResult('backend-result', 'success', 
+                        `✅ <strong>Backend is running!</strong><br>` +
+                        `Timestamp: ${data.timestamp}<br>` +
+                        `URL: ${BACKEND_URL.replace('/api/v1', '')}/health`
+                    );
+                } else {
+                    showResult('backend-result', 'error', 
+                        `❌ Backend returned unexpected response:<br>` +
+                        `<div class="code">${JSON.stringify(data, null, 2)}</div>`
+                    );
+                }
+            } catch (error) {
+                showResult('backend-result', 'error', 
+                    `❌ <strong>Backend is not accessible</strong><br>` +
+                    `Error: ${error.message}<br><br>` +
+                    `<strong>Possible Issues:</strong><br>` +
+                    `• Railway backend is not deployed<br>` +
+                    `• URL is incorrect<br>` +
+                    `• CORS is blocking the request<br><br>` +
+                    `Expected URL: ${BACKEND_URL.replace('/api/v1', '')}/health`
+                );
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Test Backend Connection';
+            }
+        }
+
+        async function testBrevoEmail() {
+            const btn = event.target;
+            const email = document.getElementById('test-email').value;
+            
+            if (!email || !email.includes('@')) {
+                showResult('brevo-result', 'error', '❌ Please enter a valid email address');
+                return;
+            }
+            
+            btn.disabled = true;
+            btn.textContent = 'Sending...';
+            
+            try {
+                const response = await fetch(`${BACKEND_URL}/emails/send-welcome`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        email: email,
+                        firstName: 'Test',
+                        lastName: 'User',
+                        role: 'driver'
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    showResult('brevo-result', 'success', 
+                        `✅ <strong>Email sent successfully!</strong><br>` +
+                        `Recipient: ${email}<br>` +
+                        `Template: ${data.data?.templateType || 'driver_welcome'}<br><br>` +
+                        `Check your inbox (and spam folder) for the email.`
+                    );
+                } else {
+                    showResult('brevo-result', 'error', 
+                        `❌ <strong>Email failed to send</strong><br>` +
+                        `Error: ${data.error || 'Unknown error'}<br><br>` +
+                        `<div class="code">${JSON.stringify(data, null, 2)}</div>` +
+                        `<br><strong>Possible Issues:</strong><br>` +
+                        `• BREVO_API_KEY not set on Railway<br>` +
+                        `• BREVO_ENABLED is false<br>` +
+                        `• Brevo API key is invalid/expired<br>` +
+                        `• Brevo account has reached sending limit`
+                    );
+                }
+            } catch (error) {
+                showResult('brevo-result', 'error', 
+                    `❌ <strong>Request failed</strong><br>` +
+                    `Error: ${error.message}<br><br>` +
+                    `Could not connect to backend API.<br>` +
+                    `Make sure the backend is running on Railway.`
+                );
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Send Test Email';
+            }
+        }
+
+        function showConfig() {
+            const config = {
+                'Backend URL': BACKEND_URL,
+                'Health Endpoint': BACKEND_URL.replace('/api/v1', '') + '/health',
+                'Email Endpoint': BACKEND_URL + '/emails/send-welcome',
+                'Current Domain': window.location.origin,
+                'Browser': navigator.userAgent.split(' ').slice(-2).join(' ')
+            };
+            
+            let configHtml = '<div class="code">';
+            for (const [key, value] of Object.entries(config)) {
+                configHtml += `<strong>${key}:</strong><br>${value}<br><br>`;
+            }
+            configHtml += '</div>';
+            
+            configHtml += `
+                <strong>Required Railway Environment Variables:</strong>
+                <div class="code">BREVO_ENABLED=true
+BREVO_API_KEY=xkeysib-...
+BREVO_SENDER_SUPPORT=support@drivedrop.us.com
+BREVO_SENDER_CARRIER=carrier@drivedrop.us.com
+BREVO_SENDER_BROKER=broker@drivedrop.us.com
+FRONTEND_URL=https://drivedrop.us.com
+SUPABASE_URL=https://xzpqzigxvbnphtjobcse.supabase.co
+SUPABASE_SERVICE_ROLE_KEY=...</div>
+            `;
+            
+            showResult('config-result', 'info', configHtml);
+        }
+    </script>
+</body>
+</html>

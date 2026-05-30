@@ -93,7 +93,7 @@ function QuoteForm() {
         className="w-full flex items-center justify-between p-6 text-left group"
       >
         <div>
-          <p className="text-amber-400 text-xs font-bold tracking-widest uppercase mb-0.5">Ready to order?</p>
+          <p className="text-amber-400 text-xs font-bold tracking-widest uppercase mb-0.5">Place an order</p>
           <h3 className="text-xl font-black text-white">Request a tile quote</h3>
         </div>
         <ChevronDown className={`h-5 w-5 text-white/40 transition-transform duration-200 ${open ? 'rotate-180' : ''}`} />
@@ -261,7 +261,7 @@ export default function TilesPage() {
             <div>
               <div className="inline-flex items-center gap-2 rounded-full border border-amber-500/20 bg-amber-500/10 px-4 py-1.5 mb-6">
                 <Layers className="h-3.5 w-3.5 text-amber-400" />
-                <span className="text-xs font-bold text-amber-400 tracking-widest uppercase">Premium Porcelain</span>
+                <span className="text-xs font-bold text-amber-400 tracking-widest uppercase">Tile Supply · Charlotte, NC</span>
               </div>
 
               <h1 className="text-5xl lg:text-6xl font-black text-white leading-[0.95] tracking-tight mb-5">
@@ -271,7 +271,7 @@ export default function TilesPage() {
               </h1>
 
               <p className="text-white/50 text-lg leading-relaxed mb-8">
-                Polished porcelain with Taj Mahal stone aesthetics. Large format, premium finish. Direct supply and delivery — Charlotte and surrounding areas.
+                Large-format polished porcelain in a Taj Mahal stone finish. Available for direct supply and scheduled curbside delivery across Charlotte and surrounding areas.
               </p>
 
               <div className="flex flex-col sm:flex-row gap-3">

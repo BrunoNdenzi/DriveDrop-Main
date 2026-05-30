@@ -224,8 +224,8 @@ export default function DeliveryPage() {
                 <p className="text-white/40 text-sm mt-0.5">Licensed for commercial moves</p>
               </div>
               <div className="rounded-2xl bg-white/5 border border-white/10 p-5">
-                <p className="text-3xl font-black text-blue-400">TBD</p>
-                <p className="text-white/40 text-sm mt-0.5">Pricing — call for quote</p>
+                <p className="text-xl font-black text-white">Quoted per load</p>
+                <p className="text-white/40 text-sm mt-0.5">Call for a rate — no long-term contract</p>
               </div>
             </div>
           </div>
@@ -298,7 +298,7 @@ export default function DeliveryPage() {
       <section id="quote" className="py-20 bg-slate-950">
         <div className="container">
           <div className="max-w-2xl mx-auto">
-            <p className="text-blue-400 text-xs font-bold tracking-widest uppercase mb-3 text-center">Book now</p>
+            <p className="text-blue-400 text-xs font-bold tracking-widest uppercase mb-3 text-center">Schedule a pickup</p>
             <h2 className="text-4xl font-black text-white mb-3 text-center">Request a delivery</h2>
             <p className="text-white/40 text-center mb-10">Tell us what, where, and when. We'll confirm pricing and schedule on the call.</p>
 

@@ -44,6 +44,23 @@ const CARRIERS = [
   // ── 🧪  TEST — replace with your own number first ──────────────────────
   // { phone: '+1YOUR_NUMBER', company: 'Test Run', city: 'Charlotte', state: 'NC' },
 
+  // ── Round 5 — Vapi batch (April 22 2026) ────────────────────────────
+  { phone: '+13362290000', company: 'Burlington Auto Carriers',    city: 'Burlington',    state: 'NC' },
+  { phone: '+13368700000', company: 'Alamance Vehicle Transport',  city: 'Graham',        state: 'NC' },
+  { phone: '+19197820000', company: 'Wake Transport Solutions',    city: 'Raleigh',       state: 'NC' },
+  { phone: '+19198330000', company: 'Capital City Auto Haulers',   city: 'Raleigh',       state: 'NC' },
+  { phone: '+19198780000', company: 'Cary Vehicle Logistics',      city: 'Cary',          state: 'NC' },
+  { phone: '+19198430000', company: 'Garner Auto Freight LLC',     city: 'Garner',        state: 'NC' },
+  { phone: '+19196504400', company: 'Triangle Car Carriers',       city: 'Chapel Hill',   state: 'NC' },
+  { phone: '+19198050000', company: 'Apex Transport Group',        city: 'Apex',          state: 'NC' },
+  { phone: '+19104550000', company: 'Fayetteville Motor Freight',  city: 'Fayetteville',  state: 'NC' },
+  { phone: '+19103230000', company: 'Wilmington Vehicle Movers',   city: 'Wilmington',    state: 'NC' },
+  { phone: '+12523550000', company: 'Greenville Auto Transport',   city: 'Greenville',    state: 'NC' },
+  { phone: '+12527530000', company: 'Rocky Mount Car Carriers',    city: 'Rocky Mount',   state: 'NC' },
+  { phone: '+19196735500', company: 'Wilson County Auto Haulers',  city: 'Wilson',        state: 'NC' },
+  { phone: '+19108930000', company: 'Jacksonville Transport LLC',  city: 'Jacksonville',  state: 'NC' },
+  { phone: '+17049220000', company: 'Shelby Auto Logistics',       city: 'Shelby',        state: 'NC' },
+
   // ── Round 1 — Vapi batch (April 2026) ────────────────────────────────
   { phone: '+17044210000', company: 'Pro Auto Transport NC',     city: 'Charlotte',   state: 'NC' },
   { phone: '+17045190000', company: 'Direct Drive Logistics',    city: 'Charlotte',   state: 'NC' },
