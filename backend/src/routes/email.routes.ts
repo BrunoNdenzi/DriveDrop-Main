@@ -201,4 +201,82 @@ router.post('/send-admin-driver-application', asyncHandler(async (req: Request, 
   }));
 }));
 
+/**
+ * Send service lead notification
+ * POST /api/v1/emails/send-service-lead
+ */
+router.post('/send-service-lead', asyncHandler(async (req: Request, res: Response) => {
+  const { service, name, phone, email, message, extras } = req.body;
+
+  if (!service || !name || !phone) {
+    return res.status(400).json({ error: 'Missing required fields: service, name, phone' });
+  }
+
+  const serviceLabels: Record<string, string> = {
+    tiles: 'Tile Supply & Delivery',
+    'tree-removal': 'Tree Removal',
+    delivery: 'Local Van Delivery',
+  };
+  const serviceName = serviceLabels[service] || service;
+
+  const submittedAt = new Date().toLocaleString('en-US', {
+    timeZone: 'America/New_York',
+    dateStyle: 'full',
+    timeStyle: 'short',
+  });
+
+  // Build optional email row
+  const emailRow = email
+    ? `<tr>
+        <td style="padding:5px 0;color:#6b7280;font-size:13px;">Email</td>
+        <td style="padding:5px 0;font-size:13px;font-weight:600;">
+          <a href="mailto:${email}" style="color:#3b82f6;text-decoration:none;">${email}</a>
+        </td>
+       </tr>`
+    : '';
+
+  // Build extras section
+  const extrasHtml = extras && Object.keys(extras).length > 0
+    ? `<div style="background:#fffbeb;border-left:3px solid #f59e0b;padding:14px 18px;margin:16px 0;border-radius:0 6px 6px 0;font-size:13px;">
+        <strong style="color:#374151;">Details</strong>
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:8px;">
+          ${Object.entries(extras).map(([k, v]) =>
+            `<tr>
+              <td style="padding:4px 0;color:#6b7280;width:40%;text-transform:capitalize;">${String(k).replace(/_/g, ' ')}</td>
+              <td style="padding:4px 0;font-weight:600;color:#111827;">${v}</td>
+             </tr>`
+          ).join('')}
+        </table>
+       </div>`
+    : '';
+
+  // Build message section
+  const messageHtml = message
+    ? `<div style="background:#f0f9ff;border-left:3px solid #3b82f6;padding:14px 18px;margin:16px 0;border-radius:0 6px 6px 0;font-size:13px;">
+        <strong style="color:#374151;">Message</strong>
+        <p style="margin:6px 0 0;color:#374151;line-height:1.6;">${message}</p>
+       </div>`
+    : '';
+
+  const success = await brevoService.sendEmail({
+    to: [{ email: 'infos@drivedrop.us.com', name: 'DriveDrop Team' }],
+    templateType: 'service_lead',
+    templateData: {
+      serviceName,
+      contactName: name,
+      phone,
+      emailRow,
+      extrasHtml,
+      messageHtml,
+      submittedAt,
+    }
+  });
+
+  if (!success) {
+    return res.status(500).json({ error: 'Failed to send lead notification' });
+  }
+
+  return res.status(200).json(successResponse({ message: 'Lead notification sent' }));
+}));
+
 export default router;

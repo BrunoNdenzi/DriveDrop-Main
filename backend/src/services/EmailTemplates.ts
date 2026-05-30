@@ -453,6 +453,39 @@ export const EmailTemplates: Record<EmailTemplateType, EmailTemplate> = {
     `)
   },
 
+  service_lead: {
+    subject: '🔔 New Lead: {{serviceName}} — {{contactName}}',
+    sender: 'admin',
+    htmlContent: emailBase('New Service Lead', `
+      <p style="color:${DD.sub};font-size:14px;margin-top:0;">A new quote request from <strong style="color:${DD.text};">drivedrop.us.com/services</strong>.</p>
+
+      ${infoBox(`
+        <strong style="color:${DD.text};font-size:15px;">{{serviceName}}</strong>
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:12px;">
+          <tr>
+            <td style="padding:5px 0;color:${DD.sub};width:36%;font-size:13px;">Name</td>
+            <td style="padding:5px 0;font-size:13px;font-weight:600;">{{contactName}}</td>
+          </tr>
+          <tr>
+            <td style="padding:5px 0;color:${DD.sub};font-size:13px;">Phone</td>
+            <td style="padding:5px 0;font-size:13px;font-weight:600;">
+              <a href="tel:{{phone}}" style="color:${DD.blue};text-decoration:none;">{{phone}}</a>
+            </td>
+          </tr>
+          {{emailRow}}
+        </table>
+      `, DD.amber)}
+
+      {{extrasHtml}}
+
+      {{messageHtml}}
+
+      ${btn('📞 Call {{contactName}} Back', 'tel:{{phone}}', DD.amber)}
+
+      <p style="color:#9ca3af;font-size:12px;text-align:center;">Lead submitted {{submittedAt}} · Charlotte, NC</p>
+    `)
+  },
+
   // ─── Placeholders ───────────────────────────────────────────────
   quote_received:       { subject: 'Quote Received', sender: 'client', htmlContent: '' },
   payment_received:     { subject: 'Payment Received', sender: 'client', htmlContent: '' },

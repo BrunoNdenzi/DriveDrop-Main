@@ -16,6 +16,7 @@ export type EmailTemplateType =
   | 'driver_application_received'
   | 'driver_application_approved'
   | 'admin_driver_application'
+  | 'service_lead'
   | 'shipment_created'
   | 'quote_received'
   | 'carrier_assigned'
