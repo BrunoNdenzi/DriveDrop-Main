@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Email routes - Send transactional emails via Brevo
  */
 import { Router, Request, Response } from 'express';
@@ -168,10 +168,10 @@ router.post('/send-admin-driver-application', asyncHandler(async (req: Request, 
 
   // Format documents status as a simple string
   const documentsStatus = [
-    `${licenseFrontUrl ? '✓' : '✗'} Driver License (Front)`,
-    `${licenseBackUrl ? '✓' : '✗'} Driver License (Back)`,
-    `${proofOfAddressUrl ? '✓' : '✗'} Proof of Address`,
-    `${insuranceProofUrl ? '✓' : '✗'} Insurance Document`
+    `${licenseFrontUrl ? 'âœ“' : 'âœ—'} Driver License (Front)`,
+    `${licenseBackUrl ? 'âœ“' : 'âœ—'} Driver License (Back)`,
+    `${proofOfAddressUrl ? 'âœ“' : 'âœ—'} Proof of Address`,
+    `${insuranceProofUrl ? 'âœ“' : 'âœ—'} Insurance Document`
   ].join('<br>');
 
   const success = await brevoService.sendEmail({
@@ -280,4 +280,98 @@ router.post('/send-service-lead', asyncHandler(async (req: Request, res: Respons
   return res.status(200).json(successResponse({ message: 'Lead notification sent' }));
 }));
 
-/**\n * Send document approval/rejection status to driver\n * POST /api/v1/emails/send-document-status\n */\nrouter.post('/send-document-status', asyncHandler(async (req: Request, res: Response) => {\n  const { email, firstName, documentType, status, rejectionReason } = req.body;\n\n  if (!email || !documentType || !['approved', 'rejected'].includes(status)) {\n    return res.status(400).json({ error: 'Missing required fields: email, documentType, status (approved|rejected)' });\n  }\n\n  const isApproved = status === 'approved';\n  const dashboardUrl = `${process.env['FRONTEND_URL'] || 'https://drivedrop.us.com'}/dashboard/driver/documents`;\n\n  const statusBlock = isApproved\n    ? `<div style="background:#f0fdf4;border-left:3px solid #22c55e;padding:16px 20px;margin:20px 0;border-radius:0 6px 6px 0;">\n        <p style="margin:0;font-size:14px;font-weight:700;color:#166534;">✅ Document Approved</p>\n        <p style="margin:6px 0 0;font-size:13px;color:#16a34a;">Your document has been verified and approved. You're good to go!</p>\n       </div>`\n    : `<div style="background:#fef2f2;border-left:3px solid #ef4444;padding:16px 20px;margin:20px 0;border-radius:0 6px 6px 0;">\n        <p style="margin:0;font-size:14px;font-weight:700;color:#991b1b;">❌ Document Rejected</p>\n        <p style="margin:6px 0 0;font-size:13px;color:#dc2626;">Please upload a new document. Reason:</p>\n        <p style="margin:8px 0 0;font-size:13px;color:#7f1d1d;font-style:italic;">"${rejectionReason || 'No reason provided'}"</p>\n       </div>`;\n\n  const success = await brevoService.sendEmail({\n    to: [{ email, name: firstName || 'Driver' }],\n    templateType: 'document_status_updated',\n    templateData: {\n      firstName: firstName || 'Driver',\n      documentType,\n      statusEmoji: isApproved ? '✅' : '❌',\n      statusLabel: isApproved ? 'approved' : 'rejected',\n      statusBlock,\n      dashboardUrl,\n    }\n  });\n\n  if (!success) return res.status(500).json({ error: 'Failed to send notification' });\n  return res.status(200).json(successResponse({ message: 'Document status notification sent' }));\n}));\n\n/**\n * Send service payment confirmation\n * POST /api/v1/emails/send-service-payment-confirmation\n */\nrouter.post('/send-service-payment-confirmation', asyncHandler(async (req: Request, res: Response) => {\n  const { email, customerName, serviceName, bookingRef, amount } = req.body;\n\n  if (!email || !serviceName || !bookingRef || !amount) {\n    return res.status(400).json({ error: 'Missing required fields' });\n  }\n\n  const amountFormatted = `$${(Number(amount) / 100).toFixed(2)}`;\n  const paidAt = new Date().toLocaleString('en-US', { timeZone: 'America/New_York', dateStyle: 'full', timeStyle: 'short' });\n\n  const templateData = { customerName: customerName || 'Customer', serviceName, bookingRef, amountFormatted, paidAt };\n\n  // Send to customer\n  const customerSuccess = await brevoService.sendEmail({\n    to: [{ email, name: customerName || 'Customer' }],\n    templateType: 'service_payment_confirmation',\n    templateData,\n  });\n\n  // Notify business\n  await brevoService.sendEmail({\n    to: [{ email: 'infos@drivedrop.us.com', name: 'DriveDrop Team' }],\n    templateType: 'service_payment_confirmation',\n    templateData: { ...templateData, customerName: `${customerName} (customer copy sent)` },\n  });\n\n  if (!customerSuccess) return res.status(500).json({ error: 'Failed to send confirmation' });\n  return res.status(200).json(successResponse({ message: 'Payment confirmation sent' }));\n}));\n\nexport default router;
+/**
+ * Send document approval/rejection status to driver
+ * POST /emails/send-document-status
+ */
+router.post('/send-document-status', asyncHandler(async (req: Request, res: Response) => {
+  const { email, firstName, documentType, status, rejectionReason } = req.body;
+
+  if (!email || !documentType || !['approved', 'rejected'].includes(status)) {
+    return res.status(400).json({ error: 'Missing required fields: email, documentType, status (approved|rejected)' });
+  }
+
+  const isApproved = status === 'approved';
+  const dashboardUrl = `${process.env['FRONTEND_URL'] || 'https://drivedrop.us.com'}/dashboard/driver/documents`;
+
+  const statusBlock = isApproved
+    ? `<div style="background:#f0fdf4;border-left:3px solid #22c55e;padding:16px 20px;margin:20px 0;border-radius:0 6px 6px 0;">
+        <p style="margin:0;font-size:14px;font-weight:700;color:#166534;">Document Approved</p>
+        <p style="margin:6px 0 0;font-size:13px;color:#16a34a;">Your document has been verified and approved. You are good to go!</p>
+       </div>`
+    : `<div style="background:#fef2f2;border-left:3px solid #ef4444;padding:16px 20px;margin:20px 0;border-radius:0 6px 6px 0;">
+        <p style="margin:0;font-size:14px;font-weight:700;color:#991b1b;">Document Rejected</p>
+        <p style="margin:6px 0 0;font-size:13px;color:#dc2626;">Please upload a new document. Reason:</p>
+        <p style="margin:8px 0 0;font-size:13px;color:#7f1d1d;font-style:italic;">"${rejectionReason || 'No reason provided'}"</p>
+       </div>`;
+
+  const success = await brevoService.sendEmail({
+    to: [{ email, name: firstName || 'Driver' }],
+    templateType: 'document_status_updated',
+    templateData: {
+      firstName: firstName || 'Driver',
+      documentType,
+      statusLabel: isApproved ? 'approved' : 'rejected',
+      statusBlock,
+      dashboardUrl,
+    }
+  });
+
+  if (!success) {
+    return res.status(500).json({ error: 'Failed to send document status email' });
+  }
+
+  return res.status(200).json(successResponse({ message: 'Document status email sent' }));
+}));
+
+/**
+ * Send service payment confirmation to customer
+ * POST /emails/send-service-payment-confirmation
+ */
+router.post('/send-service-payment-confirmation', asyncHandler(async (req: Request, res: Response) => {
+  const { email, customerName, serviceName, bookingRef, amount } = req.body;
+
+  if (!email || !customerName || !serviceName || !bookingRef || !amount) {
+    return res.status(400).json({ error: 'Missing required fields' });
+  }
+
+  const paidDate = new Date().toLocaleString('en-US', {
+    timeZone: 'America/New_York',
+    dateStyle: 'full',
+    timeStyle: 'short',
+  });
+
+  const success = await brevoService.sendEmail({
+    to: [{ email, name: customerName }],
+    templateType: 'service_payment_confirmation',
+    templateData: {
+      customerName,
+      serviceName,
+      bookingRef,
+      amount,
+      paidDate,
+    }
+  });
+
+  // Also notify internal team
+  await brevoService.sendEmail({
+    to: [{ email: 'infos@drivedrop.us.com', name: 'DriveDrop Services' }],
+    templateType: 'service_payment_confirmation',
+    templateData: {
+      customerName,
+      serviceName,
+      bookingRef,
+      amount,
+      paidDate,
+    }
+  });
+
+  if (!success) {
+    return res.status(500).json({ error: 'Failed to send payment confirmation' });
+  }
+
+  return res.status(200).json(successResponse({ message: 'Payment confirmation sent' }));
+}));
+
+export default router;
+
