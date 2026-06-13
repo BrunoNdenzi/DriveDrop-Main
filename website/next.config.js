@@ -13,7 +13,11 @@ const nextConfig = {
   swcMinify: true,
   // Image optimization
   images: {
-    domains: ['tgdewxxmfmbvvcelngeg.supabase.co'],
+    domains: [
+      'tgdewxxmfmbvvcelngeg.supabase.co',
+      'raw.githubusercontent.com',
+      'images.unsplash.com',
+    ],
     formats: ['image/avif', 'image/webp'],
     minimumCacheTTL: 60,
   },

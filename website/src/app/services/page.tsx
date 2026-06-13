@@ -56,6 +56,22 @@ const services = [
     href: '/services/delivery',
     accent: '#3b82f6',
   },
+  {
+    id: 'freight',
+    featured: false,
+    icon: Truck,
+    name: 'Freight Forwarding',
+    tag: 'FF Licensed',
+    tagline: 'We move it in our own van — or broker it to trusted carriers. LTL, FTL, and local freight covered.',
+    attrs: [
+      { icon: ScrollText, label: 'FF Licensed' },
+      { icon: Package, label: 'Move + Broker' },
+      { icon: MapPin, label: 'Charlotte area' },
+    ],
+    cta: 'Get freight quote',
+    href: '/services/freight',
+    accent: '#14b8a6',
+  },
 ]
 
 export default function ServicesPage() {

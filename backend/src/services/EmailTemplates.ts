@@ -486,6 +486,36 @@ export const EmailTemplates: Record<EmailTemplateType, EmailTemplate> = {
     `)
   },
 
+  document_status_updated: {
+    subject: '{{statusEmoji}} Your document has been {{statusLabel}} — DriveDrop',
+    sender: 'admin',
+    htmlContent: emailBase('Document Review Update', `
+      <p style="margin-top:0;color:${DD.sub};font-size:14px;">Hi <strong style="color:${DD.text};">{{firstName}}</strong>,</p>
+      <p style="color:${DD.text};font-size:14px;">Your <strong>{{documentType}}</strong> document has been reviewed.</p>
+      {{statusBlock}}
+      <p style="color:${DD.sub};font-size:13px;margin-top:24px;">Questions? Email <a href="mailto:support@drivedrop.us.com" style="color:${DD.blue};">support@drivedrop.us.com</a></p>
+      ${btn('Go to My Documents', '{{dashboardUrl}}', DD.blue)}
+    `)
+  },
+
+  service_payment_confirmation: {
+    subject: '✅ Payment Confirmed — {{serviceName}} (Ref: {{bookingRef}})',
+    sender: 'admin',
+    htmlContent: emailBase('Payment Confirmed', `
+      <p style="margin-top:0;color:${DD.sub};font-size:14px;">Hi <strong style="color:${DD.text};">{{customerName}}</strong>,</p>
+      <p style="color:${DD.text};font-size:14px;">Your payment has been received. Here are your booking details:</p>
+      ${infoBox(`
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+          <tr><td style="padding:5px 0;color:${DD.sub};width:40%;font-size:13px;">Service</td><td style="padding:5px 0;font-size:14px;font-weight:600;">{{serviceName}}</td></tr>
+          <tr><td style="padding:5px 0;color:${DD.sub};font-size:13px;">Reference</td><td style="padding:5px 0;font-size:14px;font-weight:700;font-family:monospace;">{{bookingRef}}</td></tr>
+          <tr><td style="padding:5px 0;color:${DD.sub};font-size:13px;">Amount Paid</td><td style="padding:5px 0;font-size:18px;font-weight:800;color:${DD.green};">{{amountFormatted}}</td></tr>
+          <tr><td style="padding:5px 0;color:${DD.sub};font-size:13px;">Date</td><td style="padding:5px 0;font-size:13px;">{{paidAt}}</td></tr>
+        </table>
+      `, DD.green)}
+      <p style="color:${DD.sub};font-size:13px;">Our team will confirm scheduling shortly. Call us: <a href="tel:+17042662317" style="color:${DD.blue};font-weight:600;">+1 (704) 266-2317</a></p>
+    `)
+  },
+
   // ─── Placeholders ───────────────────────────────────────────────
   quote_received:       { subject: 'Quote Received', sender: 'client', htmlContent: '' },
   payment_received:     { subject: 'Payment Received', sender: 'client', htmlContent: '' },

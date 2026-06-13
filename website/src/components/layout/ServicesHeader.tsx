@@ -3,13 +3,14 @@
 import Link from 'next/link'
 import Image from 'next/image'
 import { useState, useEffect } from 'react'
-import { Phone, Menu, X, Layers, TreePine, Package } from 'lucide-react'
+import { Phone, Menu, X, Layers, TreePine, Package, Truck } from 'lucide-react'
 import { usePathname } from 'next/navigation'
 
 const NAV = [
   { href: '/services/tiles', label: 'Tiles', icon: Layers, accent: '#f59e0b' },
   { href: '/services/tree-removal', label: 'Tree Removal', icon: TreePine, accent: '#22c55e' },
   { href: '/services/delivery', label: 'Van Delivery', icon: Package, accent: '#3b82f6' },
+  { href: '/services/freight', label: 'Freight', icon: Truck, accent: '#14b8a6' },
 ]
 
 export default function ServicesHeader() {

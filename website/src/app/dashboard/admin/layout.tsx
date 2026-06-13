@@ -28,7 +28,8 @@ import {
   Bot,
   Target,
   Mail,
-  TrendingUp
+  TrendingUp,
+  FolderOpen
 } from 'lucide-react'
 import NotificationBell from '@/components/NotificationBell'
 import { Button } from '@/components/ui/button'
@@ -40,6 +41,7 @@ const navItems = [
   { href: '/dashboard/admin/map', label: 'Live Map', icon: MapIcon },
   { href: '/dashboard/admin/assignments', label: 'Job Assignments', icon: ClipboardCheck },
   { href: '/dashboard/admin/driver-applications', label: 'Driver Applications', icon: UserCheck },
+  { href: '/dashboard/admin/documents', label: 'Driver Documents', icon: FolderOpen },
   { href: '/dashboard/admin/pricing', label: 'Pricing', icon: DollarSign },
   { href: '/dashboard/admin/reports', label: 'Reports', icon: BarChart3 },
   // Commercial Expansion

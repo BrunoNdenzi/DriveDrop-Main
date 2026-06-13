@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
+import Image from 'next/image'
 import ServicesHeader from '@/components/layout/ServicesHeader'
 import Footer from '@/components/layout/Footer'
 import {
@@ -148,6 +149,20 @@ export default function TreeRemovalPage() {
 
       {/* ── HERO ─────────────────────────────────────────── */}
       <section className="relative overflow-hidden bg-slate-950 pt-[68px]">
+
+        {/* Real photo background */}
+        <div className="absolute inset-0">
+          <Image
+            src="https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=1600&q=80"
+            alt="Tree removal service"
+            fill
+            className="object-cover object-center"
+            unoptimized
+            priority
+          />
+          <div className="absolute inset-0 bg-slate-950/80" />
+          <div className="absolute inset-0 bg-gradient-to-r from-slate-950/90 via-slate-950/60 to-transparent" />
+        </div>
 
         {/* Green glow */}
         <div className="pointer-events-none absolute top-0 right-0 w-[600px] h-[500px] rounded-full bg-green-500/8 blur-[140px]" />

@@ -2,12 +2,27 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
+import Image from 'next/image'
 import ServicesHeader from '@/components/layout/ServicesHeader'
 import Footer from '@/components/layout/Footer'
 import {
-  Layers, Ruler, Phone, Truck, AlertTriangle, CheckCircle,
+  Layers, Ruler, Phone, Truck, AlertTriangle,
   ArrowRight, Banknote, Smartphone, ChevronDown, ArrowLeft, MapPin
 } from 'lucide-react'
+
+const BASE = 'https://raw.githubusercontent.com/BrunoNdenzi/FB-MarkP/main/Tiles/'
+const encode = (f: string) => BASE + encodeURIComponent(f)
+
+const TILE_IMAGES = [
+  encode('WhatsApp Image 2026-06-10 at 16.09.33 (1).jpeg'),
+  encode('WhatsApp Image 2026-06-10 at 16.09.34.jpeg'),
+  encode('WhatsApp Image 2026-06-10 at 16.09.35.jpeg'),
+  encode('WhatsApp Image 2026-06-10 at 16.09.36 (1).jpeg'),
+  encode('WhatsApp Image 2026-06-10 at 16.09.37.jpeg'),
+  encode('WhatsApp Image 2026-06-10 at 16.09.38.jpeg'),
+  encode('WhatsApp Image 2026-06-10 at 16.09.39 (1).jpeg'),
+  encode('WhatsApp Image 2026-06-10 at 16.09.41.jpeg'),
+]
 
 // ── DELIVERY TIERS ──────────────────────────────────────
 const TIERS = [
@@ -292,49 +307,68 @@ export default function TilesPage() {
               </div>
             </div>
 
-            {/* Product card */}
+            {/* Product hero image */}
             <div className="relative">
-              <div className="rounded-2xl overflow-hidden bg-gradient-to-br from-amber-950/40 to-slate-900 border border-amber-500/20 p-8">
-                {/* Placeholder for tile product image */}
-                <div className="rounded-xl bg-amber-500/5 border border-amber-500/10 h-56 flex flex-col items-center justify-center mb-6">
-                  <Layers className="h-16 w-16 text-amber-500/30 mb-2" />
-                  <p className="text-white/20 text-xs tracking-widest uppercase">Product Photo</p>
-                  <p className="text-white/15 text-xs">Taj Mahal Polished Porcelain</p>
-                </div>
-
-                <div className="grid grid-cols-3 gap-4 text-center">
-                  <div>
-                    <p className="text-amber-400 text-xl font-black">24×48</p>
-                    <p className="text-white/40 text-xs mt-0.5">Format</p>
-                  </div>
-                  <div>
-                    <p className="text-amber-400 text-xl font-black">Polished</p>
-                    <p className="text-white/40 text-xs mt-0.5">Finish</p>
-                  </div>
-                  <div>
-                    <p className="text-amber-400 text-xl font-black">Porcelain</p>
-                    <p className="text-white/40 text-xs mt-0.5">Material</p>
-                  </div>
-                </div>
-
-                <div className="mt-6 pt-5 border-t border-white/10 flex items-center justify-between">
-                  <div>
-                    <p className="text-white/40 text-xs mb-0.5">Price per sq ft</p>
-                    <p className="text-white font-black text-3xl">TBD</p>
-                  </div>
-                  <div className="flex gap-2">
-                    <div className="rounded-lg bg-white/5 border border-white/10 px-3 py-2 flex items-center gap-1.5">
-                      <Smartphone className="h-4 w-4 text-emerald-400" />
-                      <span className="text-white/70 text-xs font-semibold">Zelle</span>
+              <div className="rounded-2xl overflow-hidden aspect-[4/3] border border-amber-500/20 shadow-2xl">
+                <Image
+                  src={TILE_IMAGES[0]}
+                  alt="Taj Mahal 24×48 Polished Porcelain Tile"
+                  fill
+                  className="object-cover"
+                  unoptimized
+                  priority
+                />
+                {/* Overlay specs */}
+                <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent px-6 py-5">
+                  <div className="flex gap-6">
+                    <div>
+                      <p className="text-amber-400 text-xl font-black">24×48</p>
+                      <p className="text-white/50 text-xs">Format</p>
                     </div>
-                    <div className="rounded-lg bg-white/5 border border-white/10 px-3 py-2 flex items-center gap-1.5">
-                      <Banknote className="h-4 w-4 text-emerald-400" />
-                      <span className="text-white/70 text-xs font-semibold">Cash</span>
+                    <div>
+                      <p className="text-amber-400 text-xl font-black">Polished</p>
+                      <p className="text-white/50 text-xs">Finish</p>
+                    </div>
+                    <div>
+                      <p className="text-amber-400 text-xl font-black">Porcelain</p>
+                      <p className="text-white/50 text-xs">Material</p>
+                    </div>
+                    <div className="ml-auto text-right">
+                      <div className="flex gap-2 justify-end">
+                        <div className="rounded-lg bg-white/10 border border-white/20 px-2.5 py-1.5 flex items-center gap-1.5">
+                          <Smartphone className="h-3.5 w-3.5 text-emerald-400" />
+                          <span className="text-white/70 text-xs font-semibold">Zelle</span>
+                        </div>
+                        <div className="rounded-lg bg-white/10 border border-white/20 px-2.5 py-1.5 flex items-center gap-1.5">
+                          <Banknote className="h-3.5 w-3.5 text-emerald-400" />
+                          <span className="text-white/70 text-xs font-semibold">Cash</span>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </div>
               </div>
             </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ── PHOTO GALLERY ─────────────────────────────────── */}
+      <section className="bg-slate-950 py-12">
+        <div className="container">
+          <p className="text-amber-400 text-xs font-bold tracking-widest uppercase mb-6">Product gallery</p>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+            {TILE_IMAGES.map((src, i) => (
+              <div key={i} className={`relative overflow-hidden rounded-xl ${i === 0 ? 'col-span-2 row-span-2 aspect-square' : 'aspect-square'}`}>
+                <Image
+                  src={src}
+                  alt={`Taj Mahal porcelain tile ${i + 1}`}
+                  fill
+                  className="object-cover hover:scale-105 transition-transform duration-500"
+                  unoptimized
+                />
+              </div>
+            ))}
           </div>
         </div>
       </section>
