@@ -7,7 +7,7 @@ import ServicesHeader from '@/components/layout/ServicesHeader'
 import Footer from '@/components/layout/Footer'
 import {
   Layers, Ruler, Phone, Truck, AlertTriangle,
-  ArrowRight, Banknote, Smartphone, ChevronDown, ArrowLeft, MapPin
+  ArrowRight, Banknote, Smartphone, ChevronDown, ArrowLeft, MapPin, CheckCircle
 } from 'lucide-react'
 
 const BASE = 'https://raw.githubusercontent.com/BrunoNdenzi/FB-MarkP/main/Tiles/'
