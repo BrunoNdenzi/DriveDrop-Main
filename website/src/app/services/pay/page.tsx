@@ -92,7 +92,7 @@ function CheckoutForm({
         // ignore
       }
       // Redirect to success state via URL
-      window.location.href = `/services/pay?paid=1&ref=${encodeURIComponent(bookingRef)}&service=${encodeURIComponent(service)}`
+      window.location.href = `/services/pay?paid=1&ref=${encodeURIComponent(bookingRef)}&service=${encodeURIComponent(service)}${payOption === 'deposit' ? '&deposit=1&orig=' + originalAmount : ''}`
     }
   }
 
@@ -153,7 +153,7 @@ function CheckoutForm({
         ) : (
           <>
             <Lock className="h-4 w-4" />
-            Pay ${(amount / 100).toFixed(2)} now
+            {payOption === 'deposit' ? 'Pay $50.00 booking fee' : `Pay $${(amount / 100).toFixed(2)} now`}
           </>
         )}
       </button>
@@ -176,6 +176,8 @@ function PayPageInner() {
   const isPaid = searchParams.get('paid') === '1'
 
   const amount = Number(amountParam)
+  const [payOption, setPayOption] = useState<'full' | 'deposit'>('full')
+  const payAmount = payOption === 'deposit' ? 5000 : amount
   const [clientSecret, setClientSecret] = useState<string | null>(null)
   const [loadError, setLoadError] = useState(false)
 
@@ -185,10 +187,12 @@ function PayPageInner() {
 
   useEffect(() => {
     if (isPaid || !amount || !ref || !service) return
+    setClientSecret(null)
+    setLoadError(false)
     fetch('/api/services/payment-intent', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ amount, ref, service }),
+      body: JSON.stringify({ amount: payAmount, ref, service }),
     })
       .then(r => r.json())
       .then(data => {
@@ -196,9 +200,12 @@ function PayPageInner() {
         else setLoadError(true)
       })
       .catch(() => setLoadError(true))
-  }, [amount, ref, service, isPaid])
+  }, [payAmount, ref, service, isPaid])
 
   // ── PAID SUCCESS ─────────────────────────────────────
+  const isDeposit = searchParams.get('deposit') === '1'
+  const origParam = searchParams.get('orig')
+  const origAmount = origParam ? Number(origParam) : amount
   if (isPaid) {
     return (
       <div className="min-h-screen bg-slate-950 flex items-center justify-center px-4">
@@ -208,7 +215,14 @@ function PayPageInner() {
           </div>
           <h1 className="text-3xl font-black text-white mb-3">Payment confirmed!</h1>
           <p className="text-white/50 mb-2">Booking reference: <span className="text-white font-mono font-bold">{ref}</span></p>
-          <p className="text-white/40 text-sm mb-8">A confirmation has been sent to your email. We&apos;ll be in touch to coordinate.</p>
+          {isDeposit ? (
+            <>
+              <p className="text-white/40 text-sm mb-1">$50.00 booking fee received.</p>
+              <p className="text-white/40 text-sm mb-8">Remaining balance of <span className="text-white font-semibold">${((origAmount - 5000) / 100).toFixed(2)}</span> will be collected on delivery.</p>
+            </>
+          ) : (
+            <p className="text-white/40 text-sm mb-8">A confirmation has been sent to your email. We&apos;ll be in touch to coordinate.</p>
+          )}          
           <Link
             href="/services"
             className="inline-flex items-center gap-2 bg-white/10 hover:bg-white/15 text-white font-semibold px-6 py-3 rounded-xl transition-all text-sm"
@@ -264,16 +278,47 @@ function PayPageInner() {
             </div>
           </div>
 
-          <div className="border-t border-white/10 pt-4 flex items-center justify-between">
-            <div>
-              <p className="text-white/40 text-xs uppercase tracking-widest font-bold mb-0.5">Reference</p>
-              <p className="text-white font-mono text-sm">{ref}</p>
+          <div className="border-t border-white/10 pt-4">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <p className="text-white/40 text-xs uppercase tracking-widest font-bold mb-0.5">Reference</p>
+                <p className="text-white font-mono text-sm">{ref}</p>
+              </div>
+              <div className="text-right">
+                <p className="text-white/40 text-xs uppercase tracking-widest font-bold mb-0.5">Quoted total</p>
+                <p className="text-white font-bold">${(amount / 100).toFixed(2)}</p>
+              </div>
             </div>
-            <div className="text-right">
-              <p className="text-white/40 text-xs uppercase tracking-widest font-bold mb-0.5">Total due</p>
-              <p className="text-3xl font-black" style={{ color: accentColor }}>
-                ${(amount / 100).toFixed(2)}
-              </p>
+
+            {/* Pay option toggle */}
+            <div className="rounded-xl border border-white/10 overflow-hidden">
+              <button
+                onClick={() => setPayOption('full')}
+                className={`w-full flex items-center gap-3 px-4 py-3 text-left transition-colors ${payOption === 'full' ? 'bg-white/10' : 'hover:bg-white/5'}`}
+              >
+                <div className={`w-4 h-4 rounded-full border-2 shrink-0 flex items-center justify-center ${payOption === 'full' ? 'border-white bg-white' : 'border-white/30'}`}>
+                  {payOption === 'full' && <div className="w-1.5 h-1.5 rounded-full bg-slate-950" />}
+                </div>
+                <div className="flex-1">
+                  <p className="text-white font-semibold text-sm">Pay in full</p>
+                  <p className="text-white/40 text-xs">Pay ${(amount / 100).toFixed(2)} now — you&apos;re done</p>
+                </div>
+                <p className="text-white font-bold text-sm">${(amount / 100).toFixed(2)}</p>
+              </button>
+              <div className="border-t border-white/10" />
+              <button
+                onClick={() => setPayOption('deposit')}
+                className={`w-full flex items-center gap-3 px-4 py-3 text-left transition-colors ${payOption === 'deposit' ? 'bg-white/10' : 'hover:bg-white/5'}`}
+              >
+                <div className={`w-4 h-4 rounded-full border-2 shrink-0 flex items-center justify-center ${payOption === 'deposit' ? 'border-white bg-white' : 'border-white/30'}`}>
+                  {payOption === 'deposit' && <div className="w-1.5 h-1.5 rounded-full bg-slate-950" />}
+                </div>
+                <div className="flex-1">
+                  <p className="text-white font-semibold text-sm">Pay on delivery</p>
+                  <p className="text-white/40 text-xs">$50 booking fee now · ${((amount - 5000) / 100).toFixed(2)} balance on delivery</p>
+                </div>
+                <p className="text-white font-bold text-sm">$50.00</p>
+              </button>
             </div>
           </div>
         </div>
@@ -299,7 +344,7 @@ function PayPageInner() {
                 },
               }}
             >
-              <CheckoutForm amount={amount} service={service} ref={ref} />
+              <CheckoutForm amount={payAmount} service={service} ref={ref} payOption={payOption} originalAmount={amount} />
             </Elements>
           </div>
         ) : (

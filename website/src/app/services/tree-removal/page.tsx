@@ -289,7 +289,7 @@ export default function TreeRemovalPage() {
           </div>
 
           {/* Credentials bar */}
-          <div className="mt-10 rounded-2xl bg-green-950/30 border border-green-500/20 px-8 py-6 flex flex-col sm:flex-row items-center gap-4 justify-between">
+          <div className="mt-10 rounded-2xl bg-green-900 border border-green-500/20 px-8 py-6 flex flex-col sm:flex-row items-center gap-4 justify-between">
             <div className="flex items-center gap-3">
               <ShieldCheck className="h-6 w-6 text-green-400 shrink-0" />
               <div>

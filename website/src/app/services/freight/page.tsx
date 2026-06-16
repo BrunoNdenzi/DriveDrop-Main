@@ -253,7 +253,7 @@ export default function FreightPage() {
       </section>
 
       {/* ── TWO-PATH SECTION ──────────────────────────────── */}
-      <section className="py-16 bg-background">
+      <section className="py-16 bg-slate-900">
         <div className="container">
           <div className="grid md:grid-cols-2 gap-6">
 
@@ -348,7 +348,7 @@ export default function FreightPage() {
       </section>
 
       {/* ── TRUST SIGNALS ─────────────────────────────────── */}
-      <section className="py-12 bg-background border-y border-white/8">
+      <section className="py-12 bg-slate-900 border-y border-white/8">
         <div className="container">
           <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6 text-center">
             {[

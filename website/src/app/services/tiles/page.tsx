@@ -319,14 +319,14 @@ export default function TilesPage() {
               <div className="flex flex-col sm:flex-row gap-3">
                 <a
                   href="tel:+17042662317"
-                  className="inline-flex items-center gap-2 bg-amber-500 hover:bg-amber-400 text-black font-bold px-6 py-3.5 rounded-xl transition-all hover:scale-[1.02] text-sm"
+                  className="inline-flex items-center gap-2 bg-amber-500 hover:bg-amber-400 text-black font-bold px-7 py-4 rounded-xl transition-all hover:scale-[1.02] text-sm"
                 >
                   <Phone className="h-4 w-4" />
                   +1 (704) 266-2317
                 </a>
                 <a
                   href="#quote"
-                  className="inline-flex items-center gap-2 border border-white/20 hover:border-white/40 text-white font-semibold px-6 py-3.5 rounded-xl transition-all text-sm hover:bg-white/5"
+                  className="inline-flex items-center gap-2 border border-white/20 hover:border-white/40 text-white font-semibold px-6 py-4 rounded-xl transition-all text-sm hover:bg-white/5"
                 >
                   Request quote
                   <ArrowRight className="h-4 w-4" />
