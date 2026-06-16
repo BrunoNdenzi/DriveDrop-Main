@@ -293,7 +293,7 @@ export default function TilesPage() {
           }}
         />
 
-        <div className="container relative z-10">
+        <div className="container relative z-10 pb-16 lg:pb-24">
           <Link href="/services" className="inline-flex items-center gap-1.5 text-xs text-white/40 hover:text-white/70 mb-8 mt-8 transition-colors">
             <ArrowLeft className="h-3.5 w-3.5" />
             All services

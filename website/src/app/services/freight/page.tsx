@@ -215,7 +215,7 @@ export default function FreightPage() {
             All services
           </Link>
 
-          <div className="max-w-3xl pb-16">
+          <div className="max-w-3xl pb-16 lg:pb-24">
             {/* FF License badge */}
             <div className="inline-flex items-center gap-2 rounded-full border border-teal-500/20 bg-teal-500/10 px-4 py-1.5 mb-6">
               <ScrollText className="h-3.5 w-3.5 text-teal-400" />

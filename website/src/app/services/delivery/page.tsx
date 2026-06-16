@@ -181,7 +181,7 @@ export default function DeliveryPage() {
         {/* Real photo background */}
         <div className="absolute inset-0">
           <Image
-            src="https://images.unsplash.com/photo-1566576912321-d58ddd7a6088?w=1600&q=80"
+            src="https://images.unsplash.com/photo-1558803116-b443d28fa878?w=1600&q=80"
             alt="Van delivery service"
             fill
             className="object-cover object-center"
@@ -211,7 +211,7 @@ export default function DeliveryPage() {
           </span>
         </div>
 
-        <div className="container relative z-10">
+        <div className="container relative z-10 pb-16 lg:pb-24">
           <Link href="/services" className="inline-flex items-center gap-1.5 text-xs text-white/40 hover:text-white/70 mb-8 mt-8 transition-colors">
             <ArrowLeft className="h-3.5 w-3.5" />
             All services

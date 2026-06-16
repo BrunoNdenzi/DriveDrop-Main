@@ -180,7 +180,7 @@ export default function TreeRemovalPage() {
         {/* Real photo background */}
         <div className="absolute inset-0">
           <Image
-            src="https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=1600&q=80"
+            src="https://images.unsplash.com/photo-1754321860056-ca7254d5e7ac?w=1600&q=80"
             alt="Tree removal service"
             fill
             className="object-cover object-center"
@@ -210,7 +210,7 @@ export default function TreeRemovalPage() {
           </span>
         </div>
 
-        <div className="container relative z-10">
+        <div className="container relative z-10 pb-16 lg:pb-24">
           <Link href="/services" className="inline-flex items-center gap-1.5 text-xs text-white/40 hover:text-white/70 mb-8 mt-8 transition-colors">
             <ArrowLeft className="h-3.5 w-3.5" />
             All services
