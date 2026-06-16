@@ -43,10 +43,14 @@ function CheckoutForm({
   amount,
   service,
   ref: bookingRef,
+  payOption,
+  originalAmount,
 }: {
   amount: number
   service: string
   ref: string
+  payOption: 'full' | 'deposit'
+  originalAmount: number
 }) {
   const stripe = useStripe()
   const elements = useElements()
