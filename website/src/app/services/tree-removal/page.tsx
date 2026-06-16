@@ -7,7 +7,7 @@ import ServicesHeader from '@/components/layout/ServicesHeader'
 import Footer from '@/components/layout/Footer'
 import {
   TreePine, Phone, ArrowRight, CheckCircle,
-  ArrowLeft, ShieldCheck, Axe, Leaf, AlertTriangle
+  ArrowLeft, ShieldCheck, Axe, Leaf, AlertTriangle, Paperclip
 } from 'lucide-react'
 
 // ── SERVICES LIST ────────────────────────────────────────
@@ -22,6 +22,7 @@ const SERVICES = [
 function QuoteForm() {
   const [form, setForm] = useState({ name: '', phone: '', email: '', treeCount: '', message: '' })
   const [status, setStatus] = useState<'idle' | 'sending' | 'sent' | 'error'>('idle')
+  const [files, setFiles] = useState<File[]>([])
 
   const update = (k: string, v: string) => setForm(p => ({ ...p, [k]: v }))
 
@@ -29,6 +30,18 @@ function QuoteForm() {
     e.preventDefault()
     setStatus('sending')
     try {
+      let attachmentUrls: string[] = []
+      if (files.length > 0) {
+        const uploads = await Promise.all(files.map(async (file) => {
+          const fd = new FormData()
+          fd.append('file', file)
+          fd.append('service', 'tree-removal')
+          const r = await fetch('/api/services/upload', { method: 'POST', body: fd })
+          if (r.ok) { const d = await r.json(); return d.url as string }
+          return null
+        }))
+        attachmentUrls = uploads.filter((u): u is string => u !== null)
+      }
       const res = await fetch('/api/services/lead', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -38,7 +51,10 @@ function QuoteForm() {
           phone: form.phone,
           email: form.email || undefined,
           message: form.message || undefined,
-          extras: form.treeCount ? { trees_approx: form.treeCount } : undefined,
+          extras: {
+            ...(form.treeCount ? { trees_approx: form.treeCount } : {}),
+            ...(attachmentUrls.length > 0 ? { attachments: attachmentUrls.join(', ') } : {}),
+          },
         }),
       })
       if (!res.ok) throw new Error()
@@ -118,6 +134,17 @@ function QuoteForm() {
           placeholder="Tree sizes, location, hazards, access, timeframe..."
           className="w-full bg-slate-800 border border-white/10 rounded-lg px-4 py-3 text-white text-sm placeholder-white/25 focus:outline-none focus:border-green-500/60 transition-colors resize-none"
         />
+      </div>
+
+      <div>
+        <label className="block text-xs font-semibold text-white/50 mb-1.5 uppercase tracking-wider">Photos of the trees (optional)</label>
+        <label className="flex items-center gap-3 w-full bg-slate-800 border border-dashed border-white/10 rounded-lg px-4 py-3 cursor-pointer hover:border-green-500/40 transition-colors">
+          <Paperclip className="h-4 w-4 text-white/40 shrink-0" />
+          <span className="text-white/25 text-sm truncate">
+            {files.length === 0 ? 'Add photos or docs — max 10MB each' : files.map(f => f.name).join(', ')}
+          </span>
+          <input type="file" multiple accept="image/*,.pdf" className="sr-only" onChange={e => setFiles(Array.from(e.target.files ?? []))} />
+        </label>
       </div>
 
       {status === 'error' && (
