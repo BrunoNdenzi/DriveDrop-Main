@@ -2,7 +2,6 @@
 
 import { useEffect, useState, useCallback } from 'react'
 import { useAuth } from '@/hooks/useAuth'
-import { getSupabaseBrowserClient } from '@/lib/supabase-client'
 import {
   CheckCircle2, XCircle, Clock, Eye, FileText,
   ChevronDown, ChevronUp, Search, RefreshCw
@@ -61,36 +60,11 @@ export default function AdminDocumentsPage() {
   const fetchDocs = useCallback(async () => {
     setLoading(true)
     try {
-      const supabase = getSupabaseBrowserClient()
-      const { data, error } = await supabase
-        .from('driver_documents')
-        .select(`
-          id, driver_id, document_type, file_url, file_name,
-          status, expiry_date, uploaded_at, verified_at, rejection_reason,
-          profiles:driver_id ( first_name, last_name, email )
-        `)
-        .order('uploaded_at', { ascending: false })
-
-      if (error) throw error
-
-      const mapped: DriverDoc[] = (data || []).map((d: any) => ({
-        id: d.id,
-        driver_id: d.driver_id,
-        document_type: d.document_type,
-        file_url: d.file_url,
-        file_name: d.file_name,
-        status: d.status,
-        expiry_date: d.expiry_date,
-        uploaded_at: d.uploaded_at,
-        verified_at: d.verified_at,
-        rejection_reason: d.rejection_reason,
-        driver_name: d.profiles
-          ? `${d.profiles.first_name || ''} ${d.profiles.last_name || ''}`.trim()
-          : 'Unknown Driver',
-        driver_email: d.profiles?.email || '',
-      }))
-
-      setDocs(mapped)
+      // Use service-role API route so RLS does not block admin visibility
+      const res = await fetch('/api/admin/documents')
+      if (!res.ok) throw new Error(`Failed to fetch: ${res.status}`)
+      const { docs: fetched } = await res.json()
+      setDocs(fetched || [])
     } catch (err) {
       console.error('Error fetching driver documents:', err)
     } finally {
