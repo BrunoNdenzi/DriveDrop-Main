@@ -60,9 +60,8 @@ export default function AdminDocumentsPage() {
   const fetchDocs = useCallback(async () => {
     setLoading(true)
     try {
-      // Use service-role API route so RLS does not block admin visibility
-      // cache: 'no-store' ensures the browser never serves a stale cached response
-      const res = await fetch('/api/admin/documents', { cache: 'no-store' })
+      // Timestamp param + no-store guarantees Vercel CDN and browser never cache
+      const res = await fetch(`/api/admin/documents?t=${Date.now()}`, { cache: 'no-store' })
       const body = await res.json()
       if (!res.ok) {
         console.error('Error fetching driver documents:', body)
