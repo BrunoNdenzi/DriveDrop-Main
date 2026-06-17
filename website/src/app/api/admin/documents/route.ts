@@ -29,7 +29,7 @@ export async function GET(request: NextRequest) {
 
     if (error) {
       console.error('[Admin Documents API] Fetch error:', error)
-      return NextResponse.json({ error: 'Failed to fetch documents' }, { status: 500 })
+      return NextResponse.json({ error: 'Failed to fetch documents', detail: error.message }, { status: 500 })
     }
 
     const docs = (data || []).map((d: any) => ({
