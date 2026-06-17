@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServiceSupabase } from '@/lib/supabase'
 
+// Never cache this route — admin must always see live data
+export const dynamic = 'force-dynamic'
+
 /**
  * GET /api/admin/documents
  * Fetch all driver documents using the service role client (bypasses RLS).

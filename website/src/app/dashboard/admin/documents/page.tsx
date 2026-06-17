@@ -61,7 +61,8 @@ export default function AdminDocumentsPage() {
     setLoading(true)
     try {
       // Use service-role API route so RLS does not block admin visibility
-      const res = await fetch('/api/admin/documents')
+      // cache: 'no-store' ensures the browser never serves a stale cached response
+      const res = await fetch('/api/admin/documents', { cache: 'no-store' })
       const body = await res.json()
       if (!res.ok) {
         console.error('Error fetching driver documents:', body)
