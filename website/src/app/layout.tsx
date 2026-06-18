@@ -99,6 +99,7 @@ export default function RootLayout({
                 page_path: window.location.pathname,
                 send_page_view: true
               });
+              gtag('config', 'AW-7855297599');
               
               // Track custom events for conversion optimization
               window.gtag = gtag;

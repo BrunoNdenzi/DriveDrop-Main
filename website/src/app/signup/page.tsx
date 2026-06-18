@@ -99,6 +99,13 @@ function SignUpPageContent() {
       }
 
       setSuccess(true)
+      // Fire Google Ads Sign-up conversion
+      if (typeof window !== 'undefined' && (window as any).gtag) {
+        ;(window as any).gtag('event', 'conversion', {
+          send_to: 'AW-7855297599',
+          event_category: 'sign_up',
+        })
+      }
       // Don't auto-redirect - users need to verify email first
     } catch (err: any) {
       console.error('Signup error:', err)

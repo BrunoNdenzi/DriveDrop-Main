@@ -316,6 +316,16 @@ export default function ShipmentForm({ onSubmit, isSubmitting, showClientFields 
       return
     }
     
+    // Fire Google Ads Request quote conversion
+    if (typeof window !== 'undefined' && (window as any).gtag) {
+      ;(window as any).gtag('event', 'conversion', {
+        send_to: 'AW-7855297599',
+        event_category: 'request_quote',
+        value: formData.estimatedPrice || 0,
+        currency: 'USD',
+      })
+    }
+
     onSubmit(formData)
   }
 
