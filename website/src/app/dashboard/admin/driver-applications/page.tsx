@@ -339,8 +339,10 @@ export default function AdminDriverApplicationsPage() {
                     <div className="flex items-center gap-2 text-gray-600">
                       <MapPin className="h-4 w-4" />
                       <span>
-                        {app.address && typeof app.address === 'object' 
-                          ? `${app.address.street}, ${app.address.city}, ${app.address.state} ${app.address.zipCode}`
+                        {app.address
+                          ? typeof app.address === 'object'
+                            ? `${app.address.street ?? ''}, ${app.address.city ?? ''}, ${app.address.state ?? ''} ${app.address.zipCode ?? ''}`.trim().replace(/^,\s*/, '')
+                            : String(app.address)
                           : 'N/A'}
                       </span>
                     </div>
@@ -407,7 +409,8 @@ export default function AdminDriverApplicationsPage() {
                     {app.license_front_url && (
                       <button
                         onClick={() => viewDocument(app.license_front_url!)}
-                        className="text-purple-500 hover:text-purple-600"
+                        className="text-primary hover:text-primary/80 transition-colors"
+                        title="View License Front"
                       >
                         <Eye className="h-4 w-4" />
                       </button>
@@ -420,7 +423,8 @@ export default function AdminDriverApplicationsPage() {
                     {app.license_back_url && (
                       <button
                         onClick={() => viewDocument(app.license_back_url!)}
-                        className="text-purple-500 hover:text-purple-600"
+                        className="text-primary hover:text-primary/80 transition-colors"
+                        title="View License Back"
                       >
                         <Eye className="h-4 w-4" />
                       </button>
@@ -433,7 +437,8 @@ export default function AdminDriverApplicationsPage() {
                     {app.insurance_proof_url && (
                       <button
                         onClick={() => viewDocument(app.insurance_proof_url!)}
-                        className="text-purple-500 hover:text-purple-600"
+                        className="text-primary hover:text-primary/80 transition-colors"
+                        title="View Insurance Proof"
                       >
                         <Eye className="h-4 w-4" />
                       </button>
@@ -446,7 +451,8 @@ export default function AdminDriverApplicationsPage() {
                     {app.proof_of_address_url && (
                       <button
                         onClick={() => viewDocument(app.proof_of_address_url!)}
-                        className="text-purple-500 hover:text-purple-600"
+                        className="text-primary hover:text-primary/80 transition-colors"
+                        title="View Proof of Address"
                       >
                         <Eye className="h-4 w-4" />
                       </button>

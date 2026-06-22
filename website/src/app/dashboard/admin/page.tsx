@@ -175,16 +175,16 @@ export default function AdminDashboardPage() {
         // Get recent driver applications
         const { data: recentApps } = await supabase
           .from('driver_applications')
-          .select('*')
-          .order('created_at', { ascending: false })
+          .select('id, submitted_at, full_name, status')
+          .order('submitted_at', { ascending: false })
           .limit(2)
 
         recentApps?.forEach(app => {
           activities.push({
             id: `app-${app.id}`,
             type: 'application',
-            description: `Driver application submitted: ${app.first_name} ${app.last_name}`,
-            timestamp: app.created_at,
+            description: `Driver application submitted: ${app.full_name || 'Unknown Applicant'}`,
+            timestamp: app.submitted_at,
           })
         })
 

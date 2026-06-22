@@ -18,21 +18,21 @@ import { Button } from '@/components/ui/button'
 
 interface DriverApplication {
   id: string
-  user_id: string
+  // Actual columns from driver_applications table
+  full_name: string
+  email: string
+  phone: string
   status: string
+  submitted_at: string
   created_at: string
   license_number: string
-  license_expiry: string
+  license_state: string
+  license_expiration: string
   vehicle_info: any
   insurance_info: any
   background_check_status: string
   admin_notes: string | null
-  user?: {
-    first_name: string
-    last_name: string
-    email: string
-    phone: string
-  }
+  rejection_reason: string | null
 }
 
 export default function AdminApplicationsPage() {
@@ -51,8 +51,8 @@ export default function AdminApplicationsPage() {
     try {
       let query = supabase
         .from('driver_applications')
-        .select('*')
-        .order('created_at', { ascending: false })
+        .select('id, full_name, email, phone, status, submitted_at, created_at, license_number, license_state, license_expiration, vehicle_info, insurance_info, background_check_status, admin_notes, rejection_reason')
+        .order('submitted_at', { ascending: false })
 
       if (filterStatus !== 'all') {
         query = query.eq('status', filterStatus)
@@ -150,7 +150,7 @@ export default function AdminApplicationsPage() {
     return (
       <div className="flex items-center justify-center py-12">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600 mx-auto mb-3"></div>
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-3"></div>
           <p className="text-sm text-gray-600">Loading applications...</p>
         </div>
       </div>
@@ -175,7 +175,7 @@ export default function AdminApplicationsPage() {
               onClick={() => setFilterStatus('pending')}
               className={`flex-1 px-4 py-2.5 text-xs font-medium ${
                 filterStatus === 'pending'
-                  ? 'border-b-2 border-purple-500 text-purple-600'
+                  ? 'border-b-2 border-primary text-primary'
                   : 'text-gray-600 hover:text-gray-900'
               }`}
             >
@@ -185,7 +185,7 @@ export default function AdminApplicationsPage() {
               onClick={() => setFilterStatus('approved')}
               className={`flex-1 px-4 py-2.5 text-xs font-medium ${
                 filterStatus === 'approved'
-                  ? 'border-b-2 border-purple-500 text-purple-600'
+                  ? 'border-b-2 border-primary text-primary'
                   : 'text-gray-600 hover:text-gray-900'
               }`}
             >
@@ -195,7 +195,7 @@ export default function AdminApplicationsPage() {
               onClick={() => setFilterStatus('rejected')}
               className={`flex-1 px-4 py-2.5 text-xs font-medium ${
                 filterStatus === 'rejected'
-                  ? 'border-b-2 border-purple-500 text-purple-600'
+                  ? 'border-b-2 border-primary text-primary'
                   : 'text-gray-600 hover:text-gray-900'
               }`}
             >
@@ -205,7 +205,7 @@ export default function AdminApplicationsPage() {
               onClick={() => setFilterStatus('all')}
               className={`flex-1 px-4 py-2.5 text-xs font-medium ${
                 filterStatus === 'all'
-                  ? 'border-b-2 border-purple-500 text-purple-600'
+                  ? 'border-b-2 border-primary text-primary'
                   : 'text-gray-600 hover:text-gray-900'
               }`}
             >
@@ -228,7 +228,6 @@ export default function AdminApplicationsPage() {
         ) : (
           <div className="space-y-4">
             {applications.map((application) => {
-              const user = application.user
 
               return (
                 <div
@@ -241,7 +240,7 @@ export default function AdminApplicationsPage() {
                       <div className="flex items-start justify-between mb-3">
                         <div>
                           <h3 className="text-sm font-semibold text-gray-900 mb-1">
-                            {user?.first_name} {user?.last_name}
+                            {application.full_name || 'Unknown Applicant'}
                           </h3>
                           <div className="flex items-center gap-2 flex-wrap">
                             <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(application.status)}`}>
@@ -249,7 +248,7 @@ export default function AdminApplicationsPage() {
                             </span>
                             <span className="text-xs text-gray-500">
                               <Calendar className="h-3 w-3 inline mr-1" />
-                              Applied {formatDate(application.created_at)}
+                              Applied {formatDate(application.submitted_at || application.created_at)}
                             </span>
                           </div>
                         </div>
@@ -259,11 +258,11 @@ export default function AdminApplicationsPage() {
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
                         <div className="flex items-center gap-2 text-sm text-gray-600">
                           <Mail className="h-4 w-4" />
-                          {user?.email || 'N/A'}
+                          {application.email || 'N/A'}
                         </div>
                         <div className="flex items-center gap-2 text-sm text-gray-600">
                           <Phone className="h-4 w-4" />
-                          {user?.phone || 'N/A'}
+                          {application.phone || 'N/A'}
                         </div>
                       </div>
 
@@ -283,7 +282,7 @@ export default function AdminApplicationsPage() {
                           <div>
                             <p className="text-xs text-gray-500 mb-1">Expiry Date</p>
                             <p className="text-sm font-medium text-gray-900">
-                              {application.license_expiry ? formatDate(application.license_expiry) : 'Not provided'}
+                              {application.license_expiration ? formatDate(application.license_expiration) : 'Not provided'}
                             </p>
                           </div>
                         </div>
@@ -368,7 +367,7 @@ export default function AdminApplicationsPage() {
                     {application.status === 'pending' && (
                       <div className="lg:w-44 flex flex-col gap-2">
                         <Button
-                          onClick={() => handleApprove(application.id, application.user_id)}
+                          onClick={() => handleApprove(application.id, '')}
                           disabled={processingId === application.id}
                           className="w-full bg-green-600 hover:bg-green-700"
                         >
