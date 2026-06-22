@@ -8,6 +8,8 @@ import { Button } from '@/components/ui/button'
 import { useAuth } from '@/hooks/useAuth'
 import { getSupabaseBrowserClient } from '@/lib/supabase-client'
 
+import { trackPaymentInitiated, trackBookingPaymentSuccess } from '@/lib/analytics'
+
 const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!)
 
 interface PaymentStepProps {
@@ -224,6 +226,11 @@ function PaymentForm({ shipmentData, completionData, onPaymentComplete, onFinalS
         
         // Mark as successful
         setPaymentSuccessful(true)
+        trackBookingPaymentSuccess({
+          shipmentId,
+          paymentIntentId,
+          amount: shipmentData.estimatedPrice ?? 0,
+        })
         onPaymentComplete(paymentIntentId, shipmentId)
         
         // Wait a moment then trigger final submit

@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useForm } from 'react-hook-form'
+import { useForm, Controller } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import * as z from 'zod'
 import { Button } from '@/components/ui/button'
@@ -11,78 +11,120 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Checkbox } from '@/components/ui/checkbox'
 import { Textarea } from '@/components/ui/textarea'
 import { Progress } from '@/components/ui/progress'
-import { ArrowRight, ArrowLeft, Upload, CheckCircle, Truck, Shield, FileText, AlertCircle } from 'lucide-react'
+import { DatePicker } from '@/components/ui/date-picker'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import { ArrowRight, ArrowLeft, CheckCircle, Truck, Shield, FileText, AlertCircle } from 'lucide-react'
 import Header from '@/components/layout/Header'
 import Footer from '@/components/layout/Footer'
 
-// Helper function to calculate age
+// ── US States ────────────────────────────────────────────────────────────────
+const US_STATES = [
+  { code: 'AL', name: 'Alabama' }, { code: 'AK', name: 'Alaska' },
+  { code: 'AZ', name: 'Arizona' }, { code: 'AR', name: 'Arkansas' },
+  { code: 'CA', name: 'California' }, { code: 'CO', name: 'Colorado' },
+  { code: 'CT', name: 'Connecticut' }, { code: 'DE', name: 'Delaware' },
+  { code: 'FL', name: 'Florida' }, { code: 'GA', name: 'Georgia' },
+  { code: 'HI', name: 'Hawaii' }, { code: 'ID', name: 'Idaho' },
+  { code: 'IL', name: 'Illinois' }, { code: 'IN', name: 'Indiana' },
+  { code: 'IA', name: 'Iowa' }, { code: 'KS', name: 'Kansas' },
+  { code: 'KY', name: 'Kentucky' }, { code: 'LA', name: 'Louisiana' },
+  { code: 'ME', name: 'Maine' }, { code: 'MD', name: 'Maryland' },
+  { code: 'MA', name: 'Massachusetts' }, { code: 'MI', name: 'Michigan' },
+  { code: 'MN', name: 'Minnesota' }, { code: 'MS', name: 'Mississippi' },
+  { code: 'MO', name: 'Missouri' }, { code: 'MT', name: 'Montana' },
+  { code: 'NE', name: 'Nebraska' }, { code: 'NV', name: 'Nevada' },
+  { code: 'NH', name: 'New Hampshire' }, { code: 'NJ', name: 'New Jersey' },
+  { code: 'NM', name: 'New Mexico' }, { code: 'NY', name: 'New York' },
+  { code: 'NC', name: 'North Carolina' }, { code: 'ND', name: 'North Dakota' },
+  { code: 'OH', name: 'Ohio' }, { code: 'OK', name: 'Oklahoma' },
+  { code: 'OR', name: 'Oregon' }, { code: 'PA', name: 'Pennsylvania' },
+  { code: 'RI', name: 'Rhode Island' }, { code: 'SC', name: 'South Carolina' },
+  { code: 'SD', name: 'South Dakota' }, { code: 'TN', name: 'Tennessee' },
+  { code: 'TX', name: 'Texas' }, { code: 'UT', name: 'Utah' },
+  { code: 'VT', name: 'Vermont' }, { code: 'VA', name: 'Virginia' },
+  { code: 'WA', name: 'Washington' }, { code: 'WV', name: 'West Virginia' },
+  { code: 'WI', name: 'Wisconsin' }, { code: 'WY', name: 'Wyoming' },
+  { code: 'DC', name: 'Washington D.C.' },
+]
+
+// ── Helpers ──────────────────────────────────────────────────────────────────
 const calculateAge = (dateString: string): number => {
-  const birthDate = new Date(dateString)
+  const birthDate = new Date(dateString + 'T00:00:00')
   const today = new Date()
   let age = today.getFullYear() - birthDate.getFullYear()
-  const monthDiff = today.getMonth() - birthDate.getMonth()
-  if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
-    age--
-  }
+  const m = today.getMonth() - birthDate.getMonth()
+  if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) age--
   return age
 }
 
-// Helper function to check if date is expired
 const isDateExpired = (dateString: string): boolean => {
-  const expiryDate = new Date(dateString)
+  const expiryDate = new Date(dateString + 'T00:00:00')
   const today = new Date()
-  today.setHours(0, 0, 0, 0) // Reset time to compare only dates
+  today.setHours(0, 0, 0, 0)
   return expiryDate < today
 }
 
-// Step 1: Personal Information (SSN REMOVED)
+// Accepts (555) 123-4567, 555-123-4567, 5551234567, +15551234567, international
+const isValidPhone = (value: string) => {
+  const digits = value.replace(/\D/g, '')
+  return digits.length >= 10 && digits.length <= 15
+}
+
+// ── Schemas ──────────────────────────────────────────────────────────────────
 const personalInfoSchema = z.object({
   fullName: z.string().min(2, 'Full name is required'),
-  dateOfBirth: z.string().min(1, 'Date of birth is required').refine((date) => {
-    const age = calculateAge(date)
-    return age >= 18
-  }, 'You must be at least 18 years old to apply'),
+  dateOfBirth: z
+    .string()
+    .min(1, 'Date of birth is required')
+    .refine((d) => calculateAge(d) >= 18, 'You must be at least 18 years old to apply'),
   email: z.string().email('Valid email is required'),
-  phone: z.string().min(10, 'Valid phone number is required'),
+  phone: z
+    .string()
+    .min(1, 'Phone number is required')
+    .refine(isValidPhone, 'Enter a valid phone number — e.g. (555) 123-4567'),
   address: z.string().min(5, 'Address is required'),
 })
 
-// Step 2: Driver's License (with expiry validation)
 const licenseSchema = z.object({
   licenseNumber: z.string().min(1, 'License number is required'),
   licenseState: z.string().min(2, 'State is required'),
-  licenseExpiration: z.string().min(1, 'Expiration date is required').refine((date) => {
-    return !isDateExpired(date)
-  }, 'Your driver\'s license has expired. Please renew it before applying'),
+  licenseExpiration: z
+    .string()
+    .min(1, 'Expiration date is required')
+    .refine((d) => !isDateExpired(d), "Your driver's license has expired — please renew before applying"),
   licenseFront: z.any().optional(),
   licenseBack: z.any().optional(),
   proofOfAddress: z.any().optional(),
 })
 
-// Step 3: Driving History
 const drivingHistorySchema = z.object({
   hasSuspensions: z.boolean(),
   hasCriminalRecord: z.boolean(),
   incidentDescription: z.string().optional(),
 })
 
-// Step 4: Insurance Information (with expiry validation)
 const insuranceSchema = z.object({
   insuranceProvider: z.string().min(1, 'Insurance provider is required'),
   policyNumber: z.string().min(1, 'Policy number is required'),
-  policyExpiration: z.string().min(1, 'Expiration date is required').refine((date) => {
-    return !isDateExpired(date)
-  }, 'Your insurance policy has expired. Please renew it before applying'),
+  policyExpiration: z
+    .string()
+    .min(1, 'Expiration date is required')
+    .refine((d) => !isDateExpired(d), 'Your insurance policy has expired — please renew before applying'),
   insuranceProof: z.any().optional(),
   coverageAmount: z.string().min(1, 'Coverage amount is required'),
 })
 
-// Step 5: Agreements
 const agreementsSchema = z.object({
-  backgroundCheckConsent: z.boolean().refine(val => val === true, 'You must consent to background check'),
-  dataUseConsent: z.boolean().refine(val => val === true, 'You must consent to data use'),
-  insuranceConsent: z.boolean().refine(val => val === true, 'You must confirm valid insurance'),
-  termsAccepted: z.boolean().refine(val => val === true, 'You must accept terms and conditions'),
+  backgroundCheckConsent: z.boolean().refine((v) => v === true, 'You must consent to a background check'),
+  dataUseConsent: z.boolean().refine((v) => v === true, 'You must consent to data use'),
+  insuranceConsent: z.boolean().refine((v) => v === true, 'You must confirm valid insurance'),
+  termsAccepted: z.boolean().refine((v) => v === true, 'You must accept the terms and conditions'),
 })
 
 type PersonalInfo = z.infer<typeof personalInfoSchema>
@@ -284,9 +326,13 @@ export default function DriverRegistrationPage() {
   )
 }
 
-// Step Components
-function PersonalInfoStep({ defaultValues, onNext }: any) {
-  const { register, handleSubmit, formState: { errors } } = useForm<PersonalInfo>({
+// ── Step Components ──────────────────────────────────────────────────────────
+function PersonalInfoStep({ defaultValues, onNext }: { defaultValues: PersonalInfo; onNext: (d: PersonalInfo) => void }) {
+  const today = new Date()
+  const maxDob = new Date(today.getFullYear() - 18, today.getMonth(), today.getDate())
+  const minDob = new Date(today.getFullYear() - 100, 0, 1)
+
+  const { register, handleSubmit, control, formState: { errors } } = useForm<PersonalInfo>({
     resolver: zodResolver(personalInfoSchema),
     defaultValues,
   })
@@ -298,42 +344,57 @@ function PersonalInfoStep({ defaultValues, onNext }: any) {
         <CardDescription>Please provide your basic information</CardDescription>
       </CardHeader>
       <CardContent>
-        <form onSubmit={handleSubmit(onNext)} className="space-y-4" noValidate>
-          <div>
+        <form onSubmit={handleSubmit(onNext)} className="space-y-5" noValidate>
+          <div className="space-y-1.5">
             <Label htmlFor="fullName">Full Legal Name *</Label>
-            <Input {...register('fullName')} placeholder="John Doe" />
-            {errors.fullName && <p className="text-sm text-destructive mt-1">{errors.fullName.message}</p>}
+            <Input {...register('fullName')} id="fullName" placeholder="John Doe" />
+            {errors.fullName && <p className="text-sm text-destructive">{errors.fullName.message}</p>}
           </div>
 
-          <div>
+          <div className="space-y-1.5">
             <Label htmlFor="dateOfBirth">Date of Birth *</Label>
-            <Input type="date" {...register('dateOfBirth')} />
-            {errors.dateOfBirth && <p className="text-sm text-destructive mt-1">{errors.dateOfBirth.message}</p>}
+            <Controller
+              name="dateOfBirth"
+              control={control}
+              render={({ field }) => (
+                <DatePicker
+                  id="dateOfBirth"
+                  value={field.value}
+                  onChange={field.onChange}
+                  placeholder="Select your date of birth"
+                  maxDate={maxDob}
+                  minDate={minDob}
+                  hasError={!!errors.dateOfBirth}
+                />
+              )}
+            />
+            {errors.dateOfBirth && <p className="text-sm text-destructive">{errors.dateOfBirth.message}</p>}
           </div>
 
-          <div>
+          <div className="space-y-1.5">
             <Label htmlFor="email">Email Address *</Label>
-            <Input type="email" {...register('email')} placeholder="john@example.com" />
-            {errors.email && <p className="text-sm text-destructive mt-1">{errors.email.message}</p>}
+            <Input type="email" {...register('email')} id="email" placeholder="john@example.com" />
+            {errors.email && <p className="text-sm text-destructive">{errors.email.message}</p>}
           </div>
 
-          <div>
+          <div className="space-y-1.5">
             <Label htmlFor="phone">Phone Number *</Label>
-            <Input {...register('phone')} placeholder="(555) 123-4567" />
-            {errors.phone && <p className="text-sm text-destructive mt-1">{errors.phone.message}</p>}
+            <Input {...register('phone')} id="phone" placeholder="(555) 123-4567" type="tel" inputMode="tel" />
+            <p className="text-xs text-muted-foreground">Accepts any format — e.g. (555) 123-4567, 555-123-4567, +1 555 123 4567</p>
+            {errors.phone && <p className="text-sm text-destructive">{errors.phone.message}</p>}
           </div>
 
-          <div>
+          <div className="space-y-1.5">
             <Label htmlFor="address">Current Address *</Label>
-            <Input {...register('address')} placeholder="123 Main St, City, State, ZIP" />
-            {errors.address && <p className="text-sm text-destructive mt-1">{errors.address.message}</p>}
+            <Input {...register('address')} id="address" placeholder="123 Main St, City, State, ZIP" />
+            {errors.address && <p className="text-sm text-destructive">{errors.address.message}</p>}
           </div>
 
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 flex items-start gap-3">
             <Shield className="h-5 w-5 text-blue-600 flex-shrink-0 mt-0.5" />
             <div className="text-sm text-blue-900">
               <p className="font-semibold mb-1">Age Requirement</p>
-              <p>You must be at least 18 years old to become a driver. We'll verify your age from your date of birth.</p>
+              <p>You must be at least 18 years old to become a driver. We&apos;ll verify your age from your date of birth.</p>
             </div>
           </div>
 
@@ -346,8 +407,12 @@ function PersonalInfoStep({ defaultValues, onNext }: any) {
   )
 }
 
-function LicenseStep({ defaultValues, onNext, onBack }: any) {
-  const { register, handleSubmit, formState: { errors } } = useForm<LicenseInfo>({
+function LicenseStep({ defaultValues, onNext, onBack }: { defaultValues: LicenseInfo; onNext: (d: LicenseInfo) => void; onBack: () => void }) {
+  const today = new Date()
+  const minExpiry = new Date(today)
+  minExpiry.setDate(today.getDate() + 1)
+
+  const { register, handleSubmit, control, formState: { errors } } = useForm<LicenseInfo>({
     resolver: zodResolver(licenseSchema),
     defaultValues,
   })
@@ -355,27 +420,58 @@ function LicenseStep({ defaultValues, onNext, onBack }: any) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Driver's License</CardTitle>
-        <CardDescription>Upload your driver's license information</CardDescription>
+        <CardTitle>Driver&apos;s License</CardTitle>
+        <CardDescription>Provide your driver&apos;s license details — formats vary by state</CardDescription>
       </CardHeader>
       <CardContent>
-        <form onSubmit={handleSubmit(onNext)} className="space-y-4" noValidate>
-          <div>
+        <form onSubmit={handleSubmit(onNext)} className="space-y-5" noValidate>
+          <div className="space-y-1.5">
             <Label htmlFor="licenseNumber">License Number *</Label>
-            <Input {...register('licenseNumber')} placeholder="D1234567" />
-            {errors.licenseNumber && <p className="text-sm text-destructive mt-1">{errors.licenseNumber.message}</p>}
+            <Input {...register('licenseNumber')} id="licenseNumber" placeholder="Varies by state (e.g. D1234567, A123-456-789-01)" />
+            <p className="text-xs text-muted-foreground">Enter exactly as it appears on your license</p>
+            {errors.licenseNumber && <p className="text-sm text-destructive">{errors.licenseNumber.message}</p>}
           </div>
 
           <div className="grid grid-cols-2 gap-4">
-            <div>
+            <div className="space-y-1.5">
               <Label htmlFor="licenseState">Issuing State *</Label>
-              <Input {...register('licenseState')} placeholder="CA" maxLength={2} />
-              {errors.licenseState && <p className="text-sm text-destructive mt-1">{errors.licenseState.message}</p>}
+              <Controller
+                name="licenseState"
+                control={control}
+                render={({ field }) => (
+                  <Select value={field.value} onValueChange={field.onChange}>
+                    <SelectTrigger id="licenseState" className={errors.licenseState ? 'border-destructive' : ''}>
+                      <SelectValue placeholder="Select state" />
+                    </SelectTrigger>
+                    <SelectContent className="max-h-60">
+                      {US_STATES.map((s) => (
+                        <SelectItem key={s.code} value={s.code}>
+                          {s.code} — {s.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+              />
+              {errors.licenseState && <p className="text-sm text-destructive">{errors.licenseState.message}</p>}
             </div>
-            <div>
+            <div className="space-y-1.5">
               <Label htmlFor="licenseExpiration">Expiration Date *</Label>
-              <Input type="date" {...register('licenseExpiration')} />
-              {errors.licenseExpiration && <p className="text-sm text-destructive mt-1">{errors.licenseExpiration.message}</p>}
+              <Controller
+                name="licenseExpiration"
+                control={control}
+                render={({ field }) => (
+                  <DatePicker
+                    id="licenseExpiration"
+                    value={field.value}
+                    onChange={field.onChange}
+                    placeholder="Select expiry date"
+                    minDate={minExpiry}
+                    hasError={!!errors.licenseExpiration}
+                  />
+                )}
+              />
+              {errors.licenseExpiration && <p className="text-sm text-destructive">{errors.licenseExpiration.message}</p>}
             </div>
           </div>
 
@@ -383,25 +479,25 @@ function LicenseStep({ defaultValues, onNext, onBack }: any) {
             <AlertCircle className="h-5 w-5 text-amber-600 flex-shrink-0 mt-0.5" />
             <div className="text-sm text-amber-900">
               <p className="font-semibold mb-1">License Expiry Check</p>
-              <p>Your driver's license must be current and not expired. Applications with expired licenses cannot be processed.</p>
+              <p>Your driver&apos;s license must be current and not expired. Applications with expired licenses cannot be processed.</p>
             </div>
           </div>
 
-          <div>
+          <div className="space-y-1.5">
             <Label htmlFor="licenseFront">Upload License (Front) *</Label>
-            <Input type="file" accept="image/*,.pdf" {...register('licenseFront')} />
-            <p className="text-xs text-muted-foreground mt-1">Upload a clear photo or scan</p>
+            <Input type="file" accept="image/*,.pdf" {...register('licenseFront')} id="licenseFront" />
+            <p className="text-xs text-muted-foreground">Upload a clear photo or scan</p>
           </div>
 
-          <div>
+          <div className="space-y-1.5">
             <Label htmlFor="licenseBack">Upload License (Back) *</Label>
-            <Input type="file" accept="image/*,.pdf" {...register('licenseBack')} />
+            <Input type="file" accept="image/*,.pdf" {...register('licenseBack')} id="licenseBack" />
           </div>
 
-          <div>
+          <div className="space-y-1.5">
             <Label htmlFor="proofOfAddress">Proof of Address *</Label>
-            <Input type="file" accept="image/*,.pdf" {...register('proofOfAddress')} />
-            <p className="text-xs text-muted-foreground mt-1">Utility bill, lease agreement, or bank statement</p>
+            <Input type="file" accept="image/*,.pdf" {...register('proofOfAddress')} id="proofOfAddress" />
+            <p className="text-xs text-muted-foreground">Utility bill, lease agreement, or bank statement</p>
           </div>
 
           <div className="flex gap-4">
@@ -418,19 +514,18 @@ function LicenseStep({ defaultValues, onNext, onBack }: any) {
   )
 }
 
-function DrivingHistoryStep({ defaultValues, onNext, onBack }: any) {
-  const { register, handleSubmit, watch, setValue, formState: { errors } } = useForm<DrivingHistory>({
+function DrivingHistoryStep({ defaultValues, onNext, onBack }: { defaultValues: DrivingHistory; onNext: (d: DrivingHistory) => void; onBack: () => void }) {
+  const { register, handleSubmit, watch, setValue } = useForm<DrivingHistory>({
     resolver: zodResolver(drivingHistorySchema),
     defaultValues: {
-      hasSuspensions: false,
-      hasCriminalRecord: false,
-      ...defaultValues,
+      hasSuspensions: defaultValues?.hasSuspensions ?? false,
+      hasCriminalRecord: defaultValues?.hasCriminalRecord ?? false,
+      incidentDescription: defaultValues?.incidentDescription,
     },
   })
 
   const hasSuspensions = watch('hasSuspensions')
   const hasCriminalRecord = watch('hasCriminalRecord')
-  const needsDescription = hasSuspensions || hasCriminalRecord
 
   return (
     <Card>
@@ -440,40 +535,41 @@ function DrivingHistoryStep({ defaultValues, onNext, onBack }: any) {
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit(onNext)} className="space-y-6" noValidate>
-          <div className="space-y-4">
-            <div className="flex items-start space-x-3">
-              <Checkbox 
+          <div className="space-y-3">
+            <div className="flex items-start space-x-3 p-4 rounded-lg border border-border hover:bg-muted/30 transition-colors cursor-pointer">
+              <Checkbox
                 checked={hasSuspensions}
                 onCheckedChange={(checked) => setValue('hasSuspensions', checked as boolean)}
               />
               <div className="space-y-1">
-                <Label>Any license suspensions or DUIs in the past 5 years?</Label>
+                <Label className="cursor-pointer">Any license suspensions or DUIs in the past 5 years?</Label>
                 <p className="text-sm text-muted-foreground">Check if yes</p>
               </div>
             </div>
 
-            <div className="flex items-start space-x-3">
-              <Checkbox 
+            <div className="flex items-start space-x-3 p-4 rounded-lg border border-border hover:bg-muted/30 transition-colors cursor-pointer">
+              <Checkbox
                 checked={hasCriminalRecord}
                 onCheckedChange={(checked) => setValue('hasCriminalRecord', checked as boolean)}
               />
               <div className="space-y-1">
-                <Label>Any criminal record?</Label>
+                <Label className="cursor-pointer">Any criminal record?</Label>
                 <p className="text-sm text-muted-foreground">Check if yes</p>
               </div>
             </div>
           </div>
 
-          {needsDescription && (
-            <div>
+          {(hasSuspensions || hasCriminalRecord) && (
+            <div className="space-y-1.5">
               <Label htmlFor="incidentDescription">Description of Incident(s)</Label>
               <Textarea
                 {...register('incidentDescription')}
+                id="incidentDescription"
                 placeholder="Please provide details..."
                 rows={4}
               />
-              <p className="text-xs text-muted-foreground mt-1">
-                This information helps us make an informed decision. Disclosure doesn't automatically disqualify you.
+              <p className="text-xs text-muted-foreground">
+                This information helps us make an informed decision. Disclosure doesn&apos;t automatically disqualify you.
               </p>
             </div>
           )}
@@ -492,8 +588,12 @@ function DrivingHistoryStep({ defaultValues, onNext, onBack }: any) {
   )
 }
 
-function InsuranceStep({ defaultValues, onNext, onBack }: any) {
-  const { register, handleSubmit, formState: { errors } } = useForm<InsuranceInfo>({
+function InsuranceStep({ defaultValues, onNext, onBack }: { defaultValues: InsuranceInfo; onNext: (d: InsuranceInfo) => void; onBack: () => void }) {
+  const today = new Date()
+  const minExpiry = new Date(today)
+  minExpiry.setDate(today.getDate() + 1)
+
+  const { register, handleSubmit, control, formState: { errors } } = useForm<InsuranceInfo>({
     resolver: zodResolver(insuranceSchema),
     defaultValues,
   })
@@ -505,23 +605,36 @@ function InsuranceStep({ defaultValues, onNext, onBack }: any) {
         <CardDescription>Verify your auto insurance coverage</CardDescription>
       </CardHeader>
       <CardContent>
-        <form onSubmit={handleSubmit(onNext)} className="space-y-4" noValidate>
-          <div>
+        <form onSubmit={handleSubmit(onNext)} className="space-y-5" noValidate>
+          <div className="space-y-1.5">
             <Label htmlFor="insuranceProvider">Insurance Provider *</Label>
-            <Input {...register('insuranceProvider')} placeholder="State Farm, Geico, etc." />
-            {errors.insuranceProvider && <p className="text-sm text-destructive mt-1">{errors.insuranceProvider.message}</p>}
+            <Input {...register('insuranceProvider')} id="insuranceProvider" placeholder="State Farm, Geico, Progressive…" />
+            {errors.insuranceProvider && <p className="text-sm text-destructive">{errors.insuranceProvider.message}</p>}
           </div>
 
-          <div>
+          <div className="space-y-1.5">
             <Label htmlFor="policyNumber">Policy Number *</Label>
-            <Input {...register('policyNumber')} placeholder="POL123456789" />
-            {errors.policyNumber && <p className="text-sm text-destructive mt-1">{errors.policyNumber.message}</p>}
+            <Input {...register('policyNumber')} id="policyNumber" placeholder="Your policy number" />
+            {errors.policyNumber && <p className="text-sm text-destructive">{errors.policyNumber.message}</p>}
           </div>
 
-          <div>
+          <div className="space-y-1.5">
             <Label htmlFor="policyExpiration">Policy Expiration Date *</Label>
-            <Input type="date" {...register('policyExpiration')} />
-            {errors.policyExpiration && <p className="text-sm text-destructive mt-1">{errors.policyExpiration.message}</p>}
+            <Controller
+              name="policyExpiration"
+              control={control}
+              render={({ field }) => (
+                <DatePicker
+                  id="policyExpiration"
+                  value={field.value}
+                  onChange={field.onChange}
+                  placeholder="Select expiration date"
+                  minDate={minExpiry}
+                  hasError={!!errors.policyExpiration}
+                />
+              )}
+            />
+            {errors.policyExpiration && <p className="text-sm text-destructive">{errors.policyExpiration.message}</p>}
           </div>
 
           <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 flex items-start gap-3">
@@ -532,17 +645,17 @@ function InsuranceStep({ defaultValues, onNext, onBack }: any) {
             </div>
           </div>
 
-          <div>
+          <div className="space-y-1.5">
             <Label htmlFor="insuranceProof">Upload Proof of Insurance *</Label>
-            <Input type="file" accept="image/*,.pdf" {...register('insuranceProof')} />
-            <p className="text-xs text-muted-foreground mt-1">Insurance card or policy document</p>
+            <Input type="file" accept="image/*,.pdf" {...register('insuranceProof')} id="insuranceProof" />
+            <p className="text-xs text-muted-foreground">Insurance card or policy document</p>
           </div>
 
-          <div>
+          <div className="space-y-1.5">
             <Label htmlFor="coverageAmount">Coverage Amount *</Label>
-            <Input {...register('coverageAmount')} placeholder="$100,000 / $300,000" />
-            <p className="text-xs text-muted-foreground mt-1">Liability and damage coverage amounts</p>
-            {errors.coverageAmount && <p className="text-sm text-destructive mt-1">{errors.coverageAmount.message}</p>}
+            <Input {...register('coverageAmount')} id="coverageAmount" placeholder="$100,000 / $300,000" />
+            <p className="text-xs text-muted-foreground">Liability and damage coverage amounts</p>
+            {errors.coverageAmount && <p className="text-sm text-destructive">{errors.coverageAmount.message}</p>}
           </div>
 
           <div className="flex gap-4">

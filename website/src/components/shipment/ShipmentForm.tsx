@@ -126,6 +126,8 @@ const CollapsibleSection: React.FC<CollapsibleSectionProps> = ({
   )
 }
 
+import { trackQuoteSubmitted } from '@/lib/analytics'
+
 export default function ShipmentForm({ onSubmit, isSubmitting, showClientFields = false }: ShipmentFormProps) {
   const { profile } = useAuth()
   
@@ -317,14 +319,7 @@ export default function ShipmentForm({ onSubmit, isSubmitting, showClientFields 
     }
     
     // Fire Google Ads Request quote conversion
-    if (typeof window !== 'undefined' && (window as any).gtag) {
-      ;(window as any).gtag('event', 'conversion', {
-        send_to: 'AW-7855297599',
-        event_category: 'request_quote',
-        value: formData.estimatedPrice || 0,
-        currency: 'USD',
-      })
-    }
+    trackQuoteSubmitted(formData.estimatedPrice)
 
     onSubmit(formData)
   }

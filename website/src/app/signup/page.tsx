@@ -9,6 +9,7 @@ import { Label } from '@/components/ui/label'
 import { User, Mail, Lock, Phone, ArrowRight, AlertCircle, CheckCircle, Truck, Eye, EyeOff } from 'lucide-react'
 import Header from '@/components/layout/Header'
 import Footer from '@/components/layout/Footer'
+import { trackSignupCompleted } from '@/lib/analytics'
 
 function SignUpPageContent() {
   const router = useRouter()
@@ -100,12 +101,7 @@ function SignUpPageContent() {
 
       setSuccess(true)
       // Fire Google Ads Sign-up conversion
-      if (typeof window !== 'undefined' && (window as any).gtag) {
-        ;(window as any).gtag('event', 'conversion', {
-          send_to: 'AW-7855297599',
-          event_category: 'sign_up',
-        })
-      }
+      trackSignupCompleted(role)
       // Don't auto-redirect - users need to verify email first
     } catch (err: any) {
       console.error('Signup error:', err)

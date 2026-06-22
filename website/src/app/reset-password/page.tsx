@@ -21,70 +21,63 @@ function ResetPasswordContent() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState(false)
-  const [isValidToken, setIsValidToken] = useState(false)
+  // Start as null (initializing) so we never flash "Invalid Reset Link" prematurely
+  const [isValidToken, setIsValidToken] = useState<boolean | null>(null)
 
   useEffect(() => {
     const initializePasswordReset = async () => {
-      // Check for code or token parameter (from password reset email)
+      // Primary flow: the auth/callback route has already exchanged the PKCE code and
+      // set session cookies before redirecting here. We just verify the session exists.
+      //
+      // Fallback: if someone arrives with a ?code= param directly (old links / deep links),
+      // attempt the exchange client-side.
       const code = searchParams?.get('code')
       const token = searchParams?.get('token')
       const resetCode = code || token
-      
-      // Also check for access_token in hash (Supabase implicit flow)
-      const hash = window.location.hash
+
+      // Check for legacy hash-based implicit flow
+      const hash = typeof window !== 'undefined' ? window.location.hash : ''
       const hashParams = new URLSearchParams(hash.substring(1))
       const accessToken = hashParams.get('access_token')
-      
+
       if (resetCode) {
+        // Fallback: exchange code client-side (e.g. old email links)
         try {
-          // Exchange code for session
           const { data, error } = await supabase.auth.exchangeCodeForSession(resetCode)
-          
           if (error) {
-            console.error('Error exchanging code:', error)
-            setError('Invalid or expired reset link. Please request a new one.')
+            console.error('[ResetPassword] Code exchange failed:', error.message)
+            setError('This reset link is invalid or has expired. Please request a new one.')
             setIsValidToken(false)
           } else if (data.session) {
-            console.log('Successfully exchanged code for session')
             setIsValidToken(true)
+          } else {
+            setIsValidToken(false)
           }
         } catch (err) {
-          console.error('Error in code exchange:', err)
+          console.error('[ResetPassword] Code exchange error:', err)
           setError('Failed to validate reset link. Please try again.')
           setIsValidToken(false)
         }
-      } else if (accessToken) {
-        // If we have access token in hash, the session should already be set by Supabase
-        console.log('Found access token in hash, checking session')
-        try {
-          const { data: { session } } = await supabase.auth.getSession()
-          
-          if (session) {
-            console.log('Session found from hash token')
-            setIsValidToken(true)
-          } else {
-            setError('Invalid or expired reset link. Please request a new one.')
-            setIsValidToken(false)
-          }
-        } catch (err) {
-          console.error('Error getting session:', err)
-          setError('Failed to validate session. Please try again.')
-          setIsValidToken(false)
-        }
       } else {
-        // Check if we have an existing session from the reset link
+        // Primary flow: session cookie already set by the server callback
+        // Also handles hash-based implicit flow
         try {
           const { data: { session } } = await supabase.auth.getSession()
-          
           if (session) {
-            console.log('Found existing session')
             setIsValidToken(true)
+          } else if (accessToken) {
+            // Hash token present but no session yet — wait a tick for Supabase to pick it up
+            setTimeout(async () => {
+              const { data: { session: retrySession } } = await supabase.auth.getSession()
+              setIsValidToken(!!retrySession)
+              if (!retrySession) setError('Invalid or expired reset link. Please request a new one.')
+            }, 500)
           } else {
             setError('Invalid or expired reset link. Please request a new one.')
             setIsValidToken(false)
           }
         } catch (err) {
-          console.error('Error getting session:', err)
+          console.error('[ResetPassword] Session check error:', err)
           setError('Failed to validate session. Please try again.')
           setIsValidToken(false)
         }
@@ -156,6 +149,24 @@ function ResetPasswordContent() {
                   Redirecting to login page...
                 </p>
               </div>
+            </div>
+          </div>
+        </main>
+        <Footer />
+      </>
+    )
+  }
+
+  // Still verifying the reset link — show a spinner instead of flashing the error page
+  if (isValidToken === null) {
+    return (
+      <>
+        <Header />
+        <main className="min-h-screen pt-20 pb-16 bg-[hsl(var(--surface-field))] flex items-center justify-center">
+          <div className="container">
+            <div className="max-w-md mx-auto text-center space-y-4">
+              <Loader2 className="w-8 h-8 text-primary animate-spin mx-auto" />
+              <p className="text-sm text-muted-foreground">Verifying your reset link&hellip;</p>
             </div>
           </div>
         </main>

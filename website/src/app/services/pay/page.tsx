@@ -14,6 +14,7 @@ import {
 import {
   ShieldCheck, Lock, CheckCircle, Layers, TreePine, Package, Truck, ArrowLeft
 } from 'lucide-react'
+import { trackServicePaymentSuccess, trackPaymentInitiated } from '@/lib/analytics'
 
 const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!)
 
@@ -211,6 +212,16 @@ function PayPageInner() {
   const origParam = searchParams.get('orig')
   const origAmount = origParam ? Number(origParam) : amount
   if (isPaid) {
+    // Fire once on mount via effect
+    // eslint-disable-next-line react-hooks/rules-of-hooks
+    useEffect(() => {
+      trackServicePaymentSuccess({
+        service: serviceLabel,
+        amount: payAmount / 100,
+        bookingRef: ref,
+      })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [])
     return (
       <div className="min-h-screen bg-slate-950 flex items-center justify-center px-4">
         <div className="w-full max-w-md text-center">
