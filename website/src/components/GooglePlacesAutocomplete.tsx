@@ -5,12 +5,14 @@ import { Input } from '@/components/ui/input'
 
 interface GooglePlacesAutocompleteProps {
   onSelect: (address: string, coordinates: { lat: number; lng: number }) => void
+  onInputChange?: (address: string) => void
   placeholder?: string
   defaultValue?: string
 }
 
 export function GooglePlacesAutocomplete({
   onSelect,
+  onInputChange,
   placeholder = 'Enter address...',
   defaultValue = '',
 }: GooglePlacesAutocompleteProps) {
@@ -19,10 +21,15 @@ export function GooglePlacesAutocomplete({
   const autocompleteRef = useRef<google.maps.places.Autocomplete | null>(null)
 
   useEffect(() => {
+    setValue(defaultValue)
+  }, [defaultValue])
+
+  useEffect(() => {
     if (!inputRef.current) return
 
     const initAutocomplete = () => {
       if (!inputRef.current || !window.google?.maps?.places) return
+      if (autocompleteRef.current) return
 
       autocompleteRef.current = new google.maps.places.Autocomplete(inputRef.current, {
         componentRestrictions: { country: 'us' },
@@ -71,7 +78,11 @@ export function GooglePlacesAutocomplete({
       ref={inputRef}
       type="text"
       value={value}
-      onChange={(e) => setValue(e.target.value)}
+      onChange={(e) => {
+        const nextValue = e.target.value
+        setValue(nextValue)
+        onInputChange?.(nextValue)
+      }}
       placeholder={placeholder}
       autoComplete="off"
     />

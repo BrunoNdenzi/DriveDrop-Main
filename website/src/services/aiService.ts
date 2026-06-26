@@ -3,7 +3,26 @@
  * Handles AI-powered features: document extraction, natural language processing
  */
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api/v1'
+const PRODUCTION_API_BASE_URL = 'https://drivedrop-main-production.up.railway.app/api/v1'
+
+const resolveApiBaseUrl = () => {
+  const configured = process.env.NEXT_PUBLIC_API_URL?.trim()
+  if (configured) {
+    return configured.replace(/\/$/, '')
+  }
+
+  // Keep local development behavior while avoiding broken production calls.
+  if (typeof window !== 'undefined') {
+    const host = window.location.hostname
+    if (host === 'localhost' || host === '127.0.0.1') {
+      return 'http://localhost:3000/api/v1'
+    }
+  }
+
+  return PRODUCTION_API_BASE_URL
+}
+
+const API_BASE_URL = resolveApiBaseUrl()
 
 interface DocumentExtractionResponse {
   success: boolean
@@ -198,7 +217,15 @@ class AIService {
       const data = await response.json()
 
       if (!response.ok) {
-        throw new Error(data.error || 'Failed to parse natural language prompt')
+        const validationErrors = Array.isArray(data.validationErrors)
+          ? data.validationErrors.join(', ')
+          : ''
+        const clarificationQuestions = Array.isArray(data.clarificationQuestions)
+          ? data.clarificationQuestions.join(' ')
+          : ''
+
+        const details = [validationErrors, clarificationQuestions].filter(Boolean).join(' ')
+        throw new Error(details ? `${data.error || 'Failed to parse natural language prompt'}: ${details}` : (data.error || 'Failed to parse natural language prompt'))
       }
 
       return data

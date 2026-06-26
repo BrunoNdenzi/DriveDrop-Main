@@ -386,6 +386,10 @@ export default function ShipmentForm({ onSubmit, isSubmitting, showClientFields 
             <AddressAutocomplete
               value={formData.pickupAddress}
               onSelect={(address: string, coords: { lat: number; lng: number }) => handleAddressSelect('pickupAddress', address, coords)}
+              onInputChange={(address: string) => {
+                updateFormData('pickupAddress', address)
+                updateFormData('pickupCoordinates', undefined)
+              }}
               placeholder="Enter pickup address"
               data-tour="pickup-address"
             />
@@ -395,6 +399,10 @@ export default function ShipmentForm({ onSubmit, isSubmitting, showClientFields 
             <AddressAutocomplete
               value={formData.deliveryAddress}
               onSelect={(address: string, coords: { lat: number; lng: number }) => handleAddressSelect('deliveryAddress', address, coords)}
+              onInputChange={(address: string) => {
+                updateFormData('deliveryAddress', address)
+                updateFormData('deliveryCoordinates', undefined)
+              }}
               placeholder="Enter delivery address"
               data-tour="delivery-address"
             />

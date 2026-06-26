@@ -5,6 +5,7 @@ import { useRouter, useParams } from 'next/navigation';
 import { getSupabaseBrowserClient } from '@/lib/supabase-client';
 import { ArrowLeft, Save, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { GooglePlacesAutocomplete } from '@/components/GooglePlacesAutocomplete';
 
 export default function EditBrokerShipmentPage() {
   const router = useRouter();
@@ -114,6 +115,64 @@ export default function EditBrokerShipmentPage() {
 
   const updateField = (field: string, value: string) => setForm(prev => ({ ...prev, [field]: value }));
 
+  const parseAddress = (fullAddress: string) => {
+    if (!fullAddress) return { address: '', city: '', state: '', zip: '' };
+
+    const parts = fullAddress.split(',').map(p => p.trim());
+    if (parts.length > 1 && /^(usa|us|united states)$/i.test(parts[parts.length - 1] || '')) {
+      parts.pop();
+    }
+
+    if (parts.length >= 3) {
+      const address = parts[0] || '';
+      const city = parts[1] || '';
+      const stateZipParts = (parts[2] || '').trim().split(/\s+/);
+      return {
+        address,
+        city,
+        state: (stateZipParts[0] || '').toUpperCase(),
+        zip: stateZipParts.slice(1).join(' '),
+      };
+    }
+
+    if (parts.length === 2) {
+      const city = parts[0] || '';
+      const stateZipParts = (parts[1] || '').trim().split(/\s+/);
+      return {
+        address: fullAddress,
+        city,
+        state: (stateZipParts[0] || '').toUpperCase(),
+        zip: stateZipParts.slice(1).join(' '),
+      };
+    }
+
+    return { address: fullAddress, city: '', state: '', zip: '' };
+  };
+
+  const applyLocation = (type: 'pickup' | 'delivery', fullAddress: string) => {
+    const parsed = parseAddress(fullAddress);
+
+    setForm(prev => {
+      if (type === 'pickup') {
+        return {
+          ...prev,
+          pickup_address: parsed.address || fullAddress,
+          pickup_city: parsed.city,
+          pickup_state: parsed.state,
+          pickup_zip: parsed.zip,
+        };
+      }
+
+      return {
+        ...prev,
+        delivery_address: parsed.address || fullAddress,
+        delivery_city: parsed.city,
+        delivery_state: parsed.state,
+        delivery_zip: parsed.zip,
+      };
+    });
+  };
+
   if (loading) {
     return <div className="flex items-center justify-center min-h-[400px]"><Loader2 className="h-8 w-8 animate-spin text-teal-500" /></div>;
   }
@@ -151,7 +210,15 @@ export default function EditBrokerShipmentPage() {
       <div className="bg-white rounded-md border border-gray-200 p-4 space-y-4">
         <h2 className="text-sm font-semibold text-gray-900">Pickup Location</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-          <div className="md:col-span-2"><label className="block text-xs font-medium text-gray-700 mb-1">Address *</label><input type="text" value={form.pickup_address} onChange={(e) => updateField('pickup_address', e.target.value)} className="w-full px-3 py-2 border rounded-md text-sm" /></div>
+          <div className="md:col-span-2">
+            <label className="block text-xs font-medium text-gray-700 mb-1">Address *</label>
+            <GooglePlacesAutocomplete
+              defaultValue={form.pickup_address}
+              placeholder="Search pickup address"
+              onInputChange={(address) => updateField('pickup_address', address)}
+              onSelect={(address) => applyLocation('pickup', address)}
+            />
+          </div>
           <div><label className="block text-xs font-medium text-gray-700 mb-1">City</label><input type="text" value={form.pickup_city} onChange={(e) => updateField('pickup_city', e.target.value)} className="w-full px-3 py-2 border rounded-md text-sm" /></div>
           <div className="grid grid-cols-2 gap-3">
             <div><label className="block text-xs font-medium text-gray-700 mb-1">State</label><input type="text" value={form.pickup_state} onChange={(e) => updateField('pickup_state', e.target.value)} maxLength={2} className="w-full px-3 py-2 border rounded-md text-sm uppercase" /></div>
@@ -164,7 +231,15 @@ export default function EditBrokerShipmentPage() {
       <div className="bg-white rounded-md border border-gray-200 p-4 space-y-4">
         <h2 className="text-sm font-semibold text-gray-900">Delivery Location</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-          <div className="md:col-span-2"><label className="block text-xs font-medium text-gray-700 mb-1">Address *</label><input type="text" value={form.delivery_address} onChange={(e) => updateField('delivery_address', e.target.value)} className="w-full px-3 py-2 border rounded-md text-sm" /></div>
+          <div className="md:col-span-2">
+            <label className="block text-xs font-medium text-gray-700 mb-1">Address *</label>
+            <GooglePlacesAutocomplete
+              defaultValue={form.delivery_address}
+              placeholder="Search delivery address"
+              onInputChange={(address) => updateField('delivery_address', address)}
+              onSelect={(address) => applyLocation('delivery', address)}
+            />
+          </div>
           <div><label className="block text-xs font-medium text-gray-700 mb-1">City</label><input type="text" value={form.delivery_city} onChange={(e) => updateField('delivery_city', e.target.value)} className="w-full px-3 py-2 border rounded-md text-sm" /></div>
           <div className="grid grid-cols-2 gap-3">
             <div><label className="block text-xs font-medium text-gray-700 mb-1">State</label><input type="text" value={form.delivery_state} onChange={(e) => updateField('delivery_state', e.target.value)} maxLength={2} className="w-full px-3 py-2 border rounded-md text-sm uppercase" /></div>

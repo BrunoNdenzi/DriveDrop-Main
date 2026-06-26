@@ -114,6 +114,23 @@ router.post('/natural-language-shipment', authenticate, aiRateLimit('shipment'),
       return;
     }
 
+    const missing = parseResult.missing_fields || [];
+    const criticalMissing = missing.filter((field) =>
+      ['vehicle_year', 'vehicle_make', 'vehicle_model', 'pickup_location', 'delivery_location'].includes(field)
+    );
+
+    if (criticalMissing.length > 0) {
+      res.status(422).json({
+        success: false,
+        error: 'More details are needed to create this shipment',
+        validationErrors: criticalMissing,
+        clarificationQuestions: parseResult.clarification_questions || [],
+        extractedData: parseResult.parsed_data,
+        confidence: parseResult.confidence_score,
+      });
+      return;
+    }
+
     // Create the shipment
     const result = await nlService.createShipment(userId, parseResult.parsed_data);
 

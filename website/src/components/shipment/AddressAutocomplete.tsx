@@ -2,14 +2,22 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { Input } from '@/components/ui/input'
+import type { InputHTMLAttributes } from 'react'
 
 interface AddressAutocompleteProps {
   value: string
   onSelect: (address: string, coordinates: { lat: number; lng: number }) => void
+  onInputChange?: (address: string) => void
   placeholder?: string
 }
 
-export default function AddressAutocomplete({ value, onSelect, placeholder }: AddressAutocompleteProps) {
+export default function AddressAutocomplete({
+  value,
+  onSelect,
+  onInputChange,
+  placeholder,
+  ...inputProps
+}: AddressAutocompleteProps & Omit<InputHTMLAttributes<HTMLInputElement>, 'value' | 'onSelect' | 'placeholder'>) {
   const [inputValue, setInputValue] = useState(value)
   const [suggestions, setSuggestions] = useState<any[]>([])
   const [showSuggestions, setShowSuggestions] = useState(false)
@@ -18,12 +26,31 @@ export default function AddressAutocomplete({ value, onSelect, placeholder }: Ad
   const placesService = useRef<any>(null)
 
   useEffect(() => {
-    // Initialize Google Places Autocomplete
-    if (typeof window !== 'undefined' && window.google) {
+    let checkInterval: ReturnType<typeof setInterval> | null = null
+
+    const initServices = () => {
+      if (typeof window === 'undefined' || !window.google?.maps?.places) return false
+      if (autocompleteService.current && placesService.current) return true
+
       autocompleteService.current = new window.google.maps.places.AutocompleteService()
-      placesService.current = new window.google.maps.places.PlacesService(
-        document.createElement('div')
-      )
+      placesService.current = new window.google.maps.places.PlacesService(document.createElement('div'))
+      return true
+    }
+
+    if (!initServices()) {
+      // Google script can load after mount on some routes.
+      checkInterval = setInterval(() => {
+        if (initServices() && checkInterval) {
+          clearInterval(checkInterval)
+          checkInterval = null
+        }
+      }, 100)
+    }
+
+    return () => {
+      if (checkInterval) {
+        clearInterval(checkInterval)
+      }
     }
   }, [])
 
@@ -34,6 +61,7 @@ export default function AddressAutocomplete({ value, onSelect, placeholder }: Ad
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newValue = e.target.value
     setInputValue(newValue)
+    onInputChange?.(newValue)
 
     if (newValue.length > 2 && autocompleteService.current) {
       autocompleteService.current.getPlacePredictions(
@@ -57,7 +85,7 @@ export default function AddressAutocomplete({ value, onSelect, placeholder }: Ad
     }
   }
 
-  const handleSelectSuggestion = (placeId: string, description: string) => {
+  const handleSelectSuggestion = (placeId: string) => {
     if (placesService.current) {
       placesService.current.getDetails(
         {
@@ -82,13 +110,24 @@ export default function AddressAutocomplete({ value, onSelect, placeholder }: Ad
   return (
     <div className="relative">
       <Input
+        {...inputProps}
         ref={inputRef}
         type="text"
         value={inputValue}
-        onChange={handleInputChange}
+        onChange={(e) => {
+          handleInputChange(e)
+          inputProps.onChange?.(e)
+        }}
         placeholder={placeholder}
-        onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
-        onFocus={() => suggestions.length > 0 && setShowSuggestions(true)}
+        autoComplete="off"
+        onBlur={(e) => {
+          setTimeout(() => setShowSuggestions(false), 200)
+          inputProps.onBlur?.(e)
+        }}
+        onFocus={(e) => {
+          if (suggestions.length > 0) setShowSuggestions(true)
+          inputProps.onFocus?.(e)
+        }}
       />
       {showSuggestions && suggestions.length > 0 && (
         <div className="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-auto">
@@ -96,7 +135,7 @@ export default function AddressAutocomplete({ value, onSelect, placeholder }: Ad
             <button
               key={suggestion.place_id}
               type="button"
-              onClick={() => handleSelectSuggestion(suggestion.place_id, suggestion.description)}
+              onClick={() => handleSelectSuggestion(suggestion.place_id)}
               className="w-full px-4 py-3 text-left hover:bg-gray-100 transition-colors border-b border-gray-100 last:border-0"
             >
               <div className="text-sm font-medium text-gray-900">
