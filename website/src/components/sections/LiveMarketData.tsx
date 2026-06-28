@@ -54,11 +54,7 @@ export default function LiveMarketData() {
               <tr
                 key={market.route}
                 className={`border-b border-border last:border-0 ${
-                  market.trend === 'down'
-                    ? 'bg-[hsl(var(--status-warning-bg))]'
-                    : i % 2 !== 0
-                      ? 'bg-muted/20'
-                      : ''
+                  i % 2 !== 0 ? 'bg-muted/20' : ''
                 }`}
               >
                 <td className="px-6 py-2.5 font-medium text-foreground">
