@@ -122,9 +122,13 @@ export default function ClientPaymentsPage() {
       filtered = filtered.filter(p => p.status === filterStatus)
     }
 
-    // Type filter
+    // Type filter — 'initial' covers both 'upfront' and 'initial' DB values
     if (filterType !== 'all') {
-      filtered = filtered.filter(p => p.payment_type === filterType)
+      if (filterType === 'initial') {
+        filtered = filtered.filter(p => p.payment_type === 'upfront' || p.payment_type === 'initial')
+      } else {
+        filtered = filtered.filter(p => p.payment_type === filterType)
+      }
     }
 
     setFilteredPayments(filtered)
@@ -318,7 +322,6 @@ export default function ClientPaymentsPage() {
               className="border border-gray-200 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-blue-500"
             >
               <option value="all">All Types</option>
-              <option value="upfront">Initial Payment (20%)</option>
               <option value="initial">Initial Payment (20%)</option>
               <option value="final">Final Payment (80%)</option>
               <option value="full">Full Payment</option>

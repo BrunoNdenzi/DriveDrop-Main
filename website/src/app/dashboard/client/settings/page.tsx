@@ -2,79 +2,39 @@
 
 import { useAuth } from '@/hooks/useAuth'
 import { useRouter } from 'next/navigation'
+
 import { 
   Bell,
   Lock,
   Eye,
-  Mail,
   Shield,
   HelpCircle,
   FileText,
   LogOut,
   ChevronRight,
+  KeyRound,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { getSupabaseBrowserClient } from '@/lib/supabase-client'
 
 export default function ClientSettingsPage() {
-  const { profile } = useAuth()
+  const { profile, signOut } = useAuth()
   const router = useRouter()
-  const supabase = getSupabaseBrowserClient()
-
-  const handleSignOut = async () => {
-    try {
-      await supabase.auth.signOut()
-      router.push('/auth/login')
-    } catch (error) {
-      console.error('Error signing out:', error)
-    }
-  }
 
   const settingsSections = [
     {
       title: 'Account',
       items: [
-        {
-          icon: Bell,
-          label: 'Notifications',
-          description: 'Manage email and push notifications',
-          href: '/dashboard/client/settings/notifications',
-        },
-        {
-          icon: Eye,
-          label: 'Privacy',
-          description: 'Control your privacy and data',
-          href: '/dashboard/client/settings/privacy',
-        },
-        {
-          icon: Lock,
-          label: 'Security',
-          description: 'Password and security settings',
-          href: '/dashboard/client/settings/security',
-        },
+        {icon: Bell, label: 'Notifications', description: 'Manage email and push notifications', href: '/dashboard/client/settings/notifications'},
+        {icon: Eye, label: 'Privacy', description: 'Control your privacy and data', href: '/privacy'},
+        {icon: KeyRound, label: 'Security', description: 'Password and security settings', href: '/dashboard/client/settings/security'},
       ],
     },
     {
       title: 'Support',
       items: [
-        {
-          icon: HelpCircle,
-          label: 'Help Center',
-          description: 'Get help and support',
-          href: '/help',
-        },
-        {
-          icon: FileText,
-          label: 'Terms & Conditions',
-          description: 'Review our terms of service',
-          href: '/terms',
-        },
-        {
-          icon: Shield,
-          label: 'Privacy Policy',
-          description: 'Read our privacy policy',
-          href: '/privacy',
-        },
+        {icon: HelpCircle, label: 'Help Center', description: 'Get help and support', href: '/contact'},
+        {icon: FileText, label: 'Terms & Conditions', description: 'Review our terms of service', href: '/terms'},
+        {icon: Shield, label: 'Privacy Policy', description: 'Read our privacy policy', href: '/privacy'},
       ],
     },
   ]
@@ -137,7 +97,7 @@ export default function ClientSettingsPage() {
         {/* Sign Out */}
         <div className="bg-white rounded-md border border-gray-200 p-4">
           <Button
-            onClick={handleSignOut}
+            onClick={signOut}
             variant="outline"
             className="w-full text-red-600 border-red-600 hover:bg-red-50"
           >

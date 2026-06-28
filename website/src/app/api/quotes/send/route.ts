@@ -4,7 +4,7 @@ import { pricingService } from '@/services/pricingService'
 
 export async function POST(request: NextRequest) {
   try {
-    const { name, email, pickupLocation, deliveryLocation, vehicleType, pickupCoords, deliveryCoords } = await request.json()
+    const { name, email, pickupLocation, deliveryLocation, vehicleType, vehicleYear, vehicleModel, pickupCoords, deliveryCoords, preCalculatedQuote } = await request.json()
 
     if (!name || !email || !pickupLocation || !deliveryLocation || !vehicleType) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
@@ -15,11 +15,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid email address' }, { status: 400 })
     }
 
-    // Calculate quote if coordinates provided
+    // Use pre-calculated quote if provided, otherwise calculate from coords
     let quoteTotal: number | null = null
     let distanceMiles: number | null = null
 
-    if (pickupCoords && deliveryCoords) {
+    if (preCalculatedQuote?.total) {
+      quoteTotal = preCalculatedQuote.total
+      distanceMiles = preCalculatedQuote.distance || null
+    } else if (pickupCoords && deliveryCoords) {
       try {
         const distance = pricingService.calculateDistance(
           pickupCoords.lat, pickupCoords.lng,
@@ -38,6 +41,8 @@ export async function POST(request: NextRequest) {
         // Quote calculation failed — still send the email without a price
       }
     }
+
+    const vehicleLabel = [vehicleYear, vehicleModel, vehicleType ? `(${vehicleType})` : ''].filter(Boolean).join(' ')
 
     const firstName = name.split(' ')[0] || name
 
@@ -74,8 +79,8 @@ export async function POST(request: NextRequest) {
                         <td style="padding:12px 16px;color:#111827;font-size:14px;">${deliveryLocation}</td>
                       </tr>
                       <tr style="background-color:#f9fafb;border-bottom:1px solid #e5e7eb;">
-                        <td style="padding:12px 16px;font-weight:600;color:#374151;font-size:14px;">Vehicle Type</td>
-                        <td style="padding:12px 16px;color:#111827;font-size:14px;text-transform:capitalize;">${vehicleType}</td>
+                        <td style="padding:12px 16px;font-weight:600;color:#374151;font-size:14px;">Vehicle</td>
+                        <td style="padding:12px 16px;color:#111827;font-size:14px;">${vehicleLabel || vehicleType}</td>
                       </tr>
                       ${distanceMiles ? `<tr style="border-bottom:1px solid #e5e7eb;"><td style="padding:12px 16px;font-weight:600;color:#374151;font-size:14px;">Distance</td><td style="padding:12px 16px;color:#111827;font-size:14px;">${distanceMiles} miles</td></tr>` : ''}
                       ${quoteTotal ? `<tr style="background-color:#eff6ff;"><td style="padding:16px;font-weight:700;color:#1d4ed8;font-size:16px;">Estimated Price</td><td style="padding:16px;font-weight:700;color:#1d4ed8;font-size:18px;">$${quoteTotal.toFixed(2)}</td></tr>` : ''}
@@ -95,8 +100,19 @@ export async function POST(request: NextRequest) {
 
                     <p style="margin:0 0 24px;color:#374151;">Please check your spam folder if you don't see our follow-up emails. Ready to book?</p>
 
-                    <div style="text-align:center;margin-bottom:24px;">
-                      <a href="https://www.drivedrop.us.com/signup?role=client" style="display:inline-block;background-color:#3b82f6;color:#ffffff;padding:14px 36px;text-decoration:none;border-radius:8px;font-size:15px;font-weight:600;">Create Account & Book Now</a>
+                    <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="margin-bottom:24px;">
+                      <tr>
+                        <td style="padding:0 8px 0 0;" width="50%">
+                          <a href="https://www.drivedrop.us.com/signup?role=client" style="display:block;background-color:#3b82f6;color:#ffffff;padding:12px 16px;text-decoration:none;border-radius:8px;font-size:14px;font-weight:600;text-align:center;">Create Account &amp; Book</a>
+                        </td>
+                        <td style="padding:0 0 0 8px;" width="50%">
+                          <a href="https://www.drivedrop.us.com/services/freight" style="display:block;background-color:#f97316;color:#ffffff;padding:12px 16px;text-decoration:none;border-radius:8px;font-size:14px;font-weight:600;text-align:center;">⚡ Express Delivery</a>
+                        </td>
+                      </tr>
+                    </table>
+                    <div style="background-color:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:14px;margin-bottom:24px;">
+                      <p style="margin:0 0 4px;font-weight:600;color:#166534;font-size:13px;">Manage everything with DriveDrop TMS</p>
+                      <p style="margin:0;color:#166534;font-size:13px;">Track shipments, get live updates, manage payments — all in one dashboard. <a href="https://www.drivedrop.us.com/signup?role=client" style="color:#166534;font-weight:600;">Get started free →</a></p>
                     </div>
                   </td>
                 </tr>
@@ -125,7 +141,7 @@ export async function POST(request: NextRequest) {
           <li><strong>Email:</strong> ${email}</li>
           <li><strong>From:</strong> ${pickupLocation}</li>
           <li><strong>To:</strong> ${deliveryLocation}</li>
-          <li><strong>Vehicle:</strong> ${vehicleType}</li>
+          <li><strong>Vehicle:</strong> ${vehicleLabel || vehicleType}</li>
           ${distanceMiles ? `<li><strong>Distance:</strong> ${distanceMiles} miles</li>` : ''}
           ${quoteTotal ? `<li><strong>Quoted Price:</strong> $${quoteTotal.toFixed(2)}</li>` : '<li><strong>Price:</strong> Could not calculate — follow up needed</li>'}
         </ul>

@@ -703,7 +703,11 @@ export const stripeService = {
 
         // Create a payment notification
         if (clientId) {
-          await this.createPaymentNotification(clientId, shipmentId, 'success', paymentIntent.amount);
+          // Use the actual captured amount: upfrontAmount metadata (initial booking) or amount_received (final)
+          const upfrontMeta = parseInt(paymentIntent.metadata['upfrontAmount'] || '0');
+          const notifyAmount = upfrontMeta > 0 ? upfrontMeta : (paymentIntent.amount_received || paymentIntent.amount);
+          const isInitialPayment = upfrontMeta > 0;
+          await this.createPaymentNotification(clientId, shipmentId, 'success', notifyAmount, isInitialPayment);
         }
       }
     } catch (error) {
@@ -781,22 +785,39 @@ export const stripeService = {
     userId: string,
     shipmentId: string,
     type: 'success' | 'failure' | 'refund',
-    amount: number
+    amount: number,
+    isInitialPayment: boolean = false
   ): Promise<void> {
     try {
+      let title: string;
+      let message: string;
+
+      if (type === 'success') {
+        if (isInitialPayment) {
+          title = 'Booking Confirmed — 20% Paid';
+          message = `Your booking is confirmed! $${(amount / 100).toFixed(2)} (20%) has been charged. The remaining 80% will be collected on delivery.`;
+        } else {
+          title = 'Final Payment Processed';
+          message = `Your final payment of $${(amount / 100).toFixed(2)} has been processed. Thank you for choosing DriveDrop!`;
+        }
+      } else if (type === 'failure') {
+        title = 'Payment Failed';
+        message = `Your payment of $${(amount / 100).toFixed(2)} for shipment failed. Please try again.`;
+      } else {
+        title = 'Refund Processed';
+        message = `A refund of $${(amount / 100).toFixed(2)} has been processed for your shipment.`;
+      }
+
       const { error } = await supabase.from('notifications').insert({
         user_id: userId,
         type: 'payment',
-        title: type === 'success' ? 'Payment Successful' : type === 'failure' ? 'Payment Failed' : 'Refund Processed',
-        message: type === 'success' 
-          ? `Your payment of $${(amount / 100).toFixed(2)} for shipment was successful.` 
-          : type === 'failure'
-          ? `Your payment of $${(amount / 100).toFixed(2)} for shipment failed. Please try again.`
-          : `A refund of $${(amount / 100).toFixed(2)} has been processed for your shipment.`,
+        title,
+        message,
         data: { 
           shipmentId,
           amount,
-          type
+          type,
+          isInitialPayment
         },
         is_read: false,
         created_at: new Date().toISOString(),
@@ -1000,7 +1021,8 @@ export const stripeService = {
             clientId,
             shipmentId,
             'success',
-            parseInt(upfrontAmount || '0')
+            parseInt(upfrontAmount || '0'),
+            true  // isInitialPayment
           );
         }
       }

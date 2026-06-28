@@ -52,15 +52,23 @@ export function VehicleSelect({
 
   const options = getOptions()
 
-  // Reset model when make changes
+  // Stable ref to onChange to avoid stale-closure re-fires
+  const onChangeRef = useRef(onChange)
+  useEffect(() => { onChangeRef.current = onChange })
+
+  // Reset model when make changes — but don't clear custom model values for custom makes
   useEffect(() => {
     if (type === 'model' && value && selectedMake) {
+      const standardMakes = getVehicleMakes()
+      // If the make is custom (not in standard list), preserve whatever model the user typed
+      if (!standardMakes.includes(selectedMake)) return
       const modelsForMake = getModelsForMake(selectedMake)
       if (!modelsForMake.includes(value)) {
-        onChange('')
+        onChangeRef.current('')
       }
     }
-  }, [selectedMake, type, value, onChange])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedMake, type])
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -161,8 +169,18 @@ export function VehicleSelect({
           {/* Options List */}
           <div className="max-h-[400px] overflow-y-auto">
             {options.length === 0 ? (
-              <div className="px-3 py-8 text-center text-sm text-gray-500">
+              <div className="px-3 py-4 text-center text-sm text-gray-500">
                 No {type === 'make' ? 'makes' : 'models'} found
+                {allowCustom && (
+                  <button
+                    type="button"
+                    onClick={() => handleSelect('__custom__')}
+                    className="mt-2 flex items-center gap-2 mx-auto px-3 py-1.5 text-sm text-teal-700 font-medium border border-teal-200 rounded-md hover:bg-teal-50 transition-colors"
+                  >
+                    <Plus className="h-4 w-4" />
+                    Enter custom {type}
+                  </button>
+                )}
               </div>
             ) : (
               <>
