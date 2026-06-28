@@ -27,11 +27,6 @@ export default function Footer() {
                 </Link>
               </li>
               <li>
-                <Link href="/#how-it-works" className="text-muted-foreground hover:text-primary">
-                  How It Works
-                </Link>
-              </li>
-              <li>
                 <Link href="/drivers/register" className="text-muted-foreground hover:text-primary">
                   Become a Driver
                 </Link>

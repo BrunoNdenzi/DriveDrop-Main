@@ -224,7 +224,7 @@ export default function AdminDashboardPage() {
             Monitor and manage DriveDrop
           </p>
         </div>
-        <Link href="/dashboard/admin/applications">
+        <Link href="/dashboard/admin/driver-applications">
           <Button size="sm" className="h-8 text-xs bg-purple-500 hover:bg-purple-600 text-white">
             Review Applications
             {stats.pendingApplications > 0 && (
@@ -305,7 +305,7 @@ export default function AdminDashboardPage() {
       {/* Action Cards */}
       <div className="grid grid-cols-3 gap-3">
         <Link
-          href="/dashboard/admin/applications"
+          href="/dashboard/admin/driver-applications"
           className="bg-white rounded-md p-3 border border-gray-200 hover:border-purple-300 transition-colors"
           data-tour="driver-management"
         >
@@ -503,7 +503,7 @@ export default function AdminDashboardPage() {
               {stats.pendingApplications} driver application{stats.pendingApplications !== 1 ? 's' : ''} pending review
             </p>
           </div>
-          <Link href="/dashboard/admin/applications">
+          <Link href="/dashboard/admin/driver-applications">
             <Button size="sm" className="h-7 text-xs bg-amber-500 hover:bg-amber-600">
               Review
               <ArrowRight className="h-3 w-3 ml-1" />

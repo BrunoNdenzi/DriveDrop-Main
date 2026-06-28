@@ -45,10 +45,11 @@ export default function AuthHashHandler() {
       return
     }
 
-    // If we have an access token but no type, check current path
-    if (accessToken && window.location.pathname === '/') {
-      console.log('Detected access token in hash on homepage, redirecting to reset-password')
-      router.push('/reset-password' + hash)
+    // If we have a signup/email confirmation token, redirect to login with success message
+    if (accessToken && (type === 'signup' || type === 'email_change')) {
+      console.log('Detected email confirmation token in hash, redirecting to login')
+      router.push('/login?verified=true')
+      return
     }
   }, [router])
 

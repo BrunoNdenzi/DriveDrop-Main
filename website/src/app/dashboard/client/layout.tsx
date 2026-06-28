@@ -180,6 +180,7 @@ export default function ClientDashboardLayout({
                 variant="outline"
                 size="sm"
                 className="w-full border-blue-500 text-blue-500 hover:bg-blue-500 hover:text-white"
+                onClick={() => window.location.href = '/contact'}
               >
                 Contact Support
               </Button>

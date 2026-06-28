@@ -115,7 +115,7 @@ router.post('/send-driver-application-approved', asyncHandler(async (req: Reques
     });
   }
 
-  const loginUrl = `${process.env['FRONTEND_URL'] || 'https://drivedrop.us.com'}/login`;
+  const loginUrl = `${process.env['FRONTEND_URL'] || 'https://www.drivedrop.us.com'}/login`;
 
   // Build admin comment HTML if provided
   const adminCommentHtml = adminComment ? `

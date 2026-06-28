@@ -1,13 +1,13 @@
 import nodemailer from 'nodemailer'
 
-// Create transporter using Gmail SMTP (fallback configuration)
+// Create transporter using Brevo SMTP (primary) or fallback SMTP config
 const transporter = nodemailer.createTransport({
-  host: process.env.SMTP_HOST || 'smtp.gmail.com',
+  host: process.env.SMTP_HOST || 'smtp-relay.brevo.com',
   port: parseInt(process.env.SMTP_PORT || '587'),
   secure: process.env.SMTP_SECURE === 'true',
   auth: {
-    user: process.env.SMTP_USER || 'infos@drivedrop.us.com',
-    pass: process.env.SMTP_PASS || 'vjnkgiuitlyyuwxs',
+    user: process.env.SMTP_USER || 'infos@calkons.com',
+    pass: process.env.SMTP_PASS || '',
   },
 })
 

@@ -377,7 +377,7 @@ export const EmailTemplates: Record<EmailTemplateType, EmailTemplate> = {
       `, DD.green)}
 
       <div style="background-color:#fffbeb;border-left:3px solid ${DD.amber};padding:12px 16px;margin:20px 0;border-radius:0 6px 6px 0;font-size:13px;color:#92400e;">
-        <strong>⚠️ Security Notice:</strong> You'll be required to change this password on your first login. Never share your password with anyone.
+        <strong>⚠️ Important — Temporary Password:</strong> This is a one-time temporary password. You will be asked to change it on your very first login. Please do not share your password with anyone.
       </div>
 
       ${btn('Log In Now', '{{loginUrl}}', DD.green)}

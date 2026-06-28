@@ -234,7 +234,7 @@ export default function AdminDashboardLayout({
             <div className="bg-slate-50 rounded-md p-4 border border-border">
               <h3 className="font-semibold text-gray-900 mb-3 text-sm">Quick Actions</h3>
               <div className="space-y-2">
-                <Link href="/dashboard/admin/applications">
+                <Link href="/dashboard/admin/driver-applications">
                   <Button
                     variant="outline"
                     size="sm"

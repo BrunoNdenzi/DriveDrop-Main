@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import * as z from 'zod'
@@ -9,9 +9,8 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Loader2, ArrowRight, MapPin, Truck, DollarSign } from 'lucide-react'
+import { Loader2, ArrowRight, MapPin, Truck, User, Mail, CheckCircle } from 'lucide-react'
 import { GooglePlacesAutocomplete } from '@/components/GooglePlacesAutocomplete'
-import { pricingService } from '@/services/pricingService'
 
 const quoteSchema = z.object({
   pickupLocation: z.string().min(1, 'Pickup location is required'),
@@ -19,32 +18,15 @@ const quoteSchema = z.object({
   vehicleType: z.enum(['sedan', 'suv', 'truck', 'van', 'motorcycle'], {
     required_error: 'Please select a vehicle type',
   }),
-  shippingSpeed: z.enum(['standard', 'express'], {
-    required_error: 'Please select shipping speed',
-  }),
+  name: z.string().min(2, 'Please enter your name'),
+  email: z.string().email('Please enter a valid email'),
 })
 
 type QuoteFormData = z.infer<typeof quoteSchema>
 
-interface QuoteResult {
-  totalPrice: number
-  distance: number
-  estimatedDays: number
-  breakdown: {
-    baseRatePerMile: number
-    distanceBand: string
-    rawBasePrice: number
-    deliveryType: string
-    deliveryTypeMultiplier: number
-    fuelAdjustmentPercent: number
-    minimumApplied: boolean
-    total: number
-  }
-}
-
 export default function QuoteCalculator() {
   const [loading, setLoading] = useState(false)
-  const [quote, setQuote] = useState<QuoteResult | null>(null)
+  const [submitted, setSubmitted] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [pickupCoords, setPickupCoords] = useState<{ lat: number; lng: number } | null>(null)
   const [deliveryCoords, setDeliveryCoords] = useState<{ lat: number; lng: number } | null>(null)
@@ -59,12 +41,10 @@ export default function QuoteCalculator() {
     resolver: zodResolver(quoteSchema),
     defaultValues: {
       vehicleType: 'sedan',
-      shippingSpeed: 'standard',
     },
   })
 
   const selectedVehicleType = watch('vehicleType')
-  const selectedShippingSpeed = watch('shippingSpeed')
 
   const handlePickupSelect = (address: string, coordinates: { lat: number; lng: number }) => {
     setValue('pickupLocation', address, { shouldValidate: true })
@@ -76,104 +56,37 @@ export default function QuoteCalculator() {
     setDeliveryCoords(coordinates)
   }
 
-  // Recalculate quote when shipping speed or vehicle type changes
-  useEffect(() => {
-    if (quote && pickupCoords && deliveryCoords) {
-      // Recalculate with new settings
-      onSubmit({ 
-        pickupLocation: watch('pickupLocation'),
-        deliveryLocation: watch('deliveryLocation'),
-        vehicleType: selectedVehicleType,
-        shippingSpeed: selectedShippingSpeed 
-      })
-    }
-  }, [selectedShippingSpeed, selectedVehicleType])
-
   const onSubmit = async (data: QuoteFormData) => {
     setLoading(true)
     setError(null)
-    setQuote(null)
 
     try {
-      // Validate that we have coordinates
-      if (!pickupCoords || !deliveryCoords) {
-        throw new Error('Please select valid addresses from the dropdown')
-      }
-
-      // Calculate distance using pricingService (same as ShipmentForm)
-      const distance = pricingService.calculateDistance(
-        pickupCoords.lat,
-        pickupCoords.lng,
-        deliveryCoords.lat,
-        deliveryCoords.lng
-      )
-
-      console.log('Calculated distance:', distance, 'miles')
-
-      // Determine delivery dates based on shipping speed
-      // Express = no delivery date (blank = expedited = +25%)
-      // Standard = no dates at all (standard = 1.0x multiplier, no charge)
-      let pickupDate: string | undefined
-      let deliveryDate: string | undefined
-      
-      if (data.shippingSpeed === 'express') {
-        // Express: provide pickup but blank delivery date triggers expedited pricing (+25%)
-        pickupDate = new Date().toISOString().split('T')[0]
-        deliveryDate = undefined
-      } else {
-        // Standard: no dates at all = standard pricing (1.0x multiplier)
-        pickupDate = undefined
-        deliveryDate = undefined
-      }
-
-      console.log('Pricing inputs:', { 
-        pickupDate, 
-        deliveryDate, 
-        shippingSpeed: data.shippingSpeed,
-        vehicleType: data.vehicleType 
+      const response = await fetch('/api/quotes/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: data.name,
+          email: data.email,
+          pickupLocation: data.pickupLocation,
+          deliveryLocation: data.deliveryLocation,
+          vehicleType: data.vehicleType,
+          pickupCoords,
+          deliveryCoords,
+        }),
       })
 
-      // Calculate quote using pricingService (same logic as ShipmentForm)
-      const quoteResult = pricingService.calculateQuote({
-        vehicleType: data.vehicleType,
-        distanceMiles: Math.round(distance),
-        isAccidentRecovery: false,
-        vehicleCount: 1,
-        pickupDate,
-        deliveryDate,
-        fuelPricePerGallon: 3.70, // Current default fuel price
-      })
-
-      console.log('Quote calculated:', quoteResult)
-
-      // Determine estimated days based on delivery type returned from pricing service
-      let estimatedDays: number
-      if (quoteResult.breakdown.deliveryType === 'expedited') {
-        estimatedDays = 2
-      } else if (quoteResult.breakdown.deliveryType === 'flexible') {
-        estimatedDays = 7
-      } else {
-        estimatedDays = 5
+      if (!response.ok) {
+        const err = await response.json()
+        throw new Error(err.error || 'Failed to send quote')
       }
 
-      // Set the quote result
-      setQuote({
-        totalPrice: quoteResult.total,
-        distance: Math.round(distance),
-        estimatedDays,
-        breakdown: quoteResult.breakdown,
-      })
+      setSubmitted(true)
     } catch (err) {
-      console.error('Quote calculation error:', err)
-      setError(err instanceof Error ? err.message : 'Unable to calculate quote. Please try again.')
+      console.error('Quote send error:', err)
+      setError(err instanceof Error ? err.message : 'Unable to send quote. Please try again.')
     } finally {
       setLoading(false)
     }
-  }
-
-  const handleOpenInApp = () => {
-    // Redirect to client sign up page to continue with shipment
-    window.location.href = '/signup?role=client&continue=shipment'
   }
 
   return (
@@ -182,7 +95,7 @@ export default function QuoteCalculator() {
       <div className="px-6 py-3 border-b border-border">
         <h2 className="text-base font-semibold text-foreground tracking-tight">Pricing & Quote</h2>
         <p className="text-xs text-muted-foreground mt-0.5">
-          Transparent per-mile pricing — calculate your exact cost instantly
+          Transparent per-mile pricing — get your personalized quote by email
         </p>
       </div>
 
@@ -232,12 +145,29 @@ export default function QuoteCalculator() {
           </div>
           <Card>
             <CardHeader>
-              <CardTitle>Shipment Details</CardTitle>
+              <CardTitle>Request a Quote</CardTitle>
               <CardDescription>
-                Enter your pickup and delivery locations to get an accurate quote
+                Enter your details and we'll email you a personalized shipping quote
               </CardDescription>
             </CardHeader>
             <CardContent>
+              {submitted ? (
+                <div className="text-center py-8 space-y-4">
+                  <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-green-100">
+                    <CheckCircle className="w-8 h-8 text-green-600" />
+                  </div>
+                  <h3 className="text-xl font-bold text-gray-900">Quote Sent!</h3>
+                  <p className="text-muted-foreground max-w-sm mx-auto">
+                    We've emailed your personalized quote. Please check your spam folder if you don't see it within a few minutes.
+                  </p>
+                  <div className="pt-2">
+                    <Button onClick={() => window.location.href = '/signup?role=client'} className="gap-2">
+                      Create Account & Book Now
+                      <ArrowRight className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              ) : (
               <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
                 {/* Pickup Location */}
                 <div className="space-y-2">
@@ -295,37 +225,45 @@ export default function QuoteCalculator() {
                   )}
                 </div>
 
-                {/* Shipping Speed */}
+                {/* Express notice */}
+                <div className="text-xs text-muted-foreground bg-muted/50 rounded-md p-3">
+                  Need same-day or express delivery?{' '}
+                  <a href="/services/freight" className="text-primary underline">Freight services</a>
+                  {' '}or{' '}
+                  <a href="/services/delivery" className="text-primary underline">van delivery</a>
+                  {' '}may be a better fit.
+                </div>
+
+                {/* Name */}
                 <div className="space-y-2">
-                  <Label>Shipping Speed</Label>
-                  <div className="grid grid-cols-2 gap-4">
-                    <button
-                      type="button"
-                      onClick={() => setValue('shippingSpeed', 'standard', { shouldValidate: true })}
-                      className={`p-4 border-2 rounded-lg text-left transition-colors ${
-                        selectedShippingSpeed === 'standard'
-                          ? 'border-primary bg-primary/5'
-                          : 'border-border hover:border-primary/50'
-                      }`}
-                    >
-                      <div className="font-semibold">Standard</div>
-                      <div className="text-sm text-muted-foreground">3-5 business days</div>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setValue('shippingSpeed', 'express', { shouldValidate: true })}
-                      className={`p-4 border-2 rounded-lg text-left transition-colors ${
-                        selectedShippingSpeed === 'express'
-                          ? 'border-primary bg-primary/5'
-                          : 'border-border hover:border-primary/50'
-                      }`}
-                    >
-                      <div className="font-semibold">Express</div>
-                      <div className="text-sm text-muted-foreground">1-2 business days</div>
-                    </button>
-                  </div>
-                  {errors.shippingSpeed && (
-                    <p className="text-sm text-destructive">{errors.shippingSpeed.message}</p>
+                  <Label htmlFor="name">
+                    <User className="inline h-4 w-4 mr-2" />
+                    Your Name
+                  </Label>
+                  <Input
+                    id="name"
+                    placeholder="John Doe"
+                    {...register('name')}
+                  />
+                  {errors.name && (
+                    <p className="text-sm text-destructive">{errors.name.message}</p>
+                  )}
+                </div>
+
+                {/* Email */}
+                <div className="space-y-2">
+                  <Label htmlFor="email">
+                    <Mail className="inline h-4 w-4 mr-2" />
+                    Email Address
+                  </Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    placeholder="john@example.com"
+                    {...register('email')}
+                  />
+                  {errors.email && (
+                    <p className="text-sm text-destructive">{errors.email.message}</p>
                   )}
                 </div>
 
@@ -334,12 +272,12 @@ export default function QuoteCalculator() {
                   {loading ? (
                     <>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Calculating...
+                      Sending Quote...
                     </>
                   ) : (
                     <>
-                      <DollarSign className="mr-2 h-4 w-4" />
-                      Calculate Quote
+                      Get My Quote by Email
+                      <ArrowRight className="ml-2 h-4 w-4" />
                     </>
                   )}
                 </Button>
@@ -351,89 +289,9 @@ export default function QuoteCalculator() {
                   </div>
                 )}
               </form>
+              )}
             </CardContent>
           </Card>
-
-          {/* Quote Result */}
-          {quote && (
-            <Card className="mt-6 border-2 border-primary shadow-lg">
-              <CardHeader className="pb-3">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <CardTitle className="text-2xl">Your Quote</CardTitle>
-                    <CardDescription className="mt-1">
-                      {quote.distance} miles • {quote.estimatedDays} business days
-                    </CardDescription>
-                  </div>
-                  <div className="text-right">
-                    <div className="text-4xl font-bold text-primary">
-                      ${quote.totalPrice.toFixed(2)}
-                    </div>
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {/* Price Breakdown - Simplified */}
-                <div className="bg-muted/50 rounded-lg p-4 space-y-2 text-sm">
-                  <div className="flex justify-between font-medium">
-                    <span className="text-muted-foreground">Base Rate</span>
-                    <span>${quote.breakdown.rawBasePrice.toFixed(2)}</span>
-                  </div>
-                  
-                  {quote.breakdown.deliveryTypeMultiplier !== 1.0 && (
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">
-                        {quote.breakdown.deliveryType === 'expedited' && '⚡ Express Delivery'}
-                        {quote.breakdown.deliveryType === 'flexible' && '📅 Flexible Delivery'}
-                      </span>
-                      <span className={quote.breakdown.deliveryType === 'flexible' ? 'text-green-600 font-medium' : 'font-medium'}>
-                        {quote.breakdown.deliveryType === 'expedited' && '+25%'}
-                        {quote.breakdown.deliveryType === 'flexible' && '-5%'}
-                      </span>
-                    </div>
-                  )}
-                  
-                  {quote.breakdown.fuelAdjustmentPercent !== 0 && (
-                    <div className="flex justify-between text-xs">
-                      <span className="text-muted-foreground">Fuel Adjustment</span>
-                      <span className={quote.breakdown.fuelAdjustmentPercent > 0 ? '' : 'text-green-600'}>
-                        {quote.breakdown.fuelAdjustmentPercent > 0 ? '+' : ''}
-                        {quote.breakdown.fuelAdjustmentPercent.toFixed(1)}%
-                      </span>
-                    </div>
-                  )}
-                  
-                  <div className="border-t border-border pt-2 mt-2 flex justify-between font-bold text-base">
-                    <span>Total Price</span>
-                    <span className="text-primary">${quote.totalPrice.toFixed(2)}</span>
-                  </div>
-                </div>
-
-                {/* Payment Info */}
-                <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm">
-                  <div className="font-semibold text-blue-900 mb-1">Payment Terms</div>
-                  <div className="text-blue-800 space-y-1">
-                    <div className="flex justify-between">
-                      <span>Pay Now (20%):</span>
-                      <span className="font-semibold">${(quote.totalPrice * 0.2).toFixed(2)}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>Pay on Delivery (80%):</span>
-                      <span className="font-semibold">${(quote.totalPrice * 0.8).toFixed(2)}</span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Call to Action */}
-                <div className="pt-2">
-                  <Button onClick={handleOpenInApp} className="w-full" size="lg">
-                    Book This Shipment
-                    <ArrowRight className="ml-2 h-5 w-5" />
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          )}
         </div>
     </section>
   )

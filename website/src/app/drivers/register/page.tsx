@@ -22,6 +22,7 @@ import {
 import { ArrowRight, ArrowLeft, CheckCircle, Truck, Shield, FileText, AlertCircle } from 'lucide-react'
 import Header from '@/components/layout/Header'
 import Footer from '@/components/layout/Footer'
+import { GooglePlacesAutocomplete } from '@/components/GooglePlacesAutocomplete'
 
 // ── US States ────────────────────────────────────────────────────────────────
 const US_STATES = [
@@ -332,7 +333,7 @@ function PersonalInfoStep({ defaultValues, onNext }: { defaultValues: PersonalIn
   const maxDob = new Date(today.getFullYear() - 18, today.getMonth(), today.getDate())
   const minDob = new Date(today.getFullYear() - 100, 0, 1)
 
-  const { register, handleSubmit, control, formState: { errors } } = useForm<PersonalInfo>({
+  const { register, handleSubmit, control, setValue, formState: { errors } } = useForm<PersonalInfo>({
     resolver: zodResolver(personalInfoSchema),
     defaultValues,
   })
@@ -386,7 +387,12 @@ function PersonalInfoStep({ defaultValues, onNext }: { defaultValues: PersonalIn
 
           <div className="space-y-1.5">
             <Label htmlFor="address">Current Address *</Label>
-            <Input {...register('address')} id="address" placeholder="123 Main St, City, State, ZIP" />
+            <GooglePlacesAutocomplete
+              onSelect={(address) => setValue('address', address, { shouldValidate: true })}
+              onInputChange={(value) => setValue('address', value)}
+              placeholder="Start typing your address..."
+              defaultValue={defaultValues.address}
+            />
             {errors.address && <p className="text-sm text-destructive">{errors.address.message}</p>}
           </div>
 

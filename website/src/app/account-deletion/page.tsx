@@ -55,6 +55,8 @@ export default function AccountDeletionPage() {
       const data = await response.json()
 
       if (data.success) {
+        // Sign out immediately after deletion request is submitted
+        await supabase.auth.signOut()
         setShowConfirmation(true)
       } else {
         throw new Error(data.error?.message || 'Failed to submit deletion request')
@@ -93,8 +95,8 @@ export default function AccountDeletionPage() {
             <p className="text-sm text-green-700 mb-6">
               You will receive a confirmation email at <strong>{profile.email}</strong> once your account has been deleted.
             </p>
-            <Button onClick={() => router.push('/dashboard')} className="mt-4">
-              Return to Dashboard
+            <Button onClick={() => router.push('/')} className="mt-4">
+              Return to Homepage
             </Button>
           </div>
         </div>

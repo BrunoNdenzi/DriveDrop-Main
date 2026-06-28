@@ -7,7 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { User, Truck, Shield, ArrowRight, Mail, Lock, AlertCircle, Eye, EyeOff } from 'lucide-react'
+import { User, Truck, Shield, ArrowRight, Mail, Lock, AlertCircle, Eye, EyeOff, CheckCircle } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import Header from '@/components/layout/Header'
 import Footer from '@/components/layout/Footer'
@@ -18,6 +18,7 @@ function LoginForm() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const redirectTo = searchParams.get('redirect')
+  const isVerified = searchParams.get('verified') === 'true'
   const [activeRole, setActiveRole] = useState<UserRole>('client')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -124,6 +125,12 @@ function LoginForm() {
 
             {/* Login Card */}
             <div className="bg-white border border-border rounded-md p-6 shadow-sm">
+              {isVerified && (
+                <div className="flex items-center gap-2 p-3 rounded-md bg-green-50 border border-green-200 text-green-800 mb-4">
+                  <CheckCircle className="w-5 h-5 flex-shrink-0 text-green-600" />
+                  <p className="text-sm font-medium">Email verified! You can now log in.</p>
+                </div>
+              )}
               <Tabs value={activeRole} onValueChange={(v) => setActiveRole(v as UserRole)} className="w-full">
                 {/* Role Tabs */}
                 <TabsList className="grid w-full grid-cols-4 mb-6 bg-slate-100 p-1 rounded-md">

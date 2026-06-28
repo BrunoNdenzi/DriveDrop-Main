@@ -211,6 +211,8 @@ export default function ShipmentForm({ onSubmit, isSubmitting, showClientFields 
       ...prev,
       [section]: !prev[section],
     }))
+    // Scroll to top of page when opening a new section
+    window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
   const updateFormData = (field: keyof ShipmentData, value: any) => {
@@ -560,32 +562,19 @@ export default function ShipmentForm({ onSubmit, isSubmitting, showClientFields 
       >
         <div className="space-y-4">
           <div>
-            <Label htmlFor="shipmentType">Service Type *</Label>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-2">
-              <button
-                type="button"
-                onClick={() => updateFormData('shipmentType', 'standard')}
-                className={`p-4 border-2 rounded-md text-left transition-all ${
-                  formData.shipmentType === 'standard'
-                    ? 'border-blue-500 bg-blue-50'
-                    : 'border-gray-200 hover:border-gray-300'
-                }`}
-              >
+            <Label htmlFor="shipmentType">Service Type</Label>
+            <div className="mt-2">
+              <div className="p-4 border-2 rounded-md text-left border-blue-500 bg-blue-50">
                 <div className="font-semibold">Standard</div>
-                <div className="text-sm text-gray-600">7-10 business days</div>
-              </button>
-              <button
-                type="button"
-                onClick={() => updateFormData('shipmentType', 'expedited')}
-                className={`p-4 border-2 rounded-md text-left transition-all ${
-                  formData.shipmentType === 'expedited'
-                    ? 'border-blue-500 bg-blue-50'
-                    : 'border-gray-200 hover:border-gray-300'
-                }`}
-              >
-                <div className="font-semibold">Expedited</div>
-                <div className="text-sm text-gray-600">3-5 business days</div>
-              </button>
+                <div className="text-sm text-gray-600">7-10 business days — reliable door-to-door transport</div>
+              </div>
+              <p className="text-xs text-gray-500 mt-2">
+                Need same-day or express delivery?{' '}
+                <a href="/services/freight" className="text-blue-500 underline">Freight services</a>
+                {' '}or{' '}
+                <a href="/services/delivery" className="text-blue-500 underline">van delivery</a>
+                {' '}may be a better fit.
+              </p>
             </div>
           </div>
           <div>

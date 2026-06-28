@@ -110,8 +110,8 @@ function determineDeliveryType(pickupDate?: string, deliveryDate?: string): {
     // Calculate days between pickup and delivery
     const daysDiff = Math.ceil((delivery.getTime() - pickup.getTime()) / (1000 * 60 * 60 * 24));
     
-    // Less than 7 days = expedited, 7+ days = flexible
-    if (daysDiff < 7) {
+    // Less than 5 days = expedited, 5+ days = flexible
+    if (daysDiff < 5) {
       return { type: 'expedited', multiplier: 1.25 };
     } else {
       return { type: 'flexible', multiplier: 0.95 };

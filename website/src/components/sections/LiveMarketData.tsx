@@ -4,10 +4,10 @@ import { StatusBadge } from '@/components/ui/StatusBadge'
 import { MetricStrip } from '@/components/ui/MetricStrip'
 
 const marketData = [
-  { route: 'Austin → Houston', loads: 247, avgRate: '$385', trend: 'up' as const, change: '+12%' },
-  { route: 'Dallas → San Antonio', loads: 183, avgRate: '$420', trend: 'up' as const, change: '+8%' },
-  { route: 'Houston → Dallas', loads: 312, avgRate: '$405', trend: 'down' as const, change: '-3%' },
-  { route: 'San Antonio → Austin', loads: 156, avgRate: '$295', trend: 'up' as const, change: '+5%' },
+  { route: 'Charlotte → Raleigh', loads: 12, avgRate: '$385', trend: 'up' as const, change: 'Active' },
+  { route: 'Charlotte → Atlanta', loads: 8, avgRate: '$520', trend: 'up' as const, change: 'Active' },
+  { route: 'Raleigh → Richmond', loads: 5, avgRate: '$310', trend: 'up' as const, change: 'Active' },
+  { route: 'Charlotte → Nashville', loads: 4, avgRate: '$610', trend: 'up' as const, change: 'Active' },
 ]
 
 export default function LiveMarketData() {
@@ -16,7 +16,7 @@ export default function LiveMarketData() {
       {/* Section Header */}
       <div className="flex items-center justify-between px-6 py-3 border-b border-border">
         <h2 className="text-base font-semibold text-foreground tracking-tight">
-          Carolina Market Activity
+          Charlotte/Carolina Routes
         </h2>
         <StatusBadge variant="success" label="Live" size="sm" />
       </div>
@@ -25,8 +25,8 @@ export default function LiveMarketData() {
       <MetricStrip
         metrics={[
           { label: 'Active Routes', value: 4 },
-          { label: 'Avg Load Rate', value: '$372' },
-          { label: 'Avg Match Time', value: '24 min', variant: 'info' },
+          { label: 'Avg Load Rate', value: '$456' },
+          { label: 'Avg Response', value: '< 2 hrs', variant: 'info' },
         ]}
       />
 

@@ -17,13 +17,13 @@ export default function OperationalHero() {
         {/* First cell: System Online + Active Shipments */}
         <div className="flex-1 min-w-[140px] flex flex-col items-center justify-center px-4 py-3">
           <StatusBadge variant="success" label="System Online" size="sm" className="!bg-white/10 !border-white/20 !text-emerald-400" />
-          <span className="text-lg font-semibold tabular-nums text-white mt-1">898</span>
+          <span className="text-lg font-semibold tabular-nums text-white mt-1">8</span>
         </div>
         {[
-          { label: 'On-Time Rate', value: '98.2%' },
-          { label: 'Delayed', value: '3' },
-          { label: 'Capacity Utilization', value: '74%' },
-          { label: '24h Throughput', value: '156' },
+          { label: 'On-Time Rate', value: '100%' },
+          { label: 'Delayed', value: '0' },
+          { label: 'Coverage', value: 'Southeast US' },
+          { label: 'Avg Response', value: '< 2 hrs' },
         ].map((metric) => (
           <div key={metric.label} className="flex-1 min-w-[120px] flex flex-col items-center justify-center px-4 py-3 border-l border-slate-800">
             <span className="text-xs font-medium text-slate-400 uppercase tracking-wider">{metric.label}</span>
