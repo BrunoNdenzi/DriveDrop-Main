@@ -64,6 +64,12 @@ export default function DriverDashboardLayout({
     )
   }
 
+  // Block access if driver must change password (e.g. first login with temp password)
+  if (user?.user_metadata?.force_password_change === true) {
+    router.replace('/change-password?required=true')
+    return null
+  }
+
   const userName = profile?.first_name && profile?.last_name
     ? `${profile.first_name} ${profile.last_name}`
     : profile?.email?.split('@')[0] || 'Driver'

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServiceSupabase } from '@/lib/supabase'
+import { sendEmail } from '@/lib/email'
 
 export async function POST(request: NextRequest) {
   try {
@@ -83,6 +84,7 @@ export async function POST(request: NextRequest) {
     // Send verification email via Brevo with the confirmation link
     if (confirmationLink) {
       console.log('[Signup API] Sending verification email via backend...')
+      let backendEmailSent = false
       try {
         const verificationEmailUrl = `${process.env.NEXT_PUBLIC_API_URL}/notifications/email-verification`
         const verificationResponse = await fetch(verificationEmailUrl, {
@@ -102,12 +104,73 @@ export async function POST(request: NextRequest) {
         })
         
         if (!verificationResponse.ok) {
-          console.error('[Signup API] Verification email failed:', verificationData)
+          console.error('[Signup API] Verification email failed via backend:', verificationData)
         } else {
-          console.log('[Signup API] Verification email sent successfully')
+          console.log('[Signup API] Verification email sent successfully via backend')
+          backendEmailSent = true
         }
       } catch (emailError) {
-        console.error('[Signup API] Verification email exception:', emailError)
+        console.error('[Signup API] Backend verification email exception:', emailError)
+      }
+
+      // Fallback: if the backend notification service is unavailable, send directly via SMTP
+      if (!backendEmailSent) {
+        console.log('[Signup API] Using direct SMTP fallback for verification email...')
+        try {
+          await sendEmail({
+            to: email,
+            subject: 'Verify your DriveDrop account',
+            html: `
+              <!DOCTYPE html>
+              <html lang="en">
+              <head>
+                <meta charset="UTF-8">
+                <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                <title>Verify Your Email</title>
+              </head>
+              <body style="margin:0;padding:0;background-color:#f3f4f6;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;">
+                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#f3f4f6;">
+                  <tr>
+                    <td style="padding:40px 20px;">
+                      <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="margin:0 auto;background-color:#ffffff;border-radius:8px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.1);">
+                        <tr>
+                          <td style="background-color:#030712;padding:32px 40px;text-align:center;">
+                            <h1 style="margin:0 0 4px;color:#ffffff;font-size:22px;font-weight:700;letter-spacing:-0.3px;">
+                              Drive<span style="color:#3b82f6;">Drop</span>
+                            </h1>
+                            <p style="margin:0;color:#6b7280;font-size:13px;">Verify Your Account</p>
+                          </td>
+                        </tr>
+                        <tr>
+                          <td style="padding:36px 40px;color:#111827;font-size:15px;line-height:1.7;">
+                            <h2 style="margin:0 0 16px;color:#111827;font-size:20px;">Hi ${firstName},</h2>
+                            <p>Thanks for signing up for DriveDrop! Please click the button below to verify your email address.</p>
+                            <p>This link expires in 24 hours.</p>
+                            <div style="text-align:center;margin:32px 0;">
+                              <a href="${confirmationLink}" style="display:inline-block;background-color:#3b82f6;color:#ffffff;padding:14px 32px;border-radius:6px;text-decoration:none;font-weight:600;font-size:16px;">Verify Email Address</a>
+                            </div>
+                            <p style="font-size:13px;color:#6b7280;">If the button doesn't work, copy and paste this link: <a href="${confirmationLink}" style="color:#3b82f6;word-break:break-all;">${confirmationLink}</a></p>
+                            <p style="font-size:13px;color:#6b7280;">If you didn't create this account, you can safely ignore this email.</p>
+                          </td>
+                        </tr>
+                        <tr>
+                          <td style="padding:24px 40px;background-color:#f9fafb;border-top:1px solid #e5e7eb;text-align:center;color:#6b7280;font-size:12px;">
+                            <p style="margin:0;">&copy; ${new Date().getFullYear()} DriveDrop Inc. All rights reserved.</p>
+                          </td>
+                        </tr>
+                      </table>
+                    </td>
+                  </tr>
+                </table>
+              </body>
+              </html>
+            `,
+          })
+          console.log('[Signup API] Direct SMTP fallback verification email sent successfully')
+        } catch (smtpFallbackError) {
+          console.error('[Signup API] Direct SMTP fallback also failed:', smtpFallbackError)
+          // Still proceed — user can request a new verification email from login page
+        }
       }
     }
 

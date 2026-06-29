@@ -232,11 +232,10 @@ function PaymentForm({ shipmentData, completionData, onPaymentComplete, onFinalS
           amount: shipmentData.estimatedPrice ?? 0,
         })
         onPaymentComplete(paymentIntentId, shipmentId)
-        
-        // Wait a moment then trigger final submit
+        // Auto-redirect after 20 seconds as fallback — user can also click the button
         setTimeout(() => {
           onFinalSubmit()
-        }, 2000)
+        }, 20000)
       } else {
         console.error('[PaymentForm] Unexpected payment status:', paymentIntent?.status)
         throw new Error('Payment confirmation did not complete successfully')
@@ -261,11 +260,18 @@ function PaymentForm({ shipmentData, completionData, onPaymentComplete, onFinalS
         <p className="text-gray-600 mb-4">
           Your shipment has been created and the initial payment has been processed.
         </p>
-        <div className="bg-green-50 border border-green-200 rounded-md p-4 max-w-md mx-auto">
+        <div className="bg-green-50 border border-green-200 rounded-md p-4 max-w-md mx-auto mb-6">
           <p className="text-sm text-green-800">
             You'll receive a confirmation email shortly. We'll notify you when a driver is assigned to your shipment.
           </p>
         </div>
+        <button
+          onClick={onFinalSubmit}
+          className="inline-flex items-center gap-2 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition-colors"
+        >
+          Continue to Dashboard
+        </button>
+        <p className="text-xs text-gray-400 mt-3">You will be redirected automatically in 20 seconds</p>
       </div>
     )
   }

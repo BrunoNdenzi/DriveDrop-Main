@@ -1,9 +1,24 @@
 import { NextResponse } from 'next/server'
 import { sendEmail } from '@/lib/email'
 
+/** Escape HTML entities to prevent XSS in email templates */
+function escapeHtml(str: string): string {
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+}
+
 export async function POST(request: Request) {
   try {
-    const { name, email, phone, subject, message } = await request.json()
+    const body = await request.json()
+    const name = String(body.name || '').trim().slice(0, 200)
+    const email = String(body.email || '').trim().slice(0, 320)
+    const phone = String(body.phone || '').trim().slice(0, 20)
+    const subject = String(body.subject || '').trim().slice(0, 200)
+    const message = String(body.message || '').trim().slice(0, 5000)
 
     // Validate required fields
     if (!name || !email || !subject || !message) {
@@ -22,10 +37,17 @@ export async function POST(request: Request) {
       )
     }
 
+    // Escape all user inputs before inserting into HTML
+    const safeName = escapeHtml(name)
+    const safeEmail = escapeHtml(email)
+    const safePhone = escapeHtml(phone)
+    const safeSubject = escapeHtml(subject)
+    const safeMessage = escapeHtml(message)
+
     // Send email to infos@drivedrop.us.com
     await sendEmail({
       to: 'infos@drivedrop.us.com',
-      subject: `Contact Form: ${subject}`,
+      subject: `Contact Form: ${safeSubject}`,
       html: `
         <!DOCTYPE html>
         <html lang="en">
@@ -57,7 +79,7 @@ export async function POST(request: Request) {
                         <tr>
                           <td style="padding:12px;background-color:#f9fafb;border-radius:4px;">
                             <strong style="color:#3b82f6;">Name:</strong>
-                            <p style="margin:4px 0 0;color:#111827;">${name}</p>
+                            <p style="margin:4px 0 0;color:#111827;">${safeName}</p>
                           </td>
                         </tr>
                         <tr><td style="height:8px;"></td></tr>
@@ -65,7 +87,7 @@ export async function POST(request: Request) {
                           <td style="padding:12px;background-color:#f9fafb;border-radius:4px;">
                             <strong style="color:#3b82f6;">Email:</strong>
                             <p style="margin:4px 0 0;color:#111827;">
-                              <a href="mailto:${email}" style="color:#3b82f6;text-decoration:none;">${email}</a>
+                              <a href="mailto:${safeEmail}" style="color:#3b82f6;text-decoration:none;">${safeEmail}</a>
                             </p>
                           </td>
                         </tr>
@@ -75,7 +97,7 @@ export async function POST(request: Request) {
                             <td style="padding:12px;background-color:#f9fafb;border-radius:4px;">
                               <strong style="color:#3b82f6;">Phone:</strong>
                               <p style="margin:4px 0 0;color:#111827;">
-                                <a href="tel:${phone}" style="color:#3b82f6;text-decoration:none;">${phone}</a>
+                                <a href="tel:${safePhone}" style="color:#3b82f6;text-decoration:none;">${safePhone}</a>
                               </p>
                             </td>
                           </tr>
@@ -84,7 +106,7 @@ export async function POST(request: Request) {
                         <tr>
                           <td style="padding:12px;background-color:#f9fafb;border-radius:4px;">
                             <strong style="color:#3b82f6;">Subject:</strong>
-                            <p style="margin:4px 0 0;color:#111827;">${subject}</p>
+                            <p style="margin:4px 0 0;color:#111827;">${safeSubject}</p>
                           </td>
                         </tr>
                       </table>
@@ -92,7 +114,7 @@ export async function POST(request: Request) {
                       <h2 style="margin:0 0 12px;color:#111827;font-size:18px;">Message</h2>
 
                       <div style="padding:16px 20px;background-color:#f9fafb;border-left:3px solid #3b82f6;border-radius:0 6px 6px 0;">
-                        <p style="margin:0;color:#111827;line-height:1.6;white-space:pre-wrap;">${message}</p>
+                        <p style="margin:0;color:#111827;line-height:1.6;white-space:pre-wrap;">${safeMessage}</p>
                       </div>
                     </td>
                   </tr>
@@ -114,9 +136,9 @@ export async function POST(request: Request) {
       `,
     })
 
-    // Send auto-reply to the user
-    await sendEmail({
-      to: email,
+    // Auto-reply to the user — non-blocking (failure here should NOT fail the whole request)
+    sendEmail({
+      to: email, // original unescaped email address for the SMTP To: header
       subject: 'Thank you for contacting DriveDrop',
       html: `
         <!DOCTYPE html>
@@ -143,7 +165,7 @@ export async function POST(request: Request) {
                   <!-- Body -->
                   <tr>
                     <td style="padding:36px 40px;color:#111827;font-size:15px;line-height:1.7;">
-                      <h2 style="margin:0 0 16px;color:#111827;font-size:20px;">Hi ${name},</h2>
+                      <h2 style="margin:0 0 16px;color:#111827;font-size:20px;">Hi ${safeName},</h2>
 
                       <p>Thank you for reaching out to DriveDrop! We've received your message and our team will get back to you within 24 hours.</p>
 
@@ -151,8 +173,8 @@ export async function POST(request: Request) {
 
                       <div style="background-color:#f9fafb;border-left:3px solid #3b82f6;padding:16px 20px;margin:24px 0;border-radius:0 6px 6px 0;font-size:14px;line-height:1.7;">
                         <strong>Your Submission Summary:</strong><br>
-                        <strong>Subject:</strong> ${subject}<br>
-                        <strong>Message:</strong> ${message.substring(0, 200)}${message.length > 200 ? '...' : ''}
+                        <strong>Subject:</strong> ${safeSubject}<br>
+                        <strong>Message:</strong> ${safeMessage.substring(0, 200)}${safeMessage.length > 200 ? '...' : ''}
                       </div>
 
                       <p>Best regards,<br><strong>The DriveDrop Team</strong></p>
@@ -176,6 +198,8 @@ export async function POST(request: Request) {
         </body>
         </html>
       `,
+    }).catch((autoReplyErr) => {
+      console.warn('Auto-reply email failed (non-critical):', autoReplyErr)
     })
 
     return NextResponse.json(
@@ -184,10 +208,14 @@ export async function POST(request: Request) {
     )
   } catch (error: any) {
     console.error('Contact form error:', error)
+    // Provide a more specific message if it's an SMTP config issue
+    const isSmtpConfig = error?.code === 'EAUTH' || error?.code === 'ECONNREFUSED'
     return NextResponse.json(
-      { 
+      {
         error: 'Failed to send message',
-        message: error.message || 'An unexpected error occurred. Please try again later.'
+        message: isSmtpConfig
+          ? 'Email service is temporarily unavailable. Please email us directly at infos@drivedrop.us.com or call +1-704-266-2317.'
+          : (error.message || 'An unexpected error occurred. Please try again later.'),
       },
       { status: 500 }
     )

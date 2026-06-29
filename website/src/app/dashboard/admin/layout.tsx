@@ -29,7 +29,8 @@ import {
   Target,
   Mail,
   TrendingUp,
-  FolderOpen
+  FolderOpen,
+  Trash2
 } from 'lucide-react'
 import NotificationBell from '@/components/NotificationBell'
 import { Button } from '@/components/ui/button'
@@ -56,6 +57,7 @@ const navItems = [
   { href: '/dashboard/admin/carriers', label: 'Contacts', icon: Users },
   { href: '/dashboard/admin/campaign-analytics', label: 'Campaign Analytics', icon: TrendingUp },
   { href: '/dashboard/admin/settings', label: 'Settings', icon: Settings },
+  { href: '/dashboard/admin/account-deletions', label: 'Deletion Requests', icon: Trash2 },
 ]
 
 export default function AdminDashboardLayout({

@@ -62,6 +62,15 @@ export async function POST(request: Request) {
       )
     }
 
+    // Block login for accounts pending deletion review
+    if (profile.status === 'pending_delete_review') {
+      await supabase.auth.signOut()
+      return NextResponse.json(
+        { error: 'This account has a pending deletion request and has been suspended. Please contact support at infos@drivedrop.us.com if this was a mistake.' },
+        { status: 403 }
+      )
+    }
+
     // Verify role matches
     if (profile.role !== role) {
       // Sign out if wrong role

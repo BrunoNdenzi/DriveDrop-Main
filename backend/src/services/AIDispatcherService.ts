@@ -388,7 +388,23 @@ export class AIDispatcherService {
     if (statusError) throw statusError;
 
     // 4. Send notification to driver
-    // TODO: Integrate with notification system
+    const now = new Date().toISOString();
+    const notifRows = optimization.shipment_ids.map((shipmentId: string) => ({
+      user_id: optimization.driver_id,
+      type: 'driver_assigned',
+      title: 'New Shipment Assigned',
+      message: 'You have been assigned a new shipment. Check your dashboard for details.',
+      data: { shipmentId, optimizationId, source: 'ai_dispatcher' },
+      is_read: false,
+      created_at: now,
+    }));
+    if (notifRows.length > 0) {
+      const { error: notifError } = await supabase.from('notifications').insert(notifRows);
+      if (notifError) {
+        // Non-fatal: log but don't fail the assignment
+        console.error('[AIDispatcher] Failed to create driver notifications:', notifError);
+      }
+    }
   }
 
   /**

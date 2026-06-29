@@ -354,10 +354,143 @@ export const shipmentService = {
         throw createError(error.message, 400, 'STATUS_UPDATE_FAILED');
       }
 
+      // Create in-app notifications for key status transitions
+      if (data) {
+        await this.createShipmentStatusNotification(data, status);
+      }
+
       return data;
     } catch (error) {
       logger.error('Error updating shipment status', { error, id, status, driverId });
       throw error;
+    }
+  },
+
+  /**
+   * Create in-app notification row(s) for a shipment status change.
+   * Non-fatal — errors are logged but do not throw.
+   */
+  async createShipmentStatusNotification(shipment: Record<string, any>, status: ShipmentStatus) {
+    try {
+      type NotifRow = {
+        user_id: string;
+        type: string;
+        title: string;
+        message: string;
+        data: Record<string, unknown>;
+        is_read: boolean;
+        created_at: string;
+      };
+      const rows: NotifRow[] = [];
+      const now = new Date().toISOString();
+      const clientId: string | undefined = shipment.client_id;
+      const resolvedDriverId: string | undefined = shipment.driver_id;
+      const vehicleLabel = [shipment.vehicle_year, shipment.vehicle_make, shipment.vehicle_model]
+        .filter(Boolean).join(' ') || 'your vehicle';
+
+      switch (status) {
+        case 'assigned':
+          // Notify client: driver assigned
+          if (clientId) {
+            rows.push({
+              user_id: clientId,
+              type: 'driver_assigned',
+              title: 'Driver Assigned',
+              message: `A driver has been assigned to transport ${vehicleLabel}. They will contact you before pickup.`,
+              data: { shipmentId: shipment.id, status },
+              is_read: false,
+              created_at: now,
+            });
+          }
+          break;
+
+        case 'picked_up':
+          // Notify client: vehicle picked up
+          if (clientId) {
+            rows.push({
+              user_id: clientId,
+              type: 'shipment_updated',
+              title: 'Vehicle Picked Up',
+              message: `${vehicleLabel} has been picked up and is on its way!`,
+              data: { shipmentId: shipment.id, status },
+              is_read: false,
+              created_at: now,
+            });
+          }
+          break;
+
+        case 'in_transit':
+          // Notify client: in transit
+          if (clientId) {
+            rows.push({
+              user_id: clientId,
+              type: 'shipment_updated',
+              title: 'In Transit',
+              message: `${vehicleLabel} is now in transit to the delivery location.`,
+              data: { shipmentId: shipment.id, status },
+              is_read: false,
+              created_at: now,
+            });
+          }
+          break;
+
+        case 'delivered':
+          // Notify client: delivered
+          if (clientId) {
+            rows.push({
+              user_id: clientId,
+              type: 'delivery_completed',
+              title: 'Vehicle Delivered',
+              message: `${vehicleLabel} has been successfully delivered. Thank you for choosing DriveDrop!`,
+              data: { shipmentId: shipment.id, status },
+              is_read: false,
+              created_at: now,
+            });
+          }
+          // Notify driver: delivery confirmed
+          if (resolvedDriverId) {
+            rows.push({
+              user_id: resolvedDriverId,
+              type: 'delivery_completed',
+              title: 'Delivery Confirmed',
+              message: `Delivery of ${vehicleLabel} has been confirmed. Your earnings will be processed shortly.`,
+              data: { shipmentId: shipment.id, status },
+              is_read: false,
+              created_at: now,
+            });
+          }
+          break;
+
+        case 'cancelled':
+          if (clientId) {
+            rows.push({
+              user_id: clientId,
+              type: 'shipment_updated',
+              title: 'Shipment Cancelled',
+              message: `Your shipment for ${vehicleLabel} has been cancelled.`,
+              data: { shipmentId: shipment.id, status },
+              is_read: false,
+              created_at: now,
+            });
+          }
+          break;
+
+        default:
+          // No notification for other status values
+          break;
+      }
+
+      if (rows.length > 0) {
+        const { error: notifErr } = await supabase.from('notifications').insert(rows);
+        if (notifErr) {
+          logger.error('Failed to insert shipment status notifications (non-fatal)', { error: notifErr, shipmentId: shipment.id, status });
+        } else {
+          logger.info('Shipment status notifications created', { shipmentId: shipment.id, status, count: rows.length });
+        }
+      }
+    } catch (notifError) {
+      // Non-fatal: never block the status update because of notification failure
+      logger.error('Exception in createShipmentStatusNotification (non-fatal)', { error: notifError, shipmentId: shipment?.id, status });
     }
   },
 
@@ -492,6 +625,11 @@ export const shipmentService = {
         })
         .eq('shipment_id', shipmentId)
         .neq('driver_id', driverId);
+
+      // Create in-app notifications for the assignment
+      if (updatedShipment) {
+        await this.createShipmentStatusNotification(updatedShipment, 'assigned' as ShipmentStatus);
+      }
 
       return updatedShipment;
     } catch (error) {

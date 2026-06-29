@@ -1,10 +1,11 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
-import { ArrowLeft, Bell, Mail, CheckCircle } from 'lucide-react'
+import { ArrowLeft, Bell, Mail, CheckCircle, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { Label } from '@/components/ui/label'
+import { useAuth } from '@/hooks/useAuth'
+import { getSupabaseBrowserClient } from '@/lib/supabase'
 
 interface NotificationPrefs {
   email_shipment_updates: boolean
@@ -14,8 +15,6 @@ interface NotificationPrefs {
   push_payment_alerts: boolean
 }
 
-const STORAGE_KEY = 'dd_notification_prefs'
-
 const defaults: NotificationPrefs = {
   email_shipment_updates: true,
   email_payment_receipts: true,
@@ -24,28 +23,78 @@ const defaults: NotificationPrefs = {
   push_payment_alerts: true,
 }
 
+/** Map our UI prefs to client_settings DB columns */
+function prefsToDb(prefs: NotificationPrefs) {
+  return {
+    // email_notifications = any email pref on
+    email_notifications: prefs.email_shipment_updates || prefs.email_payment_receipts,
+    shipment_updates: prefs.email_shipment_updates,
+    marketing_emails: prefs.email_promotions,
+    promotional_offers: prefs.email_promotions,
+    // push_notifications = any push pref on
+    push_notifications: prefs.push_shipment_updates || prefs.push_payment_alerts,
+  }
+}
+
+/** Map DB row back to our UI prefs */
+function dbToPrefs(row: Record<string, unknown>): NotificationPrefs {
+  return {
+    email_shipment_updates: (row.shipment_updates as boolean) ?? defaults.email_shipment_updates,
+    email_payment_receipts: (row.email_notifications as boolean) ?? defaults.email_payment_receipts,
+    email_promotions: (row.marketing_emails as boolean) ?? defaults.email_promotions,
+    push_shipment_updates: (row.push_notifications as boolean) ?? defaults.push_shipment_updates,
+    push_payment_alerts: (row.push_notifications as boolean) ?? defaults.push_payment_alerts,
+  }
+}
+
 export default function NotificationsSettingsPage() {
   const router = useRouter()
+  const { user } = useAuth()
   const [prefs, setPrefs] = useState<NotificationPrefs>(defaults)
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
-  useEffect(() => {
-    try {
-      const stored = localStorage.getItem(STORAGE_KEY)
-      if (stored) setPrefs({ ...defaults, ...JSON.parse(stored) })
-    } catch { /* ignore */ }
-  }, [])
+  const loadPrefs = useCallback(async () => {
+    if (!user?.id) return
+    const supabase = getSupabaseBrowserClient()
+    const { data, error: dbErr } = await supabase
+      .from('client_settings')
+      .select('email_notifications, push_notifications, marketing_emails, promotional_offers, shipment_updates')
+      .eq('client_id', user.id)
+      .maybeSingle()
+
+    if (!dbErr && data) {
+      setPrefs(dbToPrefs(data as Record<string, unknown>))
+    }
+    setLoading(false)
+  }, [user?.id])
+
+  useEffect(() => { loadPrefs() }, [loadPrefs])
 
   const toggle = (key: keyof NotificationPrefs) => {
     setPrefs(prev => ({ ...prev, [key]: !prev[key] }))
     setSaved(false)
   }
 
-  const handleSave = () => {
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(prefs))
-    } catch { /* ignore */ }
-    setSaved(true)
+  const handleSave = async () => {
+    if (!user?.id) return
+    setSaving(true)
+    setError(null)
+    const supabase = getSupabaseBrowserClient()
+    const { error: upsertErr } = await supabase
+      .from('client_settings')
+      .upsert(
+        { client_id: user.id, ...prefsToDb(prefs) },
+        { onConflict: 'client_id' }
+      )
+    setSaving(false)
+    if (upsertErr) {
+      setError('Failed to save preferences. Please try again.')
+    } else {
+      setSaved(true)
+    }
   }
 
   const emailItems: { key: keyof NotificationPrefs; label: string; desc: string }[] = [
@@ -58,6 +107,14 @@ export default function NotificationsSettingsPage() {
     { key: 'push_shipment_updates', label: 'Shipment updates', desc: 'Real-time status changes in the dashboard' },
     { key: 'push_payment_alerts', label: 'Payment alerts', desc: 'Instant notifications for payments and bookings' },
   ]
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-16">
+        <Loader2 className="h-6 w-6 animate-spin text-blue-500" />
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-4 max-w-lg">
@@ -115,8 +172,12 @@ export default function NotificationsSettingsPage() {
         ))}
       </div>
 
-      <Button onClick={handleSave} className="w-full">
-        {saved ? (
+      {error && <p className="text-sm text-red-600">{error}</p>}
+
+      <Button onClick={handleSave} disabled={saving} className="w-full">
+        {saving ? (
+          <span className="flex items-center gap-2"><Loader2 className="h-4 w-4 animate-spin" /> Saving…</span>
+        ) : saved ? (
           <span className="flex items-center gap-2"><CheckCircle className="h-4 w-4" /> Saved</span>
         ) : 'Save Preferences'}
       </Button>

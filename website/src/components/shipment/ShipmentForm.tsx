@@ -211,8 +211,13 @@ export default function ShipmentForm({ onSubmit, isSubmitting, showClientFields 
       ...prev,
       [section]: !prev[section],
     }))
-    // Scroll to top of page when opening a new section
-    window.scrollTo({ top: 0, behavior: 'smooth' })
+    // Scroll to top — works for both window and scrollable containers
+    try {
+      window.scrollTo({ top: 0, behavior: 'smooth' })
+      // Also scroll the nearest scrollable parent (for mobile dashboard layouts)
+      const el = document.getElementById('shipment-form-top')
+      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    } catch { /* ignore */ }
   }
 
   const updateFormData = (field: keyof ShipmentData, value: any) => {
@@ -328,6 +333,8 @@ export default function ShipmentForm({ onSubmit, isSubmitting, showClientFields 
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
+      {/* Scroll anchor — used by toggleSection */}
+      <div id="shipment-form-top" />
       {/* Customer Information */}
       <CollapsibleSection
         title="Customer Information"
