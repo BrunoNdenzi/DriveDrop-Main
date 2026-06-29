@@ -89,9 +89,6 @@ export async function POST(request: NextRequest) {
   }
 }
 
-const supabase = createClient(supabaseUrl, supabaseServiceKey)
-
-export async function POST(request: NextRequest) {
   try {
     const { userId, email, reason } = await request.json()
 
