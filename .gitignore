@@ -10,6 +10,10 @@ pnpm-debug.log*
 *.xlsx
 *.xls
 
+# Lighthouse / browser audit reports
+*.report.html
+*.report.json
+
 # Environment variables
 .env
 .env.local
