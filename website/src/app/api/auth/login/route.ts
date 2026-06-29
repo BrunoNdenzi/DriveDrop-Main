@@ -51,7 +51,7 @@ export async function POST(request: Request) {
     // Fetch user profile to check role
     const { data: profile, error: profileError } = await supabase
       .from('profiles')
-      .select('role')
+      .select('role, status')
       .eq('id', authData.user.id)
       .single()
 
