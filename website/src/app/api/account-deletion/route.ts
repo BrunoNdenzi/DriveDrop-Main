@@ -89,8 +89,6 @@ export async function POST(request: NextRequest) {
   }
 }
 
-  try {
-    const { userId, email, reason } = await request.json()
 
     if (!userId || !email) {
       return NextResponse.json(
