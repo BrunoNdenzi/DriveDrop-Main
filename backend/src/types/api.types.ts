@@ -49,6 +49,8 @@ export enum UserRole {
 export enum ShipmentStatus {
   PENDING = 'pending',
   ACCEPTED = 'accepted',
+  ASSIGNED = 'assigned',
+  PICKED_UP = 'picked_up',
   IN_TRANSIT = 'in_transit',
   DELIVERED = 'delivered',
   CANCELLED = 'cancelled',

@@ -370,7 +370,7 @@ export const shipmentService = {
    * Create in-app notification row(s) for a shipment status change.
    * Non-fatal — errors are logged but do not throw.
    */
-  async createShipmentStatusNotification(shipment: Record<string, any>, status: ShipmentStatus) {
+  async createShipmentStatusNotification(shipment: { id?: string; client_id?: string; driver_id?: string; vehicle_year?: string; vehicle_make?: string; vehicle_model?: string; }, status: ShipmentStatus) {
     try {
       type NotifRow = {
         user_id: string;
