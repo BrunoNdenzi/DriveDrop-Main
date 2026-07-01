@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useRef, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import { Bell, Check, CheckCheck, X, Package, CreditCard, Truck, MessageCircle, AlertCircle } from 'lucide-react'
 import { useNotifications, type Notification } from '@/hooks/useNotifications'
 import { formatDistanceToNow } from 'date-fns'
@@ -30,6 +31,7 @@ const notificationColors = {
 }
 
 export default function NotificationBell() {
+  const router = useRouter()
   const [isOpen, setIsOpen] = useState(false)
   const dropdownRef = useRef<HTMLDivElement>(null)
   const { notifications, unreadCount, loading, markAsRead, markAllAsRead, deleteNotification } = useNotifications()
@@ -167,7 +169,9 @@ export default function NotificationBell() {
           {/* Footer - Only show if there are notifications */}
           {notifications.length > 0 && (
             <div className="border-t border-gray-200 px-4 py-2 bg-gray-50">
-              <button className="text-xs text-primary hover:text-primary-dark font-medium transition-colors w-full text-center">
+              <button
+                onClick={() => { setIsOpen(false); router.push('/dashboard/client/notifications') }}
+                className="text-xs text-primary hover:text-primary-dark font-medium transition-colors w-full text-center">
                 View all notifications
               </button>
             </div>

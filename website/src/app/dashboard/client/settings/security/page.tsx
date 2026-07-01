@@ -6,11 +6,9 @@ import { ArrowLeft, KeyRound, Eye, EyeOff, CheckCircle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { getSupabaseBrowserClient } from '@/lib/supabase-client'
 
 export default function SecuritySettingsPage() {
   const router = useRouter()
-  const supabase = getSupabaseBrowserClient()
   const [currentPassword, setCurrentPassword] = useState('')
   const [newPassword, setNewPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
@@ -34,19 +32,13 @@ export default function SecuritySettingsPage() {
 
     setLoading(true)
     try {
-      // Re-authenticate with current password first
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user?.email) throw new Error('Not authenticated')
-
-      const { error: signInError } = await supabase.auth.signInWithPassword({
-        email: user.email,
-        password: currentPassword,
+      const res = await fetch('/api/auth/change-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ currentPassword, newPassword }),
       })
-      if (signInError) throw new Error('Current password is incorrect.')
-
-      // Update password
-      const { error: updateError } = await supabase.auth.updateUser({ password: newPassword })
-      if (updateError) throw updateError
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Failed to change password.')
 
       setSuccess(true)
       setCurrentPassword('')

@@ -124,26 +124,17 @@ export default function DriverDashboardPage() {
   }
 
   const handleAcceptJob = async (jobId: string) => {
-    console.log('🚀 [Dashboard] Starting job application:', { jobId, profileId: profile?.id })
-    
     if (!profile?.id) {
-      console.error('❌ [Dashboard] No profile ID found')
-      alert('ERROR: No profile ID found. Check console.')
       toast('Please log in to apply for jobs', 'error')
       return
     }
     
     setAcceptingJobId(jobId)
-    
-    // OPTIMISTIC UI: Remove job immediately
     const jobToRemove = availableJobs.find(job => job.id === jobId)
-    console.log('📦 [Dashboard] Job to apply for:', jobToRemove)
     setAvailableJobs(prev => prev.filter(job => job.id !== jobId))
     
     try {
-      // CORRECT FLOW: Create job application (like mobile app)
-      console.log('🔄 [Dashboard] Creating job application...')
-      const { data: applicationData, error: appError } = await supabase
+      const { error: appError } = await supabase
         .from('job_applications')
         .insert({
           shipment_id: jobId,
@@ -154,34 +145,30 @@ export default function DriverDashboardPage() {
         .select()
         .single()
 
-      console.log('📊 [Dashboard] Application response:', { data: applicationData, error: appError })
-
-      if (appError) {
-        console.error('❌ [Dashboard] Application error:', appError)
-        alert(`ERROR: ${appError.message}\nCode: ${appError.code}\nDetails: ${appError.details}\nHint: ${appError.hint}`)
-        throw appError
-      }
+      if (appError) throw appError
       
-      console.log('✅ [Dashboard] Job application submitted successfully!')
-      alert('SUCCESS! Application submitted. Client will review it.')
       toast('Application submitted! Waiting for admin approval...', 'success')
-      
-      // Refresh jobs list
       fetchData()
     } catch (error: any) {
-      console.error('❌ [Dashboard] Error submitting application:', error)
-      console.error('❌ [Dashboard] Error details:', JSON.stringify(error, null, 2))
-      alert(`ERROR: ${error?.message || 'Unknown error'}\n\nFull error: ${JSON.stringify(error, null, 2)}`)
-      
-      // REVERT: Add job back if error
-      if (jobToRemove) {
-        setAvailableJobs(prev => [jobToRemove, ...prev])
-      }
-      
-      toast('Failed to submit application. Please try again.', 'error')
+      if (jobToRemove) setAvailableJobs(prev => [jobToRemove, ...prev])
+      toast(error?.message || 'Failed to submit application. Please try again.', 'error')
     } finally {
-      console.log('🏁 [Dashboard] Job application flow completed')
       setAcceptingJobId(null)
+    }
+  }
+
+  const handleAcceptAssignment = async (shipmentId: string) => {
+    try {
+      const { error } = await supabase
+        .from('shipments')
+        .update({ status: 'accepted' })
+        .eq('id', shipmentId)
+        .eq('driver_id', profile?.id)
+      if (error) throw error
+      toast('Assignment accepted! You can now proceed with pickup.', 'success')
+      fetchData()
+    } catch (error: any) {
+      toast(error?.message || 'Failed to accept assignment.', 'error')
     }
   }
 
@@ -277,10 +264,12 @@ export default function DriverDashboardPage() {
                       inline-block px-2 py-0.5 rounded text-[10px] font-medium mb-2
                       ${delivery.status === 'in_transit' 
                         ? 'bg-blue-100 text-blue-700' 
+                        : delivery.status === 'assigned'
+                        ? 'bg-orange-100 text-orange-700'
                         : 'bg-amber-100 text-amber-700'
                       }
                     `}>
-                      {delivery.status === 'in_transit' ? 'In Transit' : 'Ready for Pickup'}
+                      {delivery.status === 'in_transit' ? 'In Transit' : delivery.status === 'assigned' ? 'Awaiting Your Acceptance' : 'Ready for Pickup'}
                     </span>
                     <div className="space-y-1">
                       <div className="flex items-center gap-1.5 text-xs">
@@ -302,12 +291,28 @@ export default function DriverDashboardPage() {
                     </p>
                   </div>
                 </div>
-                <Link href={`/dashboard/driver/active/${delivery.id}`}>
-                  <Button size="sm" className="w-full h-7 text-xs bg-amber-500 hover:bg-amber-600">
-                    View Details
-                    <ArrowRight className="h-3 w-3 ml-1" />
-                  </Button>
-                </Link>
+                {delivery.status === 'assigned' ? (
+                  <div className="flex gap-2">
+                    <Button
+                      size="sm"
+                      className="flex-1 h-7 text-xs bg-green-600 hover:bg-green-700"
+                      onClick={() => handleAcceptAssignment(delivery.id)}
+                    >
+                      <CheckCircle className="h-3 w-3 mr-1" />
+                      Accept Assignment
+                    </Button>
+                    <Link href={`/dashboard/driver/active/${delivery.id}`} className="flex-1">
+                      <Button variant="outline" size="sm" className="w-full h-7 text-xs">View Details</Button>
+                    </Link>
+                  </div>
+                ) : (
+                  <Link href={`/dashboard/driver/active/${delivery.id}`}>
+                    <Button size="sm" className="w-full h-7 text-xs bg-amber-500 hover:bg-amber-600">
+                      View Details
+                      <ArrowRight className="h-3 w-3 ml-1" />
+                    </Button>
+                  </Link>
+                )}
               </div>
             ))}
           </div>

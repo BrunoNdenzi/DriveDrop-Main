@@ -13,6 +13,7 @@ import {
   LogOut,
   ChevronRight,
   KeyRound,
+  Trash2,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 
@@ -93,6 +94,23 @@ export default function ClientSettingsPage() {
             </div>
           </div>
         ))}
+
+        {/* Delete Account */}
+        <div className="bg-white rounded-md border border-red-100 p-4">
+          <button
+            onClick={() => router.push('/account-deletion')}
+            className="w-full flex items-center gap-3 text-red-600 hover:text-red-700"
+          >
+            <div className="w-8 h-8 bg-red-50 rounded-md flex items-center justify-center">
+              <Trash2 className="h-4 w-4 text-red-500" />
+            </div>
+            <div className="text-left">
+              <p className="font-medium">Delete Account</p>
+              <p className="text-sm text-red-400">Permanently remove your account and data</p>
+            </div>
+            <ChevronRight className="h-5 w-5 text-red-300 ml-auto" />
+          </button>
+        </div>
 
         {/* Sign Out */}
         <div className="bg-white rounded-md border border-gray-200 p-4">

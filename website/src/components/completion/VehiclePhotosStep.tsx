@@ -13,10 +13,10 @@ interface VehiclePhotosStepProps {
 }
 
 const REQUIRED_ANGLES = [
-  { id: 'front', label: 'Front View', required: true },
-  { id: 'rear', label: 'Rear View', required: true },
-  { id: 'left', label: 'Left Side', required: true },
-  { id: 'right', label: 'Right Side', required: true },
+  { id: 'front', label: 'Front View', required: false },
+  { id: 'rear', label: 'Rear View', required: false },
+  { id: 'left', label: 'Left Side', required: false },
+  { id: 'right', label: 'Right Side', required: false },
   { id: 'interior', label: 'Interior', required: false },
   { id: 'damage', label: 'Any Damage', required: false },
 ]

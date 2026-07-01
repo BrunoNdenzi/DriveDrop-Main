@@ -23,9 +23,9 @@ export default function ForgotPasswordPage() {
 
     try {
       const { error: resetError } = await supabase.auth.resetPasswordForEmail(email, {
-        // Route through the server-side callback so the PKCE code is exchanged
-        // server-side before the user lands on /reset-password
-        redirectTo: `${window.location.origin}/auth/callback?type=recovery`,
+        // Always use the canonical www domain so the redirect is in Supabase's allowed list
+        // regardless of whether the user started from the root or www domain
+        redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL || 'https://www.drivedrop.us.com'}/auth/callback?type=recovery`,
       })
 
       if (resetError) throw resetError

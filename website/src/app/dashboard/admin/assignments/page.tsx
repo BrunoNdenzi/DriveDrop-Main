@@ -185,12 +185,12 @@ export default function AdminAssignmentsPage() {
 
       if (appError) throw appError
 
-      // 2. Assign driver to shipment
+      // 2. Assign driver to shipment — driver already committed by applying, so mark accepted
       const { error: shipmentError } = await supabase
         .from('shipments')
         .update({ 
           driver_id: driverId,
-          status: 'assigned'
+          status: 'accepted'
         })
         .eq('id', shipmentId)
 

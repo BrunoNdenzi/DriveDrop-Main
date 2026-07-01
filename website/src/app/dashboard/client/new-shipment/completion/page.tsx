@@ -53,7 +53,7 @@ export default function ShipmentCompletionPage() {
   const canProceed = () => {
     switch (currentStep) {
       case 1:
-        return completionData.vehiclePhotos.length >= 4
+        return true // Vehicle photos are optional
       case 2:
         return completionData.ownershipDocuments.length >= 1
       case 3:

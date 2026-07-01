@@ -52,6 +52,7 @@ export default function DriverJobsPage() {
   const [filterVehicleType, setFilterVehicleType] = useState('all')
   const [filterPrice, setFilterPrice] = useState('all')
   const [applyingJobId, setApplyingJobId] = useState<string | null>(null)
+  const [appliedJobId, setAppliedJobId] = useState<string | null>(null)
   const supabase = getSupabaseBrowserClient()
 
   useEffect(() => {
@@ -167,27 +168,20 @@ export default function DriverJobsPage() {
   }
 
   const handleApplyForJob = async (jobId: string) => {
-    console.log('🚀 [Jobs Page] Starting job application:', { jobId, profileId: profile?.id })
-    
     if (!profile?.id) {
-      console.error('❌ [Jobs Page] No profile ID found')
-      alert('ERROR: No profile ID found. Check console.')
       toast('Please log in to apply for jobs', 'error')
       return
     }
 
     setApplyingJobId(jobId)
     
-    // OPTIMISTIC UI: Remove job immediately for instant feedback
+    // Optimistic UI: remove the job card immediately
     const jobToRemove = jobs.find(job => job.id === jobId)
-    console.log('📦 [Jobs Page] Job to apply for:', jobToRemove)
     const updatedJobs = jobs.filter(job => job.id !== jobId)
     setJobs(updatedJobs)
     
     try {
-      // CORRECT FLOW: Create job application (like mobile app)
-      console.log('🔄 [Jobs Page] Creating job application...')
-      const { data, error: shipmentError } = await supabase
+      const { error: shipmentError } = await supabase
         .from('job_applications')
         .insert({
           shipment_id: jobId,
@@ -198,34 +192,16 @@ export default function DriverJobsPage() {
         .select()
         .single()
 
-      console.log('📊 [Jobs Page] Application response:', { data, error: shipmentError })
+      if (shipmentError) throw shipmentError
 
-      if (shipmentError) {
-        console.error('❌ [Jobs Page] Application error:', shipmentError)
-        alert(`ERROR: ${shipmentError.message}\nCode: ${shipmentError.code}\nDetails: ${shipmentError.details}\nHint: ${shipmentError.hint}`)
-        throw shipmentError
-      }
-
-      // Success! Show toast
-      console.log('✅ [Jobs Page] Job application submitted successfully!')
-      alert('SUCCESS! Application submitted. Client will review it.')
-      toast('Application submitted! Waiting for admin approval...', 'success')
-      
-      // Refresh jobs list
+      setAppliedJobId(jobId)
+      toast('Application submitted! You\'ll be notified once reviewed by admin.', 'success')
       fetchJobs()
     } catch (error: any) {
-      console.error('❌ [Jobs Page] Error submitting application:', error)
-      console.error('❌ [Jobs Page] Error details:', JSON.stringify(error, null, 2))
-      alert(`ERROR: ${error?.message || 'Unknown error'}\n\nFull error: ${JSON.stringify(error, null, 2)}`)
-      
-      // REVERT OPTIMISTIC UPDATE: Add job back if error
-      if (jobToRemove) {
-        setJobs([jobToRemove, ...updatedJobs])
-      }
-      
-      toast('Failed to submit application. Please try again.', 'error')
+      // Revert optimistic update on error
+      if (jobToRemove) setJobs([jobToRemove, ...updatedJobs])
+      toast(error?.message || 'Failed to submit application. Please try again.', 'error')
     } finally {
-      console.log('🏁 [Jobs Page] Job application flow completed')
       setApplyingJobId(null)
     }
   }
@@ -593,6 +569,39 @@ export default function DriverJobsPage() {
         )}
           </>
         )}
+
+      {/* Application Success Modal */}
+      {appliedJobId && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-xl max-w-sm w-full p-6 text-center">
+            <div className="w-14 h-14 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <CheckCircle className="h-7 w-7 text-green-600" />
+            </div>
+            <h2 className="text-lg font-bold text-gray-900 mb-1">Application Submitted!</h2>
+            <p className="text-sm text-gray-500 mb-4">
+              Your application has been sent to the admin for review. Here's what happens next:
+            </p>
+            <div className="text-left space-y-2 mb-5">
+              <div className="flex items-start gap-2">
+                <span className="w-5 h-5 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-xs font-bold flex-shrink-0 mt-0.5">1</span>
+                <p className="text-sm text-gray-600">Admin reviews your application (usually within a few hours)</p>
+              </div>
+              <div className="flex items-start gap-2">
+                <span className="w-5 h-5 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-xs font-bold flex-shrink-0 mt-0.5">2</span>
+                <p className="text-sm text-gray-600">If approved, the shipment is assigned directly to you</p>
+              </div>
+              <div className="flex items-start gap-2">
+                <span className="w-5 h-5 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-xs font-bold flex-shrink-0 mt-0.5">3</span>
+                <p className="text-sm text-gray-600">You'll receive a notification and can start the pickup immediately</p>
+              </div>
+            </div>
+            <div className="flex gap-2">
+              <Button variant="outline" size="sm" className="flex-1" onClick={() => setAppliedJobId(null)}>Back to Jobs</Button>
+              <Button size="sm" className="flex-1" onClick={() => { setAppliedJobId(null); window.location.href = '/dashboard/driver/applications' }}>View My Applications</Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

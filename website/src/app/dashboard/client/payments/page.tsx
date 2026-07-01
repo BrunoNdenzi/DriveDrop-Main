@@ -48,7 +48,7 @@ interface PaymentStats {
 }
 
 export default function ClientPaymentsPage() {
-  const { profile } = useAuth()
+  const { profile, loading: authLoading } = useAuth()
   const router = useRouter()
   const [payments, setPayments] = useState<Payment[]>([])
   const [filteredPayments, setFilteredPayments] = useState<Payment[]>([])
@@ -59,17 +59,16 @@ export default function ClientPaymentsPage() {
     completedPayments: 0,
   })
   const [loading, setLoading] = useState(true)
+  const [fetchError, setFetchError] = useState<string | null>(null)
   const [filterStatus, setFilterStatus] = useState('all')
   const [filterType, setFilterType] = useState('all')
   const supabase = getSupabaseBrowserClient()
 
   const loadPayments = useCallback(async () => {
-    if (!profile?.id) {
-      setLoading(false)
-      return
-    }
+    if (!profile?.id) return
 
     setLoading(true)
+    setFetchError(null)
     try {
       const { data: paymentsData, error: paymentsError } = await supabase
         .from('payments')
@@ -109,6 +108,7 @@ export default function ClientPaymentsPage() {
       })
     } catch (error: any) {
       console.error('Error loading payments:', error)
+      setFetchError(error?.message || 'Failed to load payments.')
     } finally {
       setLoading(false)
     }
@@ -199,6 +199,14 @@ export default function ClientPaymentsPage() {
     }
   }
 
+  if (authLoading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500" />
+      </div>
+    )
+  }
+
   if (!profile) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -215,6 +223,19 @@ export default function ClientPaymentsPage() {
         <div className="text-center">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto mb-3"></div>
           <p className="text-sm text-gray-500">Loading payment history...</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (fetchError) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <div className="text-center">
+          <AlertCircle className="h-8 w-8 text-red-400 mx-auto mb-3" />
+          <p className="text-sm text-red-600 font-medium mb-2">Failed to load payments</p>
+          <p className="text-xs text-gray-500 mb-4">{fetchError}</p>
+          <Button onClick={loadPayments} variant="outline" size="sm">Try again</Button>
         </div>
       </div>
     )

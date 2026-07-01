@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { useAuth } from '@/hooks/useAuth'
 import { getSupabaseBrowserClient } from '@/lib/supabase-client'
 import { toast } from '@/components/ui/toast'
@@ -59,6 +60,7 @@ interface DriverStats {
 
 export default function DriverProfilePage() {
   const { profile } = useAuth()
+  const router = useRouter()
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [activeTab, setActiveTab] = useState<'profile' | 'vehicles' | 'settings' | 'stats'>('profile')
@@ -708,6 +710,20 @@ export default function DriverProfilePage() {
                 </>
               )}
             </button>
+
+            {/* Delete Account */}
+            <div className="border border-red-100 rounded-md p-4 mt-4">
+              <button
+                onClick={() => router.push('/account-deletion')}
+                className="w-full flex items-center gap-3 text-red-600 hover:text-red-700"
+              >
+                <div className="text-left flex-1">
+                  <p className="font-medium text-sm">Delete Account</p>
+                  <p className="text-xs text-red-400 mt-0.5">Permanently remove your account and data</p>
+                </div>
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-red-300" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+              </button>
+            </div>
           </div>
         )}
 
