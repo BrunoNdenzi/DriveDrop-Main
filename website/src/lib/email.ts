@@ -1,6 +1,11 @@
 import nodemailer from 'nodemailer'
+import { createClient } from '@supabase/supabase-js'
 
-// Primary transporter — Brevo SMTP (port 587, STARTTLS)
+// ---------------------------------------------------------------------------
+// SMTP Transports
+// ---------------------------------------------------------------------------
+
+// Primary — Brevo SMTP port 587 (STARTTLS)
 const primaryTransporter = nodemailer.createTransport({
   host: process.env.SMTP_HOST || 'smtp-relay.brevo.com',
   port: parseInt(process.env.SMTP_PORT || '587'),
@@ -11,7 +16,7 @@ const primaryTransporter = nodemailer.createTransport({
   },
 })
 
-// Secondary transporter — Brevo port 465 (SSL) — same provider, different port/auth path
+// Secondary — Brevo port 465 (SSL), same credentials, different path
 const secondaryTransporter = nodemailer.createTransport({
   host: 'smtp-relay.brevo.com',
   port: 465,
@@ -22,26 +27,96 @@ const secondaryTransporter = nodemailer.createTransport({
   },
 })
 
-// Tertiary transporter — completely separate provider (e.g. SendGrid, Mailgun, AWS SES, Postmark)
-// Configured independently so it works even if Brevo's entire infrastructure is down.
-// Set SMTP2_HOST / SMTP2_PORT / SMTP2_USER / SMTP2_PASS / SMTP2_FROM in your env to activate.
-const hasTertiaryProvider = Boolean(
-  process.env.SMTP2_HOST &&
-  process.env.SMTP2_USER &&
-  process.env.SMTP2_PASS
-)
+// Fallback — Gmail (infos@calkons.com) used when Brevo bounces are detected
+// Activated by GMAIL_USER + GMAIL_APP_PASSWORD env vars
+const fallbackTransporter = nodemailer.createTransport({
+  service: 'gmail',
+  auth: {
+    user: process.env.GMAIL_USER || '',
+    pass: process.env.GMAIL_APP_PASSWORD || '',
+  },
+})
 
+// Tertiary — optional independent third-party provider
+const hasTertiaryProvider = Boolean(
+  process.env.SMTP2_HOST && process.env.SMTP2_USER && process.env.SMTP2_PASS
+)
 const tertiaryTransporter = hasTertiaryProvider
   ? nodemailer.createTransport({
       host: process.env.SMTP2_HOST!,
       port: parseInt(process.env.SMTP2_PORT || '587'),
       secure: (process.env.SMTP2_PORT || '587') === '465',
-      auth: {
-        user: process.env.SMTP2_USER!,
-        pass: process.env.SMTP2_PASS!,
-      },
+      auth: { user: process.env.SMTP2_USER!, pass: process.env.SMTP2_PASS! },
     })
   : null
+
+// ---------------------------------------------------------------------------
+// Delivery Logger (uses service role — server-side only)
+// ---------------------------------------------------------------------------
+
+function getServiceClient() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY
+  if (!url || !key) return null
+  return createClient(url, key, { auth: { persistSession: false, autoRefreshToken: false } })
+}
+
+async function logDelivery(params: {
+  messageId: string
+  recipient: string
+  subject: string
+  fromAddress: string
+  html: string
+  status: 'sent' | 'failed'
+  provider: string
+}) {
+  try {
+    const db = getServiceClient()
+    if (!db) return
+    await db.from('email_delivery_logs').upsert({
+      message_id: params.messageId,
+      recipient: params.recipient,
+      subject: params.subject,
+      from_address: params.fromAddress,
+      html: params.html,
+      status: params.status,
+      provider: params.provider,
+    }, { onConflict: 'message_id' })
+  } catch (err) {
+    console.warn('[email] Failed to write delivery log:', err)
+  }
+}
+
+export async function updateDeliveryLog(messageId: string, updates: {
+  status?: string
+  bounce_type?: string
+  bounce_reason?: string
+  retry_count?: number
+  last_retry_at?: string
+}) {
+  try {
+    const db = getServiceClient()
+    if (!db) return
+    await db.from('email_delivery_logs').update(updates).eq('message_id', messageId)
+  } catch (err) {
+    console.warn('[email] Failed to update delivery log:', err)
+  }
+}
+
+export async function getDeliveryLogByMessageId(messageId: string) {
+  const db = getServiceClient()
+  if (!db) return null
+  const { data } = await db
+    .from('email_delivery_logs')
+    .select('*')
+    .eq('message_id', messageId)
+    .single()
+  return data
+}
+
+// ---------------------------------------------------------------------------
+// HTML utilities
+// ---------------------------------------------------------------------------
 
 const SPAM_NOTE = `
   <tr>
@@ -53,13 +128,15 @@ const SPAM_NOTE = `
   </tr>
 `
 
-// Injects the spam note before the closing </table> of the outer table
 function injectSpamNote(html: string): string {
-  // Insert before the last </table>
   const lastClose = html.lastIndexOf('</table>')
   if (lastClose === -1) return html
   return html.slice(0, lastClose) + SPAM_NOTE + html.slice(lastClose)
 }
+
+// ---------------------------------------------------------------------------
+// Public API
+// ---------------------------------------------------------------------------
 
 interface EmailOptions {
   to: string
@@ -68,85 +145,104 @@ interface EmailOptions {
   from?: string
 }
 
+/**
+ * Send an email via Brevo primary SMTP with automatic fallover.
+ * Every attempt is logged to `email_delivery_logs` so the Brevo webhook
+ * handler can detect async bounces and trigger a fallback resend.
+ */
 export async function sendEmail({ to, subject, html, from }: EmailOptions) {
   const enrichedHtml = injectSpamNote(html)
-  const mailOptions = {
-    from: from || process.env.SMTP_FROM || 'DriveDrop <infos@drivedrop.us.com>',
-    to,
-    subject,
-    html: enrichedHtml,
-  }
+  const fromAddress = from || process.env.SMTP_FROM || 'DriveDrop <infos@drivedrop.us.com>'
+  const mailOptions = { from: fromAddress, to, subject, html: enrichedHtml }
 
-  // Try primary first, then secondary (same provider, different port), then tertiary (different provider)
+  // --- Primary (Brevo 587) ---
   try {
     const info = await primaryTransporter.sendMail(mailOptions)
-    console.log('✅ Email sent (primary):', { messageId: info.messageId, to, subject })
+    const msgId = String(info.messageId || '').replace(/[<>]/g, '')
+    console.log('✅ Email sent (primary):', { messageId: msgId, to, subject })
+    await logDelivery({ messageId: msgId, recipient: to, subject, fromAddress, html: enrichedHtml, status: 'sent', provider: 'brevo' })
     return info
   } catch (primaryError) {
-    console.warn('⚠️ Primary SMTP failed, trying secondary (port 465):', primaryError)
+    console.warn('⚠️ Primary SMTP failed, trying secondary:', primaryError)
+  }
+
+  // --- Secondary (Brevo 465) ---
+  try {
+    const info = await secondaryTransporter.sendMail(mailOptions)
+    const msgId = String(info.messageId || '').replace(/[<>]/g, '')
+    console.log('✅ Email sent (secondary):', { messageId: msgId, to, subject })
+    await logDelivery({ messageId: msgId, recipient: to, subject, fromAddress, html: enrichedHtml, status: 'sent', provider: 'brevo-ssl' })
+    return info
+  } catch (secondaryError) {
+    console.warn('⚠️ Secondary SMTP failed:', secondaryError)
+  }
+
+  // --- Tertiary (optional 3rd-party) ---
+  if (tertiaryTransporter) {
     try {
-      const info = await secondaryTransporter.sendMail(mailOptions)
-      console.log('✅ Email sent (secondary):', { messageId: info.messageId, to, subject })
+      const tertiaryOptions = { ...mailOptions, from: process.env.SMTP2_FROM || fromAddress }
+      const info = await tertiaryTransporter.sendMail(tertiaryOptions)
+      const msgId = String(info.messageId || '').replace(/[<>]/g, '')
+      console.log('✅ Email sent (tertiary):', { messageId: msgId, to, subject })
+      await logDelivery({ messageId: msgId, recipient: to, subject, fromAddress, html: enrichedHtml, status: 'sent', provider: 'tertiary' })
       return info
-    } catch (secondaryError) {
-      console.warn('⚠️ Secondary SMTP failed:', secondaryError)
-
-      // Try tertiary (independent provider) if configured
-      if (tertiaryTransporter) {
-        console.warn('⚠️ Trying tertiary SMTP provider...')
-        try {
-          // Use the secondary provider's FROM address if configured, otherwise fall back
-          const tertiaryMailOptions = {
-            ...mailOptions,
-            from: process.env.SMTP2_FROM || mailOptions.from,
-          }
-          const info = await tertiaryTransporter.sendMail(tertiaryMailOptions)
-          console.log('✅ Email sent (tertiary):', { messageId: info.messageId, to, subject })
-          return info
-        } catch (tertiaryError) {
-          console.error('❌ All three SMTP transports failed.', {
-            primary: primaryError,
-            secondary: secondaryError,
-            tertiary: tertiaryError,
-          })
-          // Alert monitoring address
-          const alertEmail = process.env.SMTP_ALERT_EMAIL || 'infos@calkons.com'
-          if (to !== alertEmail) {
-            // Best-effort alert via whichever transport is reachable
-            for (const t of [primaryTransporter, secondaryTransporter, ...(tertiaryTransporter ? [tertiaryTransporter] : [])]) {
-              try {
-                await t.sendMail({
-                  from: mailOptions.from,
-                  to: alertEmail,
-                  subject: `[EMAIL FAILURE] Failed to send: "${subject}" to ${to}`,
-                  html: `<p>All three SMTP transports failed for <strong>${to}</strong> — subject: <strong>${subject}</strong>.</p><p>Check Brevo and secondary provider configuration immediately.</p>`,
-                })
-                break // stop after first successful alert
-              } catch { /* try next */ }
-            }
-          }
-          throw tertiaryError
-        }
-      }
-
-      // No tertiary configured — alert and throw
-      console.error('❌ Both Brevo transports failed. No tertiary provider configured.', {
-        primary: primaryError,
-        secondary: secondaryError,
-      })
-      const alertEmail = process.env.SMTP_ALERT_EMAIL || 'infos@calkons.com'
-      if (to !== alertEmail) {
-        try {
-          await secondaryTransporter.sendMail({
-            from: mailOptions.from,
-            to: alertEmail,
-            subject: `[EMAIL FAILURE] Failed to send: "${subject}" to ${to}`,
-            html: `<p>Email delivery failed for <strong>${to}</strong> with subject <strong>${subject}</strong>.</p><p>Please investigate SMTP configuration. No tertiary provider is configured (set SMTP2_HOST/SMTP2_USER/SMTP2_PASS to add one).</p>`,
-          })
-        } catch { /* alert also failed */ }
-      }
-      throw secondaryError
+    } catch (tertiaryError) {
+      console.warn('⚠️ Tertiary SMTP failed:', tertiaryError)
     }
+  }
+
+  // --- All transports failed — alert admin ---
+  const alertEmail = process.env.SMTP_ALERT_EMAIL || 'infos@calkons.com'
+  const alertSubject = `[EMAIL FAILURE] Failed to send: "${subject}" to ${to}`
+  const alertHtml = `<p>All SMTP transports failed for <strong>${to}</strong> — subject: <strong>${subject}</strong>.</p><p>Check Brevo and provider configuration.</p>`
+  if (to !== alertEmail) {
+    for (const t of [primaryTransporter, secondaryTransporter, ...(tertiaryTransporter ? [tertiaryTransporter] : [])]) {
+      try { await t.sendMail({ from: fromAddress, to: alertEmail, subject: alertSubject, html: alertHtml }); break } catch { /* try next */ }
+    }
+  }
+  throw new Error(`All email transports failed for ${to} (subject: ${subject})`)
+}
+
+/**
+ * Resend an email via the Gmail fallback (infos@calkons.com).
+ * Called by the Brevo webhook handler when a bounce is detected.
+ */
+export async function resendViaFallback(log: {
+  message_id: string
+  recipient: string
+  subject: string
+  html: string
+}): Promise<boolean> {
+  if (!process.env.GMAIL_USER || !process.env.GMAIL_APP_PASSWORD) {
+    console.error('[email] Fallback resend skipped — GMAIL_USER/GMAIL_APP_PASSWORD not set')
+    return false
+  }
+  try {
+    const info = await fallbackTransporter.sendMail({
+      from: `DriveDrop <${process.env.GMAIL_USER}>`,
+      to: log.recipient,
+      subject: log.subject,
+      html: log.html,
+    })
+    const newMsgId = String(info.messageId || '').replace(/[<>]/g, '')
+    console.log('✅ Fallback resend successful:', { newMsgId, to: log.recipient })
+    await logDelivery({
+      messageId: newMsgId,
+      recipient: log.recipient,
+      subject: `[RETRY] ${log.subject}`,
+      fromAddress: process.env.GMAIL_USER!,
+      html: log.html,
+      status: 'sent',
+      provider: 'gmail-fallback',
+    })
+    await updateDeliveryLog(log.message_id, {
+      status: 'retried',
+      last_retry_at: new Date().toISOString(),
+    })
+    return true
+  } catch (err) {
+    console.error('[email] Fallback resend failed:', err)
+    return false
   }
 }
 

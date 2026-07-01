@@ -149,7 +149,7 @@ export default function Hero() {
                 </div>
 
                 {/* Stats */}
-                <div className="grid grid-cols-3 gap-4 pt-4 border-t">
+                <div className="grid grid-cols-3 gap-2 sm:gap-4 pt-4 border-t">
                   <div className="text-center">
                     <div className="text-2xl font-bold text-primary">2,847</div>
                     <div className="text-xs text-muted-foreground">Miles</div>

@@ -39,7 +39,7 @@ export default function NotificationsPage() {
   const handleClick = async (id: string, isRead: boolean, link?: string) => {
     if (!isRead) await markAsRead(id)
     setExpandedId(prev => prev === id ? null : id)
-    if (link) window.location.href = link
+    if (link) router.push(link)
   }
 
   const unreadCount = notifications.filter(n => !n.is_read).length

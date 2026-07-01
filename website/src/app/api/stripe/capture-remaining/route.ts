@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import Stripe from 'stripe'
 import { createClient } from '@supabase/supabase-js'
+import { createAdminNotification } from '@/lib/admin-notifications'
 
 // Initialize Stripe with default API version from SDK
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!)
@@ -163,6 +164,13 @@ export async function POST(request: NextRequest) {
     })
   } catch (error: any) {
     console.error('❌ Error capturing final payment:', error)
+    createAdminNotification({
+      type: 'payment_failed',
+      title: 'Final Payment Capture Failed',
+      message: `Final (remaining 80%) payment capture failed: ${error.message || 'Unknown error'}`,
+      severity: 'critical',
+      actionLink: '/dashboard/admin/shipments',
+    })
     return NextResponse.json(
       { error: error.message || 'Failed to capture final payment' },
       { status: 500 }

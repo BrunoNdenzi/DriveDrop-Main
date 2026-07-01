@@ -39,9 +39,9 @@ export function useAuth(): UseAuthReturn {
 
   const fetchProfile = async (userId: string) => {
     try {
-      // Add a timeout to prevent infinite hanging
+      // Timeout reduced to 3 s — the UI already rendered with optimistic metadata
       const timeoutPromise = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('Profile fetch timeout after 5 seconds')), 5000)
+        setTimeout(() => reject(new Error('Profile fetch timeout after 3 seconds')), 3000)
       )
       
       // OPTIMIZED: Only select needed fields (70% less data transfer)
@@ -83,24 +83,25 @@ export function useAuth(): UseAuthReturn {
 
         if (session?.user && mounted) {
           setUser(session.user)
-          
+
+          // ── Optimistic profile from user_metadata (renders instantly) ──
+          const meta = session.user.user_metadata || {}
+          const optimisticProfile: UserProfile = {
+            id: session.user.id,
+            email: session.user.email || '',
+            role: (meta.role as UserProfile['role']) || 'client',
+            first_name: meta.first_name,
+            last_name: meta.last_name,
+            phone: meta.phone,
+            avatar_url: meta.avatar_url,
+          }
+          setProfile(optimisticProfile)
+          setLoading(false) // ← unblock UI immediately
+
+          // ── Background: load authoritative profile from DB ──
           const profileData = await fetchProfile(session.user.id)
-          
-          if (mounted) {
-            if (profileData) {
-              setProfile(profileData)
-            } else {
-              // Fallback: create profile from user metadata
-              const fallbackProfile: UserProfile = {
-                id: session.user.id,
-                email: session.user.email || '',
-                role: (session.user.user_metadata?.role as 'client' | 'driver' | 'admin' | 'broker') || 'client',
-                first_name: session.user.user_metadata?.first_name,
-                last_name: session.user.user_metadata?.last_name,
-                phone: session.user.user_metadata?.phone,
-              }
-              setProfile(fallbackProfile)
-            }
+          if (mounted && profileData) {
+            setProfile(profileData)
           }
         }
       } catch (error) {

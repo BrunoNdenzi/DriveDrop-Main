@@ -32,7 +32,7 @@ import {
   FolderOpen,
   Trash2
 } from 'lucide-react'
-import NotificationBell from '@/components/NotificationBell'
+import AdminNotificationBell from '@/components/AdminNotificationBell'
 import { Button } from '@/components/ui/button'
 
 const navItems = [
@@ -58,6 +58,7 @@ const navItems = [
   { href: '/dashboard/admin/campaign-analytics', label: 'Campaign Analytics', icon: TrendingUp },
   { href: '/dashboard/admin/settings', label: 'Settings', icon: Settings },
   { href: '/dashboard/admin/account-deletions', label: 'Deletion Requests', icon: Trash2 },
+  { href: '/dashboard/admin/notifications', label: 'Notifications', icon: Bell },
 ]
 
 export default function AdminDashboardLayout({
@@ -104,6 +105,7 @@ export default function AdminDashboardLayout({
                   alt="DriveDrop"
                   width={120}
                   height={30}
+                  priority
                   className="h-8 w-auto"
                 />
                 <span className="hidden md:flex items-center gap-2 px-3 py-1 bg-purple-50 border border-purple-200 rounded-md">
@@ -116,7 +118,7 @@ export default function AdminDashboardLayout({
             {/* Right Side Actions */}
             <div className="flex items-center gap-4">
               {/* Notifications */}
-              <NotificationBell />
+              <AdminNotificationBell />
 
               {/* User Menu */}
               <div className="relative">

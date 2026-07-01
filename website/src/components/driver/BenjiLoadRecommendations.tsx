@@ -240,7 +240,7 @@ export default function BenjiLoadRecommendations() {
         {/* Expanded Details */}
         {isExpanded && (
           <div className="mt-4 pt-4 border-t border-gray-200 space-y-3">
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-3 gap-2 sm:gap-4">
               <div>
                 <div className="text-xs text-gray-600">Route Fit</div>
                 <div className="text-sm font-semibold">{rec.route_fit}%</div>

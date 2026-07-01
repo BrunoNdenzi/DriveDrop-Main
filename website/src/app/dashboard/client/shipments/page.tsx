@@ -316,7 +316,7 @@ export default function MyShipmentsPage() {
         </div>
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-3 gap-3 mb-4">
+        <div className="grid grid-cols-3 sm:grid-cols-3 gap-2 sm:gap-3 mb-4">
           <div className="bg-white rounded-md border border-gray-200 p-3">
             <div className="flex items-center justify-between">
               <div>

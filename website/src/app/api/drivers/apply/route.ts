@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServiceSupabase } from '@/lib/supabase'
 import { encrypt } from '@/lib/encryption'
 import { sendEmail } from '@/lib/email'
+import { createAdminNotification } from '@/lib/admin-notifications'
 
 // Helper function to upload file to Supabase Storage
 // Uses service role key for elevated permissions
@@ -448,7 +449,16 @@ export async function POST(request: NextRequest) {
     }
 
     // TODO: Initiate background check via Checkr API or similar service
-    // This would typically be done asynchronously after initial review
+
+    // Admin dashboard notification
+    createAdminNotification({
+      type: 'driver_application',
+      title: 'New Driver Application',
+      message: `${fullName} applied to become a driver. Review and approve or reject the application.`,
+      severity: 'medium',
+      actionLink: '/dashboard/admin/driver-applications',
+      data: { applicationId: application.id, fullName, email },
+    })
 
     return NextResponse.json({
       success: true,

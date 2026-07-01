@@ -14,17 +14,19 @@ export default function AccountDeletionPage() {
   const router = useRouter()
   const [reason, setReason] = useState('')
   const [confirmText, setConfirmText] = useState('')
+  const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [showConfirmation, setShowConfirmation] = useState(false)
 
   const handleDeleteRequest = async () => {
+    setError(null)
     if (confirmText !== 'DELETE MY ACCOUNT') {
-      alert('Please type "DELETE MY ACCOUNT" to confirm')
+      setError('Please type "DELETE MY ACCOUNT" to confirm.')
       return
     }
 
     if (!reason.trim()) {
-      alert('Please provide a reason for account deletion')
+      setError('Please provide a reason for account deletion.')
       return
     }
 
@@ -63,7 +65,7 @@ export default function AccountDeletionPage() {
       }
     } catch (error: any) {
       console.error('Account deletion request failed:', error)
-      alert(error.message || 'Failed to submit account deletion request. Please try again or contact support.')
+      setError(error.message || 'Failed to submit account deletion request. Please try again or contact support.')
     } finally {
       setLoading(false)
     }
@@ -169,6 +171,15 @@ export default function AccountDeletionPage() {
               placeholder="DELETE MY ACCOUNT"
               className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
             />
+          </div>
+
+          <div className="flex gap-4">
+            {error && (
+              <p className="w-full text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-4 py-3 flex items-center gap-2">
+                <AlertTriangle className="h-4 w-4 flex-shrink-0" />
+                {error}
+              </p>
+            )}
           </div>
 
           <div className="flex gap-4">

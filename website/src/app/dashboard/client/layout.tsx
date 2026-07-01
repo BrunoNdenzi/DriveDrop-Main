@@ -78,6 +78,7 @@ export default function ClientDashboardLayout({
                   alt="DriveDrop"
                   width={120}
                   height={30}
+                  priority
                   className="h-8 w-auto"
                 />
               </Link>

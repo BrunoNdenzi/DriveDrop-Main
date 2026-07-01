@@ -43,7 +43,7 @@ export default function EnrichmentStats() {
           <Loader2 className="h-5 w-5 animate-spin text-[#00B8A9]" />
         </div>
       ) : (
-        <div className="grid grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <StatCard
             icon={<Users className="h-5 w-5 text-blue-500" />}
             label="Total Carriers in DB"

@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { sendEmail } from '@/lib/email'
+import { createAdminNotification } from '@/lib/admin-notifications'
 
 /** Escape HTML entities to prevent XSS in email templates */
 function escapeHtml(str: string): string {
@@ -136,7 +137,16 @@ export async function POST(request: Request) {
       `,
     })
 
-    // Auto-reply to the user — non-blocking (failure here should NOT fail the whole request)
+    // Notify admin
+    createAdminNotification({
+      type: 'support_ticket',
+      title: 'New Contact Form Submission',
+      message: `${name} (${email}) sent a message: "${subject}"`,
+      severity: 'medium',
+      actionLink: '/dashboard/admin/settings',
+    })
+
+    // Auto-reply to the user — non-blocking
     sendEmail({
       to: email, // original unescaped email address for the SMTP To: header
       subject: 'Thank you for contacting DriveDrop',

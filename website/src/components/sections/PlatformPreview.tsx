@@ -35,7 +35,7 @@ export default function PlatformPreview() {
 
               {/* Platform UI Mockup */}
               <div className="bg-white p-6">
-                <div className="grid grid-cols-4 gap-4 mb-6">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
                   {/* Stats Cards */}
                   <div className="bg-gradient-to-br from-teal-50 to-teal-100 border-2 border-teal-200 rounded-lg p-4">
                     <div className="text-xs font-medium text-teal-700 mb-1">Active Routes</div>

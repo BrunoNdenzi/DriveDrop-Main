@@ -196,7 +196,7 @@ export default function BenjiDispatcher() {
         </div>
 
         {/* Stats Grid */}
-        <div className="grid grid-cols-4 gap-4 mt-6">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6">
           <div className="bg-white/10 backdrop-blur rounded-md p-4">
             <div className="text-purple-200 text-sm font-medium">Unassigned Loads</div>
             <div className="text-lg font-bold mt-1">{analysis.unassigned_loads}</div>

@@ -10,7 +10,7 @@ import './globals.css'
 const inter = Inter({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
-  metadataBase: new URL('https://drivedrop.us.com'),
+  metadataBase: new URL('https://www.drivedrop.us.com'),
   title: {
     default: 'DriveDrop - Vehicle Shipping Made Simple',
     template: '%s | DriveDrop'
@@ -69,7 +69,7 @@ export const metadata: Metadata = {
     google: 'your-google-verification-code', // Add your actual verification code
   },
   alternates: {
-    canonical: 'https://drivedrop.us.com',
+    canonical: 'https://www.drivedrop.us.com',
   },
 }
 

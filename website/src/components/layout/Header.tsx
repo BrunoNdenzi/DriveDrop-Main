@@ -42,6 +42,7 @@ export default function Header() {
                 alt="DriveDrop" 
                 width={180} 
                 height={46}
+                priority
                 className={`h-10 w-auto group-hover:scale-105 transition-all ${
                   isScrolled ? '' : 'brightness-0 invert'
                 }`}

@@ -1,6 +1,7 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect, Suspense } from 'react'
+import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -10,11 +11,19 @@ import { supabase } from '@/lib/supabase'
 import Header from '@/components/layout/Header'
 import Footer from '@/components/layout/Footer'
 
-export default function ForgotPasswordPage() {
+function ForgotPasswordContent() {
+  const searchParams = useSearchParams()
   const [email, setEmail] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState(false)
+
+  // Show a helpful message if the user was redirected here because a link expired
+  useEffect(() => {
+    if (searchParams?.get('error') === 'link-expired') {
+      setError('Your reset link has expired or is invalid. Please request a new one below.')
+    }
+  }, [searchParams])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -187,5 +196,13 @@ export default function ForgotPasswordPage() {
       </main>
       <Footer />
     </>
+  )
+}
+
+export default function ForgotPasswordPage() {
+  return (
+    <Suspense>
+      <ForgotPasswordContent />
+    </Suspense>
   )
 }

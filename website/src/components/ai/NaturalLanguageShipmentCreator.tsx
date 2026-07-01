@@ -181,15 +181,12 @@ export default function NaturalLanguageShipmentCreator({
           onShipmentCreated(response.shipment || { id: shipmentId })
         }
 
-        // Stay on page for testing - redirect disabled
-        // TODO: Re-enable redirect after testing complete
-        /*
+        // Redirect to the new shipment after creation
         if (shipmentId) {
           setTimeout(() => {
             router.push(`/dashboard/client/shipments/${shipmentId}`)
           }, 2000)
         }
-        */
       } else {
         setError(response.error || 'Failed to create shipment from prompt')
       }
