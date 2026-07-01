@@ -51,7 +51,7 @@ export async function POST(request: Request) {
     // Fetch user profile to check role
     const { data: profile, error: profileError } = await supabase
       .from('profiles')
-      .select('role, status')
+      .select('role')
       .eq('id', authData.user.id)
       .single()
 
@@ -59,15 +59,6 @@ export async function POST(request: Request) {
       return NextResponse.json(
         { error: 'Profile not found' },
         { status: 404 }
-      )
-    }
-
-    // Block login for accounts pending deletion review
-    if (profile.status === 'pending_delete_review') {
-      await supabase.auth.signOut()
-      return NextResponse.json(
-        { error: 'This account has a pending deletion request and has been suspended. Please contact support at infos@drivedrop.us.com if this was a mistake.' },
-        { status: 403 }
       )
     }
 
