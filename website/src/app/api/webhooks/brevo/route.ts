@@ -57,8 +57,11 @@ async function notifyAdmin(subject: string, body: string) {
 
 export async function POST(req: NextRequest) {
   // --- Authenticate webhook ---
+  // Brevo's UI doesn't support custom request headers, so the secret
+  // is passed as a query parameter: /api/webhooks/brevo?secret=<BREVO_WEBHOOK_SECRET>
   if (WEBHOOK_SECRET) {
     const incomingSecret =
+      req.nextUrl.searchParams.get('secret') ||
       req.headers.get('X-Brevo-Webhook-Secret') ||
       req.headers.get('x-brevo-webhook-secret')
     if (incomingSecret !== WEBHOOK_SECRET) {
