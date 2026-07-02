@@ -74,6 +74,13 @@ export const FEATURE_FLAGS = {
    * Outbound webhooks for status updates
    */
   WEBHOOK_SYSTEM: process.env['ENABLE_WEBHOOKS'] === 'true',
+
+  /**
+   * Benji QA Console
+   * Admin-only live integration testing console for Benji V2.
+   * NEVER enable in production customer environments.
+   */
+  BENJI_QA_CONSOLE: process.env['ENABLE_BENJI_QA_CONSOLE'] === 'true',
 } as const;
 
 /**

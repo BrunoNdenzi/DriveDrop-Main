@@ -9,15 +9,19 @@
  *   tool:validate.input → (financial tools) → tool:chat.respond
  */
 
-import { benjiToolRegistry } from './tool.registry';
-import { validateInputTool }  from './validate-input.tool';
-import { shipmentParseTool }  from './shipment-parse.tool';
-import { chatRespondTool }    from './chat-respond.tool';
-import { memoryReadTool }     from './memory-read.tool';
-import { memoryWriteTool }    from './memory-write.tool';
+import { benjiToolRegistry }    from './tool.registry';
+import { validateInputTool }    from './validate-input.tool';
+import { shipmentParseTool }    from './shipment-parse.tool';
+import { pricingCalculateTool } from './pricing-calculate.tool';
+import { shipmentCreateTool }   from './shipment-create.tool';
+import { chatRespondTool }      from './chat-respond.tool';
+import { memoryReadTool }       from './memory-read.tool';
+import { memoryWriteTool }      from './memory-write.tool';
 
 benjiToolRegistry.register(validateInputTool);
 benjiToolRegistry.register(shipmentParseTool);
+benjiToolRegistry.register(pricingCalculateTool);
+benjiToolRegistry.register(shipmentCreateTool);
 benjiToolRegistry.register(chatRespondTool);
 benjiToolRegistry.register(memoryReadTool);
 benjiToolRegistry.register(memoryWriteTool);

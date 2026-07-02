@@ -61,9 +61,11 @@ interface StepSpec {
 
 const INTENT_PLAN_MAP: Readonly<Record<string, StepSpec[]>> = {
   'shipment.create': [
-    { action: 'tool:validate.input', critical: true  },
-    { action: 'tool:shipment.parse', critical: true  },
-    { action: 'tool:chat.respond',   critical: false },
+    { action: 'tool:validate.input',    critical: true  },
+    { action: 'tool:shipment.parse',    critical: true  },
+    { action: 'tool:pricing.calculate', critical: false },
+    { action: 'tool:shipment.create',   critical: true  },
+    { action: 'tool:chat.respond',      critical: false },
   ],
   'shipment.track': [
     { action: 'tool:validate.input', critical: true  },

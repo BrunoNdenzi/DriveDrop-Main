@@ -27,7 +27,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { createChatCompletion } from '@benji/ai/client/openai.client';
 import { getNlShipmentPrompt } from '@benji/ai/prompt.registry';
-import { FEATURE_FLAGS } from '../config/features';
 import { SERVICE_MODEL_MAP, aiUsageTracker } from '../config/ai.config';
 import { googleMapsService } from './google-maps.service';
 import { pricingService, VehicleType } from './pricing.service';
@@ -106,14 +105,6 @@ export class NaturalLanguageShipmentService {
    * Parse natural language input into structured shipment data
    */
   async parseShipment(input: NLShipmentInput): Promise<NLParseResult> {
-    // Check feature flag
-    if (!FEATURE_FLAGS.NATURAL_LANGUAGE) {
-      return {
-        success: false,
-        error: 'Natural language shipment feature is not enabled',
-      };
-    }
-
     try {
       // Log the input for training
       const { data: promptLog } = await supabase
@@ -384,7 +375,9 @@ export class NaturalLanguageShipmentService {
    */
   async createShipment(
     userId: string,
-    parsedData: ParsedShipmentData
+    parsedData: ParsedShipmentData,
+    precomputedPrice?: number,
+    precomputedDistanceMiles?: number,
   ): Promise<{
     success: boolean;
     shipment_id?: string;
@@ -414,35 +407,36 @@ export class NaturalLanguageShipmentService {
         };
       }
 
-      // Calculate distance and price
-      let estimatedPrice = 0;
-      let distanceMiles = 0;
-      
-      try {
-        // Get distance using Google Maps
-        const directions = await googleMapsService.getDirections(
-          parsedData.pickup.location,
-          parsedData.delivery.location
-        );
-        
-        distanceMiles = Math.round(directions.distance.value * 0.000621371); // meters to miles
-        
-        // Map vehicle type to pricing service type
-        const vehicleType = this.mapVehicleTypeToPricing(parsedData.vehicle);
-        
-        // Calculate price
-        const quote = await pricingService.calculateQuoteWithDynamicConfig({
-          vehicleType,
-          distanceMiles,
-          isAccidentRecovery: false,
-          vehicleCount: 1,
-        });
-        
-        estimatedPrice = Math.round(quote.total);
-      } catch (error) {
-        console.error('Error calculating price:', error);
-        // If pricing fails, use default minimum
-        estimatedPrice = 150;
+      // Calculate distance and price — skip if pre-computed values are provided
+      let estimatedPrice = precomputedPrice !== undefined ? Math.round(precomputedPrice) : 0;
+      let distanceMiles  = precomputedDistanceMiles ?? 0;
+
+      if (precomputedPrice === undefined || precomputedDistanceMiles === undefined) {
+        try {
+          // Get distance using Google Maps
+          const directions = await googleMapsService.getDirections(
+            parsedData.pickup.location,
+            parsedData.delivery.location,
+          );
+
+          distanceMiles = Math.round(directions.distance.value * 0.000621371); // meters to miles
+
+          // Map vehicle type to pricing service type
+          const vehicleType = this.mapVehicleTypeToPricing(parsedData.vehicle);
+
+          // Calculate price
+          const quote = await pricingService.calculateQuoteWithDynamicConfig({
+            vehicleType,
+            distanceMiles,
+            isAccidentRecovery: false,
+            vehicleCount: 1,
+          });
+
+          estimatedPrice = Math.round(quote.total);
+        } catch (error) {
+          console.error('Error calculating price:', error);
+          estimatedPrice = estimatedPrice || 150; // keep pre-computed price if available
+        }
       }
 
       // Create shipment with proper column mapping

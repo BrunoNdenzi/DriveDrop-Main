@@ -9,7 +9,6 @@ import { authenticate } from '@middlewares/auth.middleware';
 import { aiRateLimit } from '../middlewares/ai-rate-limit.middleware';
 import { aiUsageTracker, aiResponseCache } from '../config/ai.config';
 import { AIDocumentExtractionService } from '../services/AIDocumentExtractionService';
-import { NaturalLanguageShipmentService } from '../services/NaturalLanguageShipmentService';
 import { BulkUploadService } from '../services/BulkUploadService';
 import { benjiDispatcherService } from '../services/BenjiDispatcherService';
 import { benjiLoadRecommendationService } from '../services/BenjiLoadRecommendationService';
@@ -17,7 +16,6 @@ import { benjiLoadRecommendationService } from '../services/BenjiLoadRecommendat
 const router = Router();
 
 const aiDocService = new AIDocumentExtractionService();
-const nlService = new NaturalLanguageShipmentService();
 const bulkService = new BulkUploadService();
 
 /**
@@ -80,82 +78,14 @@ router.post('/extract-document', authenticate, aiRateLimit('document'), async (r
 
 /**
  * POST /api/v1/ai/natural-language-shipment
- * Create shipment from natural language prompt
- * Example: "Ship my 2023 Honda Civic from Los Angeles to New York next week"
+ * DEPRECATED — Phase 9.2: Migrated to POST /api/v1/benji/chat (Benji V2 orchestration)
+ * Returns 410 Gone to hard-fail legacy callers and prompt migration.
  */
-router.post('/natural-language-shipment', authenticate, aiRateLimit('shipment'), async (req: Request, res: Response): Promise<void> => {
-  try {
-    const { prompt, inputMethod = 'text' } = req.body;
-    const userId = req.user?.id;
-
-    if (!prompt) {
-      res.status(400).json({ error: 'Natural language prompt is required' });
-      return;
-    }
-
-    if (!userId) {
-      res.status(401).json({ error: 'User not authenticated' });
-      return;
-    }
-
-    // Parse the prompt
-    const parseResult = await nlService.parseShipment({
-      user_id: userId,
-      input_text: prompt,
-      input_method: inputMethod as any,
-    });
-
-    if (!parseResult.success || !parseResult.parsed_data) {
-      res.status(400).json({
-        error: 'Failed to parse natural language prompt',
-        details: 'Could not extract shipment data from prompt',
-      });
-      return;
-    }
-
-    const missing = parseResult.missing_fields || [];
-    const criticalMissing = missing.filter((field) =>
-      ['vehicle_year', 'vehicle_make', 'vehicle_model', 'pickup_location', 'delivery_location'].includes(field)
-    );
-
-    if (criticalMissing.length > 0) {
-      res.status(422).json({
-        success: false,
-        error: 'More details are needed to create this shipment',
-        validationErrors: criticalMissing,
-        clarificationQuestions: parseResult.clarification_questions || [],
-        extractedData: parseResult.parsed_data,
-        confidence: parseResult.confidence_score,
-      });
-      return;
-    }
-
-    // Create the shipment
-    const result = await nlService.createShipment(userId, parseResult.parsed_data);
-
-    if (!result.success) {
-      res.status(400).json({
-        error: 'Failed to create shipment',
-        details: result.error,
-      });
-      return;
-    }
-
-    res.json({
-      success: true,
-      shipment_id: result.shipment_id,
-      shipment: result.shipment,
-      extractedData: parseResult.parsed_data,
-      confidence: parseResult.confidence_score,
-      message: 'Shipment created successfully from natural language',
-    });
-  } catch (error: any) {
-    console.error('Natural language shipment error:', error);
-    res.status(500).json({
-      error: 'Failed to create shipment from natural language',
-      details: error.message,
-    });
-  }
+router.post('/natural-language-shipment', authenticate, (_req: Request, res: Response): void => {
+  res.status(410).json({
+    error: 'This endpoint has been removed.',
+    migration: 'Send your shipment creation request to POST /api/v1/benji/chat with a natural language message. The Benji V2 orchestrator will handle parsing, pricing, and creation with full governance.',
+  });
 });
 
 /**

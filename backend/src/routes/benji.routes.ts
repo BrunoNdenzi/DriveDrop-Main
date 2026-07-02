@@ -28,6 +28,8 @@ import { authenticate } from '@middlewares/auth.middleware';
 import { benjiRateLimit } from '../middlewares/benji-rate-limit.middleware';
 import { benjiOrchestrator } from '@benji/orchestrator/benji-orchestrator';
 import { resumeOrchestrator } from '@benji/orchestrator/resume.orchestrator';
+import { supabaseAdmin } from '@lib/supabase';
+import { FEATURE_FLAGS } from '../config/features';
 import { streamingOrchestrator } from '@benji/orchestrator/stream.orchestrator';
 import { benjiMonitoringService } from '@benji/monitoring/benji-monitoring.service';
 import { streamTokenService } from '@benji/auth/stream-token.service';
@@ -109,12 +111,14 @@ router.post(
         return;
       }
 
-      const { message, sessionId, currentPage, shipmentId, attachments } = req.body as {
-        message?:     unknown;
-        sessionId?:   unknown;
-        currentPage?: unknown;
-        shipmentId?:  unknown;
-        attachments?: unknown;
+      const { message, sessionId, currentPage, shipmentId, attachments, _qaUserType } = req.body as {
+        message?:      unknown;
+        sessionId?:    unknown;
+        currentPage?:  unknown;
+        shipmentId?:   unknown;
+        attachments?:  unknown;
+        /** Admin-only QA override: simulate a different userType for testing purposes. */
+        _qaUserType?:  unknown;
       };
 
       // Input validation
@@ -127,7 +131,17 @@ router.post(
         return;
       }
 
-      const userType = _roleToUserType(req.user?.role ?? 'client');
+      // _qaUserType: admin-only role simulation for QA console (requires BENJI_QA_CONSOLE flag)
+      let userType = _roleToUserType(req.user?.role ?? 'client');
+      if (
+        FEATURE_FLAGS.BENJI_QA_CONSOLE &&
+        req.user?.role === 'admin' &&
+        typeof _qaUserType === 'string' &&
+        ['client', 'driver', 'admin', 'broker'].includes(_qaUserType)
+      ) {
+        userType = _qaUserType as OrchestratorRequest['userType'];
+      }
+
       const requestId = randomUUID();
 
       const orchRequest: OrchestratorRequest = {
@@ -379,6 +393,93 @@ router.get(
     try {
       const metrics = await benjiMonitoringService.getMetrics();
       res.status(200).json({ status: 'OK', metrics });
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      res.status(500).json({ status: 'INTERNAL_ERROR', error: msg });
+    }
+  },
+);
+
+// ─── GET /api/v1/benji/traces ─────────────────────────────────────────────────
+
+/**
+ * Recent Benji traces for the QA console (admin only).
+ * Returns the last N traces with step counts, ordered by most recent.
+ * Requires FEATURE_FLAGS.BENJI_QA_CONSOLE to be enabled.
+ *
+ * Query params:
+ *   limit?  — number of traces to return (default 20, max 50)
+ *   userId? — filter by a specific user (admin only)
+ */
+router.get(
+  '/traces',
+  authenticate,
+  async (req: Request, res: Response): Promise<void> => {
+    if (req.user?.role !== 'admin') {
+      res.status(403).json({ error: 'Admin access required' });
+      return;
+    }
+    if (!FEATURE_FLAGS.BENJI_QA_CONSOLE) {
+      res.status(403).json({ error: 'Benji QA Console is not enabled' });
+      return;
+    }
+    try {
+      const rawLimit  = Number(req.query['limit'] ?? 20);
+      const limit     = Number.isFinite(rawLimit) ? Math.min(Math.max(rawLimit, 1), 50) : 20;
+      const filterUser = typeof req.query['userId'] === 'string' ? req.query['userId'] : undefined;
+
+      let query = supabaseAdmin
+        .from('benji_traces')
+        .select('trace_id, user_id, intent, state, final_outcome, started_at, completed_at, step_count')
+        .order('started_at', { ascending: false })
+        .limit(limit);
+
+      if (filterUser !== undefined) {
+        query = query.eq('user_id', filterUser);
+      }
+
+      const { data, error } = await query;
+      if (error) throw error;
+
+      res.status(200).json({ status: 'OK', traces: data ?? [] });
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      res.status(500).json({ status: 'INTERNAL_ERROR', error: msg });
+    }
+  },
+);
+
+// ─── GET /api/v1/benji/traces/:traceId/steps ──────────────────────────────────
+
+/**
+ * Steps for a specific trace (admin QA only).
+ */
+router.get(
+  '/traces/:traceId/steps',
+  authenticate,
+  async (req: Request, res: Response): Promise<void> => {
+    if (req.user?.role !== 'admin') {
+      res.status(403).json({ error: 'Admin access required' });
+      return;
+    }
+    if (!FEATURE_FLAGS.BENJI_QA_CONSOLE) {
+      res.status(403).json({ error: 'Benji QA Console is not enabled' });
+      return;
+    }
+    try {
+      const { traceId } = req.params;
+      if (typeof traceId !== 'string' || traceId.trim().length === 0) {
+        res.status(400).json({ error: 'traceId is required' });
+        return;
+      }
+      const { data, error } = await supabaseAdmin
+        .from('benji_trace_steps')
+        .select('step_id, tool_name, success, input_hash, output_hash, timestamp')
+        .eq('trace_id', traceId.trim())
+        .order('timestamp', { ascending: true });
+
+      if (error) throw error;
+      res.status(200).json({ status: 'OK', traceId, steps: data ?? [] });
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
       res.status(500).json({ status: 'INTERNAL_ERROR', error: msg });

@@ -157,20 +157,20 @@ export const BenjiChat = ({
       }));
       chatMessages.push({ role: 'user' as const, content: messageContent });
 
-      const response = await aiService.chat(chatMessages, {
+      const response = await aiService.benjiChat(messageContent, {
         userType,
         currentPage: context,
         shipmentId,
-        attachments: currentAttachments.length > 0 ? currentAttachments : undefined,
       });
+
+      const responseText = response.response ?? response.error ?? 'I received your message.';
 
       const aiResponse: BenjiMessageProps = {
         id: (Date.now() + 1).toString(),
         role: 'assistant',
-        content: response.message,
+        content: responseText,
         timestamp: new Date(),
-        confidence: response.confidence,
-        suggestions: response.suggestions,
+        confidence: 0.9,
       };
 
       setMessages(prev => [...prev, aiResponse]);

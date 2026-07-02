@@ -106,6 +106,76 @@ interface BulkUploadStatus {
   }
 }
 
+/** Response shape from POST /api/v1/benji/chat and POST /api/v1/benji/chat/confirm */
+interface BenjiChatResponse {
+  success: boolean
+  traceId?: string
+  state?: 'COMPLETE' | 'BLOCKED' | 'AWAIT_CONFIRMATION'
+  response?: string
+  /** Present when state === 'AWAIT_CONFIRMATION' */
+  confirmationPayload?: {
+    traceId: string
+    riskScore: number
+    planSummary: string[]
+    message: string
+  }
+  /** Present when a shipment was created (tool:shipment.create output) */
+  shipmentCreated?: {
+    shipment_id: string
+    estimatedPrice: number
+    distanceMiles: number
+    vehicle: string
+    pickupAddress: string
+    deliveryAddress: string
+  }
+  error?: string
+}
+
+/** Metrics returned by GET /api/v1/benji/metrics */
+export interface BenjiMetrics {
+  windowDays: number
+  computedAt: string
+  averageOrchestrationLatencyMs: number | null
+  toolFailureRates: Array<{
+    toolName: string
+    totalCalls: number
+    failedCalls: number
+    failureRate: number
+  }>
+  policyViolationCounts: Array<{
+    ruleId: string
+    count: number
+    severity: string
+  }>
+  confirmationAcceptanceRate: number | null
+  simulationBlockRate: number | null
+  totalTraces: number
+  completedTraces: number
+  blockedTraces: number
+}
+
+/** Single trace row from GET /api/v1/benji/traces */
+export interface BenjiTrace {
+  trace_id: string
+  user_id: string
+  intent: string | null
+  state: string
+  final_outcome: string | null
+  started_at: string
+  completed_at: string | null
+  step_count: number
+}
+
+/** Single step from GET /api/v1/benji/traces/:traceId/steps */
+export interface BenjiTraceStep {
+  step_id: string
+  tool_name: string | null
+  success: boolean | null
+  input_hash: string | null
+  output_hash: string | null
+  timestamp: string
+}
+
 class AIService {
   private async getAuthToken(): Promise<string | null> {
     if (typeof window === 'undefined') return null
@@ -369,7 +439,132 @@ class AIService {
       throw error
     }
   }
+
+  /**
+   * Benji V2 Chat — send a message to the Benji V2 orchestrator.
+   *
+   * A 200 response means the request completed (COMPLETE state).
+   * A 202 response means the orchestrator is awaiting user confirmation
+   * before executing a mutation (e.g. creating a shipment). In that case
+   * `confirmationPayload` is present and the caller should prompt the user
+   * to confirm, then call `benjiConfirm()`.
+   */
+  async benjiChat(
+    message: string,
+    context?: {
+      userType?: 'client' | 'driver' | 'admin' | 'broker'
+      currentPage?: string
+      shipmentId?: string
+    }
+  ): Promise<BenjiChatResponse> {
+    const headers = await this.getHeaders()
+    const response = await fetch(`${API_BASE_URL}/benji/chat`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ message, ...context }),
+    })
+
+    const data: BenjiChatResponse = await response.json()
+
+    if (!response.ok && response.status !== 202) {
+      throw new Error((data as any).error ?? 'Benji chat request failed')
+    }
+
+    return data
+  }
+
+  /**
+   * Benji V2 Confirm — resume a suspended plan after user approval.
+   *
+   * Pass `confirmed: true` to proceed or `confirmed: false` to cancel.
+   * Returns a final BenjiChatResponse (state: COMPLETE or BLOCKED).
+   */
+  async benjiConfirm(traceId: string, confirmed: boolean): Promise<BenjiChatResponse> {
+    const headers = await this.getHeaders()
+    const response = await fetch(`${API_BASE_URL}/benji/chat/confirm`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ traceId, confirmed }),
+    })
+
+    const data: BenjiChatResponse = await response.json()
+
+    if (!response.ok) {
+      throw new Error((data as any).error ?? 'Benji confirm request failed')
+    }
+
+    return data
+  }
+
+  /**
+   * Benji QA — send a message with optional role simulation override.
+   * Admin-only: `_qaUserType` is accepted only when BENJI_QA_CONSOLE is enabled
+   * and the caller is an admin.
+   */
+  async benjiQaChat(
+    message: string,
+    qaUserType: 'client' | 'driver' | 'admin' | 'broker',
+    context?: { currentPage?: string; shipmentId?: string },
+  ): Promise<BenjiChatResponse> {
+    const headers = await this.getHeaders()
+    const response = await fetch(`${API_BASE_URL}/benji/chat`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ message, _qaUserType: qaUserType, ...context }),
+    })
+
+    const data: BenjiChatResponse = await response.json()
+
+    if (!response.ok && response.status !== 202) {
+      throw new Error((data as any).error ?? 'Benji QA chat request failed')
+    }
+
+    return data
+  }
+
+  /**
+   * Benji QA — fetch the 7-day rolling metrics (admin only).
+   */
+  async getBenjiMetrics(): Promise<BenjiMetrics> {
+    const headers = await this.getHeaders()
+    const response = await fetch(`${API_BASE_URL}/benji/metrics`, { headers })
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({}))
+      throw new Error((err as any).error ?? 'Failed to fetch Benji metrics')
+    }
+    return response.json()
+  }
+
+  /**
+   * Benji QA — fetch recent traces (admin only, requires BENJI_QA_CONSOLE flag).
+   */
+  async getBenjiTraces(limit = 20, userId?: string): Promise<BenjiTrace[]> {
+    const headers = await this.getHeaders()
+    const params = new URLSearchParams({ limit: String(limit) })
+    if (userId) params.set('userId', userId)
+    const response = await fetch(`${API_BASE_URL}/benji/traces?${params.toString()}`, { headers })
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({}))
+      throw new Error((err as any).error ?? 'Failed to fetch Benji traces')
+    }
+    const data = await response.json()
+    return (data.traces ?? []) as BenjiTrace[]
+  }
+
+  /**
+   * Benji QA — fetch steps for a specific trace (admin only).
+   */
+  async getBenjiTraceSteps(traceId: string): Promise<BenjiTraceStep[]> {
+    const headers = await this.getHeaders()
+    const response = await fetch(`${API_BASE_URL}/benji/traces/${encodeURIComponent(traceId)}/steps`, { headers })
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({}))
+      throw new Error((err as any).error ?? 'Failed to fetch trace steps')
+    }
+    const data = await response.json()
+    return (data.steps ?? []) as BenjiTraceStep[]
+  }
 }
 
 export const aiService = new AIService()
-export type { DocumentExtractionResponse, NaturalLanguageShipmentResponse }
+export type { DocumentExtractionResponse, NaturalLanguageShipmentResponse, BenjiChatResponse }

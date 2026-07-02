@@ -10,7 +10,7 @@
  * STEP 0 — PREFLIGHT AUDIT
  * STEP 1 — SERVER HEALTH CHECK
  * STEP 2 — AUTH SETUP
- * STEP 3 — 11 TEST SCENARIOS (6 integration + 5 chaos)
+ * STEP 3 — 12 TEST SCENARIOS (7 integration + 5 chaos)
  * STEP 4 — SUPABASE INTEGRITY
  * STEP 5 — CLEANUP
  * STEP 6 — FINAL REPORT
@@ -238,7 +238,7 @@ const BASE_URL   = `http://localhost:${PORT}`;
 const API_BASE   = `${BASE_URL}/api/v1/benji`;
 
 const TEST_EMAIL    = `benji-harness-${Date.now()}@test.drivedrop.internal`;
-const TEST_PASSWORD = '';
+const TEST_PASSWORD = 'BenjiT3stH@rness2026!';
 
 // ── Supabase admin client (service role — test setup + DB verification) ──────
 const supabaseAdmin = createClient(
@@ -1176,6 +1176,175 @@ async function chaos11_orphanCleanup(): Promise<TestResult> {
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
+// PHASE 9.2 — LIVE SHIPMENT CREATION FLOW
+// ══════════════════════════════════════════════════════════════════════════════
+
+/**
+ * Test 12 — End-to-end Benji V2 shipment creation with governance.
+ *
+ * Flow:
+ *   POST /benji/chat   "Ship my 2023 Honda Civic from Charlotte NC to Atlanta GA"
+ *     → AWAIT_CONFIRMATION (simulation gates mutation tool)
+ *   POST /benji/chat/confirm  { traceId, confirmed: true }
+ *     → COMPLETE  (resume orchestrator executes r-steps including tool:shipment.create)
+ *
+ * Verifies:
+ *   - Tool chain executed: validate.input → shipment.parse → pricing.calculate → shipment.create → chat.respond
+ *   - A real shipment row was created in the `shipments` table
+ *   - Trace finalized as resumed_success
+ *   - No duplicate shipment rows for this trace
+ *   - Cleanup: created shipment deleted
+ */
+async function test12_liveShipmentCreation(createdTraceIds: string[]): Promise<TestResult> {
+  const t0 = Date.now();
+  let createdShipmentId: string | null = null;
+
+  try {
+    // ── Step 1: Initial chat request ─────────────────────────────────────────
+    const chatRes = await httpRequest(
+      `${API_BASE}/chat`,
+      'POST',
+      { message: 'Ship my 2023 Honda Civic from Charlotte NC to Atlanta GA' },
+      bearerHeader(),
+    );
+
+    const chatBody = parseJson<BenjiChatResponse>(chatRes.body);
+
+    // Handle both possible outcomes: AWAIT_CONFIRMATION (expected) or COMPLETE (low-risk path)
+    if (chatRes.statusCode === 200 && chatBody?.status === 'COMPLETE') {
+      // Orchestrator decided to proceed immediately (no confirmation gate)
+      const traceId = chatBody.traceId;
+      if (traceId) createdTraceIds.push(traceId);
+
+      await sleep(500);
+      const db     = traceId ? await verifyTrace(traceId, 'T12-direct') : { trace: null, steps: [], events: [], usage: [] };
+      const outcome = db.trace?.final_outcome;
+      const outcomeOk = outcome === 'completed_success' || outcome === 'success';
+
+      // Check if a shipment row was created (direct path also runs tool:shipment.create)
+      const { data: ships, error: shipErr } = await supabaseAdmin
+        .from('shipments').select('id')
+        .eq('client_id', testUserId).eq('vehicle_make', 'Honda')
+        .order('created_at', { ascending: false }).limit(1);
+      const shipRow = (ships as Array<{ id: string }> | null)?.[0];
+      const shipmentCreated = !shipErr && shipRow !== undefined;
+      if (shipRow) createdShipmentId = shipRow.id;
+
+      // Cleanup
+      if (createdShipmentId) {
+        await supabaseAdmin.from('shipments').delete().eq('id', createdShipmentId).then(() => undefined, () => undefined);
+      }
+
+      const pass = outcomeOk && shipmentCreated;
+      return {
+        name: 'Test 12: Live Shipment Creation',
+        status: pass ? 'PASS' : 'FAIL',
+        notes: `direct-complete path, outcome=${outcome ?? 'null'}, shipment_created=${shipmentCreated}`,
+        durationMs: Date.now() - t0,
+      };
+    }
+
+    // ── Expected path: AWAIT_CONFIRMATION ────────────────────────────────────
+    if (chatRes.statusCode !== 202 || chatBody?.status !== 'AWAIT_CONFIRMATION') {
+      return {
+        name: 'Test 12: Live Shipment Creation',
+        status: 'FAIL',
+        notes: `Expected 202 AWAIT_CONFIRMATION, got HTTP ${chatRes.statusCode} status=${chatBody?.status ?? 'null'} err=${chatBody?.error ?? ''}`,
+        durationMs: Date.now() - t0,
+      };
+    }
+
+    const traceId = chatBody.traceId ?? chatBody.confirmationPayload?.traceId;
+    if (!traceId) {
+      return {
+        name: 'Test 12: Live Shipment Creation',
+        status: 'FAIL',
+        notes: 'AWAIT_CONFIRMATION but no traceId returned',
+        durationMs: Date.now() - t0,
+      };
+    }
+    createdTraceIds.push(traceId);
+
+    // ── Step 2: Confirm ───────────────────────────────────────────────────────
+    await sleep(1000);
+    const confirmRes = await httpRequest(
+      `${API_BASE}/chat/confirm`,
+      'POST',
+      { traceId, confirmed: true },
+      bearerHeader(),
+    );
+
+    const confirmBody = parseJson<BenjiChatResponse>(confirmRes.body);
+    const resumeOk    = confirmRes.statusCode === 200;
+
+    // ── Step 3: Verify trace in DB ────────────────────────────────────────────
+    await sleep(500);
+    const db = await verifyTrace(traceId, 'T12-confirm');
+
+    const outcomeOk   = db.trace?.final_outcome === 'resumed_success';
+    const rSteps      = db.steps.filter(s => s.step_id.startsWith('r-'));
+    const rToolNames  = rSteps.map(s => s.tool_name ?? '');
+    const hasCreate   = rToolNames.includes('tool:shipment.create');
+    const hasPricing  = rToolNames.includes('tool:pricing.calculate');
+    const hasParse    = rToolNames.includes('tool:shipment.parse');
+
+    // ── Step 4: Verify shipment row in DB ─────────────────────────────────────
+    const { data: shipments, error: shipErr } = await supabaseAdmin
+      .from('shipments')
+      .select('id, vehicle_make, vehicle_model, vehicle_year, created_at')
+      .eq('client_id', testUserId)
+      .eq('vehicle_make', 'Honda')
+      .order('created_at', { ascending: false })
+      .limit(1);
+
+    const shipmentRow = (shipments as Array<{ id: string; vehicle_make: string; vehicle_model: string; vehicle_year: number; created_at: string }> | null)?.[0];
+    const shipmentCreated = !shipErr && shipmentRow !== undefined;
+    if (shipmentRow) createdShipmentId = shipmentRow.id;
+
+    // ── Step 5: Verify no duplicate shipment ─────────────────────────────────
+    const { count: dupCount } = await supabaseAdmin
+      .from('shipments')
+      .select('id', { count: 'exact', head: true })
+      .eq('client_id', testUserId)
+      .eq('vehicle_make', 'Honda')
+      .gte('created_at', new Date(t0 - 1000).toISOString()); // within this test window
+
+    const noDuplicates = (dupCount ?? 0) <= 1;
+
+    // ── Cleanup: delete created shipment ─────────────────────────────────────
+    if (createdShipmentId) {
+      await supabaseAdmin.from('shipments').delete().eq('id', createdShipmentId).then(() => undefined, () => undefined);
+    }
+
+    const pass = resumeOk && outcomeOk && shipmentCreated && noDuplicates;
+    return {
+      name: 'Test 12: Live Shipment Creation',
+      status: pass ? 'PASS' : 'FAIL',
+      notes: [
+        `http=${confirmRes.statusCode}`,
+        `outcome=${db.trace?.final_outcome ?? 'null'}`,
+        `r-steps=${rSteps.length}(parse=${hasParse},pricing=${hasPricing},create=${hasCreate})`,
+        `shipment_created=${shipmentCreated}`,
+        `no_dup=${noDuplicates}`,
+        confirmBody?.error ? `err=${confirmBody.error}` : '',
+      ].filter(Boolean).join(', '),
+      durationMs: Date.now() - t0,
+    };
+  } catch (err) {
+    // Cleanup on unexpected error
+    if (createdShipmentId) {
+      await supabaseAdmin.from('shipments').delete().eq('id', createdShipmentId).then(() => undefined, () => undefined);
+    }
+    return {
+      name: 'Test 12: Live Shipment Creation',
+      status: 'FAIL',
+      notes: String(err),
+      durationMs: Date.now() - t0,
+    };
+  }
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
 // STEP 1 — SERVER HEALTH CHECK
 // ══════════════════════════════════════════════════════════════════════════════
 
@@ -1419,7 +1588,7 @@ async function main(): Promise<void> {
   await sleep(3000);
   // ── Phase 8.9 Chaos Suite ────────────────────────────────────────────────
   await runTest('Chaos 7 — Double Confirm',          () => chaos7_doubleConfirm(createdTraceIds));
-  await sleep(3000);
+  await sleep(5000);  // Extra buffer: Chaos 7 makes 2 requests; let burst window clear
   await runTest('Chaos 8 — SSE Disconnect',          () => chaos8_sseDisconnect());
   await sleep(3000);
   await runTest('Chaos 9 — Expired Confirmation',    () => chaos9_expiredConfirmation(createdTraceIds));
@@ -1427,6 +1596,9 @@ async function main(): Promise<void> {
   await runTest('Chaos 10 — Replay Determinism',     () => chaos10_replayDeterminism(createdTraceIds));
   await sleep(3000);
   await runTest('Chaos 11 — Orphan Cleanup',         () => chaos11_orphanCleanup());
+  await sleep(3000);
+  // ── Phase 9.2 ──────────────────────────────────────────────────────────────
+  await runTest('Test 12 — Live Shipment Creation',  () => test12_liveShipmentCreation(createdTraceIds));
 
   // ─── STEP 4: INTEGRITY CHECK ──────────────────────────────────────────────
   console.log('\nSTEP 4 — AGGREGATE INTEGRITY CHECK');

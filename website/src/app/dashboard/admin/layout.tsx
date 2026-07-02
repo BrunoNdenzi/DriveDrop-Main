@@ -30,7 +30,8 @@ import {
   Mail,
   TrendingUp,
   FolderOpen,
-  Trash2
+  Trash2,
+  FlaskConical
 } from 'lucide-react'
 import AdminNotificationBell from '@/components/AdminNotificationBell'
 import { Button } from '@/components/ui/button'
@@ -51,6 +52,7 @@ const navItems = [
   { href: '/dashboard/admin/integrations', label: 'Integrations', icon: Plug },
   { href: '/dashboard/admin/bol', label: 'BOL Management', icon: FileText },
   { href: '/dashboard/admin/ai-review', label: 'AI Review Queue', icon: Bot },
+  { href: '/dashboard/admin/benji-qa', label: 'Benji QA Console', icon: FlaskConical },
   { href: '/dashboard/admin/leads', label: 'Lead Acquisition', icon: Target },
   // Email Campaign System
   { href: '/dashboard/admin/campaigns', label: 'Email Campaigns', icon: Mail },

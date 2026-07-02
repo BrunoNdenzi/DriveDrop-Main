@@ -4,7 +4,7 @@ import { useState, useRef, useEffect } from 'react'
 import { Sparkles, Send, Loader2, CheckCircle, AlertCircle, ArrowRight, Mic, MicOff, X, Camera } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
-import { aiService, NaturalLanguageShipmentResponse } from '@/services/aiService'
+import { aiService, BenjiChatResponse } from '@/services/aiService'
 import { cn } from '@/lib/utils'
 import { useRouter } from 'next/navigation'
 import { BenjiDocumentScanner } from '@/components/benji/BenjiDocumentScanner'
@@ -23,7 +23,9 @@ export default function NaturalLanguageShipmentCreator({
 }: NaturalLanguageShipmentCreatorProps) {
   const [prompt, setPrompt] = useState('')
   const [isProcessing, setIsProcessing] = useState(false)
-  const [result, setResult] = useState<NaturalLanguageShipmentResponse | null>(null)
+  const [result, setResult] = useState<BenjiChatResponse | null>(null)
+  const [pendingConfirmation, setPendingConfirmation] = useState<{ traceId: string; riskScore: number; planSummary: string[]; message: string } | null>(null)
+  const [isConfirming, setIsConfirming] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [isListening, setIsListening] = useState(false)
   const [showDocScanner, setShowDocScanner] = useState(false)
@@ -165,36 +167,62 @@ export default function NaturalLanguageShipmentCreator({
 
     setError(null)
     setResult(null)
+    setPendingConfirmation(null)
     setIsProcessing(true)
 
     try {
-      const response = await aiService.createShipmentFromPrompt(prompt, 'text')
-      
-      if (response.success && (response.shipment || response.shipment_id)) {
-        setResult(response)
-        
-        // Get shipment ID from either response format
-        const shipmentId = response.shipment?.id || response.shipment_id
-        
-        // Call callback if provided
-        if (onShipmentCreated) {
-          onShipmentCreated(response.shipment || { id: shipmentId })
-        }
+      const response = await aiService.benjiChat(prompt)
 
-        // Redirect to the new shipment after creation
-        if (shipmentId) {
-          setTimeout(() => {
-            router.push(`/dashboard/client/shipments/${shipmentId}`)
-          }, 2000)
+      if (response.state === 'AWAIT_CONFIRMATION' && response.confirmationPayload) {
+        // Benji needs user approval before creating the shipment
+        setPendingConfirmation(response.confirmationPayload)
+      } else if (response.success && response.shipmentCreated) {
+        setResult(response)
+        if (onShipmentCreated) {
+          onShipmentCreated(response.shipmentCreated)
         }
+        setTimeout(() => {
+          router.push(`/dashboard/client/shipments/${response.shipmentCreated!.shipment_id}`)
+        }, 2000)
       } else {
-        setError(response.error || 'Failed to create shipment from prompt')
+        setError(response.error ?? response.response ?? 'Failed to create shipment')
       }
     } catch (err: any) {
       setError(err.message || 'Failed to process your request')
     } finally {
       setIsProcessing(false)
     }
+  }
+
+  const handleConfirm = async () => {
+    if (!pendingConfirmation) return
+    setIsConfirming(true)
+    try {
+      const response = await aiService.benjiConfirm(pendingConfirmation.traceId, true)
+      setPendingConfirmation(null)
+      if (response.success && response.shipmentCreated) {
+        setResult(response)
+        if (onShipmentCreated) {
+          onShipmentCreated(response.shipmentCreated)
+        }
+        setTimeout(() => {
+          router.push(`/dashboard/client/shipments/${response.shipmentCreated!.shipment_id}`)
+        }, 2000)
+      } else {
+        setError(response.error ?? 'Shipment creation failed after confirmation')
+      }
+    } catch (err: any) {
+      setError(err.message || 'Confirmation failed')
+    } finally {
+      setIsConfirming(false)
+    }
+  }
+
+  const handleCancelConfirm = async () => {
+    if (!pendingConfirmation) return
+    // Decline — call confirm with confirmed: false
+    try { await aiService.benjiConfirm(pendingConfirmation.traceId, false) } catch { /* ignore */ }
+    setPendingConfirmation(null)
   }
 
   const handleExampleClick = (example: string) => {
@@ -332,8 +360,45 @@ export default function NaturalLanguageShipmentCreator({
             </div>
           )}
 
+          {/* Confirmation Required */}
+          {pendingConfirmation && (
+            <div className="mt-6 bg-amber-50 border-2 border-amber-300 rounded-md p-4 animate-slide-up">
+              <div className="flex items-start gap-4">
+                <AlertCircle className="h-6 w-6 text-amber-600 flex-shrink-0 mt-1" />
+                <div className="flex-1">
+                  <h3 className="text-lg font-semibold text-amber-900">Benji needs your approval</h3>
+                  <p className="text-sm text-amber-800 mt-1 mb-3">{pendingConfirmation.message}</p>
+                  {pendingConfirmation.planSummary.length > 0 && (
+                    <ul className="text-sm text-amber-700 mb-4 list-disc list-inside space-y-1">
+                      {pendingConfirmation.planSummary.map((step, i) => (
+                        <li key={i}>{step}</li>
+                      ))}
+                    </ul>
+                  )}
+                  <div className="flex gap-3">
+                    <Button
+                      onClick={handleConfirm}
+                      disabled={isConfirming}
+                      className="bg-green-600 hover:bg-green-700 text-white"
+                    >
+                      {isConfirming ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CheckCircle className="mr-2 h-4 w-4" />}
+                      Confirm &amp; Create Shipment
+                    </Button>
+                    <Button
+                      onClick={handleCancelConfirm}
+                      disabled={isConfirming}
+                      variant="outline"
+                    >
+                      Cancel
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Success Result */}
-          {result?.success && result.shipment && (
+          {result?.success && result.shipmentCreated && (
             <div className="mt-6 bg-green-50 border-2 border-green-200 rounded-md p-4 animate-slide-up">
               <div className="flex items-start gap-4">
                 <CheckCircle className="h-6 w-6 text-green-600 flex-shrink-0 mt-1" />
@@ -341,28 +406,23 @@ export default function NaturalLanguageShipmentCreator({
                   <h3 className="text-lg font-semibold text-green-900">
                     ✨ Benji Created Your Shipment!
                   </h3>
-                  <p className="text-sm text-green-700 mt-1 mb-4">
-                    Extracted with {((result.confidence || 0) * 100).toFixed(0)}% confidence
-                  </p>
 
-                  <div className="grid grid-cols-2 gap-4 text-sm bg-white rounded-md p-4">
+                  <div className="grid grid-cols-2 gap-4 text-sm bg-white rounded-md p-4 mt-3">
                     <div>
                       <span className="text-gray-600">Vehicle:</span>
-                      <p className="font-medium text-gray-900">
-                        {result.extractedData?.vehicle?.year || result.shipment?.vehicle_year || ''} {result.extractedData?.vehicle?.make || result.shipment?.vehicle_make || ''} {result.extractedData?.vehicle?.model || result.shipment?.vehicle_model || ''}
-                      </p>
+                      <p className="font-medium text-gray-900">{result.shipmentCreated.vehicle}</p>
                     </div>
                     <div>
                       <span className="text-gray-600">From:</span>
-                      <p className="font-medium text-gray-900">{result.extractedData?.pickup?.location || result.shipment?.pickup_address || ''}</p>
+                      <p className="font-medium text-gray-900">{result.shipmentCreated.pickupAddress}</p>
                     </div>
                     <div>
                       <span className="text-gray-600">To:</span>
-                      <p className="font-medium text-gray-900">{result.extractedData?.delivery?.location || result.shipment?.delivery_address || ''}</p>
+                      <p className="font-medium text-gray-900">{result.shipmentCreated.deliveryAddress}</p>
                     </div>
                     <div>
                       <span className="text-gray-600">Estimated Price:</span>
-                      <p className="font-medium text-blue-600">${(result.shipment.estimated_price || 0).toFixed(2)}</p>
+                      <p className="font-medium text-blue-600">${result.shipmentCreated.estimatedPrice.toFixed(2)}</p>
                     </div>
                   </div>
                 </div>
@@ -519,17 +579,35 @@ export default function NaturalLanguageShipmentCreator({
         </div>
       )}
 
+      {/* Confirmation Required — inline variant */}
+      {pendingConfirmation && (
+        <div className="bg-amber-50 border border-amber-300 rounded-md p-4">
+          <div className="flex items-start gap-3 mb-3">
+            <AlertCircle className="h-5 w-5 text-amber-600 flex-shrink-0" />
+            <span className="font-medium text-amber-900">Benji needs your approval</span>
+          </div>
+          <p className="text-sm text-amber-700 mb-3">{pendingConfirmation.message}</p>
+          <div className="flex gap-2">
+            <Button onClick={handleConfirm} disabled={isConfirming} size="sm" className="bg-green-600 hover:bg-green-700 text-white">
+              {isConfirming ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : null}
+              Confirm
+            </Button>
+            <Button onClick={handleCancelConfirm} disabled={isConfirming} size="sm" variant="outline">Cancel</Button>
+          </div>
+        </div>
+      )}
+
       {/* Success Result */}
-      {result?.success && result.shipment && (
+      {result?.success && result.shipmentCreated && (
         <div className="bg-green-50 border border-green-200 rounded-md p-4">
           <div className="flex items-center gap-3 mb-3">
             <CheckCircle className="h-5 w-5 text-green-600" />
             <span className="font-medium text-green-900">Benji created your shipment!</span>
           </div>
           <div className="text-sm text-green-700 space-y-1">
-            <p>• {result.shipment.vehicle_year} {result.shipment.vehicle_make} {result.shipment.vehicle_model}</p>
-            <p>• From: {result.shipment.pickup_address}</p>
-            <p>• To: {result.shipment.delivery_address}</p>
+            <p>• {result.shipmentCreated.vehicle}</p>
+            <p>• From: {result.shipmentCreated.pickupAddress}</p>
+            <p>• To: {result.shipmentCreated.deliveryAddress}</p>
           </div>
         </div>
       )}

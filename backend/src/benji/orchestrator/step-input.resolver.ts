@@ -16,6 +16,7 @@
 
 import type { OrchestratorRequest } from '@benji/core/types/orchestrator.types';
 import type { ToolResult }           from '@benji/core/types/tool.types';
+import type { VehicleType }          from '../../services/pricing.service';
 
 // ─── Prior-output extractor ───────────────────────────────────────────────────
 
@@ -33,6 +34,51 @@ function _extractParsedData(
     }
   }
   return {};
+}
+
+/**
+ * Extract the output produced by tool:pricing.calculate from prior outputs.
+ */
+function _extractPricingOutput(
+  priorOutputs: Record<string, ToolResult<unknown>>,
+): { total?: number; distanceMiles?: number } {
+  for (const r of Object.values(priorOutputs)) {
+    const stamped = r as ToolResult<unknown> & { _stepAction?: string };
+    if (stamped._stepAction === 'tool:pricing.calculate' && r.success && r.data !== undefined) {
+      const d = r.data as Record<string, unknown>;
+      const result: { total?: number; distanceMiles?: number } = {};
+      if (typeof d['total']         === 'number') result.total         = d['total'];
+      if (typeof d['distanceMiles'] === 'number') result.distanceMiles = d['distanceMiles'];
+      return result;
+    }
+  }
+  return {};
+}
+
+// ─── Vehicle-type inference ───────────────────────────────────────────────────
+
+const _LUXURY_BRANDS = ['bmw', 'mercedes', 'audi', 'lexus', 'porsche', 'tesla', 'jaguar', 'maserati', 'bentley'];
+const _MOTO_BRANDS   = ['harley', 'yamaha', 'kawasaki', 'suzuki', 'ducati'];
+const _PICKUP_MODELS = ['f-150', 'f150', 'silverado', 'ram', 'tundra', 'tacoma', 'ranger', 'colorado', 'titan', 'frontier'];
+const _HEAVY_MODELS  = ['semi', 'box truck', 'cargo van', 'sprinter'];
+const _SUV_MODELS    = ['explorer', 'tahoe', 'suburban', 'yukon', 'expedition', 'pilot', 'highlander', 'pathfinder', '4runner', 'traverse', 'durango'];
+
+function _inferVehicleType(vehicle: Record<string, unknown> | undefined): VehicleType {
+  const make  = String(vehicle?.['make']  ?? '').toLowerCase();
+  const model = String(vehicle?.['model'] ?? '').toLowerCase();
+  const type  = String(vehicle?.['type']  ?? '').toLowerCase();
+
+  // Honour explicit type if it's already a valid pricing tier
+  const VALID: ReadonlySet<string> = new Set(['sedan','suv','pickup','luxury','motorcycle','golfcart','heavy']);
+  if (VALID.has(type)) return type as VehicleType;
+
+  if (_LUXURY_BRANDS.some(b => make.includes(b))) return 'luxury';
+  if (_MOTO_BRANDS.some(b => make.includes(b)) || type.includes('motorcycle')) return 'motorcycle';
+  if (type.includes('golfcart') || type.includes('golf cart')) return 'golfcart';
+  if (_PICKUP_MODELS.some(m => model.includes(m)) || type.includes('pickup') || type.includes('truck')) return 'pickup';
+  if (_HEAVY_MODELS.some(m => model.includes(m) || type.includes(m)))  return 'heavy';
+  if (_SUV_MODELS.some(m => model.includes(m)) || type.includes('suv')) return 'suv';
+  return 'sedan';
 }
 
 // ─── Public resolver ──────────────────────────────────────────────────────────
@@ -72,6 +118,28 @@ export function resolveStepInput(
         input_text:   request.message,
         input_method: 'text',
       };
+
+    case 'tool:pricing.calculate': {
+      const nlResult    = _extractParsedData(priorOutputs);
+      const parsedData  = (nlResult['parsed_data'] ?? nlResult) as Record<string, unknown>;
+      return {
+        vehicleType:      _inferVehicleType(parsedData['vehicle'] as Record<string, unknown> | undefined),
+        pickupLocation:   String((parsedData['pickup']   as Record<string, unknown> | undefined)?.['location']  ?? ''),
+        deliveryLocation: String((parsedData['delivery'] as Record<string, unknown> | undefined)?.['location'] ?? ''),
+      };
+    }
+
+    case 'tool:shipment.create': {
+      const nlResult   = _extractParsedData(priorOutputs);
+      const parsedData = (nlResult['parsed_data'] ?? nlResult) as Record<string, unknown>;
+      const pricing    = _extractPricingOutput(priorOutputs);
+      return {
+        userId:         request.userId,
+        parsedData,
+        ...(pricing.total         !== undefined ? { estimatedPrice: pricing.total }         : {}),
+        ...(pricing.distanceMiles !== undefined ? { distanceMiles:  pricing.distanceMiles } : {}),
+      };
+    }
 
     case 'tool:chat.respond':
       return {
