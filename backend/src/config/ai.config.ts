@@ -59,6 +59,9 @@ export const SERVICE_MODEL_MAP = {
   
   // Document structured extraction needs precision
   'document-extraction': AI_MODELS['gpt-4o']!,
+
+  // Intent classification: lightweight, high-volume — mini is sufficient
+  'intent-classify': AI_MODELS['gpt-4o-mini']!,
 } as const;
 
 export type AIServiceName = keyof typeof SERVICE_MODEL_MAP;

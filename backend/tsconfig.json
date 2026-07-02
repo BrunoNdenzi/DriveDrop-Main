@@ -35,7 +35,9 @@
       "@services/*": ["services/*"],
       "@utils/*": ["utils/*"],
       "@types/*": ["types/*"],
-      "@lib/*": ["lib/*"]
+      "@lib/*": ["lib/*"],
+      "@benji": ["benji/index.ts"],
+      "@benji/*": ["benji/*"]
     }
   },
   "include": ["src/**/*"],

@@ -70,16 +70,34 @@ const config = {
 
 // Validate required environment variables
 export const validateConfig = (): void => {
-  const requiredVars = [
+  // Always required (core infrastructure)
+  const requiredAlways = [
     'SUPABASE_URL',
     'SUPABASE_ANON_KEY',
+    'SUPABASE_SERVICE_ROLE_KEY',  // required: supabaseAdmin used by all Benji V2 services (I-8A)
+    'OPENAI_API_KEY',             // required: Benji AI client
     'JWT_SECRET',
   ];
 
-  const missingVars = requiredVars.filter(varName => !process.env[varName]);
+  const missingAlways = requiredAlways.filter(v => !process.env[v]);
+  if (missingAlways.length > 0) {
+    throw new Error(`Missing required environment variables: ${missingAlways.join(', ')}`);
+  }
 
-  if (missingVars.length > 0) {
-    throw new Error(`Missing required environment variables: ${missingVars.join(', ')}`);
+  // Production-only: Benji feature flags must be explicitly configured
+  if (process.env['NODE_ENV'] === 'production') {
+    const requiredInProd = [
+      'ENABLE_BENJI_EVENTS',   // controls tool event persistence (I-8)
+      'ENABLE_BENJI_TRACING',  // controls trace creation (I-10)
+    ];
+    const missingInProd = requiredInProd.filter(v => !process.env[v]);
+    if (missingInProd.length > 0) {
+      throw new Error(
+        `Missing required production environment variables: ${missingInProd.join(', ')}. ` +
+        'Set ENABLE_BENJI_EVENTS=true and ENABLE_BENJI_TRACING=true to enable Benji V2 persistence, ' +
+        'or set to "false" to explicitly disable.',
+      );
+    }
   }
 };
 

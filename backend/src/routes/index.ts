@@ -23,12 +23,14 @@ import { notificationsRoutes}  from './notifications.routes';
 import commercialRoutes from './commercial';
 import integrationsRoutes from './integrations';
 import bolRoutes from './bol';
-import dispatcherRoutes from './dispatcher';
 import webhooksRoutes from './webhooks';
 
 // AI-Powered Features
 import aiRoutes from './ai.routes';
 import routeOptimizationRoutes from './routeOptimization.routes';
+
+// Benji V2 Orchestrator
+import benjiRoutes from './benji.routes';
 
 // Lead Acquisition
 import leadsRoutes from './leads.routes';
@@ -73,9 +75,9 @@ router.get('/', (_req, res) => {
       commercial: '/api/v1/commercial',
       integrations: '/api/v1/integrations',
       bol: '/api/v1/bol',
-      dispatcher: '/api/v1/dispatcher',
       webhooks: '/api/v1/webhooks',
-      ai: '/api/v1/ai',
+      ai:           '/api/v1/ai',
+      benji:        '/api/v1/benji',
       routeOptimization: '/api/v1/route-optimization',
       leads: '/api/v1/leads',
       outreach: '/api/v1/outreach',
@@ -112,11 +114,11 @@ router.use('/notifications', notificationsRoutes);
 router.use('/commercial', commercialRoutes);
 router.use('/integrations', integrationsRoutes);
 router.use('/bol', bolRoutes);
-router.use('/dispatcher', dispatcherRoutes);
 router.use('/webhooks', webhooksRoutes);
 
 // AI-Powered Features
 router.use('/ai', aiRoutes);
+router.use('/benji', benjiRoutes);
 router.use('/route-optimization', routeOptimizationRoutes);
 
 // Lead Acquisition

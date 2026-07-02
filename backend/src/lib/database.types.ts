@@ -341,6 +341,223 @@ export interface Database {
           updated_at?: string
         }
       }
+      // ── Benji V2 tables ─────────────────────────────────────────────────────
+      benji_events: {
+        Row: {
+          id: string
+          event_id: string
+          trace_id: string | null
+          schema_version: number
+          event_type: string
+          tool_name: string | null
+          request_id: string
+          step_id: string | null
+          duration_ms: number | null
+          success: boolean | null
+          user_id: string | null
+          error_code: string | null
+          occurred_at: string
+        }
+        Insert: {
+          id?: string
+          event_id: string
+          trace_id?: string | null
+          schema_version?: number
+          event_type: string
+          tool_name?: string | null
+          request_id: string
+          step_id?: string | null
+          duration_ms?: number | null
+          success?: boolean | null
+          user_id?: string | null
+          error_code?: string | null
+          occurred_at?: string
+        }
+        Update: {
+          id?: string
+          event_id?: string
+          trace_id?: string | null
+          schema_version?: number
+          event_type?: string
+          tool_name?: string | null
+          request_id?: string
+          step_id?: string | null
+          duration_ms?: number | null
+          success?: boolean | null
+          user_id?: string | null
+          error_code?: string | null
+          occurred_at?: string
+        }
+      }
+      ai_usage_logs: {
+        Row: {
+          id: string
+          service_name: string
+          model: string
+          prompt_tokens: number
+          completion_tokens: number
+          total_tokens: number
+          estimated_cost_usd: number | null
+          duration_ms: number | null
+          user_id: string | null
+          occurred_at: string
+        }
+        Insert: {
+          id?: string
+          service_name: string
+          model: string
+          prompt_tokens: number
+          completion_tokens: number
+          total_tokens: number
+          estimated_cost_usd?: number | null
+          duration_ms?: number | null
+          user_id?: string | null
+          occurred_at?: string
+        }
+        Update: {
+          id?: string
+          service_name?: string
+          model?: string
+          prompt_tokens?: number
+          completion_tokens?: number
+          total_tokens?: number
+          estimated_cost_usd?: number | null
+          duration_ms?: number | null
+          user_id?: string | null
+          occurred_at?: string
+        }
+      }
+      policy_violations: {
+        Row: {
+          id: string
+          rule_id: string
+          checkpoint: string
+          request_id: string
+          user_id: string | null
+          reason: string | null
+          evidence: string | null
+          severity: 'block' | 'warn'
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          rule_id: string
+          checkpoint: string
+          request_id: string
+          user_id?: string | null
+          reason?: string | null
+          evidence?: string | null
+          severity: 'block' | 'warn'
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          rule_id?: string
+          checkpoint?: string
+          request_id?: string
+          user_id?: string | null
+          reason?: string | null
+          evidence?: string | null
+          severity?: 'block' | 'warn'
+          created_at?: string
+        }
+      }
+      benji_traces: {
+        Row: {
+          trace_id: string
+          user_id: string
+          request_id: string
+          intent: string | null
+          state: string
+          started_at: string
+          completed_at: string | null
+          final_outcome: string | null
+          step_count: number
+        }
+        Insert: {
+          trace_id?: string
+          user_id: string
+          request_id: string
+          intent?: string | null
+          state?: string
+          started_at?: string
+          completed_at?: string | null
+          final_outcome?: string | null
+          step_count?: number
+        }
+        Update: {
+          trace_id?: string
+          user_id?: string
+          request_id?: string
+          intent?: string | null
+          state?: string
+          started_at?: string
+          completed_at?: string | null
+          final_outcome?: string | null
+          step_count?: number
+        }
+      }
+      benji_trace_steps: {
+        Row: {
+          step_id: string
+          trace_id: string
+          tool_name: string | null
+          input_hash: string | null
+          output_hash: string | null
+          policy_decision: Json | null
+          success: boolean | null
+          timestamp: string
+        }
+        Insert: {
+          step_id: string
+          trace_id: string
+          tool_name?: string | null
+          input_hash?: string | null
+          output_hash?: string | null
+          policy_decision?: Json | null
+          success?: boolean | null
+          timestamp?: string
+        }
+        Update: {
+          step_id?: string
+          trace_id?: string
+          tool_name?: string | null
+          input_hash?: string | null
+          output_hash?: string | null
+          policy_decision?: Json | null
+          success?: boolean | null
+          timestamp?: string
+        }
+      }
+      benji_pending_confirmations: {
+        Row: {
+          trace_id: string
+          user_id: string
+          plan: Json
+          simulation_result: Json
+          schema_version: number
+          expires_at: string
+          created_at: string
+        }
+        Insert: {
+          trace_id: string
+          user_id: string
+          plan: Json
+          simulation_result: Json
+          schema_version?: number
+          expires_at: string
+          created_at?: string
+        }
+        Update: {
+          trace_id?: string
+          user_id?: string
+          plan?: Json
+          simulation_result?: Json
+          schema_version?: number
+          expires_at?: string
+          created_at?: string
+        }
+      }
     }
     Views: {
       shipment_applications_view: {

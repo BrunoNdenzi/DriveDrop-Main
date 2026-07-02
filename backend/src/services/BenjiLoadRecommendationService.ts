@@ -1,4 +1,13 @@
-import { supabase } from '../lib/supabase'
+import { supabase } from '../lib/supabase';
+import { haversineDistance, calculateRouteFit, type GeoPoint } from '@benji/core/math/geo';
+import { ROUTE_FIT_STRATEGY } from '@benji/core/constants/route';
+import {
+  RECOMMENDATION_WEIGHTS,
+  DRIVER_EARNINGS_SPLIT,
+  BEST_MATCH_THRESHOLD,
+  GOOD_MATCH_THRESHOLD,
+  CONSIDER_THRESHOLD,
+} from '@benji/core/constants/scoring';
 
 interface LoadRecommendation {
   load: any
@@ -79,9 +88,9 @@ export class BenjiLoadRecommendationService {
       scoredLoads.sort((a, b) => b.match_score - a.match_score)
 
       // Categorize by priority
-      const best_match = scoredLoads.find(l => l.match_score >= 85) || null
-      const good_matches = scoredLoads.filter(l => l.match_score >= 70 && l.match_score < 85).slice(0, 5)
-      const consider = scoredLoads.filter(l => l.match_score >= 50 && l.match_score < 70).slice(0, 5)
+      const best_match = scoredLoads.find(l => l.match_score >= BEST_MATCH_THRESHOLD) ?? null
+      const good_matches = scoredLoads.filter(l => l.match_score >= GOOD_MATCH_THRESHOLD && l.match_score < BEST_MATCH_THRESHOLD).slice(0, 5)
+      const consider = scoredLoads.filter(l => l.match_score >= CONSIDER_THRESHOLD && l.match_score < GOOD_MATCH_THRESHOLD).slice(0, 5)
 
       // Generate personalized insights
       const insights = await this.generateInsights(driverWithName, scoredLoads, best_match)
@@ -134,9 +143,9 @@ export class BenjiLoadRecommendationService {
     } catch { /* use default */ }
 
     const pickupLoc = load.pickup_location || { coordinates: [-97.7431, 30.2672] }
-    const distanceToPickup = this.calculateDistance(
-      driverLocation,
-      pickupLoc
+    const distanceToPickup = haversineDistance(
+      driverLocation as GeoPoint,
+      pickupLoc as GeoPoint,
     )
 
     if (distanceToPickup < 10) {
@@ -154,7 +163,7 @@ export class BenjiLoadRecommendationService {
     }
 
     // 2. ROUTE FIT SCORE (30% weight)
-    const routeFit = await this.calculateRouteFit(driver.id, load)
+    const routeFit = await calculateRouteFit(driver.id, load, ROUTE_FIT_STRATEGY.RECOMMENDATION)
     scores.route_fit = routeFit
     if (routeFit > 80) {
       reasons.push('✅ On your usual route')
@@ -163,7 +172,7 @@ export class BenjiLoadRecommendationService {
     }
 
     // 3. EARNINGS SCORE (25% weight)
-    const estimatedEarnings = (load.estimated_price || 0) * 0.80 // 80% to driver
+    const estimatedEarnings = (load.estimated_price || 0) * DRIVER_EARNINGS_SPLIT
     const distanceKm = load.estimated_distance_km || load.distance || 100
     const distanceMiles = distanceKm * 0.621371
     const pricePerMile = distanceMiles > 0 ? (load.estimated_price || 0) / distanceMiles : 0
@@ -202,21 +211,21 @@ export class BenjiLoadRecommendationService {
     }
 
     // Calculate weighted total
-    const totalScore = 
-      scores.proximity * 0.35 +
-      scores.route_fit * 0.30 +
-      scores.earnings * 0.25 +
-      scores.timing * 0.05 +
-      scores.compatibility * 0.05
+    const totalScore =
+      scores.proximity     * RECOMMENDATION_WEIGHTS.proximity +
+      scores.route_fit     * RECOMMENDATION_WEIGHTS.routeFit +
+      scores.earnings      * RECOMMENDATION_WEIGHTS.earnings +
+      scores.timing        * RECOMMENDATION_WEIGHTS.timing +
+      scores.compatibility * RECOMMENDATION_WEIGHTS.compatibility
 
     // Confidence based on data quality
     const confidence = this.calculateConfidence(load, driver, scores)
 
     // Determine priority
     let priority: 'best' | 'good' | 'consider'
-    if (totalScore >= 85) {
+    if (totalScore >= BEST_MATCH_THRESHOLD) {
       priority = 'best'
-    } else if (totalScore >= 70) {
+    } else if (totalScore >= GOOD_MATCH_THRESHOLD) {
       priority = 'good'
     } else {
       priority = 'consider'
@@ -231,40 +240,6 @@ export class BenjiLoadRecommendationService {
       distance_to_pickup: Math.round(distanceToPickup),
       route_fit: routeFit,
       priority
-    }
-  }
-
-  /**
-   * Calculate route fit based on driver's history
-   */
-  private async calculateRouteFit(driverId: string, load: any): Promise<number> {
-    try {
-      const { data: pastShipments } = await supabase
-        .from('shipments')
-        .select('pickup_address, delivery_address, pickup_location, delivery_location')
-        .eq('driver_id', driverId)
-        .eq('status', 'completed')
-        .limit(20)
-
-      if (!pastShipments || pastShipments.length === 0) {
-        return 50 // Neutral for new drivers
-      }
-
-      let similarRoutes = 0
-      for (const past of pastShipments) {
-        const pickupMatch = this.areCitiesNear(load.pickup_location, past.pickup_location)
-        const deliveryMatch = this.areCitiesNear(load.delivery_location, past.delivery_location)
-
-        if (pickupMatch && deliveryMatch) {
-          similarRoutes += 2
-        } else if (pickupMatch || deliveryMatch) {
-          similarRoutes += 1
-        }
-      }
-
-      return Math.min(100, (similarRoutes / pastShipments.length) * 75)
-    } catch (error) {
-      return 50
     }
   }
 
@@ -334,48 +309,6 @@ export class BenjiLoadRecommendationService {
     }
 
     return Math.min(100, confidence)
-  }
-
-  /**
-   * Calculate distance between two points (in miles)
-   */
-  private calculateDistance(
-    point1: { coordinates: [number, number] } | null | undefined,
-    point2: { coordinates: [number, number] } | null | undefined
-  ): number {
-    if (!point1?.coordinates || !point2?.coordinates) return 50 // Default 50 miles if no location data
-
-    const [lon1, lat1] = point1.coordinates
-    const [lon2, lat2] = point2.coordinates
-
-    if (!isFinite(lon1) || !isFinite(lat1) || !isFinite(lon2) || !isFinite(lat2)) return 50
-
-    const R = 3958.8 // Earth radius in miles
-    const dLat = this.toRad(lat2 - lat1)
-    const dLon = this.toRad(lon2 - lon1)
-
-    const a =
-      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-      Math.cos(this.toRad(lat1)) *
-        Math.cos(this.toRad(lat2)) *
-        Math.sin(dLon / 2) *
-        Math.sin(dLon / 2)
-
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
-    return R * c
-  }
-
-  private toRad(degrees: number): number {
-    return degrees * (Math.PI / 180)
-  }
-
-  private areCitiesNear(
-    loc1: { coordinates: [number, number] } | null | undefined,
-    loc2: { coordinates: [number, number] } | null | undefined
-  ): boolean {
-    if (!loc1?.coordinates || !loc2?.coordinates) return false
-    const distance = this.calculateDistance(loc1, loc2)
-    return distance < 30
   }
 }
 

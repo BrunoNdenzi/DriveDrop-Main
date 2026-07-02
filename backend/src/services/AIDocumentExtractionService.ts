@@ -21,7 +21,13 @@
  */
 
 import { createClient } from '@supabase/supabase-js';
-import OpenAI from 'openai';
+import { createChatCompletion } from '@benji/ai/client/openai.client';
+import {
+  getDocumentOcrSystemPrompt,
+  getDocumentOcrUserText,
+  getDocumentExtractionSystemPrompt,
+  buildExtractionUserContent,
+} from '@benji/ai/prompt.registry';
 import { FEATURE_FLAGS } from '../config/features';
 import { SERVICE_MODEL_MAP, aiUsageTracker } from '../config/ai.config';
 
@@ -31,10 +37,7 @@ const supabase = createClient(
   process.env['SUPABASE_SERVICE_ROLE_KEY'] || ''
 );
 
-// Initialize OpenAI client
-const openai = new OpenAI({
-  apiKey: process.env['OPENAI_API_KEY'] || '',
-});
+// OpenAI client is now the shared singleton from @benji/ai/openai.client
 
 export interface DocumentUpload {
   shipment_id: string;
@@ -236,19 +239,19 @@ export class AIDocumentExtractionService {
       const startTime = Date.now();
 
       // Use GPT-4o Vision to extract text from the image
-      const response = await openai.chat.completions.create({
+      const response = await createChatCompletion({
         model: modelConfig.model,
         messages: [
           {
             role: 'system',
-            content: 'You are an OCR specialist. Extract ALL text from the document image exactly as it appears. Preserve formatting, line breaks, and layout.',
+            content: getDocumentOcrSystemPrompt(),
           },
           {
             role: 'user',
             content: [
               {
                 type: 'text',
-                text: 'Extract all text from this document image. Include every detail you can see.',
+                text: getDocumentOcrUserText(),
               },
               {
                 type: 'image_url',
@@ -262,7 +265,7 @@ export class AIDocumentExtractionService {
         ],
         max_tokens: 2000,
         temperature: 0.1,
-      });
+      }, { serviceName: 'document-ocr' });
 
       const durationMs = Date.now() - startTime;
 
@@ -314,39 +317,22 @@ export class AIDocumentExtractionService {
 
       const startTime = Date.now();
 
-      const completion = await openai.chat.completions.create({
+      const completion = await createChatCompletion({
         model: modelConfig.model,
         messages: [
           {
             role: 'system',
-            content: `You are a document extraction specialist for vehicle shipping documents.
-Extract structured data from the OCR text into JSON format.
-Document type: ${documentType}
-
-IMPORTANT: Return ONLY valid JSON with these possible fields (omit any field you cannot confidently extract):
-- vehicle_info: {vin?, year?, make?, model?, color?, mileage?, license_plate?}
-- seller_info: {name?, address?, phone?, email?}
-- buyer_info: {name?, address?, phone?, email?}
-- sale_info: {sale_date?, sale_price?, payment_method?}
-- insurance_info: {policy_number?, provider?, coverage_amount?, expiration_date?}
-- inspection_info: {inspection_date?, inspector_name?, pass_status?, notes?}
-
-Rules:
-1. Only include fields with high confidence
-2. Use correct data types (numbers for year/mileage/price, strings for text)
-3. Normalize values (e.g., "HONDA" → "Honda", dates to ISO format)
-4. Return empty object {} if no data can be extracted
-5. MUST be valid JSON - no explanations, no markdown, just JSON`,
+            content: getDocumentExtractionSystemPrompt(documentType),
           },
           {
             role: 'user',
-            content: `Extract data from this OCR text:\n\n${ocrText}`,
+            content: buildExtractionUserContent(ocrText),
           },
         ],
         response_format: { type: 'json_object' },
         temperature: 0.1,
         max_tokens: 1500,
-      });
+      }, { serviceName: 'document-extraction' });
 
       const durationMs = Date.now() - startTime;
 

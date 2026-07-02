@@ -1,4 +1,11 @@
-import { supabase } from '../lib/supabase'
+import { supabase } from '../lib/supabase';
+import { haversineDistance, calculateRouteFit, type GeoPoint } from '@benji/core/math/geo';
+import { ROUTE_FIT_STRATEGY } from '@benji/core/constants/route';
+import {
+  DISPATCH_WEIGHTS,
+  DRIVER_EARNINGS_SPLIT,
+  MIN_MATCH_CONFIDENCE,
+} from '@benji/core/constants/scoring';
 
 interface Load {
   id: string
@@ -138,7 +145,7 @@ export class BenjiDispatcherService {
 
         const match = await this.scoreDriverLoadMatch(load, driver)
         
-        if (match.score > bestScore && match.confidence > 60) {
+        if (match.score > bestScore && match.confidence > MIN_MATCH_CONFIDENCE) {
           bestScore = match.score
           bestMatch = match
         }
@@ -189,7 +196,7 @@ export class BenjiDispatcherService {
       }
     } catch { /* use default */ }
     
-    const distanceToPickup = this.calculateDistance(driverLocation, pickupLocation)
+    const distanceToPickup = haversineDistance(driverLocation as GeoPoint, pickupLocation as GeoPoint)
 
     if (distanceToPickup < 10) {
       scores.proximity = 100
@@ -204,7 +211,7 @@ export class BenjiDispatcherService {
     }
 
     // 2. ROUTE FIT SCORE (25% weight) - Is this on driver's usual routes?
-    const routeFit = await this.calculateRouteFit(driver.id, load)
+    const routeFit = await calculateRouteFit(driver.id, load, ROUTE_FIT_STRATEGY.DISPATCH)
     scores.route_fit = routeFit
     if (routeFit > 80) {
       reasons.push('On your usual route')
@@ -257,12 +264,12 @@ export class BenjiDispatcherService {
     }
 
     // Calculate weighted total score
-    const totalScore = 
-      scores.proximity * 0.40 +
-      scores.route_fit * 0.25 +
-      scores.earnings * 0.20 +
-      scores.experience * 0.10 +
-      scores.rating * 0.05
+    const totalScore =
+      scores.proximity  * DISPATCH_WEIGHTS.proximity +
+      scores.route_fit  * DISPATCH_WEIGHTS.routeFit +
+      scores.earnings   * DISPATCH_WEIGHTS.earnings +
+      scores.experience * DISPATCH_WEIGHTS.experience +
+      scores.rating     * DISPATCH_WEIGHTS.rating
 
     // Calculate confidence (how sure are we about this match?)
     const confidence = Math.min(100, totalScore + (reasons.length * 5))
@@ -273,14 +280,14 @@ export class BenjiDispatcherService {
       score: Math.round(totalScore),
       confidence: Math.round(confidence),
       reasons,
-      estimated_earnings: load.estimated_price * 0.80, // 80% to driver, 20% platform fee
+      estimated_earnings: load.estimated_price * DRIVER_EARNINGS_SPLIT,
       route_fit: routeFit,
       distance_to_pickup: distanceToPickup
     }
     } catch (error) {
       console.error('[BenjiDispatcher] Error scoring driver-load match:', error)
       console.error('[BenjiDispatcher] Load:', load?.id, 'Driver:', driver?.id)
-      
+
       // Return a low-confidence match if scoring fails
       return {
         load,
@@ -288,55 +295,10 @@ export class BenjiDispatcherService {
         score: 0,
         confidence: 0,
         reasons: ['Error calculating match'],
-        estimated_earnings: load.estimated_price * 0.80,
+        estimated_earnings: (load.estimated_price ?? 0) * DRIVER_EARNINGS_SPLIT,
         route_fit: 0,
         distance_to_pickup: 0
       }
-    }
-  }
-
-  /**
-   * Calculate how well this load fits driver's historical routes
-   */
-  private async calculateRouteFit(driverId: string, load: any): Promise<number> {
-    try {
-      // Get driver's past shipments
-      const { data: pastShipments } = await supabase
-        .from('shipments')
-        .select('pickup_address, delivery_address, pickup_location, delivery_location')
-        .eq('driver_id', driverId)
-        .eq('status', 'completed')
-        .limit(20)
-
-      if (!pastShipments || pastShipments.length === 0) {
-        return 50 // Neutral score for new drivers
-      }
-
-      let similarRoutes = 0
-      let totalRoutes = pastShipments.length
-
-      for (const past of pastShipments) {
-        // Check if pickup/delivery cities match
-        const pickupMatch = this.areCitiesNear(
-          load.pickup_location,
-          past.pickup_location
-        )
-        const deliveryMatch = this.areCitiesNear(
-          load.delivery_location,
-          past.delivery_location
-        )
-
-        if (pickupMatch && deliveryMatch) {
-          similarRoutes += 2 // Exact route match
-        } else if (pickupMatch || deliveryMatch) {
-          similarRoutes += 1 // Partial match
-        }
-      }
-
-      const fitScore = (similarRoutes / (totalRoutes * 2)) * 100
-      return Math.min(100, fitScore * 1.2) // Boost by 20%
-    } catch (error) {
-      return 50 // Default neutral score on error
     }
   }
 
@@ -401,53 +363,6 @@ export class BenjiDispatcherService {
       failed,
       assignments
     }
-  }
-
-  /**
-   * Calculate Haversine distance between two points (in miles)
-   */
-  private calculateDistance(
-    point1: { coordinates: [number, number] } | null | undefined,
-    point2: { coordinates: [number, number] } | null | undefined
-  ): number {
-    if (!point1?.coordinates || !point2?.coordinates) return 50 // Default 50 miles if no location data
-    
-    const [lon1, lat1] = point1.coordinates
-    const [lon2, lat2] = point2.coordinates
-
-    if (!isFinite(lon1) || !isFinite(lat1) || !isFinite(lon2) || !isFinite(lat2)) return 50
-
-    const R = 3958.8 // Earth's radius in miles
-    const dLat = this.toRad(lat2 - lat1)
-    const dLon = this.toRad(lon2 - lon1)
-
-    const a =
-      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-      Math.cos(this.toRad(lat1)) *
-        Math.cos(this.toRad(lat2)) *
-        Math.sin(dLon / 2) *
-        Math.sin(dLon / 2)
-
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
-    return R * c
-  }
-
-  private toRad(degrees: number): number {
-    return degrees * (Math.PI / 180)
-  }
-
-  /**
-   * Check if two locations are within same city/region (within 30 miles)
-   */
-  private areCitiesNear(
-    loc1: { coordinates: [number, number] } | null,
-    loc2: { coordinates: [number, number] } | null
-  ): boolean {
-    if (!loc1 || !loc2 || !loc1.coordinates || !loc2.coordinates) {
-      return false // Cannot compare if locations are missing
-    }
-    const distance = this.calculateDistance(loc1, loc2)
-    return distance < 30 // Within 30 miles = same city
   }
 
   /**

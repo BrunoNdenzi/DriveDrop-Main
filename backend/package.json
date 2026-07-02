@@ -3,8 +3,9 @@
   "version": "1.1.0",
   "main": "dist/index.js",
   "_moduleAliases": {
-    "@config": "dist/config/index.js",
+    "@config": "dist/config",
     "@utils": "dist/utils",
+    "@benji": "dist/benji",
     "@controllers": "dist/controllers",
     "@middlewares": "dist/middlewares",
     "@routes": "dist/routes",
@@ -32,7 +33,8 @@
     "verify:env": "node scripts/verify-env.js",
     "create:admin": "node scripts/create-admin-user.js",
     "create:review-users": "node scripts/create-review-users.js",
-    "setup": "npm run build && npm run create:admin && npm run start"
+    "setup": "npm run build && npm run create:admin && npm run start",
+    "test:benji": "ts-node -r tsconfig-paths/register src/benji/tests/benji-integration.harness.ts"
   },
   "keywords": [],
   "author": "",

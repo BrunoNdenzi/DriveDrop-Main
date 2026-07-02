@@ -19,61 +19,61 @@ export const FEATURE_FLAGS = {
    * Commercial Accounts
    * Enables B2B client accounts with API access, payment terms, credit limits
    */
-  COMMERCIAL_ACCOUNTS: process.env['ENABLE_COMMERCIAL'] === 'true' || true,
+  COMMERCIAL_ACCOUNTS: process.env['ENABLE_COMMERCIAL'] === 'true',
 
   /**
    * AI Dispatcher
    * Enables AI-powered dispatch optimization (30% efficiency gains)
    */
-  AI_DISPATCHER: process.env['ENABLE_AI_DISPATCHER'] === 'true' || true,
+  AI_DISPATCHER: process.env['ENABLE_AI_DISPATCHER'] === 'true',
 
   /**
    * Natural Language Shipment Creation
    * Allows creating shipments via text prompts using GPT-4
    */
-  NATURAL_LANGUAGE: process.env['ENABLE_NATURAL_LANGUAGE'] === 'true' || true,
+  NATURAL_LANGUAGE: process.env['ENABLE_NATURAL_LANGUAGE'] === 'true',
 
   /**
    * Universal Integrations
    * Enables universal integration system for auction houses, dealerships
    */
-  UNIVERSAL_INTEGRATIONS: process.env['ENABLE_INTEGRATIONS'] === 'true' || true,
+  UNIVERSAL_INTEGRATIONS: process.env['ENABLE_INTEGRATIONS'] === 'true',
 
   /**
    * Enhanced Bulk Upload
    * Excel support, AI validation, progress tracking
    */
-  BULK_UPLOAD_V2: process.env['ENABLE_BULK_V2'] === 'true' || true,
+  BULK_UPLOAD_V2: process.env['ENABLE_BULK_V2'] === 'true',
 
   /**
    * Bill of Lading System
    * Legal transport document generation and management
    */
-  BOL_SYSTEM: process.env['ENABLE_BOL'] === 'true' || true,
+  BOL_SYSTEM: process.env['ENABLE_BOL'] === 'true',
 
   /**
    * Gate Pass System
    * Facility access control with QR codes
    */
-  GATE_PASS_SYSTEM: process.env['ENABLE_GATE_PASS'] === 'true' || true,
+  GATE_PASS_SYSTEM: process.env['ENABLE_GATE_PASS'] === 'true',
 
   /**
    * AI Document Extraction
    * OCR + GPT-4 for automatic document data extraction
    */
-  AI_DOCUMENT_EXTRACTION: process.env['ENABLE_AI_EXTRACTION'] === 'true' || true,
+  AI_DOCUMENT_EXTRACTION: process.env['ENABLE_AI_EXTRACTION'] === 'true',
 
   /**
    * Commercial API Access
    * RESTful API for commercial clients
    */
-  COMMERCIAL_API: process.env['ENABLE_COMMERCIAL_API'] === 'true' || true,
+  COMMERCIAL_API: process.env['ENABLE_COMMERCIAL_API'] === 'true',
 
   /**
    * Webhook System
    * Outbound webhooks for status updates
    */
-  WEBHOOK_SYSTEM: process.env['ENABLE_WEBHOOKS'] === 'true' || true,
+  WEBHOOK_SYSTEM: process.env['ENABLE_WEBHOOKS'] === 'true',
 } as const;
 
 /**

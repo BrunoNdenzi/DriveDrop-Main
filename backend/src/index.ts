@@ -10,9 +10,20 @@ import config, { validateConfig } from '@config';
 import { logger } from '@utils/logger';
 import { errorHandler } from '@middlewares/error.middleware';
 
+// Benji V2 bootstrap — side-effect imports.
+// These must be imported BEFORE routes so that tools are registered and event
+// hooks are wired before any route handler can accept requests.
+//   1. '@benji/tool/index'   → registers 5 tools with benjiToolRegistry (I-13)
+//   2. '@benji/events/index' → wires ToolEventHook + TokenUsageHook    (I-8, I-10)
+import '@benji/tool/index';
+import '@benji/events/index';
+
 // Routes
 import apiRoutes from '@routes/index';
 import healthRoutes from '@routes/health.routes';
+
+// Benji background jobs
+import { startConfirmationCleanup } from '@benji/confirmation/confirmation-cleanup.service';
 
 // Load environment variables
 dotenv.config();
@@ -74,4 +85,6 @@ app.listen(port, '0.0.0.0', () => {
   logger.info(`📱 Health check: http://localhost:${port}/health`);
   logger.info(`🔗 API: http://localhost:${port}${config.server.apiPrefix}`);
   logger.info(`🌐 Network: http://0.0.0.0:${port}${config.server.apiPrefix}`);
+  // Start Benji background jobs
+  startConfirmationCleanup();
 });

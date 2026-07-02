@@ -15,5 +15,7 @@ register({
     '@services/*': ['services/*'],
     '@types/*': ['types/*'],
     '@utils/*': ['utils/*'],
+    '@benji': ['benji/index.ts'],
+    '@benji/*': ['benji/*'],
   },
 });

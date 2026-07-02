@@ -25,7 +25,8 @@
  */
 
 import { createClient } from '@supabase/supabase-js';
-import OpenAI from 'openai';
+import { createChatCompletion } from '@benji/ai/client/openai.client';
+import { getNlShipmentPrompt } from '@benji/ai/prompt.registry';
 import { FEATURE_FLAGS } from '../config/features';
 import { SERVICE_MODEL_MAP, aiUsageTracker } from '../config/ai.config';
 import { googleMapsService } from './google-maps.service';
@@ -36,11 +37,6 @@ const supabase = createClient(
   process.env['SUPABASE_URL'] || '',
   process.env['SUPABASE_SERVICE_ROLE_KEY'] || ''
 );
-
-// Initialize OpenAI client
-const openai = new OpenAI({
-  apiKey: process.env['OPENAI_API_KEY'] || '',
-});
 
 export interface NLShipmentInput {
   user_id: string;
@@ -169,31 +165,11 @@ export class NaturalLanguageShipmentService {
       const modelConfig = SERVICE_MODEL_MAP['nl-shipment'];
       console.log(`Parsing natural language with ${modelConfig.model}: "${input.input_text}"`);
 
-      const systemPrompt = `You are Benji, an AI assistant for a vehicle shipping platform.
-Extract structured shipment data from natural language input.
-
-IMPORTANT RULES:
-1. Extract only information explicitly stated or clearly implied
-2. For dates: Parse relative dates ("next week" → ISO date 7 days from now, "Monday" → next Monday's ISO date)
-3. For locations: Extract full location as stated - city name at minimum (e.g., "Los Angeles", "Dallas, TX", "123 Main St, Boston, MA")
-4. For vehicles: Identify year (number), make (string), model (string), VIN if mentioned, condition (operable/inoperable)
-5. For missing critical fields, note them in missing_fields array
-6. Return confidence score 0.0-1.0 based on how complete and clear the information is
-
-Return ONLY valid JSON with this EXACT structure:
-{
-  "vehicle": {"year": number|null, "make": string|null, "model": string|null, "vin": string|null, "type": string|null, "condition": string|null},
-  "pickup": {"location": string|null, "date": string|null},
-  "delivery": {"location": string|null, "date": string|null},
-  "preferences": {"enclosed_transport": boolean|null, "expedited": boolean|null},
-  "metadata": {"urgency": string|null, "notes": string|null}
-}
-
-ONLY include fields with actual values - use null for missing data. Location should be as specific as possible from the input.`;
+      const systemPrompt = getNlShipmentPrompt();
 
       const startTime = Date.now();
 
-      const completion = await openai.chat.completions.create({
+      const completion = await createChatCompletion({
         model: modelConfig.model,
         messages: [
           { role: 'system', content: systemPrompt },
@@ -202,7 +178,7 @@ ONLY include fields with actual values - use null for missing data. Location sho
         response_format: { type: 'json_object' },
         temperature: modelConfig.temperature,
         max_tokens: modelConfig.maxTokens,
-      });
+      }, { serviceName: 'nl-shipment' });
 
       const durationMs = Date.now() - startTime;
 

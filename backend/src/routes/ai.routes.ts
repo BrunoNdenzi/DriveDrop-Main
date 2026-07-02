@@ -11,7 +11,6 @@ import { aiUsageTracker, aiResponseCache } from '../config/ai.config';
 import { AIDocumentExtractionService } from '../services/AIDocumentExtractionService';
 import { NaturalLanguageShipmentService } from '../services/NaturalLanguageShipmentService';
 import { BulkUploadService } from '../services/BulkUploadService';
-import { benjiChatService, ChatMessage, ChatContext } from '../services/BenjiChatService';
 import { benjiDispatcherService } from '../services/BenjiDispatcherService';
 import { benjiLoadRecommendationService } from '../services/BenjiLoadRecommendationService';
 
@@ -296,13 +295,15 @@ router.post('/review-extraction/:extractionId', authenticate, async (req: Reques
 
 /**
  * POST /api/v1/ai/chat
- * Benji AI Chat - Context-aware conversational assistant
+ * @deprecated Use POST /api/v1/benji/chat instead (Benji V2 orchestrator).
+ * This endpoint is kept for backward compatibility and delegates to the orchestrator.
+ * Legacy message-array format: uses the last message as the user message.
  */
 router.post('/chat', authenticate, aiRateLimit('chat'), async (req: Request, res: Response): Promise<void> => {
   try {
     const { messages, context } = req.body;
 
-    if (!messages || !Array.isArray(messages)) {
+    if (!messages || !Array.isArray(messages) || messages.length === 0) {
       res.status(400).json({ error: 'Messages array is required' });
       return;
     }
@@ -313,37 +314,49 @@ router.post('/chat', authenticate, aiRateLimit('chat'), async (req: Request, res
       return;
     }
 
-    // Build chat context
-    const chatContext: ChatContext = {
+    // Extract the last user message for the orchestrator
+    const lastMsg = messages[messages.length - 1] as { role?: string; content?: string } | undefined;
+    const userMessage = (lastMsg?.role === 'user' || lastMsg?.role === undefined)
+      ? (lastMsg?.content ?? '')
+      : (messages.find((m: { role?: string; content?: string }) => m.role === 'user')?.content ?? '');
+
+    if (!userMessage) {
+      res.status(400).json({ error: 'No user message found in messages array' });
+      return;
+    }
+
+    // Delegate to Benji V2 orchestrator
+    const { randomUUID } = await import('node:crypto');
+    const { benjiOrchestrator } = await import('@benji/orchestrator/benji-orchestrator');
+    const userType = req.user?.role === 'driver' ? 'driver'
+      : req.user?.role === 'admin' ? 'admin'
+      : req.user?.role === 'broker' ? 'broker'
+      : 'client';
+
+    const result = await benjiOrchestrator.handle({
+      requestId: randomUUID(),
+      traceId:   randomUUID(),
       userId,
-      userType: context?.userType || 'client',
-      currentPage: context?.currentPage,
-      shipmentId: context?.shipmentId,
-      attachments: context?.attachments,
-    };
-
-    console.log('Benji chat request:', {
-      userId,
-      messageCount: messages.length,
-      context: chatContext,
+      userType,
+      message:   userMessage,
+      ...(typeof context?.sessionId   === 'string' ? { sessionId:   context.sessionId   } : {}),
+      ...(typeof context?.currentPage === 'string' ? { currentPage: context.currentPage } : {}),
+      ...(typeof context?.shipmentId  === 'string' ? { shipmentId:  context.shipmentId  } : {}),
     });
 
-    // Get AI response
-    const response = await benjiChatService.chat(messages as ChatMessage[], chatContext);
-
-    res.status(200).json({
-      success: true,
-      message: response.message,
-      confidence: response.confidence,
-      suggestions: response.suggestions,
-      timestamp: new Date().toISOString(),
+    // Normalize to legacy response shape for backward compatibility
+    res.status(result.state === 'COMPLETE' ? 200 : result.state === 'AWAIT_CONFIRMATION' ? 202 : 500).json({
+      success:    result.success,
+      message:    result.response ?? result.clarificationRequest ?? result.error ?? '',
+      confidence: 1.0,
+      traceId:    result.traceId,
+      state:      result.state,
+      timestamp:  new Date().toISOString(),
+      ...(result.confirmationPayload !== undefined ? { confirmationPayload: result.confirmationPayload } : {}),
     });
-  } catch (error: any) {
-    console.error('Benji chat error:', error);
-    res.status(500).json({
-      error: 'Failed to process chat',
-      details: error.message,
-    });
+  } catch (error: unknown) {
+    const msg = error instanceof Error ? error.message : String(error);
+    res.status(500).json({ error: 'Failed to process chat', details: msg });
   }
 });
 

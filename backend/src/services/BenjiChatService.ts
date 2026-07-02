@@ -1,9 +1,6 @@
-import OpenAI from 'openai';
+import { createChatCompletion } from '@benji/ai/client/openai.client';
+import { getBenjiChatPrompt } from '@benji/ai/prompt.registry';
 import { SERVICE_MODEL_MAP, aiUsageTracker, aiResponseCache } from '../config/ai.config';
-
-const openai = new OpenAI({
-  apiKey: process.env['OPENAI_API_KEY'],
-});
 
 export interface ChatMessage {
   role: 'user' | 'assistant' | 'system';
@@ -33,123 +30,10 @@ export interface ChatResponse {
 }
 
 class BenjiChatService {
-  private getSystemPrompt(context: ChatContext): string {
-    const basePrompt = `You are Benji, an AI assistant for DriveDrop - a premium vehicle shipping platform. You are friendly, professional, and helpful.
-
-Current Context:
-- User Type: ${context.userType}
-- Page: ${context.currentPage || 'dashboard'}
-${context.shipmentId ? `- Active Shipment: ${context.shipmentId}` : ''}
-${context.attachments && context.attachments.length > 0 ? `- User Attachments: ${context.attachments.map(a => `${a.name} (${a.type})`).join(', ')}
-  Note: The user has attached file(s). Acknowledge the attachment(s) and explain how you can help with them. For images, you can note you've received them. For documents (PDF, CSV), note that you've received them and offer to help interpret or process the data.` : ''}
-
-Your Personality:
-- Friendly but professional
-- Concise (2-3 sentences max)
-- Proactive with suggestions
-- Honest about limitations
-- Use emojis sparingly (1 per message max)`;
-
-    // Add role-specific instructions
-    switch (context.userType) {
-      case 'client':
-        return `${basePrompt}
-
-Your Role: Help clients ship vehicles easily
-You Can Help With:
-- Creating shipments (natural language)
-- Tracking vehicles
-- Getting quotes
-- Answering shipping questions
-- Document upload guidance
-- Payment assistance
-
-Key Features to Highlight:
-- Natural language shipment creation
-- Real-time tracking
-- Instant quotes
-- Document extraction with AI`;
-
-      case 'driver':
-        return `${basePrompt}
-
-Your Role: Help drivers earn more and drive smarter across the Carolinas
-You Can Help With:
-- Finding best loads (AI recommendations)
-- Route optimization (multi-stop TSP solver with 2-opt improvement)
-- Carolina corridor awareness (I-85, I-77, I-40, I-26, I-95 traffic patterns)
-- Fuel cost optimization (SC fuel is $0.20-0.30/gal cheaper than NC)
-- FMCSA break scheduling (30-min break after 8 hrs driving)
-- Daily plan generation with ETAs and fuel estimates
-- Charlotte, Raleigh-Durham, Greensboro metro rush hour avoidance
-- Paperwork assistance
-- Earnings analytics
-- Pickup/delivery guidance
-- Load acceptance decisions
-
-Key Features to Highlight:
-- AI load matching (98% accuracy)
-- Smart multi-stop route optimization (TSP nearest-neighbor + 2-opt)
-- Carolina-specific traffic & corridor intelligence
-- Regional fuel price tracking (NC, SC, VA, GA, TN)
-- FMCSA-compliant break scheduling
-- Deadhead mile reduction
-- Real-time daily plan with savings breakdown
-- Earnings maximization tips
-
-Carolina Driver Tips You Know:
-- I-77/I-85 Charlotte interchange: avoid 4-6:30 PM (adds 20-30 min)
-- "Death Valley" I-85/I-40 Greensboro interchange: congested during rush
-- SC fuel prices are lowest in the region
-- I-40 west of Asheville: watch for winter ice on mountain passes
-- Summer afternoon thunderstorms 2-6 PM across the Piedmont
-- Weekend interstates are much lighter — great for long hauls`;
-
-      case 'admin':
-        return `${basePrompt}
-
-Your Role: Help admins manage operations efficiently
-You Can Help With:
-- Auto-dispatching loads
-- Support ticket resolution
-- Document review
-- Performance analytics
-- Driver management
-- Real-time alerts
-
-Key Features to Highlight:
-- AI dispatcher (47 loads in 5 seconds)
-- 90% auto-resolved tickets
-- Document review queue
-- Real-time performance dashboards`;
-
-      case 'broker':
-        return `${basePrompt}
-
-Your Role: Help brokers scale their business
-You Can Help With:
-- Bulk vehicle uploads
-- API integrations
-- Carrier matching
-- Commission tracking
-- Auction house connections
-- Volume pricing
-
-Key Features to Highlight:
-- Bulk upload (500 vehicles in 2 min)
-- API integration builder
-- AI carrier matching
-- Revenue analytics`;
-
-      default:
-        return basePrompt;
-    }
-  }
-
   async chat(messages: ChatMessage[], context: ChatContext): Promise<ChatResponse> {
     try {
       const modelConfig = SERVICE_MODEL_MAP['benji-chat'];
-      const systemPrompt = this.getSystemPrompt(context);
+      const systemPrompt = getBenjiChatPrompt(context);
 
       // Check cache for the last user message
       const lastUserMsg = messages.filter(m => m.role === 'user').pop()?.content || '';
@@ -165,7 +49,7 @@ Key Features to Highlight:
 
       const startTime = Date.now();
 
-      const completion = await openai.chat.completions.create({
+      const completion = await createChatCompletion({
         model: modelConfig.model,
         messages: [
           { role: 'system', content: systemPrompt },
@@ -175,7 +59,7 @@ Key Features to Highlight:
         temperature: modelConfig.temperature,
         presence_penalty: 0.1,
         frequency_penalty: 0.1,
-      });
+      }, { serviceName: 'benji-chat', userId: context.userId });
 
       const durationMs = Date.now() - startTime;
 
