@@ -106,11 +106,15 @@ export function resolveStepInput(
   }
 
   switch (action) {
-    case 'tool:validate.input':
+    case 'tool:validate.input': {
+      // Unwrap parsed_data from the NLParseResult envelope (tool:shipment.parse must run first)
+      const nlResult   = _extractParsedData(priorOutputs);
+      const parsedData = (nlResult['parsed_data'] ?? nlResult) as Record<string, unknown>;
       return {
         intent: intent ?? (request._classifiedIntent ?? 'general.inquiry'),
-        data:   _extractParsedData(priorOutputs),
+        data:   parsedData,
       };
+    }
 
     case 'tool:shipment.parse':
       return {

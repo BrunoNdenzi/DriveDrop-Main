@@ -48,6 +48,11 @@ export const BenjiChat = ({
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  // Phase 9.3: stable sessionId for this chat window + clarification tracking
+  const sessionIdRef = useRef<string>(
+    typeof crypto !== 'undefined' ? crypto.randomUUID() : Math.random().toString(36).slice(2)
+  );
+  const [pendingClarificationTraceId, setPendingClarificationTraceId] = useState<string | null>(null);
 
   // Auto-scroll to bottom
   const scrollToBottom = () => {
@@ -161,7 +166,26 @@ export const BenjiChat = ({
         userType,
         currentPage: context,
         shipmentId,
+        // Phase 9.3: stable sessionId for context continuity
+        ...(sessionIdRef.current ? { clarificationTraceId: pendingClarificationTraceId ?? undefined } : {}),
       });
+
+      // Clear pending clarification on any response (answered or expired)
+      setPendingClarificationTraceId(null);
+
+      // Phase 9.3: clarification — show question as a natural Benji reply, NOT an error
+      if (response.state === 'CLARIFICATION_REQUIRED' && response.clarificationRequest) {
+        setPendingClarificationTraceId(response.traceId ?? null);
+        const clarifyMessage: BenjiMessageProps = {
+          id: (Date.now() + 1).toString(),
+          role: 'assistant',
+          content: response.clarificationRequest,
+          timestamp: new Date(),
+          confidence: 0.95,
+        };
+        setMessages(prev => [...prev, clarifyMessage]);
+        return;
+      }
 
       const responseText = response.response ?? response.error ?? 'I received your message.';
 

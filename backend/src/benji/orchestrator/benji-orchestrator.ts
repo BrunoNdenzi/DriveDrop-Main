@@ -37,6 +37,8 @@ import { benjiToolRegistry } from '@benji/tool/tool.registry';
 import { globalPolicyGuard } from '@benji/policy/global-policy.guard';
 import { simulationEngine } from '@benji/simulation/simulation.engine';
 import { benjiTraceService } from '@benji/trace/benji-trace.service';
+import { clarificationStore } from '@benji/clarification/clarification.store';
+import { generateClarificationQuestion } from '@benji/clarification/clarification.generator';
 import type {
   OrchestratorRequest,
   OrchestratorResult,
@@ -61,8 +63,8 @@ interface StepSpec {
 
 const INTENT_PLAN_MAP: Readonly<Record<string, StepSpec[]>> = {
   'shipment.create': [
-    { action: 'tool:validate.input',    critical: true  },
-    { action: 'tool:shipment.parse',    critical: true  },
+    { action: 'tool:shipment.parse',    critical: true  },   // parse first
+    { action: 'tool:validate.input',    critical: false },   // validate parsed output; false so clarification loop fires instead of abort
     { action: 'tool:pricing.calculate', critical: false },
     { action: 'tool:shipment.create',   critical: true  },
     { action: 'tool:chat.respond',      critical: false },
@@ -205,6 +207,42 @@ export async function executeSteps(
     (result as ToolResult<unknown> & { _stepAction?: string })._stepAction = step.action;
     priorOutputs[step.stepId] = result;
 
+    // ── Phase 9.3: Clarification loop intercept ───────────────────────────
+    // When tool:validate.input succeeds (tool ran OK) but the output reports
+    // missing required fields, convert the failure into a natural clarification
+    // request rather than surfacing raw validation errors to the user.
+    if (step.action === 'tool:validate.input' && result.success === true) {
+      const validation = result.data as { valid?: boolean; missingFields?: string[] } | undefined;
+      if (validation?.valid === false && (validation.missingFields?.length ?? 0) > 0) {
+        const question = generateClarificationQuestion(validation.missingFields ?? []);
+
+        // Persist context so the route handler can merge on the follow-up turn
+        clarificationStore.set(traceId, {
+          userId:          request.userId,
+          intent:          finalIntent ?? 'shipment.create',
+          originalMessage: request.message,
+        });
+
+        await benjiTraceService.finalize(
+          traceId,
+          TraceOutcome.CLARIFICATION_REQUIRED,
+          'CLARIFICATION_LOOP',
+          finalIntent,
+        );
+
+        return {
+          result: {
+            success:              false,
+            traceId,
+            state:                'CLARIFICATION_LOOP',
+            clarificationRequest: question,
+          },
+          priorOutputs,
+        };
+      }
+    }
+    // ─────────────────────────────────────────────────────────────────────
+
     if (!result.success && step.critical) {
       await benjiTraceService.finalize(traceId, TraceOutcome.FAILED, 'BLOCKED', finalIntent);
       return {
@@ -272,24 +310,30 @@ export class BenjiOrchestrator {
       }
 
       // ── Step 2: Intent classification ──────────────────────────────────
-      const classification = await benjiIntentService.classify({
-        message:  request.message,
-        userId:   request.userId,
-        userType: request.userType,
-        ...(request.sessionId !== undefined ? { sessionId: request.sessionId } : {}),
-      });
+      // Phase 9.3: If _classifiedIntent is already set by the route handler
+      // (clarification resume), skip re-classification and use the stored intent.
+      if (request._classifiedIntent !== undefined) {
+        finalIntent = request._classifiedIntent;
+      } else {
+        const classification = await benjiIntentService.classify({
+          message:  request.message,
+          userId:   request.userId,
+          userType: request.userType,
+          ...(request.sessionId !== undefined ? { sessionId: request.sessionId } : {}),
+        });
 
-      finalIntent = classification.intent;
-      request._classifiedIntent = finalIntent;
+        finalIntent = classification.intent;
+        request._classifiedIntent = finalIntent;
 
-      if (classification.confidence < 0.55 || classification.ambiguous === true) {
-        await finalizeTrace(TraceOutcome.CLARIFICATION_REQUIRED, 'CLARIFICATION_LOOP', finalIntent);
-        return {
-          success:              false,
-          traceId,
-          state:                'CLARIFICATION_LOOP',
-          clarificationRequest: `I'm not sure I understood — could you clarify what you'd like to do with "${request.message.slice(0, 60)}"?`,
-        };
+        if (classification.confidence < 0.55 || classification.ambiguous === true) {
+          await finalizeTrace(TraceOutcome.CLARIFICATION_REQUIRED, 'CLARIFICATION_LOOP', finalIntent);
+          return {
+            success:              false,
+            traceId,
+            state:                'CLARIFICATION_LOOP',
+            clarificationRequest: `I'm not sure I understood — could you clarify what you'd like to do with "${request.message.slice(0, 60)}"?`,
+          };
+        }
       }
 
       // ── Step 3: Memory retrieval ────────────────────────────────────────

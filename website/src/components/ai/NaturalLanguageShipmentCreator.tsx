@@ -25,10 +25,14 @@ export default function NaturalLanguageShipmentCreator({
   const [isProcessing, setIsProcessing] = useState(false)
   const [result, setResult] = useState<BenjiChatResponse | null>(null)
   const [pendingConfirmation, setPendingConfirmation] = useState<{ traceId: string; riskScore: number; planSummary: string[]; message: string } | null>(null)
+  // Phase 9.3 — clarification loop
+  const [pendingClarification, setPendingClarification] = useState<{ traceId: string; question: string } | null>(null)
   const [isConfirming, setIsConfirming] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [isListening, setIsListening] = useState(false)
   const [showDocScanner, setShowDocScanner] = useState(false)
+  // Phase 9.3 — stable sessionId so the clarification resume works across turns
+  const [sessionId] = useState(() => Math.random().toString(36).slice(2))
   const router = useRouter()
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const recognitionRef = useRef<any>(null)
@@ -171,7 +175,20 @@ export default function NaturalLanguageShipmentCreator({
     setIsProcessing(true)
 
     try {
-      const response = await aiService.benjiChat(prompt)
+      const response = await aiService.benjiChat(prompt, {
+        // Phase 9.3: send clarificationTraceId when answering a follow-up question
+        ...(pendingClarification ? { clarificationTraceId: pendingClarification.traceId } : {}),
+      })
+
+      // Phase 9.3: clarification — show the follow-up question, NOT an error
+      if (response.state === 'CLARIFICATION_REQUIRED' && response.clarificationRequest) {
+        setPendingClarification({ traceId: response.traceId ?? '', question: response.clarificationRequest })
+        setPrompt('')   // clear input so user types their answer
+        return
+      }
+
+      // Clear clarification state on any other outcome
+      setPendingClarification(null)
 
       if (response.state === 'AWAIT_CONFIRMATION' && response.confirmationPayload) {
         // Benji needs user approval before creating the shipment
@@ -430,6 +447,19 @@ export default function NaturalLanguageShipmentCreator({
             </div>
           )}
 
+          {/* Phase 9.3 — Clarification question bubble (inline variant) */}
+          {pendingClarification && (
+            <div className="mt-4 flex items-start gap-3">
+              <div className="flex-shrink-0 w-8 h-8 bg-purple-100 rounded-full flex items-center justify-center">
+                <Sparkles className="h-4 w-4 text-purple-600" />
+              </div>
+              <div className="flex-1 bg-purple-50 border border-purple-200 rounded-2xl rounded-tl-none px-4 py-3">
+                <p className="text-sm font-medium text-purple-900">Benji needs a bit more info</p>
+                <p className="text-sm text-purple-800 mt-1">{pendingClarification.question}</p>
+              </div>
+            </div>
+          )}
+
           {/* Error */}
           {error && (
             <div className="mt-6 bg-red-50 border-2 border-red-200 rounded-md p-4">
@@ -608,6 +638,19 @@ export default function NaturalLanguageShipmentCreator({
             <p>• {result.shipmentCreated.vehicle}</p>
             <p>• From: {result.shipmentCreated.pickupAddress}</p>
             <p>• To: {result.shipmentCreated.deliveryAddress}</p>
+          </div>
+        </div>
+      )}
+
+      {/* Phase 9.3 — Clarification question bubble (inline variant) */}
+      {pendingClarification && (
+        <div className="flex items-start gap-3">
+          <div className="flex-shrink-0 w-7 h-7 bg-purple-100 rounded-full flex items-center justify-center">
+            <Sparkles className="h-3.5 w-3.5 text-purple-600" />
+          </div>
+          <div className="flex-1 bg-purple-50 border border-purple-200 rounded-2xl rounded-tl-none px-3 py-2">
+            <p className="text-xs font-semibold text-purple-800">Benji</p>
+            <p className="text-sm text-purple-800 mt-0.5">{pendingClarification.question}</p>
           </div>
         </div>
       )}

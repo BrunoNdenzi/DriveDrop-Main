@@ -28,6 +28,7 @@ import { authenticate } from '@middlewares/auth.middleware';
 import { benjiRateLimit } from '../middlewares/benji-rate-limit.middleware';
 import { benjiOrchestrator } from '@benji/orchestrator/benji-orchestrator';
 import { resumeOrchestrator } from '@benji/orchestrator/resume.orchestrator';
+import { clarificationStore } from '@benji/clarification/clarification.store';
 import { supabaseAdmin } from '@lib/supabase';
 import { FEATURE_FLAGS } from '../config/features';
 import { streamingOrchestrator } from '@benji/orchestrator/stream.orchestrator';
@@ -111,14 +112,21 @@ router.post(
         return;
       }
 
-      const { message, sessionId, currentPage, shipmentId, attachments, _qaUserType } = req.body as {
-        message?:      unknown;
-        sessionId?:    unknown;
-        currentPage?:  unknown;
-        shipmentId?:   unknown;
-        attachments?:  unknown;
+      const { message, sessionId, currentPage, shipmentId, attachments, _qaUserType, clarificationTraceId } = req.body as {
+        message?:               unknown;
+        sessionId?:             unknown;
+        currentPage?:           unknown;
+        shipmentId?:            unknown;
+        attachments?:           unknown;
         /** Admin-only QA override: simulate a different userType for testing purposes. */
-        _qaUserType?:  unknown;
+        _qaUserType?:           unknown;
+        /**
+         * Phase 9.3 — Clarification resume.
+         * Set by the frontend when this message is a follow-up answer to a
+         * CLARIFICATION_REQUIRED response.  Must equal the traceId returned
+         * with that response.  Validated server-side (userId ownership check).
+         */
+        clarificationTraceId?:  unknown;
       };
 
       // Input validation
@@ -144,12 +152,31 @@ router.post(
 
       const requestId = randomUUID();
 
+      // ── Phase 9.3: Clarification resume ──────────────────────────────────
+      // When the frontend sends a clarificationTraceId, look up the stored
+      // context, combine the original message with the user's follow-up answer,
+      // and tell the orchestrator to skip re-classification (intent is known).
+      let effectiveMessage                  = message.trim();
+      let preClassifiedIntent: string | undefined;
+
+      if (typeof clarificationTraceId === 'string' && clarificationTraceId.trim().length > 0) {
+        const clarCtx = clarificationStore.get(clarificationTraceId.trim(), userId);
+        if (clarCtx) {
+          // Combine original + answer so tool:shipment.parse can extract all fields
+          effectiveMessage    = `${clarCtx.originalMessage}. ${message.trim()}`;
+          preClassifiedIntent = clarCtx.intent;
+          // Atomic delete — prevents replay of the same clarification context
+          clarificationStore.delete(clarificationTraceId.trim());
+        }
+        // If not found (expired / wrong user) fall through to normal handling
+      }
+
       const orchRequest: OrchestratorRequest = {
         requestId,
         traceId:  requestId,  // traceId created inside createTrace(); this is overwritten
         userId,
         userType,
-        message:  message.trim(),
+        message:  effectiveMessage,
         ...(typeof sessionId   === 'string' ? { sessionId   } : {}),
         ...(typeof currentPage === 'string' ? { currentPage } : {}),
         ...(typeof shipmentId  === 'string' ? { shipmentId  } : {}),
@@ -162,12 +189,17 @@ router.post(
           : {}),
       };
 
+      // Pre-set the classified intent to bypass re-classification on resume
+      if (preClassifiedIntent !== undefined) {
+        orchRequest._classifiedIntent = preClassifiedIntent;
+      }
+
       const result = await benjiOrchestrator.handle(orchRequest);
 
       switch (result.state) {
         case 'COMPLETE':
           res.status(200).json({
-            status:    'COMPLETE',
+            state:     'COMPLETE',
             traceId:   result.traceId,
             response:  result.response,
             data:      result.data,
@@ -176,7 +208,7 @@ router.post(
 
         case 'AWAIT_CONFIRMATION':
           res.status(202).json({
-            status:              'REQUIRE_CONFIRMATION',
+            state:               'AWAIT_CONFIRMATION',
             traceId:             result.traceId,
             confirmationPayload: result.confirmationPayload,
           });
@@ -184,7 +216,7 @@ router.post(
 
         case 'CLARIFICATION_LOOP':
           res.status(200).json({
-            status:               'CLARIFICATION_REQUIRED',
+            state:                'CLARIFICATION_REQUIRED',
             traceId:              result.traceId,
             clarificationRequest: result.clarificationRequest,
           });
@@ -192,7 +224,7 @@ router.post(
 
         case 'BLOCKED':
           res.status(403).json({
-            status:    'BLOCKED',
+            state:     'BLOCKED',
             traceId:   result.traceId,
             blockedBy: result.blockedBy,
             error:     result.error,
@@ -201,14 +233,14 @@ router.post(
 
         default:
           res.status(500).json({
-            status:  'INTERNAL_ERROR',
+            state:   'INTERNAL_ERROR',
             traceId: result.traceId,
             error:   result.error ?? 'Unexpected orchestrator state',
           });
       }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
-      res.status(500).json({ status: 'INTERNAL_ERROR', error: msg });
+      res.status(500).json({ state: 'INTERNAL_ERROR', error: msg });
     }
   },
 );
@@ -263,7 +295,7 @@ router.post(
       switch (result.state) {
         case 'COMPLETE':
           res.status(200).json({
-            status:   'COMPLETE',
+            state:    'COMPLETE',
             traceId:  result.traceId,
             response: result.response,
             data:     result.data,
@@ -272,7 +304,7 @@ router.post(
 
         case 'BLOCKED':
           res.status(403).json({
-            status:    'BLOCKED',
+            state:     'BLOCKED',
             traceId:   result.traceId,
             blockedBy: result.blockedBy,
             error:     result.error,
@@ -281,14 +313,14 @@ router.post(
 
         default:
           res.status(500).json({
-            status:  'INTERNAL_ERROR',
+            state:   'INTERNAL_ERROR',
             traceId: result.traceId,
             error:   result.error ?? 'Unexpected resume state',
           });
       }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
-      res.status(500).json({ status: 'INTERNAL_ERROR', error: msg });
+      res.status(500).json({ state: 'INTERNAL_ERROR', error: msg });
     }
   },
 );

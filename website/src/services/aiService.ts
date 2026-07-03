@@ -110,8 +110,10 @@ interface BulkUploadStatus {
 interface BenjiChatResponse {
   success: boolean
   traceId?: string
-  state?: 'COMPLETE' | 'BLOCKED' | 'AWAIT_CONFIRMATION'
+  state?: 'COMPLETE' | 'BLOCKED' | 'AWAIT_CONFIRMATION' | 'CLARIFICATION_REQUIRED'
   response?: string
+  /** Present when state === 'CLARIFICATION_REQUIRED'. A natural-language follow-up question. */
+  clarificationRequest?: string
   /** Present when state === 'AWAIT_CONFIRMATION' */
   confirmationPayload?: {
     traceId: string
@@ -455,6 +457,8 @@ class AIService {
       userType?: 'client' | 'driver' | 'admin' | 'broker'
       currentPage?: string
       shipmentId?: string
+      /** Resumes a pending clarification — set to the traceId from the prior CLARIFICATION_REQUIRED response. */
+      clarificationTraceId?: string
     }
   ): Promise<BenjiChatResponse> {
     const headers = await this.getHeaders()
@@ -504,7 +508,7 @@ class AIService {
   async benjiQaChat(
     message: string,
     qaUserType: 'client' | 'driver' | 'admin' | 'broker',
-    context?: { currentPage?: string; shipmentId?: string },
+    context?: { currentPage?: string; shipmentId?: string; clarificationTraceId?: string },
   ): Promise<BenjiChatResponse> {
     const headers = await this.getHeaders()
     const response = await fetch(`${API_BASE_URL}/benji/chat`, {
