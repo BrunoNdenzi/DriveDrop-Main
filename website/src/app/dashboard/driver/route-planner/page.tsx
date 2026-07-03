@@ -2,7 +2,6 @@
 
 import { useAuth } from '@/hooks/useAuth'
 import RouteOptimizer from '@/components/driver/RouteOptimizer'
-import { BenjiChat } from '@/components/benji/BenjiChat'
 
 export default function RoutePlannerPage() {
   const { user, profile } = useAuth()
@@ -20,8 +19,7 @@ export default function RoutePlannerPage() {
       {/* Route Optimizer Component */}
       <RouteOptimizer driverId={user?.id || ''} />
 
-      {/* Benji Chat Widget */}
-      <BenjiChat userType="driver" />
+      {/* Benji handled by layout BenjiAssistant */}
     </div>
   )
 }

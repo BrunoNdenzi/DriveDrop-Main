@@ -173,13 +173,17 @@ export function BenjiAssistant({ userType = 'client', shipmentId }: BenjiAssista
                     </div>
                   )}
 
-                  {/* Conversation history */}
-                  {messages.map(msg => (
-                    <MessageBubble key={msg.id} message={msg} />
-                  ))}
+                  {/* Conversation history — skip empty streaming placeholder (show TypingIndicator instead) */}
+                  {messages
+                    .filter(msg => !(msg.role === 'assistant' && msg.isStreaming && msg.content.length === 0))
+                    .map(msg => (
+                      <MessageBubble key={msg.id} message={msg} />
+                    ))}
 
-                  {/* Typing indicator */}
-                  {isTyping && <TypingIndicator />}
+                  {/* Typing indicator — shown while waiting for first token */}
+                  {(isTyping || messages.some(m => m.role === 'assistant' && m.isStreaming && m.content.length === 0)) && (
+                    <TypingIndicator />
+                  )}
 
                   <div ref={messagesEndRef} />
                 </div>

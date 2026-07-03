@@ -28,7 +28,6 @@ import {
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import Messaging from '@/components/messaging/Messaging'
-import { BenjiChat } from '@/components/benji/BenjiChat'
 
 interface Shipment {
   id: string
@@ -851,13 +850,7 @@ ${shipment.delivery_date ? `<div class="row"><span class="label">Delivery Date</
         </div>
       )}
 
-      {/* Benji Chat Widget - Context-aware for this shipment */}
-      <BenjiChat 
-        context="shipment" 
-        userId={profile?.id}
-        userType="client"
-        shipmentId={shipment.id}
-      />
+      {/* Benji handled by layout BenjiAssistant */}
     </div>
   )
 }

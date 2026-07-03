@@ -22,6 +22,7 @@ import {
   Settings,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { BenjiAssistant } from '@/components/benji-v3/BenjiAssistant'
 
 const navItems = [
   { href: '/dashboard/client', label: 'Dashboard', icon: Package },
@@ -204,6 +205,9 @@ export default function ClientDashboardLayout({
           </div>
         </main>
       </div>
+
+      {/* Benji V3 — global floating assistant */}
+      <BenjiAssistant userType="client" />
     </div>
   )
 }

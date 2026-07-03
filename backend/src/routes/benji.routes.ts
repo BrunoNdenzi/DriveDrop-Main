@@ -105,6 +105,15 @@ router.post(
   authenticate,
   benjiRateLimit(),
   async (req: Request, res: Response): Promise<void> => {
+    // ── DEPRECATION HEADER ────────────────────────────────────────────────
+    res.set('X-Benji-Version', 'deprecated-v2');
+    res.set('X-Benji-Migrate-To', '/api/v1/benji-v3/chat');
+    console.warn('[DEPRECATED] Legacy Benji V2 endpoint hit — migrate to /api/v1/benji-v3/chat', {
+      userId: req.user?.id ?? 'unauthenticated',
+      path:   req.path,
+      ts:     new Date().toISOString(),
+    });
+
     try {
       // ── INSTRUMENTATION ──────────────────────────────────────────────────
       console.log('[BENJI_AUDIT] BACKEND_ROUTE_HIT /benji/chat', {

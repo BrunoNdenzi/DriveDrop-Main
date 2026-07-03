@@ -238,7 +238,7 @@ const BASE_URL   = `http://localhost:${PORT}`;
 const API_BASE   = `${BASE_URL}/api/v1/benji`;
 
 const TEST_EMAIL    = `benji-harness-${Date.now()}@test.drivedrop.internal`;
-const TEST_PASSWORD = '';
+const TEST_PASSWORD = 'BenjiT3stH@rness2026!';
 
 // ── Supabase admin client (service role — test setup + DB verification) ──────
 const supabaseAdmin = createClient(

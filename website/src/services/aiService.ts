@@ -475,6 +475,91 @@ class AIService {
   }
 
   /**
+   * Benji V3 streaming chat — consumes SSE token stream from /benji-v3/chat/stream.
+   *
+   * @param message    User message
+   * @param sessionId  Client session ID
+   * @param callbacks  Handlers for each event type
+   * @param userType   Optional role hint
+   */
+  async benjiV3ChatStream(
+    message:   string,
+    sessionId: string,
+    callbacks: {
+      onToken:  (token: string) => void
+      onTool?:  (toolName: string) => void
+      onEnd?:   (meta: { toolsUsed: string[]; latencyMs: number; sessionId: string }) => void
+      onError?: (err: string) => void
+    },
+    userType?: 'client' | 'driver' | 'admin' | 'broker',
+  ): Promise<void> {
+    const headers = await this.getHeaders()
+    const response = await fetch(`${API_BASE_URL}/benji-v3/chat/stream`, {
+      method:  'POST',
+      headers,
+      body:    JSON.stringify({ message, sessionId, ...(userType ? { userType } : {}) }),
+    })
+
+    if (!response.ok) {
+      const errData = await response.json().catch(() => ({}))
+      const msg = (errData as any).error ?? `Stream request failed (${response.status})`
+      callbacks.onError?.(msg)
+      throw new Error(msg)
+    }
+
+    if (!response.body) {
+      callbacks.onError?.('No response body from stream endpoint')
+      return
+    }
+
+    const reader  = response.body.getReader()
+    const decoder = new TextDecoder()
+    let   buffer  = ''
+
+    while (true) {
+      const { done, value } = await reader.read()
+      if (done) break
+
+      buffer += decoder.decode(value, { stream: true })
+      const lines = buffer.split('\n')
+      // Last element may be incomplete — keep it in buffer
+      buffer = lines.pop() ?? ''
+
+      for (const line of lines) {
+        const trimmed = line.trim()
+        if (!trimmed || !trimmed.startsWith('data:')) continue
+
+        const jsonStr = trimmed.slice(5).trim()
+        if (jsonStr === '[DONE]') return
+
+        try {
+          const event = JSON.parse(jsonStr) as Record<string, unknown>
+          switch (event['type']) {
+            case 'token':
+              if (typeof event['content'] === 'string') callbacks.onToken(event['content'])
+              break
+            case 'tool':
+              if (typeof event['name'] === 'string') callbacks.onTool?.(event['name'])
+              break
+            case 'end':
+              callbacks.onEnd?.({
+                toolsUsed: (event['toolsUsed'] as string[]) ?? [],
+                latencyMs: (event['latencyMs'] as number)   ?? 0,
+                sessionId: (event['sessionId'] as string)   ?? sessionId,
+              })
+              break
+            case 'error':
+              callbacks.onError?.((event['message'] as string) ?? 'Unknown stream error')
+              break
+          }
+        } catch {
+          // Malformed SSE line — skip
+        }
+      }
+    }
+  }
+
+  /**
    * Benji V2 Chat — send a message to the Benji V2 orchestrator.
    *
    * A 200 response means the request completed (COMPLETE state).

@@ -26,7 +26,6 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
-import { BenjiChat } from '@/components/benji/BenjiChat';
 import { useAuth } from '@/hooks/useAuth';
 
 // Required fields configuration
@@ -1037,8 +1036,7 @@ export default function BulkUploadPage() {
         </div>
       )}
 
-      {/* Benji Chat Widget */}
-      <BenjiChat context="dashboard" userId={profile?.id} userType="broker" />
+      {/* Benji handled by layout BenjiAssistant */}
     </div>
   );
 }

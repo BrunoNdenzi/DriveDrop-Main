@@ -7,7 +7,6 @@ import Link from 'next/link'
 import ShipmentForm from '@/components/shipment/ShipmentForm'
 import { Button } from '@/components/ui/button'
 import NaturalLanguageShipmentCreator from '@/components/ai/NaturalLanguageShipmentCreator'
-import { BenjiChat } from '@/components/benji/BenjiChat'
 import { useAuth } from '@/hooks/useAuth'
 
 type CreationMode = 'ai' | 'traditional'
@@ -106,12 +105,7 @@ export default function NewShipmentPage() {
         )}
       </div>
 
-      {/* Benji Chat Widget */}
-      <BenjiChat 
-        context="shipment" 
-        userId={profile?.id}
-        userType="client"
-      />
+      {/* Benji handled by layout BenjiAssistant */}
     </div>
   )
 }

@@ -20,7 +20,6 @@ import {
   Building2
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { BenjiChat } from '@/components/benji/BenjiChat'
 
 interface SystemStats {
   totalUsers: number
@@ -512,12 +511,7 @@ export default function AdminDashboardPage() {
         </div>
       )}
 
-      {/* Benji Chat Widget */}
-      <BenjiChat 
-        context="dashboard" 
-        userId={profile?.id}
-        userType="admin"
-      />
+      {/* Benji handled by layout BenjiAssistant */}
     </div>
   )
 }

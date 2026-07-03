@@ -35,6 +35,7 @@ import {
 } from 'lucide-react'
 import AdminNotificationBell from '@/components/AdminNotificationBell'
 import { Button } from '@/components/ui/button'
+import { BenjiAssistant } from '@/components/benji-v3/BenjiAssistant'
 
 const navItems = [
   { href: '/dashboard/admin', label: 'Overview', icon: LayoutDashboard },
@@ -280,6 +281,9 @@ export default function AdminDashboardLayout({
           </div>
         </main>
       </div>
+
+      {/* Benji V3 — global floating assistant */}
+      <BenjiAssistant userType="admin" />
     </div>
   )
 }

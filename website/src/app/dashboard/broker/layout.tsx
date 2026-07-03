@@ -24,6 +24,7 @@ import {
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import NotificationBell from '@/components/NotificationBell'
+import { BenjiAssistant } from '@/components/benji-v3/BenjiAssistant'
 
 const navItems = [
   { href: '/dashboard/broker', label: 'Dashboard', icon: LayoutDashboard },
@@ -244,6 +245,9 @@ export default function BrokerDashboardLayout({
           </div>
         </main>
       </div>
+
+      {/* Benji V3 — global floating assistant */}
+      <BenjiAssistant userType="broker" />
     </div>
   )
 }

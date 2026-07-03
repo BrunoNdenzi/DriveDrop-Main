@@ -26,6 +26,8 @@ import { v3SessionStore }     from './benji.memory';
 import { buildV3SystemPrompt } from './prompts/system.prompt';
 import { V3_TOOL_DEFINITIONS, executeV3Tool } from './tools/index';
 import { logger }             from '@utils/logger';
+import { logV3Audit, createAuditEvent } from './audit/benji.audit';
+import type { Response }      from 'express';
 import type {
   V3ChatRequest,
   V3ChatResponse,
@@ -40,7 +42,27 @@ const MODEL           = 'gpt-4o-mini';  // Fast, cheap, great for conversational
 const MODEL_WITH_TOOLS = 'gpt-4o';      // Stronger reasoning when tools are invoked
 const MAX_LOOP        = 5;              // Prevent runaway tool chains
 const MAX_TOKENS      = 1024;
+const MAX_TOKENS_FAST = 256;            // For greeting/trivial responses — faster
 const TEMPERATURE     = 0.65;
+const CTX_WINDOW      = 20;            // Max recent messages sent to API (limits token cost)
+
+// ─── Greeting fast-path heuristic ────────────────────────────────────────────
+
+/**
+ * Returns true if the message is almost certainly a greeting or purely conversational
+ * with no logistics intent. Used to skip loading tool definitions and to reduce
+ * max_tokens, cutting latency significantly.
+ *
+ * Conservative: only fires on very clear non-logistics messages.
+ */
+const LOGISTICS_KEYWORDS = /\b(ship|freight|transport|carrier|pickup|delivery|quote|price|cost|rate|track|vehicle|car|truck|sedan|suv|toyota|ford|honda|bmw|mercedes|route|mile|mile|haul|load|driver|dispatch|invoice)\b/i;
+
+function isConversationalOnly(message: string): boolean {
+  if (LOGISTICS_KEYWORDS.test(message)) return false;
+  // Short messages (< 30 chars) that look like greetings/small-talk
+  if (message.trim().length < 60) return true;
+  return false;
+}
 
 // ─── Context extraction helpers ───────────────────────────────────────────────
 
@@ -123,6 +145,9 @@ class BenjiV3Service {
   async chat(req: V3ChatRequest): Promise<V3ChatResponse> {
     const startTime = Date.now();
     const toolsUsed: string[] = [];
+    const audit     = createAuditEvent({ sessionId: req.sessionId, userId: req.userId, userType: req.userType, streaming: false });
+    let totalPromptTokens     = 0;
+    let totalCompletionTokens = 0;
 
     try {
       console.log('[BENJI_V3_REQUEST]', {
@@ -147,11 +172,18 @@ class BenjiV3Service {
       session.messages.push(userMsg);
 
       // ── 4. Agentic loop ────────────────────────────────────────────────
+      // Limit context window to last CTX_WINDOW messages (performance + cost)
+      const recentMessages = session.messages.slice(-CTX_WINDOW);
+
       // Build the messages array for the API call (system + history)
       const apiMessages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [
         { role: 'system', content: systemPrompt },
-        ...session.messages,
+        ...recentMessages,
       ];
+
+      // Fast-path: if message is pure conversation (no logistics keywords),
+      // skip tool definitions entirely → saves ~200 tokens + routing overhead
+      const fastPath = isConversationalOnly(req.message);
 
       let finalResponse = '';
       let loopCount     = 0;
@@ -164,11 +196,18 @@ class BenjiV3Service {
         const completion = await openaiClient.chat.completions.create({
           model:       useStrongModel ? MODEL_WITH_TOOLS : MODEL,
           messages:    apiMessages,
-          tools:       V3_TOOL_DEFINITIONS,
-          tool_choice: 'auto',
-          max_tokens:  MAX_TOKENS,
+          tools:       fastPath ? [] : V3_TOOL_DEFINITIONS,
+          tool_choice: fastPath ? 'none' : ('auto' as const),
+          max_tokens:  fastPath && !useStrongModel ? MAX_TOKENS_FAST : MAX_TOKENS,
           temperature: TEMPERATURE,
         });
+
+        // Track token usage
+        if (completion.usage) {
+          totalPromptTokens     += completion.usage.prompt_tokens;
+          totalCompletionTokens += completion.usage.completion_tokens;
+        }
+        audit.model = useStrongModel ? MODEL_WITH_TOOLS : MODEL;
 
         const choice = completion.choices[0];
         if (!choice) break;
@@ -251,6 +290,17 @@ class BenjiV3Service {
         ts:        new Date().toISOString(),
       });
 
+      // ── Emit production audit ──────────────────────────────────────────
+      audit.latencyMs          = latencyMs;
+      audit.toolsUsed          = toolsUsed;
+      audit.promptTokens       = totalPromptTokens;
+      audit.completionTokens   = totalCompletionTokens;
+      audit.totalTokens        = totalPromptTokens + totalCompletionTokens;
+      audit.loopCount          = loopCount;
+      audit.responseStatus     = 'success';
+      audit.ts                 = new Date().toISOString();
+      logV3Audit(audit);
+
       return {
         response:  finalResponse,
         sessionId: session.sessionId,
@@ -270,10 +320,18 @@ class BenjiV3Service {
       });
 
       logger.warn('BenjiV3Service.chat: unhandled error', {
-        sessionId: req.sessionId,
+        sessionId: req.userId,
         userId:    req.userId,
         error:     msg,
       });
+
+      // ── Emit failure audit ─────────────────────────────────────────────
+      audit.latencyMs      = latencyMs;
+      audit.toolsUsed      = toolsUsed;
+      audit.responseStatus = 'error';
+      audit.failureReason  = msg;
+      audit.ts             = new Date().toISOString();
+      logV3Audit(audit);
 
       return {
         response:  "I ran into an issue on my end. Could you try again? If it keeps happening, contact DriveDrop support.",
@@ -281,6 +339,173 @@ class BenjiV3Service {
         toolsUsed,
         latencyMs,
       };
+    }
+  }
+
+  // ─── Streaming chat ──────────────────────────────────────────────────────────
+
+  /**
+   * Stream the final LLM response token-by-token via SSE.
+   *
+   * SSE event types:
+   *   {"type":"start","sessionId":"..."}
+   *   {"type":"tool","name":"get_shipping_quote"}   (one per tool called)
+   *   {"type":"token","content":"Hello"}            (streamed text tokens)
+   *   {"type":"end","sessionId":"...","toolsUsed":[],"latencyMs":1200}
+   *   {"type":"error","message":"..."}              (on failure)
+   *
+   * Tool calls in the agentic loop run synchronously before streaming begins.
+   * Only the final LLM text response is streamed.
+   */
+  async chatStream(req: V3ChatRequest, res: Response): Promise<void> {
+    const startTime = Date.now();
+    const toolsUsed: string[] = [];
+
+    // ── SSE headers ────────────────────────────────────────────────────────
+    res.set({
+      'Content-Type':  'text/event-stream',
+      'Cache-Control': 'no-cache, no-transform',
+      'Connection':    'keep-alive',
+      'X-Accel-Buffering': 'no',   // Disable nginx buffering
+    });
+    res.flushHeaders();
+
+    const send = (data: Record<string, unknown>) => {
+      res.write(`data: ${JSON.stringify(data)}\n\n`);
+    };
+
+    const sendDone = () => {
+      res.write('data: [DONE]\n\n');
+      res.end();
+    };
+
+    try {
+      console.log('[BENJI_V3_STREAM_REQUEST]', {
+        sessionId: req.sessionId, userId: req.userId, userType: req.userType,
+        msgLen: req.message.length, ts: new Date().toISOString(),
+      });
+
+      send({ type: 'start', sessionId: req.sessionId });
+
+      // ── Session + prompt ───────────────────────────────────────────────
+      const session      = v3SessionStore.getOrCreate(req.sessionId, req.userId, req.userType);
+      const systemPrompt = buildV3SystemPrompt(req.userType, session.context);
+      session.messages.push({ role: 'user', content: req.message } as OpenAI.Chat.Completions.ChatCompletionUserMessageParam);
+
+      const recentMessages = session.messages.slice(-CTX_WINDOW);
+      const fastPath       = isConversationalOnly(req.message);
+
+      const apiMessages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [
+        { role: 'system', content: systemPrompt },
+        ...recentMessages,
+      ];
+
+      // ── Agentic loop (non-streaming) for tool calls ────────────────────
+      let useStrongModel = false;
+      let loopCount      = 0;
+
+      while (loopCount < MAX_LOOP) {
+        loopCount++;
+
+        // Non-streaming for tool resolution; switch to streaming only for final response
+        const completion = await openaiClient.chat.completions.create({
+          model:       useStrongModel ? MODEL_WITH_TOOLS : MODEL,
+          messages:    apiMessages,
+          tools:       fastPath ? [] : V3_TOOL_DEFINITIONS,
+          tool_choice: fastPath ? 'none' : ('auto' as const),
+          max_tokens:  fastPath && !useStrongModel ? MAX_TOKENS_FAST : MAX_TOKENS,
+          temperature: TEMPERATURE,
+          stream:      false,
+        });
+
+        const choice = completion.choices[0];
+        if (!choice) break;
+
+        if (choice.finish_reason === 'tool_calls' && choice.message.tool_calls) {
+          useStrongModel = true;
+          apiMessages.push(choice.message);
+
+          for (const rawToolCall of choice.message.tool_calls) {
+            const toolCall = rawToolCall as { id: string; function: { name: string; arguments: string } };
+            const toolName = toolCall.function.name;
+            toolsUsed.push(toolName);
+
+            // Notify frontend that a tool is running
+            send({ type: 'tool', name: toolName });
+
+            console.log('[BENJI_V3_TOOL]', { sessionId: req.sessionId, tool: toolName });
+            const result = await executeV3Tool(toolName, toolCall.function.arguments, req.userId);
+
+            if (result.success) {
+              extractContextFromToolOutput(toolName, result.data, session);
+            }
+
+            apiMessages.push({
+              role:         'tool',
+              tool_call_id: toolCall.id,
+              content:      result.success
+                ? JSON.stringify({ success: true, summary: result.summary, data: result.data })
+                : JSON.stringify({ success: false, error: result.errorMessage }),
+            } as OpenAI.Chat.Completions.ChatCompletionToolMessageParam);
+          }
+          continue;
+        }
+
+        // ── Final response — stream it ─────────────────────────────────
+        if (choice.finish_reason === 'stop' || choice.finish_reason === 'length') {
+          // Now stream the final response
+          const streamCompletion = await openaiClient.chat.completions.create({
+            model:       useStrongModel ? MODEL_WITH_TOOLS : MODEL,
+            messages:    apiMessages,
+            tools:       [],         // No more tools — just generate the final text
+            max_tokens:  fastPath && !useStrongModel ? MAX_TOKENS_FAST : MAX_TOKENS,
+            temperature: TEMPERATURE,
+            stream:      true,
+          });
+
+          let fullResponse = '';
+          for await (const chunk of streamCompletion) {
+            const delta = chunk.choices[0]?.delta?.content;
+            if (delta) {
+              fullResponse += delta;
+              send({ type: 'token', content: delta });
+            }
+          }
+
+          // Save to session history
+          session.messages.push({ role: 'assistant', content: fullResponse });
+          v3SessionStore.save(session);
+
+          const latencyMs = Date.now() - startTime;
+          console.log('[BENJI_V3_STREAM_RESPONSE]', {
+            sessionId: req.sessionId, latencyMs, toolsUsed, loops: loopCount,
+          });
+
+          send({ type: 'end', sessionId: req.sessionId, toolsUsed, latencyMs });
+          sendDone();
+          return;
+        }
+
+        break; // unexpected finish_reason
+      }
+
+      // Fallback — shouldn't reach here
+      send({ type: 'token', content: "I couldn't generate a response. Please try again." });
+      send({ type: 'end', sessionId: req.sessionId, toolsUsed, latencyMs: Date.now() - startTime });
+      sendDone();
+
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      const latencyMs = Date.now() - startTime;
+      console.error('[BENJI_V3_STREAM_ERROR]', { sessionId: req.sessionId, error: msg, latencyMs });
+
+      try {
+        send({ type: 'error', message: "I ran into a problem. Please try again." });
+        send({ type: 'end', sessionId: req.sessionId, toolsUsed, latencyMs });
+        sendDone();
+      } catch {
+        res.end();
+      }
     }
   }
 }

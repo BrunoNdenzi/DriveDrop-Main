@@ -28,7 +28,6 @@ import {
   Clock
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { BenjiChat } from '@/components/benji/BenjiChat';
 
 function BrokerDashboardContent() {
   const router = useRouter();
@@ -470,12 +469,7 @@ function BrokerDashboardContent() {
         </div>
       </div>
 
-      {/* Benji Chat Widget */}
-      <BenjiChat 
-        context="dashboard" 
-        userId={profile?.id}
-        userType="broker"
-      />
+      {/* Benji handled by layout BenjiAssistant */}
     </div>
   );
 }

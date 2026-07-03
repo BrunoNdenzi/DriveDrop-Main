@@ -23,7 +23,6 @@ import {
   Navigation
 } from 'lucide-react'
 import Link from 'next/link'
-import { BenjiChat } from '@/components/benji/BenjiChat'
 
 interface Shipment {
   id: string
@@ -562,13 +561,7 @@ export default function AdminShipmentDetailPage() {
         </div>
       </div>
 
-      {/* Benji Chat Widget - Context-aware for admin managing this shipment */}
-      <BenjiChat 
-        context="shipment" 
-        userId={profile?.id}
-        userType="admin"
-        shipmentId={shipment.id}
-      />
+      {/* Benji handled by layout BenjiAssistant */}
     </div>
   )
 }

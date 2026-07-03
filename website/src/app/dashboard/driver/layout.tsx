@@ -27,6 +27,7 @@ import {
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import NotificationBell from '@/components/NotificationBell'
+import { BenjiAssistant } from '@/components/benji-v3/BenjiAssistant'
 
 const navItems = [
   { href: '/dashboard/driver', label: 'Dashboard', icon: TrendingUp },
@@ -273,6 +274,9 @@ export default function DriverDashboardLayout({
           </div>
         </main>
       </div>
+
+      {/* Benji V3 — global floating assistant */}
+      <BenjiAssistant userType="driver" />
     </div>
   )
 }

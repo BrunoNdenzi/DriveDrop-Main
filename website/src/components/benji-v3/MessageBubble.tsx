@@ -60,6 +60,10 @@ export function MessageBubble({ message }: MessageBubbleProps) {
               {i < message.content.split('\n').length - 1 && <br />}
             </span>
           ))}
+          {/* Streaming cursor */}
+          {message.isStreaming && (
+            <span className="inline-block w-0.5 h-4 bg-blue-400 ml-0.5 animate-pulse align-middle" />
+          )}
         </div>
 
         {/* Tool badges */}
