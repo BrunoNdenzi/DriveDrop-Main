@@ -12,9 +12,11 @@
 export const BENJI_CHAT_PROMPT_VERSION = 'v1' as const;
 
 export interface BenjiChatPromptVars {
-  userType:     'client' | 'driver' | 'admin' | 'broker';
-  currentPage?: string;
-  shipmentId?:  string;
+  userType:       'client' | 'driver' | 'admin' | 'broker';
+  currentPage?:   string;
+  shipmentId?:    string;
+  /** Structured summary from prior tool outputs (parse/pricing/create) injected by the orchestrator. */
+  contextSummary?: string;
   attachments?: ReadonlyArray<{ name: string; type: string }>;
 }
 
@@ -24,12 +26,17 @@ export function buildBenjiChatPrompt(vars: BenjiChatPromptVars): string {
       ? `- User Attachments: ${vars.attachments.map(a => `${a.name} (${a.type})`).join(', ')}\n  Note: The user has attached file(s). Acknowledge the attachment(s) and explain how you can help with them. For images, you can note you've received them. For documents (PDF, CSV), note that you've received them and offer to help interpret or process the data.`
       : '';
 
+  const contextSummaryLine = vars.contextSummary
+    ? `- Action Results This Turn: ${vars.contextSummary}`
+    : '';
+
   const basePrompt = `You are Benji, an AI assistant for DriveDrop - a premium vehicle shipping platform. You are friendly, professional, and helpful.
 
 Current Context:
 - User Type: ${vars.userType}
 - Page: ${vars.currentPage || 'dashboard'}
 ${vars.shipmentId ? `- Active Shipment: ${vars.shipmentId}` : ''}
+${contextSummaryLine}
 ${attachmentLine}
 
 Your Personality:

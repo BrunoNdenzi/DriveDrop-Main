@@ -138,9 +138,10 @@ function _cached(key: string, build: () => string): string {
  */
 export function getBenjiChatPrompt(vars: BenjiChatPromptVars): string {
   const hasAttachments = !!(vars.attachments && vars.attachments.length > 0);
+  const hasContextSummary = !!vars.contextSummary;
 
-  if (hasAttachments) {
-    // Skip cache — attachment names are unique per request
+  if (hasAttachments || hasContextSummary) {
+    // Skip cache — attachment names and tool output summaries are unique per request
     return buildBenjiChatPrompt(vars);
   }
 

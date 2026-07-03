@@ -162,16 +162,30 @@ export const BenjiChat = ({
       }));
       chatMessages.push({ role: 'user' as const, content: messageContent });
 
+      // ── INSTRUMENTATION ────────────────────────────────────────────────
+      console.warn('[BENJI_SESSION]', {
+        sessionId:    sessionIdRef.current,
+        turnCount:    chatMessages.length,
+        hasClarification: !!pendingClarificationTraceId,
+      });
+      console.warn('[BENJI_REQUEST]', {
+        message:      messageContent.slice(0, 120),
+        sessionId:    sessionIdRef.current,
+        clarTraceId:  pendingClarificationTraceId,
+        ts:           new Date().toISOString(),
+      });
+      // ───────────────────────────────────────────────────────────────────
+
       const response = await aiService.benjiChat(messageContent, {
         userType,
         currentPage: context,
         shipmentId,
-        // Phase 9.3: stable sessionId for context continuity
-        ...(sessionIdRef.current ? { clarificationTraceId: pendingClarificationTraceId ?? undefined } : {}),
+        sessionId:   sessionIdRef.current,
+        clarificationTraceId: pendingClarificationTraceId ?? undefined,
       });
 
       // ── INSTRUMENTATION ────────────────────────────────────────────────
-      console.warn('[BENJI_AUDIT] FRONTEND_BENJI_HIT BenjiChat response', {
+      console.warn('[BENJI_RESPONSE]', {
         state:    (response as any).state,
         hasResp:  typeof response.response === 'string',
         traceId:  response.traceId,

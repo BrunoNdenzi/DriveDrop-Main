@@ -94,12 +94,15 @@ const nextConfig = {
         ],
       },
       {
-        // HTML pages: security headers + revalidation hint
+        // HTML pages: no-cache so browsers always fetch the latest HTML after deployments.
+        // Fixes ChunkLoadError: stale HTML from the previous deployment references
+        // old chunk hashes that no longer exist on the CDN.
         source: '/((?!_next/static|_next/image|favicon.ico).*)',
         headers: [
+          { key: 'Cache-Control',          value: 'no-cache, must-revalidate' },
           { key: 'X-DNS-Prefetch-Control', value: 'on' },
           { key: 'X-Content-Type-Options', value: 'nosniff' },
-          { key: 'X-Frame-Options', value: 'SAMEORIGIN' },
+          { key: 'X-Frame-Options',        value: 'SAMEORIGIN' },
           // Tell browsers to preconnect to key third-party origins
           {
             key: 'Link',

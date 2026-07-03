@@ -145,15 +145,48 @@ export function resolveStepInput(
       };
     }
 
-    case 'tool:chat.respond':
+    case 'tool:chat.respond': {
+      // Build a context summary from prior tool outputs so Benji's reply is
+      // informed by what was just parsed/created/priced rather than generic.
+      const nlResult   = _extractParsedData(priorOutputs);
+      const parsedData = (nlResult['parsed_data'] ?? nlResult) as Record<string, unknown>;
+      const pricing    = _extractPricingOutput(priorOutputs);
+
+      // Build a brief string summary injected into the response context
+      const summaryParts: string[] = [];
+      const vehicle = parsedData['vehicle'] as Record<string, unknown> | undefined;
+      if (vehicle) {
+        const parts = [vehicle['year'], vehicle['make'], vehicle['model']].filter(Boolean).join(' ');
+        if (parts) summaryParts.push(`Vehicle: ${parts}`);
+      }
+      const pickup   = (parsedData['pickup']   as Record<string, unknown> | undefined)?.['location'];
+      const delivery = (parsedData['delivery'] as Record<string, unknown> | undefined)?.['location'];
+      if (typeof pickup   === 'string' && pickup)   summaryParts.push(`Pickup: ${pickup}`);
+      if (typeof delivery === 'string' && delivery) summaryParts.push(`Delivery: ${delivery}`);
+      if (pricing.total !== undefined) summaryParts.push(`Estimated price: $${pricing.total}`);
+
+      // Find created shipment ID if any
+      for (const r of Object.values(priorOutputs)) {
+        const s = r as ToolResult<unknown> & { _stepAction?: string };
+        if (s._stepAction === 'tool:shipment.create' && r.success) {
+          const d = r.data as Record<string, unknown> | undefined;
+          if (typeof d?.['shipment_id'] === 'string') {
+            summaryParts.push(`Shipment ID: ${d['shipment_id']}`);
+          }
+        }
+      }
+
       return {
         messages: [{ role: 'user', content: request.message }],
         context: {
           userId:   request.userId,
           userType: request.userType,
-          ...(request.sessionId !== undefined ? { currentPage: request.sessionId } : {}),
+          ...(request.sessionId  !== undefined ? { currentPage: request.sessionId  } : {}),
+          ...(request.shipmentId !== undefined ? { shipmentId:  request.shipmentId } : {}),
+          ...(summaryParts.length > 0 ? { contextSummary: summaryParts.join(' | ') } : {}),
         },
       };
+    }
 
     case 'tool:memory.read':
       return { userId: request.userId };

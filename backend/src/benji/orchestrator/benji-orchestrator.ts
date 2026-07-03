@@ -161,6 +161,9 @@ export async function executeSteps(
   finalIntent: string | undefined,
 ): Promise<{ result: OrchestratorResult | null; priorOutputs: Record<string, ToolResult<unknown>> }> {
   const priorOutputs: Record<string, ToolResult<unknown>> = {};
+  // Timing accumulator for [BENJI_TIMING] log
+  const stepTimings: Record<string, number> = {};
+  const _stepsStart = Date.now();
 
   for (const step of steps) {
     const stepCheckState: PolicyCheckState = {
@@ -192,7 +195,9 @@ export async function executeSteps(
     };
 
     const resolvedInput = resolveStepInput(step.action, step.input, request, priorOutputs, finalIntent);
+    const _toolStart = Date.now();
     const result = await benjiToolRegistry.execute(step.action, resolvedInput, toolContext);
+    stepTimings[step.action] = Date.now() - _toolStart;
 
     await benjiTraceService.appendStep(traceId, {
       stepId:         step.stepId,
@@ -230,6 +235,14 @@ export async function executeSteps(
           finalIntent,
         );
 
+        console.log('[BENJI_TIMING]', {
+          traceId,
+          intent: finalIntent,
+          ...stepTimings,
+          total: Date.now() - _stepsStart,
+          outcome: 'CLARIFICATION_LOOP',
+        });
+
         return {
           result: {
             success:              false,
@@ -245,6 +258,13 @@ export async function executeSteps(
 
     if (!result.success && step.critical) {
       await benjiTraceService.finalize(traceId, TraceOutcome.FAILED, 'BLOCKED', finalIntent);
+      console.log('[BENJI_TIMING]', {
+        traceId,
+        intent: finalIntent,
+        ...stepTimings,
+        total:   Date.now() - _stepsStart,
+        outcome: `CRITICAL_FAIL:${step.action}`,
+      });
       return {
         result: {
           success: false,
@@ -256,6 +276,14 @@ export async function executeSteps(
       };
     }
   }
+
+  console.log('[BENJI_TIMING]', {
+    traceId,
+    intent: finalIntent,
+    ...stepTimings,
+    total:   Date.now() - _stepsStart,
+    outcome: 'STEPS_COMPLETE',
+  });
 
   return { result: null, priorOutputs };
 }
@@ -326,17 +354,29 @@ export class BenjiOrchestrator {
       if (request._classifiedIntent !== undefined) {
         finalIntent = request._classifiedIntent;
       } else {
+        const _classifyStart = Date.now();
         const classification = await benjiIntentService.classify({
           message:  request.message,
           userId:   request.userId,
           userType: request.userType,
           ...(request.sessionId !== undefined ? { sessionId: request.sessionId } : {}),
         });
+        console.log('[BENJI_TIMING] classifier', { ms: Date.now() - _classifyStart, intent: classification.intent, confidence: classification.confidence, source: classification.source });
 
         finalIntent = classification.intent;
         request._classifiedIntent = finalIntent;
 
         if (classification.confidence < 0.55 || classification.ambiguous === true) {
+          // ── Phase 9.3: store classifier clarification context so the follow-up
+          //    message can be merged with the original and re-classified correctly.
+          //    Without this, clarificationStore.get() returns null on the next turn
+          //    and "Charlotte to Gastonia" is treated as a brand-new standalone message.
+          clarificationStore.set(traceId, {
+            userId:          request.userId,
+            intent:          finalIntent ?? 'unknown',
+            originalMessage: request.message,
+          });
+
           await finalizeTrace(TraceOutcome.CLARIFICATION_REQUIRED, 'CLARIFICATION_LOOP', finalIntent);
           return {
             success:              false,

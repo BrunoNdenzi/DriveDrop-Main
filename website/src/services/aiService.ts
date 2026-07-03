@@ -457,6 +457,8 @@ class AIService {
       userType?: 'client' | 'driver' | 'admin' | 'broker'
       currentPage?: string
       shipmentId?: string
+      /** Stable per-window session ID for conversation continuity. */
+      sessionId?: string
       /** Resumes a pending clarification — set to the traceId from the prior CLARIFICATION_REQUIRED response. */
       clarificationTraceId?: string
     }

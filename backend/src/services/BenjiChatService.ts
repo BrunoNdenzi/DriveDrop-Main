@@ -12,6 +12,8 @@ export interface ChatContext {
   userId: string;
   currentPage?: string;
   shipmentId?: string;
+  /** Structured summary of prior tool outputs injected by step-input.resolver (Phase 9.2.1). */
+  contextSummary?: string;
   attachments?: Array<{ name: string; url: string; type: string; size: number }>;
 }
 
@@ -33,18 +35,28 @@ class BenjiChatService {
   async chat(messages: ChatMessage[], context: ChatContext): Promise<ChatResponse> {
     try {
       const modelConfig = SERVICE_MODEL_MAP['benji-chat'];
-      const systemPrompt = getBenjiChatPrompt(context);
+      const systemPrompt = getBenjiChatPrompt({
+        userType: context.userType,
+        ...(context.currentPage    !== undefined ? { currentPage:    context.currentPage    } : {}),
+        ...(context.shipmentId     !== undefined ? { shipmentId:     context.shipmentId     } : {}),
+        ...(context.contextSummary !== undefined ? { contextSummary: context.contextSummary } : {}),
+        ...(context.attachments    !== undefined
+          ? { attachments: context.attachments.map(a => ({ name: a.name, type: a.type })) }
+          : {}),
+      });
 
-      // Check cache for the last user message
+      // Check cache for the last user message — skip if we have per-request context
       const lastUserMsg = messages.filter(m => m.role === 'user').pop()?.content || '';
-      const cached = aiResponseCache.get('benji-chat', lastUserMsg);
-      if (cached) {
-        return {
-          message: cached.response,
-          confidence: 0.90,
-          suggestions: cached.suggestions || this.generateSuggestions(context, cached.response),
-          cached: true,
-        };
+      if (!context.contextSummary) {
+        const cached = aiResponseCache.get('benji-chat', lastUserMsg);
+        if (cached) {
+          return {
+            message: cached.response,
+            confidence: 0.90,
+            suggestions: cached.suggestions || this.generateSuggestions(context, cached.response),
+            cached: true,
+          };
+        }
       }
 
       const startTime = Date.now();
