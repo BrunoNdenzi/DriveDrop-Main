@@ -123,9 +123,27 @@ export async function createChatCompletion(
   const maxRetries = options.maxRetries ?? DEFAULT_MAX_RETRIES;
   const startTime = Date.now();
 
+  // ── INSTRUMENTATION ────────────────────────────────────────────────────
+  console.log('[BENJI_AUDIT] OPENAI_CALL_START', {
+    service: options.serviceName ?? 'unknown',
+    model:   params.model,
+    ts:      new Date().toISOString(),
+  });
+  // ───────────────────────────────────────────────────────────────────────
+
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
     try {
       const completion = await openaiClient.chat.completions.create(params);
+
+      // ── INSTRUMENTATION ──────────────────────────────────────────────────
+      console.log('[BENJI_AUDIT] OPENAI_CALL_END', {
+        service:  options.serviceName ?? 'unknown',
+        model:    params.model,
+        tokens:   completion.usage?.total_tokens ?? 0,
+        durationMs: Date.now() - startTime,
+        ts:       new Date().toISOString(),
+      });
+      // ─────────────────────────────────────────────────────────────────────
 
       // Fire token hooks — never block the response
       if (_tokenUsageHooks.length > 0 && completion.usage) {

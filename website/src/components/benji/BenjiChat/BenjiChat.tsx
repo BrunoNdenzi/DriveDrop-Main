@@ -170,6 +170,16 @@ export const BenjiChat = ({
         ...(sessionIdRef.current ? { clarificationTraceId: pendingClarificationTraceId ?? undefined } : {}),
       });
 
+      // ── INSTRUMENTATION ────────────────────────────────────────────────
+      console.warn('[BENJI_AUDIT] FRONTEND_BENJI_HIT BenjiChat response', {
+        state:    (response as any).state,
+        hasResp:  typeof response.response === 'string',
+        traceId:  response.traceId,
+        error:    response.error,
+        ts:       new Date().toISOString(),
+      });
+      // ───────────────────────────────────────────────────────────────────
+
       // Clear pending clarification on any response (answered or expired)
       setPendingClarificationTraceId(null);
 

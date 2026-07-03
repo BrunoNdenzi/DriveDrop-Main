@@ -255,6 +255,15 @@ export class BenjiIntentService {
 
     const deterministicRes = runDeterministicClassifier(input.message);
 
+    // ── INSTRUMENTATION ────────────────────────────────────────────────────
+    console.log('[BENJI_AUDIT] CLASSIFIER_DETERMINISTIC', {
+      intent:     deterministicRes.intent,
+      confidence: deterministicRes.confidence,
+      willUseLLM: deterministicRes.confidence < DETERMINISTIC_CONFIDENCE_THRESHOLD,
+      ts:         new Date().toISOString(),
+    });
+    // ───────────────────────────────────────────────────────────────────────
+
     if (deterministicRes.confidence >= DETERMINISTIC_CONFIDENCE_THRESHOLD) {
       const ambiguous =
         deterministicRes.scoreDelta !== undefined &&

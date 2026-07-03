@@ -295,6 +295,17 @@ export class BenjiOrchestrator {
     };
 
     try {
+      // ── INSTRUMENTATION ──────────────────────────────────────────────────
+      console.log('[BENJI_AUDIT] ORCHESTRATOR_ENTER', {
+        requestId: request.requestId,
+        userId:    request.userId,
+        userType:  request.userType,
+        msgLen:    request.message.length,
+        preIntent: request._classifiedIntent ?? 'none',
+        ts:        new Date().toISOString(),
+      });
+      // ─────────────────────────────────────────────────────────────────────
+
       // ── Step 0: Start trace (I-10) ─────────────────────────────────────
       traceId = await benjiTraceService.createTrace(request);
 

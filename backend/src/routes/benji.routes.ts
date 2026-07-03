@@ -106,6 +106,15 @@ router.post(
   benjiRateLimit(),
   async (req: Request, res: Response): Promise<void> => {
     try {
+      // ── INSTRUMENTATION ──────────────────────────────────────────────────
+      console.log('[BENJI_AUDIT] BACKEND_ROUTE_HIT /benji/chat', {
+        userId:  req.user?.id ?? 'unauthenticated',
+        role:    req.user?.role ?? 'none',
+        msgLen:  typeof req.body?.message === 'string' ? (req.body.message as string).length : 0,
+        ts:      new Date().toISOString(),
+      });
+      // ─────────────────────────────────────────────────────────────────────
+
       const userId = req.user?.id;
       if (!userId) {
         res.status(401).json({ error: 'Unauthenticated' });
@@ -195,6 +204,16 @@ router.post(
       }
 
       const result = await benjiOrchestrator.handle(orchRequest);
+
+      // ── INSTRUMENTATION ──────────────────────────────────────────────────
+      console.log('[BENJI_AUDIT] ORCHESTRATOR_RESULT', {
+        state:    result.state,
+        traceId:  result.traceId,
+        success:  result.success,
+        hasResp:  typeof result.response === 'string',
+        ts:       new Date().toISOString(),
+      });
+      // ─────────────────────────────────────────────────────────────────────
 
       switch (result.state) {
         case 'COMPLETE':

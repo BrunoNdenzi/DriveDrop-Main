@@ -14,7 +14,10 @@ const nextConfig = {
     ],
   },
   compiler: {
-    removeConsole: process.env.NODE_ENV === 'production',
+    // Preserve warn/error so instrumentation markers survive production builds
+    removeConsole: process.env.NODE_ENV === 'production'
+      ? { exclude: ['warn', 'error'] }
+      : false,
   },
   swcMinify: true,
   // Compress responses

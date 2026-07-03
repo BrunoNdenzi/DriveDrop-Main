@@ -461,6 +461,15 @@ class AIService {
       clarificationTraceId?: string
     }
   ): Promise<BenjiChatResponse> {
+    // ── INSTRUMENTATION ──────────────────────────────────────────────────
+    console.warn('[BENJI_AUDIT] FRONTEND_BENJI_HIT aiService.benjiChat', {
+      msgLen:      message.length,
+      hasClarity:  !!context?.clarificationTraceId,
+      url:         `${API_BASE_URL}/benji/chat`,
+      ts:          new Date().toISOString(),
+    });
+    // ─────────────────────────────────────────────────────────────────────
+
     const headers = await this.getHeaders()
     const response = await fetch(`${API_BASE_URL}/benji/chat`, {
       method: 'POST',
