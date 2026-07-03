@@ -47,12 +47,17 @@ setInterval(() => {
 
 /**
  * Benji-specific rate limiter middleware factory.
+/**
+ * Benji-specific rate limiter middleware factory.
  * Returns an Express middleware that applies per-user sliding-window rate limiting.
+ *
+ * @param keyPrefix  Bucket namespace.  Default 'benji' (V2).  Pass 'benji-v3' for V3
+ *                   so V2 and V3 have independent quotas.
  */
-export function benjiRateLimit() {
+export function benjiRateLimit(keyPrefix: string = 'benji') {
   return (req: Request, res: Response, next: NextFunction): void => {
     const userId = req.user?.id ?? req.ip ?? 'anonymous';
-    const key    = `benji:${userId}`;
+    const key    = `${keyPrefix}:${userId}`;
 
     let entry = benjiRateLimitStore.get(key);
     if (!entry) {
