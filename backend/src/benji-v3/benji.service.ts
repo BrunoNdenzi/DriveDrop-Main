@@ -55,7 +55,7 @@ const CTX_WINDOW      = 20;            // Max recent messages sent to API (limit
  *
  * Conservative: only fires on very clear non-logistics messages.
  */
-const LOGISTICS_KEYWORDS = /\b(ship|shipment|shipping|freight|transport|carrier|pickup|delivery|quote|price|cost|rate|track|tracking|vehicle|car|truck|sedan|suv|toyota|ford|honda|bmw|mercedes|route|mile|haul|load|driver|dispatch|invoice|book|booking|status|schedule|operable|origin|destination|assign)\b/i;
+const LOGISTICS_KEYWORDS = /\b(ship|shipment|shipments|shipping|freight|transport|carrier|pickup|delivery|quote|price|cost|rate|track|tracking|vehicle|car|truck|sedan|suv|toyota|ford|honda|bmw|mercedes|route|mile|haul|load|loads|driver|dispatch|invoice|book|booking|status|schedule|operable|origin|destination|assign|message|messages|conversation|conversations|apply|application|applications|payment|payments|profile|history|earnings|load|order|orders|cancel|cancelled|pending|delivered|transit|accepted|assigned|users)\b/i;
 
 function isConversationalOnly(message: string): boolean {
   if (LOGISTICS_KEYWORDS.test(message)) return false;
@@ -135,7 +135,55 @@ function extractContextFromToolOutput(
     }
 
     case 'track_shipment':
-      // No context mutation for tracking
+      // Store the looked-up shipment as the active one for follow-up turns
+      if (d['id'] && typeof d['id'] === 'string') {
+        v3SessionStore.mergeContext(session.sessionId, { activeShipmentId: d['id'] as string });
+      }
+      // Also pull vehicle and route into context if not already set
+      {
+        const patch: Partial<V3LogisticsContext> = {};
+        if (!session.context.vehicle?.make || !session.context.vehicle?.model) {
+          const v: Partial<V3LogisticsContext['vehicle']> = {};
+          if (typeof d['vehicle_make']  === 'string') v.make  = d['vehicle_make']  as string;
+          if (typeof d['vehicle_model'] === 'string') v.model = d['vehicle_model'] as string;
+          if (typeof d['vehicle_year']  === 'number') v.year  = d['vehicle_year']  as number;
+          if (Object.keys(v).length > 0) patch.vehicle = { ...session.context.vehicle, ...v };
+        }
+        if (typeof d['pickup_address']   === 'string' && !session.context.pickup?.location)
+          patch.pickup   = { location: d['pickup_address']   as string };
+        if (typeof d['delivery_address'] === 'string' && !session.context.delivery?.location)
+          patch.delivery = { location: d['delivery_address'] as string };
+        if (Object.keys(patch).length > 0) v3SessionStore.mergeContext(session.sessionId, patch);
+      }
+      break;
+
+    case 'list_shipments': {
+      // If only one result came back, treat it as the active shipment
+      const rows = Array.isArray(d) ? d as Record<string, unknown>[] : null;
+      if (rows && rows.length === 1 && typeof rows[0]?.['id'] === 'string') {
+        v3SessionStore.mergeContext(session.sessionId, { activeShipmentId: rows[0]['id'] as string });
+      }
+      break;
+    }
+
+    case 'get_messages':
+    case 'send_message': {
+      // Keep the shipment_id in context so follow-up messages don't re-ask
+      const sid = d['shipment_id'] ?? (Array.isArray(d) ? (d[0] as Record<string, unknown>)?.['shipment_id'] : undefined);
+      if (typeof sid === 'string') {
+        v3SessionStore.mergeContext(session.sessionId, { activeShipmentId: sid });
+      }
+      break;
+    }
+
+    case 'update_shipment_status':
+    case 'get_payment_info':
+    case 'apply_for_shipment':
+    case 'list_driver_applications':
+    case 'list_users':
+    case 'assign_driver':
+    case 'get_profile':
+      // No additional context mutation needed for these tools
       break;
   }
 }
@@ -237,7 +285,7 @@ class BenjiV3Service {
               ts:        new Date().toISOString(),
             });
 
-            const result = await executeV3Tool(toolName, toolCall.function.arguments, req.userId);
+            const result = await executeV3Tool(toolName, toolCall.function.arguments, req.userId, req.userType);
 
             // Extract context updates from successful tool results
             if (result.success) {
@@ -439,7 +487,7 @@ class BenjiV3Service {
             send({ type: 'tool', name: toolName });
 
             console.log('[BENJI_V3_TOOL]', { sessionId: req.sessionId, tool: toolName });
-            const result = await executeV3Tool(toolName, toolCall.function.arguments, req.userId);
+            const result = await executeV3Tool(toolName, toolCall.function.arguments, req.userId, req.userType);
 
             if (result.success) {
               extractContextFromToolOutput(toolName, result.data, session);

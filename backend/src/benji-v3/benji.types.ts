@@ -29,6 +29,8 @@ export interface V3LogisticsContext {
     location?: string;
   };
   lastShipmentId?:   string;
+  /** The shipment currently being discussed (tracking, messaging, status updates). */
+  activeShipmentId?: string;
   lastQuote?: {
     total:        number;
     distanceMiles: number;
