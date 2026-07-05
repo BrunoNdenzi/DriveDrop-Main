@@ -94,3 +94,4 @@ temp/
 # Large data files
 scripts/FMCSA_CENSUS1.csv
 *.csv
+backend/src/benji-v3/test/v3.tool-regression.test.ts

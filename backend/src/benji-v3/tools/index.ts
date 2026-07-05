@@ -18,9 +18,10 @@
 
 import type OpenAI from 'openai';
 import NaturalLanguageShipmentService from '../../services/NaturalLanguageShipmentService';
-import { pricingService }   from '../../services/pricing.service';
-import { googleMapsService } from '../../services/google-maps.service';
-import type { V3ToolResult }  from '../benji.types';
+import { pricingService }        from '../../services/pricing.service';
+import { googleMapsService }     from '../../services/google-maps.service';
+import { estimateDistanceMiles } from './distance.utils';
+import type { V3ToolResult }     from '../benji.types';
 
 const _nlService = new NaturalLanguageShipmentService();
 
@@ -33,23 +34,24 @@ export const V3_TOOL_DEFINITIONS: OpenAI.Chat.Completions.ChatCompletionTool[] =
       name: 'get_shipping_quote',
       description:
         'Calculate a shipping price estimate for a vehicle between two locations. ' +
-        'Use this when the user asks for a quote, price, cost, or rate. ' +
-        'All parameters are required — if any are missing, ask the user first.',
+        'Use this when the user asks for a quote, price, cost, rate, or estimate. ' +
+        'Origin and destination are required. Vehicle make/model are optional — ' +
+        'call this tool as soon as you have the route, even if make/model are unknown.',
       parameters: {
         type: 'object',
         properties: {
-          vehicle_make:      { type: 'string', description: 'Vehicle manufacturer, e.g. Honda' },
-          vehicle_model:     { type: 'string', description: 'Vehicle model, e.g. Civic' },
-          vehicle_year:      { type: 'number', description: 'Four-digit model year, e.g. 2020' },
-          vehicle_type:      {
+          vehicle_make:  { type: 'string', description: 'Vehicle manufacturer, e.g. Honda (optional)' },
+          vehicle_model: { type: 'string', description: 'Vehicle model, e.g. Civic (optional)' },
+          vehicle_year:  { type: 'number', description: 'Four-digit model year, e.g. 2020 (optional)' },
+          vehicle_type:  {
             type: 'string',
             enum: ['sedan', 'suv', 'pickup', 'luxury', 'motorcycle', 'golfcart', 'heavy'],
-            description: 'Vehicle category. Infer from make/model when possible.',
+            description: 'Vehicle category. Infer from context or default to sedan.',
           },
-          origin:            { type: 'string', description: 'Pickup city/state or full address' },
-          destination:       { type: 'string', description: 'Delivery city/state or full address' },
+          origin:        { type: 'string', description: 'Pickup city/state or full address' },
+          destination:   { type: 'string', description: 'Delivery city/state or full address' },
         },
-        required: ['vehicle_make', 'vehicle_model', 'origin', 'destination'],
+        required: ['origin', 'destination'],
       },
     },
   },
@@ -153,36 +155,43 @@ async function execGetShippingQuote(args: Record<string, unknown>): Promise<V3To
     return { success: false, data: null, summary: '', errorMessage: 'Origin and destination are required to generate a quote.' };
   }
 
+  let distanceMiles = 0;
+  let isEstimate    = false;
+
+  // ── Primary: Google Maps (real road distance) ─────────────────────────────
   try {
-    // Use getDirections which returns distance in the leg
-    const directions = await googleMapsService.getDirections(origin, dest);
-    const distanceText = directions.distance?.text ?? '';
-    // Convert "123.4 mi" → number
-    const distanceMiles = parseFloat(distanceText.replace(/[^\d.]/g, '')) || 0;
-
-    if (distanceMiles === 0) {
-      return {
-        success:      false,
-        data:         null,
-        summary:      '',
-        errorMessage: `I couldn't find a route between ${origin} and ${dest}. Please verify the locations.`,
-      };
+    const directions  = await googleMapsService.getDirections(origin, dest);
+    const distText    = directions.distance?.text ?? '';
+    const rawValue    = parseFloat(distText.replace(/[^\d.]/g, '')) || 0;
+    // Google Maps returns "X mi" for US addresses; convert km if needed
+    distanceMiles = /\bkm\b/i.test(distText) ? Math.round(rawValue / 1.60934) : rawValue;
+  } catch {
+    // ── Fallback: haversine estimate (± 10–15% accuracy) ─────────────────
+    const approx = estimateDistanceMiles(origin, dest);
+    if (approx !== null) {
+      distanceMiles = approx;
+      isEstimate    = true;
     }
-
-    const { total } = pricingService.calculateQuote({
-      vehicleType:   vType,
-      distanceMiles,
-    });
-
-    const data = { total, distanceMiles, vehicleType: vType, origin, destination: dest };
-    const yearLabel = args['vehicle_year'] ? `${args['vehicle_year']} ` : '';
-    const summary   = `Estimated shipping cost for a ${yearLabel}${make} ${model} from ${origin} to ${dest}: $${total.toFixed(0)} (${distanceMiles.toFixed(0)} miles).`;
-
-    return { success: true, data, summary };
-  } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : String(err);
-    return { success: false, data: null, summary: '', errorMessage: `Quote failed: ${msg}` };
   }
+
+  if (distanceMiles === 0) {
+    return {
+      success:      false,
+      data:         null,
+      summary:      '',
+      errorMessage: `I couldn't calculate the distance between ${origin} and ${dest}. Please provide a valid US city and state for both locations (e.g. "Dallas, TX").`,
+    };
+  }
+
+  const { total } = pricingService.calculateQuote({ vehicleType: vType, distanceMiles });
+
+  const data       = { total, distanceMiles, vehicleType: vType, origin, destination: dest, isEstimate };
+  const yearLabel  = args['vehicle_year'] ? `${args['vehicle_year']} ` : '';
+  const vehicleStr = make && model ? `${yearLabel}${make} ${model}` : (make || model || `${vType}`);
+  const approxNote = isEstimate ? ' (estimated)' : '';
+  const summary    = `Estimated shipping cost for a ${vehicleStr} from ${origin} to ${dest}: $${total.toFixed(0)}${approxNote} (${Math.round(distanceMiles)} miles).`;
+
+  return { success: true, data, summary };
 }
 
 // ─── parse_shipment_details ───────────────────────────────────────────────────

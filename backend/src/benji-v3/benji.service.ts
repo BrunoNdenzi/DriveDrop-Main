@@ -55,12 +55,17 @@ const CTX_WINDOW      = 20;            // Max recent messages sent to API (limit
  *
  * Conservative: only fires on very clear non-logistics messages.
  */
-const LOGISTICS_KEYWORDS = /\b(ship|freight|transport|carrier|pickup|delivery|quote|price|cost|rate|track|vehicle|car|truck|sedan|suv|toyota|ford|honda|bmw|mercedes|route|mile|mile|haul|load|driver|dispatch|invoice)\b/i;
+const LOGISTICS_KEYWORDS = /\b(ship|shipment|shipping|freight|transport|carrier|pickup|delivery|quote|price|cost|rate|track|tracking|vehicle|car|truck|sedan|suv|toyota|ford|honda|bmw|mercedes|route|mile|haul|load|driver|dispatch|invoice|book|booking|status|schedule|operable|origin|destination|assign)\b/i;
 
 function isConversationalOnly(message: string): boolean {
   if (LOGISTICS_KEYWORDS.test(message)) return false;
-  // Short messages (< 30 chars) that look like greetings/small-talk
-  if (message.trim().length < 60) return true;
+  // Only treat very short messages (≤ 10 chars) as purely conversational
+  // — e.g. "hi", "ok", "yes", "thanks", "sure".
+  // Anything longer without an explicit logistics keyword may still have
+  // logistics intent ("Create a shipment", "What's the status?", "Book it").
+  // With tool_choice:'auto' the LLM correctly ignores tools for non-logistics
+  // messages, so the cost of keeping tools available is only a few extra tokens.
+  if (message.trim().length <= 10) return true;
   return false;
 }
 
@@ -451,29 +456,17 @@ class BenjiV3Service {
           continue;
         }
 
-        // ── Final response — stream it ─────────────────────────────────
+        // ── Final response — reuse the already-generated content ────────
         if (choice.finish_reason === 'stop' || choice.finish_reason === 'length') {
-          // Now stream the final response
-          const streamCompletion = await openaiClient.chat.completions.create({
-            model:       useStrongModel ? MODEL_WITH_TOOLS : MODEL,
-            messages:    apiMessages,
-            tools:       [],         // No more tools — just generate the final text
-            max_tokens:  fastPath && !useStrongModel ? MAX_TOKENS_FAST : MAX_TOKENS,
-            temperature: TEMPERATURE,
-            stream:      true,
-          });
+          const content = choice.message.content ?? '';
 
-          let fullResponse = '';
-          for await (const chunk of streamCompletion) {
-            const delta = chunk.choices[0]?.delta?.content;
-            if (delta) {
-              fullResponse += delta;
-              send({ type: 'token', content: delta });
-            }
-          }
+          // Emit what the non-streaming call already produced — this eliminates
+          // a redundant second API round-trip and guarantees the streamed text
+          // is identical to what the model computed with full tool context.
+          if (content) send({ type: 'token', content });
 
           // Save to session history
-          session.messages.push({ role: 'assistant', content: fullResponse });
+          session.messages.push({ role: 'assistant', content });
           v3SessionStore.save(session);
 
           const latencyMs = Date.now() - startTime;
