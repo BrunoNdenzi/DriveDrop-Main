@@ -86,8 +86,11 @@ export const V3_TOOL_DEFINITIONS: OpenAI.Chat.Completions.ChatCompletionTool[] =
       name: 'create_shipment',
       description:
         'Create a real DriveDrop shipment booking. ' +
-        'ONLY call this after: (1) user has confirmed all details, (2) a quote has been shown, (3) user has explicitly said they want to proceed. ' +
-        'Requires complete vehicle info, origin, destination, and user confirmation.',
+        'ONLY call this after: (1) a quote has been shown, (2) user explicitly agrees ("yes", "book it", "go ahead", "do it", "proceed"). ' +
+        'Use vehicle/origin/destination from session context — do NOT ask for details already known. ' +
+        'is_operable defaults to true if the user has not said the vehicle is non-operable. ' +
+        'vehicle_year is optional — omit it rather than asking for it if not already known. ' +
+        'Requires only: vehicle_make, vehicle_model, origin, destination.',
       parameters: {
         type: 'object',
         properties: {
@@ -112,9 +115,10 @@ export const V3_TOOL_DEFINITIONS: OpenAI.Chat.Completions.ChatCompletionTool[] =
       name: 'track_shipment',
       description:
         'Look up the current status and details of an existing shipment. ' +
-        'Can find a shipment by its UUID, OR by describing the vehicle/route when the user does not know the ID. ' +
-        'If the user says "track my shipment" without an ID, pass the vehicle make/model and locations you know from context. ' +
-        'If no information is available, call this tool with no arguments to show the user\'s most recent active shipment.',
+        'ALWAYS call this tool immediately when the user asks where their car/vehicle/shipment is, ' +
+        'or asks about status/tracking — even with NO ID provided. ' +
+        'Do NOT ask for an ID or vehicle details before calling — call with no arguments and the tool finds the most recent active shipment automatically. ' +
+        'Can also find a shipment by UUID or by describing the vehicle/route.',
       parameters: {
         type: 'object',
         properties: {
@@ -152,8 +156,8 @@ export const V3_TOOL_DEFINITIONS: OpenAI.Chat.Completions.ChatCompletionTool[] =
       name: 'list_shipments',
       description:
         'List shipments for the current user. ' +
-        'Clients see their own shipments. Drivers see their assigned shipments. Admins see all shipments. ' +
-        'Use this when the user wants to view their shipment history, active shipments, or all orders.',
+        'Clients see their own shipments. Drivers see their assigned shipments (or use available_loads=true for open jobs). Admins see all shipments. ' +
+        'Use this when the user wants to view their shipment history, active shipments, all orders, or — for drivers — available loads to apply for.',
       parameters: {
         type: 'object',
         properties: {
@@ -161,6 +165,12 @@ export const V3_TOOL_DEFINITIONS: OpenAI.Chat.Completions.ChatCompletionTool[] =
             type: 'string',
             enum: ['pending', 'accepted', 'assigned', 'picked_up', 'in_transit', 'delivered', 'cancelled'],
             description: 'Filter by status. Omit to return shipments of any status.',
+          },
+          available_loads: {
+            type: 'boolean',
+            description:
+              'DRIVERS ONLY: When true, returns unassigned pending shipments open for applications. ' +
+              'Use when a driver asks to see available loads, open jobs, or new shipments to take on.',
           },
           limit: {
             type: 'number',
@@ -178,10 +188,10 @@ export const V3_TOOL_DEFINITIONS: OpenAI.Chat.Completions.ChatCompletionTool[] =
       name: 'update_shipment_status',
       description:
         'Update the status of a shipment. ' +
+        'Call this IMMEDIATELY when a driver says they picked up, delivered, or are in transit — no confirmation needed. ' +
         'Drivers use this to mark pickup, confirm delivery, or update transit status. ' +
         'Admins can set any status. ' +
-        'Clients CANNOT update status — only drivers and admins can. ' +
-        'Confirm with the user before updating.',
+        'Clients CANNOT update status — only drivers and admins can.',
       parameters: {
         type: 'object',
         properties: {
@@ -340,6 +350,33 @@ export const V3_TOOL_DEFINITIONS: OpenAI.Chat.Completions.ChatCompletionTool[] =
   {
     type: 'function',
     function: {
+      name: 'cancel_shipment',
+      description:
+        'Cancel a shipment. ' +
+        'THIS TOOL IS AVAILABLE TO ALL ROLES INCLUDING CLIENTS. ' +
+        'Clients use cancel_shipment to cancel their own bookings — this is completely separate from update_shipment_status which clients cannot use. ' +
+        'Drivers and admins can also cancel shipments. ' +
+        'Call this IMMEDIATELY when the user says they want to cancel — no confirmation needed.',
+      parameters: {
+        type: 'object',
+        properties: {
+          shipment_id: {
+            type: 'string',
+            description: 'The UUID of the shipment to cancel.',
+          },
+          reason: {
+            type: 'string',
+            description: 'Optional reason for cancellation.',
+          },
+        },
+        required: ['shipment_id'],
+      },
+    },
+  },
+
+  {
+    type: 'function',
+    function: {
       name: 'assign_driver',
       description:
         'Assign a driver to a shipment. Admin only. ' +
@@ -452,7 +489,8 @@ async function execGetShippingQuote(args: Record<string, unknown>): Promise<V3To
 
   const { total } = pricingService.calculateQuote({ vehicleType: vType, distanceMiles });
 
-  const data       = { total, distanceMiles, vehicleType: vType, origin, destination: dest, isEstimate };
+  const data       = { total, distanceMiles, vehicleType: vType, origin, destination: dest, isEstimate,
+                       vehicle_make: make, vehicle_model: model, vehicle_year: args['vehicle_year'] ?? null };
   const yearLabel  = args['vehicle_year'] ? `${args['vehicle_year']} ` : '';
   const vehicleStr = make && model ? `${yearLabel}${make} ${model}` : (make || model || `${vType}`);
   const approxNote = isEstimate ? ' (estimated)' : '';
@@ -704,8 +742,9 @@ async function execListShipments(
   userId:   string,
   userRole: UserType,
 ): Promise<V3ToolResult> {
-  const statusFilter = typeof args['status'] === 'string' ? args['status'] : undefined;
-  const limit        = Math.min(Math.max(Number(args['limit'] ?? 5), 1), 20);
+  const statusFilter   = typeof args['status'] === 'string' ? args['status'] : undefined;
+  const availableLoads = args['available_loads'] === true;
+  const limit          = Math.min(Math.max(Number(args['limit'] ?? 5), 1), 20);
 
   try {
     const { supabaseAdmin } = await import('../../lib/supabase');
@@ -716,15 +755,22 @@ async function execListShipments(
       .order('created_at', { ascending: false })
       .limit(limit);
 
-    // Role-based access: clients see their own, drivers see assigned, admins see all
+    // Role-based access: clients see their own, drivers see assigned OR available, admins see all
     if (userRole === 'client') {
       query = query.eq('client_id', userId);
     } else if (userRole === 'driver') {
-      query = query.eq('driver_id', userId);
+      if (availableLoads) {
+        // Show unassigned pending shipments the driver can apply for
+        query = query.is('driver_id', null).eq('status', 'pending');
+      } else {
+        // Show shipments this driver is assigned to
+        query = query.eq('driver_id', userId);
+      }
     }
     // admin / broker — no additional filter
 
-    if (statusFilter) {
+    // Only apply status filter when not in available_loads mode (which forces status=pending)
+    if (statusFilter && !availableLoads) {
       query = query.eq('status', statusFilter);
     }
 
@@ -736,7 +782,9 @@ async function execListShipments(
 
     const rows = data ?? [];
     if (rows.length === 0) {
-      const filterDesc = statusFilter ? ` with status "${statusFilter}"` : '';
+      const filterDesc = availableLoads
+        ? ' available for applications right now'
+        : statusFilter ? ` with status "${statusFilter}"` : '';
       return {
         success: true,
         data:    [],
@@ -750,10 +798,11 @@ async function execListShipments(
       return `• ID ${String(s['id']).slice(0, 8)}…: ${vehicle} — ${String(s['status'])}${price} | ${String(s['pickup_address'])} → ${String(s['delivery_address'])}`;
     });
 
+    const label = availableLoads ? 'available load(s)' : 'shipment(s)';
     return {
       success: true,
       data:    rows,
-      summary: `Found ${rows.length} shipment(s):\n${lines.join('\n')}`,
+      summary: `Found ${rows.length} ${label}:\n${lines.join('\n')}`,
     };
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);
@@ -882,7 +931,7 @@ async function execApplyForShipment(
 
     return {
       success: true,
-      data,
+      data:    { result: data, shipment_id: shipmentId },
       summary: `Your application for shipment ${shipmentId.slice(0, 8)}… has been submitted successfully.`,
     };
   } catch (err: unknown) {
@@ -1123,6 +1172,69 @@ async function execGetProfile(
   }
 }
 
+// ─── cancel_shipment ──────────────────────────────────────────────────────────
+
+async function execCancelShipment(
+  args:     Record<string, unknown>,
+  userId:   string,
+  userRole: UserType,
+): Promise<V3ToolResult> {
+  const shipmentId = String(args['shipment_id'] ?? '').trim();
+  if (!shipmentId) return { success: false, data: null, summary: '', errorMessage: 'Shipment ID is required to cancel.' };
+
+  try {
+    const { supabaseAdmin } = await import('../../lib/supabase');
+
+    // Fetch shipment for permission + state validation
+    const { data: ship, error: fetchError } = await supabaseAdmin
+      .from('shipments')
+      .select('id, status, client_id, driver_id, vehicle_make, vehicle_model')
+      .eq('id', shipmentId)
+      .maybeSingle();
+
+    if (fetchError || !ship) {
+      return { success: false, data: null, summary: '', errorMessage: `Shipment ${shipmentId.slice(0, 8)}… not found.` };
+    }
+
+    // Permission check
+    if (userRole === 'client' && ship.client_id !== userId) {
+      return { success: false, data: null, summary: '', errorMessage: 'You can only cancel your own shipments.' };
+    }
+    if (userRole === 'driver' && ship.driver_id !== userId) {
+      return { success: false, data: null, summary: '', errorMessage: 'You can only cancel shipments assigned to you.' };
+    }
+
+    // State guard — can't cancel terminal states
+    if (ship.status === 'delivered') {
+      return { success: false, data: null, summary: '', errorMessage: 'Cannot cancel a shipment that has already been delivered.' };
+    }
+    if (ship.status === 'cancelled') {
+      return { success: false, data: null, summary: '', errorMessage: 'This shipment is already cancelled.' };
+    }
+
+    const { data, error } = await supabaseAdmin
+      .from('shipments')
+      .update({ status: 'cancelled', updated_at: new Date().toISOString() })
+      .eq('id', shipmentId)
+      .select('id, status, vehicle_make, vehicle_model')
+      .single();
+
+    if (error || !data) {
+      return { success: false, data: null, summary: '', errorMessage: `Cancellation failed: ${error?.message ?? 'Unknown error'}.` };
+    }
+
+    const vehicle = [data.vehicle_make, data.vehicle_model].filter(Boolean).join(' ') || 'Vehicle';
+    return {
+      success: true,
+      data,
+      summary: `Shipment ${String(data.id).slice(0, 8)}… (${vehicle}) has been cancelled.`,
+    };
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    return { success: false, data: null, summary: '', errorMessage: `Cancel shipment failed: ${msg}` };
+  }
+}
+
 // ─── assign_driver ────────────────────────────────────────────────────────────
 
 async function execAssignDriver(
@@ -1264,6 +1376,7 @@ export async function executeV3Tool(
       case 'get_messages':             return await execGetMessages(args, userId);
       case 'get_payment_info':         return await execGetPaymentInfo(args, userId, userRole);
       case 'get_profile':              return await execGetProfile(args, userId);
+      case 'cancel_shipment':          return await execCancelShipment(args, userId, userRole);
       case 'assign_driver':            return await execAssignDriver(args, userId, userRole);
       case 'list_users':               return await execListUsers(args, userId, userRole);
       default:

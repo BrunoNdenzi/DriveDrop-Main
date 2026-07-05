@@ -33,6 +33,7 @@ import type {
   V3ChatResponse,
   V3Session,
   V3LogisticsContext,
+  UserType,
 } from './benji.types';
 import type OpenAI from 'openai';
 
@@ -46,6 +47,48 @@ const MAX_TOKENS_FAST = 256;            // For greeting/trivial responses — fa
 const TEMPERATURE     = 0.65;
 const CTX_WINDOW      = 20;            // Max recent messages sent to API (limits token cost)
 
+// ─── Role-based tool filtering ────────────────────────────────────────────────
+
+/**
+ * Return only the tools the current user role is allowed to invoke.
+ * Sending fewer tools improves routing accuracy and prevents the LLM from calling
+ * restricted tools that would be rejected server-side anyway.
+ */
+function getToolsForRole(userRole: UserType): OpenAI.Chat.Completions.ChatCompletionTool[] {
+  // Tools restricted by role (blocked tools per role):
+  const BLOCKED: Record<string, string[]> = {
+    client: [
+      'update_shipment_status',   // clients cannot change status (only drivers/admins)
+      'apply_for_shipment',        // clients don't apply for loads
+      'list_driver_applications',  // client-irrelevant
+      'assign_driver',             // admin only
+      'list_users',                // admin only
+    ],
+    driver: [
+      'assign_driver',             // admin only
+      'list_users',                // admin only
+      'get_payment_info',          // driver cannot see payment records
+    ],
+    admin: [
+      'apply_for_shipment',        // driver only
+      'list_driver_applications',  // driver only
+    ],
+    broker: [
+      'update_shipment_status',    // drivers/admins only
+      'apply_for_shipment',        // drivers only
+      'list_driver_applications',  // drivers only
+      'assign_driver',             // admin only
+      'list_users',                // admin only
+    ],
+  };
+
+  const blocked = BLOCKED[userRole] ?? [];
+  return V3_TOOL_DEFINITIONS.filter(tool => {
+    const fn = (tool as { function?: { name: string } }).function;
+    return fn ? !blocked.includes(fn.name) : true;
+  });
+}
+
 // ─── Greeting fast-path heuristic ────────────────────────────────────────────
 
 /**
@@ -55,17 +98,16 @@ const CTX_WINDOW      = 20;            // Max recent messages sent to API (limit
  *
  * Conservative: only fires on very clear non-logistics messages.
  */
-const LOGISTICS_KEYWORDS = /\b(ship|shipment|shipments|shipping|freight|transport|carrier|pickup|delivery|quote|price|cost|rate|track|tracking|vehicle|car|truck|sedan|suv|toyota|ford|honda|bmw|mercedes|route|mile|haul|load|loads|driver|dispatch|invoice|book|booking|status|schedule|operable|origin|destination|assign|message|messages|conversation|conversations|apply|application|applications|payment|payments|profile|history|earnings|load|order|orders|cancel|cancelled|pending|delivered|transit|accepted|assigned|users)\b/i;
+const LOGISTICS_KEYWORDS = /\b(ship|shipment|shipments|shipping|freight|transport|carrier|pickup|delivery|quote|price|cost|rate|track|tracking|vehicle|car|truck|sedan|suv|toyota|ford|honda|bmw|mercedes|route|mile|haul|load|loads|driver|dispatch|invoice|book|booking|status|schedule|operable|origin|destination|assign|message|messages|conversation|conversations|apply|application|applications|payment|payments|profile|history|earnings|order|orders|cancel|cancelled|cancellation|pending|delivered|transit|accepted|assigned|users|available|jobs|withdraw|abort)\b/i;
 
-function isConversationalOnly(message: string): boolean {
+function isConversationalOnly(message: string, ctx: V3LogisticsContext): boolean {
   if (LOGISTICS_KEYWORDS.test(message)) return false;
-  // Only treat very short messages (≤ 10 chars) as purely conversational
-  // — e.g. "hi", "ok", "yes", "thanks", "sure".
-  // Anything longer without an explicit logistics keyword may still have
-  // logistics intent ("Create a shipment", "What's the status?", "Book it").
-  // With tool_choice:'auto' the LLM correctly ignores tools for non-logistics
-  // messages, so the cost of keeping tools available is only a few extra tokens.
-  if (message.trim().length <= 10) return true;
+  // If there is active logistics context (active quote, active shipment, vehicle on record),
+  // keep tools available even for short follow-up replies like "ok", "yes", "sure", "do it".
+  // Without this, an affirmative reply to "Want me to book it?" would never reach create_shipment.
+  if (ctx.lastQuote || ctx.activeShipmentId || ctx.lastShipmentId || ctx.vehicle?.make) return false;
+  // Only fast-path very short messages (≤5 chars) with no logistics context
+  if (message.trim().length <= 5) return true;
   return false;
 }
 
@@ -119,6 +161,14 @@ function extractContextFromToolOutput(
       }
       if (typeof d['origin']      === 'string') patch.pickup   = { location: d['origin']      as string };
       if (typeof d['destination'] === 'string') patch.delivery = { location: d['destination'] as string };
+      // Store vehicle info from quote so follow-up booking can use context
+      if (typeof d['vehicle_make'] === 'string' || typeof d['vehicle_model'] === 'string') {
+        const v: Partial<NonNullable<V3LogisticsContext['vehicle']>> = { ...(session.context.vehicle ?? {}) };
+        if (typeof d['vehicle_make']  === 'string' && d['vehicle_make'])  v.make  = d['vehicle_make']  as string;
+        if (typeof d['vehicle_model'] === 'string' && d['vehicle_model']) v.model = d['vehicle_model'] as string;
+        if (typeof d['vehicle_year']  === 'number')                       v.year  = d['vehicle_year']  as number;
+        patch.vehicle = v;
+      }
       v3SessionStore.mergeContext(session.sessionId, patch);
       break;
     }
@@ -176,12 +226,37 @@ function extractContextFromToolOutput(
       break;
     }
 
-    case 'update_shipment_status':
+    case 'update_shipment_status': {
+      // Store the updated shipment as the active one
+      const sid = d['id'];
+      if (typeof sid === 'string') {
+        v3SessionStore.mergeContext(session.sessionId, { activeShipmentId: sid });
+      }
+      break;
+    }
+
+    case 'apply_for_shipment': {
+      // execApplyForShipment includes shipment_id in the returned data
+      const sid = d['shipment_id'];
+      if (typeof sid === 'string') {
+        v3SessionStore.mergeContext(session.sessionId, { activeShipmentId: sid });
+      }
+      break;
+    }
+
+    case 'cancel_shipment': {
+      // Store the cancelled shipment ID for follow-up context
+      const sid = d['id'];
+      if (typeof sid === 'string') {
+        v3SessionStore.mergeContext(session.sessionId, { activeShipmentId: sid });
+      }
+      break;
+    }
+
+    case 'assign_driver':
     case 'get_payment_info':
-    case 'apply_for_shipment':
     case 'list_driver_applications':
     case 'list_users':
-    case 'assign_driver':
     case 'get_profile':
       // No additional context mutation needed for these tools
       break;
@@ -234,9 +309,10 @@ class BenjiV3Service {
         ...recentMessages,
       ];
 
-      // Fast-path: if message is pure conversation (no logistics keywords),
+      // Fast-path: if message is pure conversation (no logistics keywords, no active context),
       // skip tool definitions entirely → saves ~200 tokens + routing overhead
-      const fastPath = isConversationalOnly(req.message);
+      const fastPath    = isConversationalOnly(req.message, session.context);
+      const roleTools   = getToolsForRole(req.userType);
 
       let finalResponse = '';
       let loopCount     = 0;
@@ -249,7 +325,7 @@ class BenjiV3Service {
         const completion = await openaiClient.chat.completions.create({
           model:       useStrongModel ? MODEL_WITH_TOOLS : MODEL,
           messages:    apiMessages,
-          tools:       fastPath ? [] : V3_TOOL_DEFINITIONS,
+          tools:       fastPath ? [] : roleTools,
           tool_choice: fastPath ? 'none' : ('auto' as const),
           max_tokens:  fastPath && !useStrongModel ? MAX_TOKENS_FAST : MAX_TOKENS,
           temperature: TEMPERATURE,
@@ -446,7 +522,7 @@ class BenjiV3Service {
       session.messages.push({ role: 'user', content: req.message } as OpenAI.Chat.Completions.ChatCompletionUserMessageParam);
 
       const recentMessages = session.messages.slice(-CTX_WINDOW);
-      const fastPath       = isConversationalOnly(req.message);
+      const fastPath       = isConversationalOnly(req.message, session.context);
 
       const apiMessages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [
         { role: 'system', content: systemPrompt },
@@ -464,7 +540,7 @@ class BenjiV3Service {
         const completion = await openaiClient.chat.completions.create({
           model:       useStrongModel ? MODEL_WITH_TOOLS : MODEL,
           messages:    apiMessages,
-          tools:       fastPath ? [] : V3_TOOL_DEFINITIONS,
+          tools:       fastPath ? [] : getToolsForRole(req.userType),
           tool_choice: fastPath ? 'none' : ('auto' as const),
           max_tokens:  fastPath && !useStrongModel ? MAX_TOKENS_FAST : MAX_TOKENS,
           temperature: TEMPERATURE,
