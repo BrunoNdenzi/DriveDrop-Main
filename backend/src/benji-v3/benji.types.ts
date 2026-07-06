@@ -24,20 +24,32 @@ export interface V3LogisticsContext {
   };
   pickup?: {
     location?: string;
+    date?:     string; // ISO date string e.g. "2026-08-15"
   };
   delivery?: {
     location?: string;
+    date?:     string; // ISO date string
   };
   lastShipmentId?:   string;
   /** The shipment currently being discussed (tracking, messaging, status updates). */
   activeShipmentId?: string;
   lastQuote?: {
-    total:        number;
-    distanceMiles: number;
-    vehicleType:  string;
+    total:             number;
+    distanceMiles:     number;
+    vehicleType:       string;
+    /** e.g. 'expedited' | 'flexible' | 'standard' */
+    deliveryType?:     string;
+    /** Delivery type price multiplier e.g. 1.25 for expedited */
+    deliveryMultiplier?: number;
   };
   /** Was a shipment creation confirmed by the user this session? */
-  shipmentCreated?: boolean;
+  shipmentCreated?:  boolean;
+  /** Has the user explicitly accepted DriveDrop T&C this session? */
+  termsAccepted?:    boolean;
+  /** Has a Stripe payment intent been initiated for the current shipment? */
+  paymentInitiated?: boolean;
+  /** Transport type preference captured from conversation */
+  transportType?:    'open' | 'enclosed';
 }
 
 /** One entry in the session's conversation history (OpenAI wire format). */
@@ -65,6 +77,8 @@ export interface V3ChatRequest {
   sessionId: string;
   userType:  UserType;
   userId:    string;
+  /** Optional images for multimodal document processing */
+  images?:   Array<{ url: string; detail?: 'low' | 'high' | 'auto' }>;
 }
 
 export interface V3ChatResponse {

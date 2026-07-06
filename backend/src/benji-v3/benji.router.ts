@@ -37,7 +37,11 @@ const router = Router();
 // are rejected immediately and do NOT consume the caller's rate-limit quota.
 
 function validateChatBody(req: Request, res: Response, next: NextFunction): void {
-  const { message, sessionId } = req.body as { message?: unknown; sessionId?: unknown };
+  const { message, sessionId, images } = req.body as {
+    message?: unknown;
+    sessionId?: unknown;
+    images?: unknown;
+  };
   if (typeof message !== 'string' || (message as string).trim().length === 0) {
     res.status(400).json({ error: 'message is required and must be a non-empty string' });
     return;
@@ -49,6 +53,33 @@ function validateChatBody(req: Request, res: Response, next: NextFunction): void
   if (typeof sessionId !== 'string' || (sessionId as string).trim().length === 0) {
     res.status(400).json({ error: 'sessionId is required' });
     return;
+  }
+  // Validate optional images array
+  if (images !== undefined) {
+    if (!Array.isArray(images)) {
+      res.status(400).json({ error: 'images must be an array' });
+      return;
+    }
+    if (images.length > 5) {
+      res.status(400).json({ error: 'Maximum 5 images per request' });
+      return;
+    }
+    for (const img of images as unknown[]) {
+      if (typeof img !== 'object' || img === null || typeof (img as Record<string, unknown>)['url'] !== 'string') {
+        res.status(400).json({ error: 'Each image must have a url string' });
+        return;
+      }
+      try {
+        const parsed = new URL((img as Record<string, unknown>)['url'] as string);
+        if (!['http:', 'https:'].includes(parsed.protocol)) {
+          res.status(400).json({ error: 'Image URLs must use http or https' });
+          return;
+        }
+      } catch {
+        res.status(400).json({ error: 'Invalid image URL' });
+        return;
+      }
+    }
   }
   next();
 }
@@ -79,7 +110,11 @@ router.post(
         return;
       }
 
-      const { message, sessionId } = req.body as { message: string; sessionId: string };
+      const { message, sessionId, images } = req.body as {
+        message: string;
+        sessionId: string;
+        images?: Array<{ url: string; detail?: 'low' | 'high' | 'auto' }>;
+      };
 
       const userType = _toUserType(req.user?.role);
 
@@ -88,6 +123,7 @@ router.post(
         sessionId: sessionId.trim(),
         userId,
         userType,
+        ...(images ? { images } : {}),
       });
 
       res.status(200).json(result);
@@ -114,13 +150,17 @@ router.post(
       return;
     }
 
-    const { message, sessionId } = req.body as { message: string; sessionId: string };
+    const { message, sessionId, images } = req.body as {
+      message: string;
+      sessionId: string;
+      images?: Array<{ url: string; detail?: 'low' | 'high' | 'auto' }>;
+    };
 
     const userType = _toUserType(req.user?.role);
 
     // chatStream writes SSE directly to res — does not throw
     await benjiV3Service.chatStream(
-      { message: message.trim(), sessionId: sessionId.trim(), userId, userType },
+      { message: message.trim(), sessionId: sessionId.trim(), userId, userType, ...(images ? { images } : {}) },
       res,
     );
   },

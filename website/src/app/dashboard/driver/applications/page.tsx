@@ -9,7 +9,6 @@ import {
   CheckCircle,
   XCircle,
   MapPin,
-  Truck,
   Calendar
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -27,14 +26,11 @@ interface Application {
     title: string
     pickup_address: string
     delivery_address: string
-    pickup_city: string
-    delivery_city: string
     estimated_price: number
-    distance: number
     status: string
-    vehicle_make: string
-    vehicle_model: string
-    vehicle_year: number
+    vehicle_make: string | null
+    vehicle_model: string | null
+    vehicle_year: number | null
     created_at: string
   }
 }
@@ -64,10 +60,7 @@ export default function DriverApplicationsPage() {
             title,
             pickup_address,
             delivery_address,
-            pickup_city,
-            delivery_city,
             estimated_price,
-            distance,
             status,
             vehicle_make,
             vehicle_model,
@@ -251,10 +244,6 @@ export default function DriverApplicationsPage() {
 
               {/* Details */}
               <div className="flex items-center gap-6 text-sm text-gray-600 border-t border-gray-200 pt-4">
-                <div className="flex items-center gap-1">
-                  <Truck className="h-4 w-4" />
-                  <span>{app.shipment.distance} miles</span>
-                </div>
                 <div className="flex items-center gap-1">
                   <span className="font-medium">Shipment Status:</span>
                   <span className="capitalize">{app.shipment.status.replace(/_/g, ' ')}</span>

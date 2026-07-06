@@ -78,10 +78,18 @@ function ChangePasswordForm() {
 
       setSuccess(true)
 
-      // Redirect after 2 seconds
+      // Redirect after 2 seconds — fetch profile to get correct role
       setTimeout(async () => {
         const { data: { user: currentUser } } = await supabase.auth.getUser()
-        router.push(`/dashboard/${currentUser?.user_metadata?.role || 'client'}`)
+        if (!currentUser) { router.push('/login'); return; }
+        // Get role from profile (user_metadata.role may not be set for admin-created users)
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('role')
+          .eq('id', currentUser.id)
+          .single()
+        const role = profile?.role || currentUser.user_metadata?.role || 'driver'
+        router.push(`/dashboard/${role}`)
       }, 2000)
     } catch (err: any) {
       console.error('Password change error:', err)

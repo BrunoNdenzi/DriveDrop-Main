@@ -1,24 +1,20 @@
 /**
  * Benji V4 — Tool adapter layer
  *
- * 14 tools covering the full DriveDrop capability matrix:
+ * 21 tools covering the full DriveDrop capability matrix:
  *
  *   V3 (existing): get_shipping_quote, parse_shipment_details, create_shipment, track_shipment
- *   V4 (new):      list_shipments, update_shipment_status, apply_for_shipment,
+ *   V4 (original): list_shipments, update_shipment_status, apply_for_shipment,
  *                  list_driver_applications, send_message, get_messages,
- *                  get_payment_info, get_profile, assign_driver, list_users
+ *                  get_payment_info, get_profile, assign_driver, list_users, cancel_shipment
+ *   Phase 1 (new): get_shipment_detail, get_terms, initiate_payment,
+ *                  withdraw_application, process_document, get_driver_info
  *
  * Each tool:
  *   1. Has a JSON Schema definition (sent to OpenAI with every request)
  *   2. Has an execute() handler that runs the real backend service
  *   3. Returns V3ToolResult with a human-readable `summary` the LLM quotes
  *   4. Enforces role-based permissions server-side
- *
- * Reuses:
- *   NaturalLanguageShipmentService  — parse + create
- *   pricingService                  — calculate route price
- *   googleMapsService               — distance/duration lookup
- *   supabaseAdmin                   — direct DB access for new tools
  */
 
 import type OpenAI from 'openai';
@@ -41,20 +37,29 @@ export const V3_TOOL_DEFINITIONS: OpenAI.Chat.Completions.ChatCompletionTool[] =
         'Calculate a shipping price estimate for a vehicle between two locations. ' +
         'Use this when the user asks for a quote, price, cost, rate, or estimate. ' +
         'Origin and destination are required. Vehicle make/model are optional — ' +
-        'call this tool as soon as you have the route, even if make/model are unknown.',
+        'call this tool as soon as you have the route, even if make/model are unknown. ' +
+        'Dates affect the price: expedited (delivery within 5 days) costs 25% more; ' +
+        'flexible (6+ days) costs 5% less. Pass pickup_date and delivery_date when the user mentions timing.',
       parameters: {
         type: 'object',
         properties: {
-          vehicle_make:  { type: 'string', description: 'Vehicle manufacturer, e.g. Honda (optional)' },
-          vehicle_model: { type: 'string', description: 'Vehicle model, e.g. Civic (optional)' },
-          vehicle_year:  { type: 'number', description: 'Four-digit model year, e.g. 2020 (optional)' },
-          vehicle_type:  {
+          vehicle_make:   { type: 'string', description: 'Vehicle manufacturer, e.g. Honda (optional)' },
+          vehicle_model:  { type: 'string', description: 'Vehicle model, e.g. Civic (optional)' },
+          vehicle_year:   { type: 'number', description: 'Four-digit model year, e.g. 2020 (optional)' },
+          vehicle_type:   {
             type: 'string',
             enum: ['sedan', 'suv', 'pickup', 'luxury', 'motorcycle', 'golfcart', 'heavy'],
             description: 'Vehicle category. Infer from context or default to sedan.',
           },
-          origin:        { type: 'string', description: 'Pickup city/state or full address' },
-          destination:   { type: 'string', description: 'Delivery city/state or full address' },
+          origin:         { type: 'string', description: 'Pickup city/state or full address' },
+          destination:    { type: 'string', description: 'Delivery city/state or full address' },
+          pickup_date:    { type: 'string', description: 'ISO date of pickup e.g. "2026-08-15" (optional). Affects pricing.' },
+          delivery_date:  { type: 'string', description: 'ISO date of desired delivery e.g. "2026-08-20" (optional). Affects pricing.' },
+          transport_type: {
+            type: 'string',
+            enum: ['open', 'enclosed'],
+            description: 'Transport type. Open is standard (default). Enclosed is for luxury/classic vehicles.',
+          },
         },
         required: ['origin', 'destination'],
       },
@@ -86,26 +91,39 @@ export const V3_TOOL_DEFINITIONS: OpenAI.Chat.Completions.ChatCompletionTool[] =
       name: 'create_shipment',
       description:
         'Create a real DriveDrop shipment booking. ' +
-        'ONLY call this after: (1) a quote has been shown, (2) user explicitly agrees ("yes", "book it", "go ahead", "do it", "proceed"). ' +
-        'Use vehicle/origin/destination from session context — do NOT ask for details already known. ' +
+        'ONLY call this after: (1) a quote has been shown, (2) DriveDrop terms have been presented, (3) user explicitly accepts ("yes", "I agree", "book it", "go ahead", "do it", "proceed"). ' +
+        'Use vehicle/origin/destination/dates from session context — do NOT ask for details already known. ' +
         'is_operable defaults to true if the user has not said the vehicle is non-operable. ' +
-        'vehicle_year is optional — omit it rather than asking for it if not already known. ' +
+        'vehicle_year is optional — omit it rather than asking. ' +
+        'terms_accepted MUST be true — only set it true after user has explicitly agreed to terms. ' +
         'Requires only: vehicle_make, vehicle_model, origin, destination.',
       parameters: {
         type: 'object',
         properties: {
-          user_id:         { type: 'string',  description: 'The authenticated user ID' },
           vehicle_make:    { type: 'string' },
           vehicle_model:   { type: 'string' },
           vehicle_year:    { type: 'number' },
           vehicle_vin:     { type: 'string',  description: 'Optional VIN' },
-          origin:          { type: 'string',  description: 'Pickup address' },
-          destination:     { type: 'string',  description: 'Delivery address' },
-          is_operable:     { type: 'boolean', description: 'Whether the vehicle runs and drives' },
+          vehicle_type:    {
+            type: 'string',
+            enum: ['sedan', 'suv', 'pickup', 'luxury', 'motorcycle', 'golfcart', 'heavy'],
+            description: 'Vehicle category — infer from make/model if not specified',
+          },
+          origin:          { type: 'string',  description: 'Pickup address or city/state' },
+          destination:     { type: 'string',  description: 'Delivery address or city/state' },
+          pickup_date:     { type: 'string',  description: 'ISO pickup date e.g. "2026-08-15" (optional)' },
+          delivery_date:   { type: 'string',  description: 'ISO desired delivery date e.g. "2026-08-20" (optional)' },
+          is_operable:     { type: 'boolean', description: 'Whether the vehicle runs and drives. Default true.' },
+          transport_type:  {
+            type: 'string',
+            enum: ['open', 'enclosed'],
+            description: 'Transport type. Default open.',
+          },
           estimated_price: { type: 'number',  description: 'Price from a prior get_shipping_quote call' },
           distance_miles:  { type: 'number',  description: 'Distance from a prior get_shipping_quote call' },
+          terms_accepted:  { type: 'boolean', description: 'MUST be true — user has explicitly accepted DriveDrop terms.' },
         },
-        required: ['user_id', 'vehicle_make', 'vehicle_model', 'origin', 'destination'],
+        required: ['vehicle_make', 'vehicle_model', 'origin', 'destination', 'terms_accepted'],
       },
     },
   },
@@ -422,6 +440,140 @@ export const V3_TOOL_DEFINITIONS: OpenAI.Chat.Completions.ChatCompletionTool[] =
       },
     },
   },
+
+  // ── Phase 1 tools ─────────────────────────────────────────────────────────
+
+  {
+    type: 'function',
+    function: {
+      name: 'get_shipment_detail',
+      description:
+        'Get comprehensive details for a specific shipment — vehicle info, route, status timeline, ' +
+        'driver profile (if assigned), payment status, and pickup/delivery dates. ' +
+        'Use when the user wants full details about a specific shipment rather than just status. ' +
+        'Use this for "tell me everything about my shipment", "who is my driver", "when is pickup", etc.',
+      parameters: {
+        type: 'object',
+        properties: {
+          shipment_id: {
+            type: 'string',
+            description: 'The UUID of the shipment. Omit to use the most recent active shipment from session context.',
+          },
+        },
+        required: [],
+      },
+    },
+  },
+
+  {
+    type: 'function',
+    function: {
+      name: 'get_terms',
+      description:
+        'Get the DriveDrop shipping terms and conditions summary. ' +
+        'ALWAYS call this before creating a booking when the user has not yet seen or accepted the terms. ' +
+        'Present the key points to the user and ask for explicit acceptance before calling create_shipment.',
+      parameters: {
+        type: 'object',
+        properties: {},
+        required: [],
+      },
+    },
+  },
+
+  {
+    type: 'function',
+    function: {
+      name: 'initiate_payment',
+      description:
+        'Create a Stripe payment intent for the 20% deposit on a shipment and return payment instructions. ' +
+        'Call this IMMEDIATELY after create_shipment succeeds. ' +
+        'The user must complete the 20% deposit to confirm their booking. ' +
+        'Returns the amount due, payment instructions, and a payment URL the user should visit.',
+      parameters: {
+        type: 'object',
+        properties: {
+          shipment_id: {
+            type: 'string',
+            description: 'UUID of the shipment to initiate payment for.',
+          },
+          amount: {
+            type: 'number',
+            description: 'Total shipment price in USD (the 20% deposit will be calculated).',
+          },
+        },
+        required: ['shipment_id', 'amount'],
+      },
+    },
+  },
+
+  {
+    type: 'function',
+    function: {
+      name: 'withdraw_application',
+      description:
+        'Withdraw a driver\'s pending application for a shipment. Driver only. ' +
+        'Use when a driver wants to cancel, withdraw, or remove their application for a load they applied for.',
+      parameters: {
+        type: 'object',
+        properties: {
+          shipment_id: {
+            type: 'string',
+            description: 'UUID of the shipment whose application to withdraw.',
+          },
+        },
+        required: ['shipment_id'],
+      },
+    },
+  },
+
+  {
+    type: 'function',
+    function: {
+      name: 'process_document',
+      description:
+        'Extract information from a document or image using AI vision. ' +
+        'Use when a user shares an image URL (vehicle photo, title, registration, insurance, BOL, VIN plate, damage photo). ' +
+        'Automatically determine document type and extract all useful fields. ' +
+        'Examples: extract VIN from VIN plate photo, extract vehicle details from title, identify damage from photo.',
+      parameters: {
+        type: 'object',
+        properties: {
+          image_url: {
+            type: 'string',
+            description: 'A publicly accessible URL to the image or document.',
+          },
+          document_type: {
+            type: 'string',
+            enum: ['auto', 'title', 'registration', 'insurance', 'bol', 'vin_plate', 'vehicle_photo', 'damage_photo', 'license', 'invoice'],
+            description: 'Hint for document type. Use "auto" to let AI determine it.',
+          },
+        },
+        required: ['image_url'],
+      },
+    },
+  },
+
+  {
+    type: 'function',
+    function: {
+      name: 'get_driver_info',
+      description:
+        'Get public profile information for the driver assigned to a shipment. ' +
+        'Use when a client or admin asks who their driver is, what their rating is, or wants driver contact info. ' +
+        'Returns driver name, rating, phone, and vehicle details.',
+      parameters: {
+        type: 'object',
+        properties: {
+          shipment_id: {
+            type: 'string',
+            description: 'UUID of the shipment to get driver info for.',
+          },
+        },
+        required: ['shipment_id'],
+      },
+    },
+  },
 ];
 
 // ─── Tool Executors ───────────────────────────────────────────────────────────
@@ -449,11 +601,14 @@ function inferVehicleType(make: string, model: string): string {
 // ─── get_shipping_quote ───────────────────────────────────────────────────────
 
 async function execGetShippingQuote(args: Record<string, unknown>): Promise<V3ToolResult> {
-  const make   = String(args['vehicle_make']  ?? '');
-  const model  = String(args['vehicle_model'] ?? '');
-  const origin = String(args['origin']        ?? '');
-  const dest   = String(args['destination']   ?? '');
-  const vType  = String(args['vehicle_type']  ?? inferVehicleType(make, model)) as 'sedan' | 'suv' | 'pickup' | 'luxury' | 'motorcycle' | 'golfcart' | 'heavy';
+  const make         = String(args['vehicle_make']  ?? '');
+  const model        = String(args['vehicle_model'] ?? '');
+  const origin       = String(args['origin']        ?? '');
+  const dest         = String(args['destination']   ?? '');
+  const vType        = String(args['vehicle_type']  ?? inferVehicleType(make, model)) as 'sedan' | 'suv' | 'pickup' | 'luxury' | 'motorcycle' | 'golfcart' | 'heavy';
+  const pickupDate   = typeof args['pickup_date']   === 'string' ? args['pickup_date']   : undefined;
+  const deliveryDate = typeof args['delivery_date'] === 'string' ? args['delivery_date'] : undefined;
+  const transportType = typeof args['transport_type'] === 'string' ? args['transport_type'] : 'open';
 
   if (!origin || !dest) {
     return { success: false, data: null, summary: '', errorMessage: 'Origin and destination are required to generate a quote.' };
@@ -467,7 +622,6 @@ async function execGetShippingQuote(args: Record<string, unknown>): Promise<V3To
     const directions  = await googleMapsService.getDirections(origin, dest);
     const distText    = directions.distance?.text ?? '';
     const rawValue    = parseFloat(distText.replace(/[^\d.]/g, '')) || 0;
-    // Google Maps returns "X mi" for US addresses; convert km if needed
     distanceMiles = /\bkm\b/i.test(distText) ? Math.round(rawValue / 1.60934) : rawValue;
   } catch {
     // ── Fallback: haversine estimate (± 10–15% accuracy) ─────────────────
@@ -487,14 +641,45 @@ async function execGetShippingQuote(args: Record<string, unknown>): Promise<V3To
     };
   }
 
-  const { total } = pricingService.calculateQuote({ vehicleType: vType, distanceMiles });
+  // Use dynamic pricing config (includes surge, fuel adjustment, delivery type multiplier)
+  let total = 0;
+  let deliveryType = 'standard';
+  let deliveryMultiplier = 1.0;
+  try {
+    const quoteResult = await pricingService.calculateQuoteWithDynamicConfig({
+      vehicleType:  vType,
+      distanceMiles,
+      pickupDate,
+      deliveryDate,
+    });
+    total              = quoteResult.total;
+    deliveryType       = quoteResult.breakdown.deliveryType;
+    deliveryMultiplier = quoteResult.breakdown.deliveryTypeMultiplier;
+  } catch {
+    // Fallback to static pricing
+    const fallback = pricingService.calculateQuote({ vehicleType: vType, distanceMiles });
+    total = fallback.total;
+  }
 
-  const data       = { total, distanceMiles, vehicleType: vType, origin, destination: dest, isEstimate,
-                       vehicle_make: make, vehicle_model: model, vehicle_year: args['vehicle_year'] ?? null };
-  const yearLabel  = args['vehicle_year'] ? `${args['vehicle_year']} ` : '';
-  const vehicleStr = make && model ? `${yearLabel}${make} ${model}` : (make || model || `${vType}`);
-  const approxNote = isEstimate ? ' (estimated)' : '';
-  const summary    = `Estimated shipping cost for a ${vehicleStr} from ${origin} to ${dest}: $${total.toFixed(0)}${approxNote} (${Math.round(distanceMiles)} miles).`;
+  // Enclosed transport adds ~30% premium
+  if (transportType === 'enclosed') {
+    total = Math.round(total * 1.30);
+  }
+
+  const data = {
+    total, distanceMiles, vehicleType: vType, origin, destination: dest, isEstimate,
+    vehicle_make: make, vehicle_model: model, vehicle_year: args['vehicle_year'] ?? null,
+    deliveryType, deliveryMultiplier, transportType, pickupDate, deliveryDate,
+  };
+
+  const yearLabel    = args['vehicle_year'] ? `${args['vehicle_year']} ` : '';
+  const vehicleStr   = make && model ? `${yearLabel}${make} ${model}` : (make || model || `${vType}`);
+  const approxNote   = isEstimate ? ' (estimated)' : '';
+  const dateNote     = deliveryType !== 'standard'
+    ? ` — ${deliveryType === 'expedited' ? 'Expedited (+25%)' : 'Flexible (-5%)'}`
+    : '';
+  const enclosedNote = transportType === 'enclosed' ? ' | Enclosed transport' : '';
+  const summary      = `Estimated shipping cost for a ${vehicleStr} from ${origin} to ${dest}: $${total.toFixed(0)}${approxNote}${dateNote}${enclosedNote} (${Math.round(distanceMiles)} miles).`;
 
   return { success: true, data, summary };
 }
@@ -545,6 +730,16 @@ async function execParseShipmentDetails(args: Record<string, unknown>, userId: s
 
 async function execCreateShipment(args: Record<string, unknown>): Promise<V3ToolResult> {
   try {
+    const termsAccepted = args['terms_accepted'] === true;
+    if (!termsAccepted) {
+      return {
+        success:      false,
+        data:         null,
+        summary:      '',
+        errorMessage: 'The user must explicitly accept DriveDrop Terms & Conditions before a booking can be created. Please call get_terms first, present them to the user, and confirm acceptance.',
+      };
+    }
+
     const parsedData = {
       vehicle: {
         make:      String(args['vehicle_make']  ?? ''),
@@ -562,6 +757,15 @@ async function execCreateShipment(args: Record<string, unknown>): Promise<V3Tool
       parsedData,
       typeof args['estimated_price'] === 'number' ? args['estimated_price'] : undefined,
       typeof args['distance_miles']  === 'number' ? args['distance_miles']  : undefined,
+      Object.fromEntries(Object.entries({
+        pickup_date:    typeof args['pickup_date']    === 'string' ? args['pickup_date']    : undefined,
+        delivery_date:  typeof args['delivery_date']  === 'string' ? args['delivery_date']  : undefined,
+        is_operable:    args['is_operable'] !== false,
+        vehicle_type:   typeof args['vehicle_type']   === 'string' ? args['vehicle_type']   : undefined,
+        transport_type: (args['transport_type'] === 'enclosed' ? 'enclosed' : 'open') as 'open' | 'enclosed',
+        terms_accepted: true as boolean,
+        payment_status: 'pending',
+      }).filter(([, v]) => v !== undefined)),
     );
 
     const shipmentId = (result as Record<string, unknown>)['shipment_id'] as string | undefined;
@@ -577,7 +781,7 @@ async function execCreateShipment(args: Record<string, unknown>): Promise<V3Tool
     return {
       success: true,
       data:    result,
-      summary: `Shipment created successfully! Your shipment ID is ${shipmentId}.`,
+      summary: `Shipment created successfully! Your shipment ID is ${shipmentId}. Next step: complete the 20% deposit to confirm your booking.`,
     };
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);
@@ -1216,18 +1420,34 @@ async function execCancelShipment(
       .from('shipments')
       .update({ status: 'cancelled', updated_at: new Date().toISOString() })
       .eq('id', shipmentId)
-      .select('id, status, vehicle_make, vehicle_model')
+      .select('id, status, vehicle_make, vehicle_model, estimated_price, created_at')
       .single();
 
     if (error || !data) {
       return { success: false, data: null, summary: '', errorMessage: `Cancellation failed: ${error?.message ?? 'Unknown error'}.` };
     }
 
+    // Determine refund eligibility based on DriveDrop cancellation policy
     const vehicle = [data.vehicle_make, data.vehicle_model].filter(Boolean).join(' ') || 'Vehicle';
+    let refundNote = '';
+    const createdAt = data.created_at ? new Date(data.created_at).getTime() : 0;
+    const nowMs = Date.now();
+    const hoursSinceBooking = (nowMs - createdAt) / (1000 * 60 * 60);
+
+    if (ship.status === 'pending' || ship.status === 'accepted') {
+      if (hoursSinceBooking < 48) {
+        refundNote = ' Full refund (minus 10% processing fee) will be issued within 3-5 business days.';
+      } else {
+        refundNote = ' 50% refund will be issued within 3-5 business days (cancellation >48h before pickup).';
+      }
+    } else {
+      refundNote = ' No refund applies at this shipment stage.';
+    }
+
     return {
       success: true,
       data,
-      summary: `Shipment ${String(data.id).slice(0, 8)}… (${vehicle}) has been cancelled.`,
+      summary: `Shipment ${String(data.id).slice(0, 8)}… (${vehicle}) has been cancelled.${refundNote}`,
     };
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);
@@ -1344,6 +1564,440 @@ async function execListUsers(
   }
 }
 
+// ─── Phase 1 executors ────────────────────────────────────────────────────────
+
+// ─── get_shipment_detail ──────────────────────────────────────────────────────
+
+async function execGetShipmentDetail(
+  args:     Record<string, unknown>,
+  userId:   string,
+  userRole: UserType,
+): Promise<V3ToolResult> {
+  const shipmentId = String(args['shipment_id'] ?? '').trim();
+
+  try {
+    const { supabaseAdmin } = await import('../../lib/supabase');
+
+    const SELECT =
+      'id, status, vehicle_make, vehicle_model, vehicle_year, vehicle_type, is_operable, ' +
+      'pickup_address, delivery_address, pickup_date, delivery_date, estimated_price, distance, ' +
+      'created_at, updated_at, driver_id, client_id, terms_accepted, payment_status, ' +
+      'picked_up_at, delivered_at, accepted_at, payment_intent_id';
+
+    let query = supabaseAdmin.from('shipments').select(SELECT);
+
+    if (shipmentId) {
+      query = query.eq('id', shipmentId) as typeof query;
+    } else {
+      // Use most recent active shipment for this user
+      query = query
+        .or(`client_id.eq.${userId},driver_id.eq.${userId}`)
+        .not('status', 'in', '("delivered","cancelled")')
+        .order('created_at', { ascending: false })
+        .limit(1) as typeof query;
+    }
+
+    const { data: shipment, error } = await (shipmentId
+      ? (query as any).maybeSingle()
+      : (query as any).maybeSingle());
+
+    if (error || !shipment) {
+      return { success: false, data: null, summary: '', errorMessage: `Shipment not found.` };
+    }
+
+    // Permission check for non-admins
+    if (userRole !== 'admin') {
+      if (shipment.client_id !== userId && shipment.driver_id !== userId) {
+        return { success: false, data: null, summary: '', errorMessage: 'You do not have access to this shipment.' };
+      }
+    }
+
+    // Fetch driver profile if assigned
+    let driverProfile: Record<string, unknown> | null = null;
+    if (shipment.driver_id) {
+      const { data: dp } = await supabaseAdmin
+        .from('profiles')
+        .select('id, first_name, last_name, phone, rating, is_verified')
+        .eq('id', shipment.driver_id)
+        .maybeSingle();
+      driverProfile = dp as Record<string, unknown> | null;
+    }
+
+    // Fetch payment record
+    let paymentRecord: Record<string, unknown> | null = null;
+    const { data: pr } = await supabaseAdmin
+      .from('payments')
+      .select('id, amount, initial_amount, remaining_amount, status, refund_deadline, payment_intent_id')
+      .eq('shipment_id', shipment.id)
+      .maybeSingle();
+    paymentRecord = pr as Record<string, unknown> | null;
+
+    const vehicle    = [shipment.vehicle_year, shipment.vehicle_make, shipment.vehicle_model].filter(Boolean).join(' ') || 'Vehicle';
+    const price      = typeof shipment.estimated_price === 'number' ? `$${shipment.estimated_price.toFixed(0)}` : 'N/A';
+    const driverStr  = driverProfile
+      ? `${driverProfile['first_name']} ${driverProfile['last_name']} (rating: ${typeof driverProfile['rating'] === 'number' ? driverProfile['rating'].toFixed(1) : 'N/A'})`
+      : 'Not yet assigned';
+    const pickupDate  = shipment.pickup_date   ? String(shipment.pickup_date).slice(0, 10) : 'Not set';
+    const delivDate   = shipment.delivery_date  ? String(shipment.delivery_date).slice(0, 10) : 'Not set';
+    const paymentStr  = paymentRecord
+      ? `Status: ${paymentRecord['status']} | Total: $${typeof paymentRecord['amount'] === 'number' ? (paymentRecord['amount'] as number / 100).toFixed(2) : 'N/A'}`
+      : (shipment.payment_status ? `Status: ${shipment.payment_status}` : 'No payment record');
+
+    const summary =
+      `Shipment ${String(shipment.id).slice(0, 8)}…\n` +
+      `  Vehicle: ${vehicle}\n` +
+      `  Route: ${shipment.pickup_address} → ${shipment.delivery_address}\n` +
+      `  Status: ${shipment.status} | Price: ${price}\n` +
+      `  Pickup date: ${pickupDate} | Delivery date: ${delivDate}\n` +
+      `  Driver: ${driverStr}\n` +
+      `  Payment: ${paymentStr}`;
+
+    return {
+      success: true,
+      data:    { shipment, driverProfile, paymentRecord },
+      summary,
+    };
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    return { success: false, data: null, summary: '', errorMessage: `Get shipment detail failed: ${msg}` };
+  }
+}
+
+// ─── get_terms ────────────────────────────────────────────────────────────────
+
+function execGetTerms(): V3ToolResult {
+  const terms = `DriveDrop Shipping Terms & Conditions — Key Points
+
+PAYMENT
+• A 20% deposit is required at booking to confirm service.
+• The remaining 80% is charged upon successful delivery.
+• Payment is processed securely through Stripe.
+
+CANCELLATION POLICY
+• 48+ hours before pickup: full refund minus 10% processing fee.
+• 24–48 hours before pickup: 50% refund.
+• Less than 24 hours before pickup: no refund.
+• If driver cancels: full refund.
+
+LIABILITY & INSURANCE
+• DriveDrop carries cargo insurance covering up to $100,000 per vehicle.
+• Any damage must be reported within 24 hours of delivery.
+• Document vehicle condition with photos at pickup and delivery.
+
+VEHICLE REQUIREMENTS
+• Provide accurate condition description.
+• Remove all personal belongings from vehicle.
+• Ensure vehicle is accessible for loading.
+
+DRIVER TERMS
+• Drivers are independent contractors.
+• Drivers receive 80% of the shipment fee.
+• $25 cancellation fee for cancellations within 2 hours of pickup.
+
+By confirming a booking with Benji, you agree to be bound by these terms.
+Full terms at: https://drivedrop.us.com/terms`;
+
+  return {
+    success: true,
+    data:    { terms },
+    summary: terms,
+  };
+}
+
+// ─── initiate_payment ─────────────────────────────────────────────────────────
+
+async function execInitiatePayment(
+  args:     Record<string, unknown>,
+  userId:   string,
+  userRole: UserType,
+): Promise<V3ToolResult> {
+  if (userRole !== 'client' && userRole !== 'admin') {
+    return { success: false, data: null, summary: '', errorMessage: 'Payment initiation is for clients only.' };
+  }
+
+  const shipmentId = String(args['shipment_id'] ?? '').trim();
+  const totalAmount = typeof args['amount'] === 'number' ? args['amount'] : 0;
+
+  if (!shipmentId) return { success: false, data: null, summary: '', errorMessage: 'Shipment ID is required.' };
+  if (totalAmount <= 0) return { success: false, data: null, summary: '', errorMessage: 'Valid amount is required.' };
+
+  const depositAmount    = Math.round(totalAmount * 0.20);
+  const depositAmountCents = Math.round(depositAmount * 100);
+  const remainingAmount  = Math.round(totalAmount * 0.80);
+
+  try {
+    const { stripeService } = await import('../../services/stripe.service');
+    const { supabaseAdmin } = await import('../../lib/supabase');
+
+    // Create Stripe payment intent
+    const paymentIntent = await stripeService.createPaymentIntent({
+      amount:      depositAmountCents,
+      currency:    'usd',
+      clientId:    userId,
+      shipmentId,
+      description: `DriveDrop 20% deposit — shipment ${shipmentId.slice(0, 8)}`,
+      metadata: {
+        shipment_id:       shipmentId,
+        client_id:         userId,
+        isInitialPayment:  'true',
+        totalAmountCents:  String(Math.round(totalAmount * 100)),
+        remainingCents:    String(Math.round(remainingAmount * 100)),
+      },
+    });
+
+    // Create payment record in DB
+    const refundDeadline = new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString();
+    await supabaseAdmin
+      .from('payments')
+      .upsert({
+        shipment_id:       shipmentId,
+        client_id:         userId,
+        amount:            Math.round(totalAmount * 100),
+        initial_amount:    depositAmountCents,
+        remaining_amount:  Math.round(remainingAmount * 100),
+        payment_intent_id: paymentIntent.id,
+        status:            'pending',
+        booking_timestamp: new Date().toISOString(),
+        refund_deadline:   refundDeadline,
+      }, { onConflict: 'shipment_id' });
+
+    // Update shipment payment status
+    await supabaseAdmin
+      .from('shipments')
+      .update({ payment_status: 'initiated', payment_intent_id: paymentIntent.id })
+      .eq('id', shipmentId);
+
+    const frontendUrl = process.env['FRONTEND_URL'] ?? 'https://drivedrop.us.com';
+    const paymentUrl  = `${frontendUrl}/dashboard/client/new-shipment/completion?shipmentId=${shipmentId}&mode=payment`;
+
+    return {
+      success: true,
+      data:    {
+        shipment_id:       shipmentId,
+        payment_intent_id: paymentIntent.id,
+        deposit_amount:    depositAmount,
+        total_amount:      totalAmount,
+        remaining_amount:  remainingAmount,
+        payment_url:       paymentUrl,
+      },
+      summary:
+        `Payment initiated for shipment ${shipmentId.slice(0, 8)}…\n` +
+        `  20% deposit due now: $${depositAmount.toFixed(2)}\n` +
+        `  Remaining 80% (charged on delivery): $${remainingAmount.toFixed(2)}\n` +
+        `  Complete payment at: ${paymentUrl}`,
+    };
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    return { success: false, data: null, summary: '', errorMessage: `Payment initiation failed: ${msg}` };
+  }
+}
+
+// ─── withdraw_application ─────────────────────────────────────────────────────
+
+async function execWithdrawApplication(
+  args:     Record<string, unknown>,
+  userId:   string,
+  userRole: UserType,
+): Promise<V3ToolResult> {
+  if (userRole !== 'driver') {
+    return { success: false, data: null, summary: '', errorMessage: 'Only drivers can withdraw applications.' };
+  }
+
+  const shipmentId = String(args['shipment_id'] ?? '').trim();
+  if (!shipmentId) return { success: false, data: null, summary: '', errorMessage: 'Shipment ID is required.' };
+
+  try {
+    const { supabaseAdmin } = await import('../../lib/supabase');
+
+    // Update application status to 'cancelled' for this driver + shipment pair
+    const { data, error } = await supabaseAdmin
+      .from('driver_applications')
+      .update({ status: 'cancelled', updated_at: new Date().toISOString() })
+      .eq('shipment_id', shipmentId)
+      .eq('driver_id', userId)
+      .eq('status', 'pending')
+      .select('id, shipment_id, status')
+      .maybeSingle();
+
+    if (error) {
+      return { success: false, data: null, summary: '', errorMessage: `Withdrawal failed: ${error.message}` };
+    }
+
+    if (!data) {
+      return { success: false, data: null, summary: '', errorMessage: `No pending application found for shipment ${shipmentId.slice(0, 8)}…` };
+    }
+
+    return {
+      success: true,
+      data,
+      summary: `Application for shipment ${shipmentId.slice(0, 8)}… has been withdrawn.`,
+    };
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    return { success: false, data: null, summary: '', errorMessage: `Withdraw application failed: ${msg}` };
+  }
+}
+
+// ─── process_document ────────────────────────────────────────────────────────
+
+async function execProcessDocument(
+  args:   Record<string, unknown>,
+  _userId: string,
+): Promise<V3ToolResult> {
+  const imageUrl     = String(args['image_url']      ?? '').trim();
+  const docTypeHint  = String(args['document_type']  ?? 'auto').trim();
+
+  if (!imageUrl) {
+    return { success: false, data: null, summary: '', errorMessage: 'An image URL is required for document processing.' };
+  }
+
+  // Validate URL format (basic check to prevent SSRF)
+  try {
+    const parsed = new URL(imageUrl);
+    if (!['http:', 'https:'].includes(parsed.protocol)) {
+      return { success: false, data: null, summary: '', errorMessage: 'Image URL must use http or https.' };
+    }
+  } catch {
+    return { success: false, data: null, summary: '', errorMessage: 'Invalid image URL.' };
+  }
+
+  try {
+    const { openaiClient } = await import('@benji/ai/client/openai.client');
+
+    const typeGuidance: Record<string, string> = {
+      title:        'Extract: owner name, VIN, year, make, model, lienholder if any.',
+      registration: 'Extract: owner name, VIN, plate number, year, make, model, expiry date.',
+      insurance:    'Extract: policy number, insurer, insured name, coverage dates, vehicle info.',
+      bol:          'Extract: BOL number, shipper, consignee, origin, destination, vehicle info, condition notes.',
+      vin_plate:    'Extract: the full 17-character VIN. Spell it out character by character.',
+      vehicle_photo: 'Describe vehicle: make, model, color, overall condition, any visible damage.',
+      damage_photo: 'Describe damage: location on vehicle, severity, type (scratch/dent/crack/etc.), estimated severity (minor/moderate/severe).',
+      license:      'Extract: name, license number, state, expiry date.',
+      invoice:      'Extract: invoice number, date, items, amounts, total, payment status.',
+      auto:         'Determine document type and extract all relevant fields.',
+    };
+
+    const guidance = typeGuidance[docTypeHint] ?? typeGuidance['auto'];
+
+    const response = await openaiClient.chat.completions.create({
+      model: 'gpt-4o',
+      messages: [
+        {
+          role: 'system',
+          content:
+            'You are a document extraction specialist for DriveDrop vehicle transport. ' +
+            'Extract structured information from the provided image. ' +
+            'Return a JSON object with all extracted fields plus a "document_type" field and a "confidence" field (0-1). ' +
+            'If a field is unclear, include it with a note. If you cannot read something, say so.',
+        },
+        {
+          role: 'user',
+          content: [
+            {
+              type: 'text',
+              text: `Extract information from this document. ${guidance} Return as JSON.`,
+            },
+            {
+              type: 'image_url',
+              image_url: { url: imageUrl, detail: 'high' },
+            },
+          ],
+        },
+      ],
+      max_tokens: 1024,
+      response_format: { type: 'json_object' },
+    });
+
+    const rawContent = response.choices[0]?.message?.content ?? '{}';
+    let extracted: Record<string, unknown> = {};
+    try {
+      extracted = JSON.parse(rawContent);
+    } catch {
+      extracted = { raw: rawContent };
+    }
+
+    const docType  = String(extracted['document_type'] ?? docTypeHint);
+    const confidence = typeof extracted['confidence'] === 'number' ? extracted['confidence'] : null;
+    const confStr  = confidence !== null ? ` (confidence: ${(confidence * 100).toFixed(0)}%)` : '';
+
+    // Build a readable summary of extracted fields
+    const skip = new Set(['document_type', 'confidence', 'raw']);
+    const lines = Object.entries(extracted)
+      .filter(([k]) => !skip.has(k))
+      .map(([k, v]) => `  ${k}: ${String(v)}`);
+
+    const summary =
+      `Document type: ${docType}${confStr}\n` +
+      (lines.length > 0 ? lines.join('\n') : '  No structured data extracted.');
+
+    return { success: true, data: extracted, summary };
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    return { success: false, data: null, summary: '', errorMessage: `Document processing failed: ${msg}` };
+  }
+}
+
+// ─── get_driver_info ─────────────────────────────────────────────────────────
+
+async function execGetDriverInfo(
+  args:     Record<string, unknown>,
+  _userId:  string,
+  userRole: UserType,
+): Promise<V3ToolResult> {
+  if (userRole !== 'client' && userRole !== 'admin') {
+    return { success: false, data: null, summary: '', errorMessage: 'Driver info is available to clients and admins.' };
+  }
+
+  const shipmentId = String(args['shipment_id'] ?? '').trim();
+  if (!shipmentId) return { success: false, data: null, summary: '', errorMessage: 'Shipment ID is required.' };
+
+  try {
+    const { supabaseAdmin } = await import('../../lib/supabase');
+
+    const { data: shipment, error: se } = await supabaseAdmin
+      .from('shipments')
+      .select('driver_id, vehicle_make, vehicle_model, status')
+      .eq('id', shipmentId)
+      .maybeSingle();
+
+    if (se || !shipment) {
+      return { success: false, data: null, summary: '', errorMessage: `Shipment ${shipmentId.slice(0, 8)}… not found.` };
+    }
+
+    if (!shipment.driver_id) {
+      return {
+        success: true,
+        data:    { assigned: false },
+        summary: `No driver has been assigned to shipment ${shipmentId.slice(0, 8)}… yet. Status: ${shipment.status}.`,
+      };
+    }
+
+    const { data: driver } = await supabaseAdmin
+      .from('profiles')
+      .select('id, first_name, last_name, phone, rating, is_verified, created_at')
+      .eq('id', shipment.driver_id)
+      .maybeSingle();
+
+    if (!driver) {
+      return { success: false, data: null, summary: '', errorMessage: 'Driver profile not found.' };
+    }
+
+    const name     = [driver.first_name, driver.last_name].filter(Boolean).join(' ') || 'Driver';
+    const rating   = typeof driver.rating === 'number' ? `${driver.rating.toFixed(1)}/5` : 'No rating yet';
+    const verified = driver.is_verified ? 'Verified ✓' : 'Pending verification';
+    const summary  =
+      `Driver assigned to shipment ${shipmentId.slice(0, 8)}…\n` +
+      `  Name: ${name}\n` +
+      `  Phone: ${driver.phone ?? 'Not available'}\n` +
+      `  Rating: ${rating} | ${verified}`;
+
+    return { success: true, data: driver, summary };
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    return { success: false, data: null, summary: '', errorMessage: `Get driver info failed: ${msg}` };
+  }
+}
+
 // ─── Dispatch ─────────────────────────────────────────────────────────────────
 
 /**
@@ -1379,6 +2033,13 @@ export async function executeV3Tool(
       case 'cancel_shipment':          return await execCancelShipment(args, userId, userRole);
       case 'assign_driver':            return await execAssignDriver(args, userId, userRole);
       case 'list_users':               return await execListUsers(args, userId, userRole);
+      // ── Phase 1 tools ──────────────────────────────────────────────────
+      case 'get_shipment_detail':      return await execGetShipmentDetail(args, userId, userRole);
+      case 'get_terms':                return execGetTerms();
+      case 'initiate_payment':         return await execInitiatePayment(args, userId, userRole);
+      case 'withdraw_application':     return await execWithdrawApplication(args, userId, userRole);
+      case 'process_document':         return await execProcessDocument(args, userId);
+      case 'get_driver_info':          return await execGetDriverInfo(args, userId, userRole);
       default:
         return { success: false, data: null, summary: '', errorMessage: `Unknown tool: ${toolName}` };
     }

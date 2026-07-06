@@ -378,6 +378,15 @@ export class NaturalLanguageShipmentService {
     parsedData: ParsedShipmentData,
     precomputedPrice?: number,
     precomputedDistanceMiles?: number,
+    extra?: {
+      pickup_date?: string;
+      delivery_date?: string;
+      is_operable?: boolean;
+      vehicle_type?: string;
+      transport_type?: 'open' | 'enclosed';
+      terms_accepted?: boolean;
+      payment_status?: string;
+    },
   ): Promise<{
     success: boolean;
     shipment_id?: string;
@@ -385,11 +394,11 @@ export class NaturalLanguageShipmentService {
     error?: string;
   }> {
     try {
-      // Validate minimum required fields
-      if (!parsedData.vehicle?.year || !parsedData.vehicle?.make) {
+      // Validate minimum required fields (year is optional — make is required)
+      if (!parsedData.vehicle?.make) {
         return {
           success: false,
-          error: 'Missing required vehicle information',
+          error: 'Missing required vehicle information (make is required)',
         };
       }
 
@@ -440,17 +449,25 @@ export class NaturalLanguageShipmentService {
       }
 
       // Create shipment with proper column mapping
+      const vehicleTitle = [parsedData.vehicle.year, parsedData.vehicle.make, parsedData.vehicle.model]
+        .filter(Boolean).join(' ').trim() || 'Vehicle Shipment';
       const { data: shipment, error } = await supabase
         .from('shipments')
         .insert({
           client_id: userId,
-          title: `${parsedData.vehicle.year || ''} ${parsedData.vehicle.make || ''} ${parsedData.vehicle.model || ''}`.trim() || 'Vehicle Shipment',
+          title: vehicleTitle,
           description: `Shipment created via Benji AI`,
-          vehicle_year: parsedData.vehicle.year,
+          vehicle_year: parsedData.vehicle.year ?? null,
           vehicle_make: parsedData.vehicle.make,
-          vehicle_model: parsedData.vehicle.model,
+          vehicle_model: parsedData.vehicle.model ?? null,
+          vehicle_type: extra?.vehicle_type ?? this.mapVehicleTypeToPricing(parsedData.vehicle),
           pickup_address: parsedData.pickup.location,
           delivery_address: parsedData.delivery.location,
+          pickup_date: extra?.pickup_date ?? null,
+          delivery_date: extra?.delivery_date ?? null,
+          is_operable: extra?.is_operable !== undefined ? extra.is_operable : true,
+          terms_accepted: extra?.terms_accepted ?? false,
+          payment_status: extra?.payment_status ?? 'pending',
           status: 'pending',
           estimated_price: estimatedPrice,
           distance: distanceMiles,

@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { ArrowLeft, Check, Camera, FileText, Shield, CreditCard } from 'lucide-react'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
@@ -9,6 +9,7 @@ import VehiclePhotosStep from '@/components/completion/VehiclePhotosStep'
 import ProofOfOwnershipStep from '@/components/completion/ProofOfOwnershipStep'
 import TermsAndConditionsStep from '@/components/completion/TermsAndConditionsStep'
 import PaymentStep from '@/components/completion/PaymentStep'
+import { getSupabaseBrowserClient } from '@/lib/supabase-client'
 
 const STEPS = [
   { id: 1, title: 'Vehicle Photos', icon: Camera, description: 'Document vehicle condition' },
@@ -27,6 +28,9 @@ interface CompletionData {
 
 export default function ShipmentCompletionPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const supabase = getSupabaseBrowserClient()
+
   const [currentStep, setCurrentStep] = useState(1)
   const [shipmentData, setShipmentData] = useState<any>(null)
   const [completionData, setCompletionData] = useState<CompletionData>({
@@ -36,15 +40,67 @@ export default function ShipmentCompletionPage() {
     paymentCompleted: false,
   })
 
+  // URL param support: ?shipmentId=xxx&mode=payment
+  // When a pre-created shipment ID is provided (e.g. from Benji),
+  // load the shipment from DB and optionally jump to the payment step.
+  const urlShipmentId = searchParams?.get('shipmentId')
+  const urlMode       = searchParams?.get('mode') // 'payment' = skip to step 4
+
   useEffect(() => {
-    // Load shipment data from sessionStorage
-    const data = sessionStorage.getItem('pendingShipment')
-    if (!data) {
-      router.push('/dashboard/client/new-shipment')
-      return
+    async function loadData() {
+      if (urlShipmentId) {
+        // Load pre-created shipment from Supabase
+        const { data: shipment, error } = await supabase
+          .from('shipments')
+          .select('*')
+          .eq('id', urlShipmentId)
+          .maybeSingle()
+
+        if (error || !shipment) {
+          // Fallback: try sessionStorage
+          const stored = sessionStorage.getItem('pendingShipment')
+          if (!stored) {
+            router.push('/dashboard/client/new-shipment')
+            return
+          }
+          setShipmentData(JSON.parse(stored))
+          return
+        }
+
+        // Map DB columns to the shape PaymentStep expects
+        setShipmentData({
+          id:             shipment.id,
+          vehicleYear:    String(shipment.vehicle_year ?? ''),
+          vehicleMake:    shipment.vehicle_make ?? '',
+          vehicleModel:   shipment.vehicle_model ?? '',
+          vehicleType:    shipment.vehicle_type ?? 'sedan',
+          isOperable:     shipment.is_operable !== false,
+          pickupAddress:  shipment.pickup_address ?? '',
+          deliveryAddress: shipment.delivery_address ?? '',
+          pickupDate:     shipment.pickup_date ?? null,
+          estimatedPrice: typeof shipment.estimated_price === 'number' ? shipment.estimated_price : 0,
+          distance:       typeof shipment.distance === 'number' ? shipment.distance : 0,
+          termsAccepted:  shipment.terms_accepted === true,
+          preCreated:     true,   // tells PaymentStep to UPDATE not INSERT
+        })
+
+        // If terms were already accepted (via Benji conversation), skip to payment
+        if (urlMode === 'payment' || shipment.terms_accepted === true) {
+          setCompletionData(prev => ({ ...prev, termsAccepted: true }))
+          setCurrentStep(4)
+        }
+      } else {
+        // Legacy flow: load from sessionStorage
+        const data = sessionStorage.getItem('pendingShipment')
+        if (!data) {
+          router.push('/dashboard/client/new-shipment')
+          return
+        }
+        setShipmentData(JSON.parse(data))
+      }
     }
-    setShipmentData(JSON.parse(data))
-  }, [router])
+    loadData()
+  }, [router, urlShipmentId, urlMode, supabase])
 
   const updateCompletionData = (stepData: Partial<CompletionData>) => {
     setCompletionData(prev => ({ ...prev, ...stepData }))
@@ -52,16 +108,11 @@ export default function ShipmentCompletionPage() {
 
   const canProceed = () => {
     switch (currentStep) {
-      case 1:
-        return true // Vehicle photos are optional
-      case 2:
-        return completionData.ownershipDocuments.length >= 1
-      case 3:
-        return completionData.termsAccepted
-      case 4:
-        return true
-      default:
-        return false
+      case 1: return true // Vehicle photos are optional
+      case 2: return completionData.ownershipDocuments.length >= 1
+      case 3: return completionData.termsAccepted
+      case 4: return true
+      default: return false
     }
   }
 
@@ -82,9 +133,7 @@ export default function ShipmentCompletionPage() {
   }
 
   const handleComplete = () => {
-    // Clear session storage
     sessionStorage.removeItem('pendingShipment')
-    // Redirect to dashboard
     router.push('/dashboard/client?success=true')
   }
 

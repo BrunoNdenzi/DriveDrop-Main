@@ -97,3 +97,4 @@ scripts/FMCSA_CENSUS1.csv
 backend/src/benji-v3/test/v3.tool-regression.test.ts
 backend/src/benji-v3/test/v3.v4-capabilities.test.ts
 backend/src/benji-v3/test/v3.robustness.test.ts
+backend/src/benji-v3/test/v3.phase1-complete.test.ts

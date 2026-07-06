@@ -58,20 +58,24 @@ function getToolsForRole(userRole: UserType): OpenAI.Chat.Completions.ChatComple
   // Tools restricted by role (blocked tools per role):
   const BLOCKED: Record<string, string[]> = {
     client: [
-      'update_shipment_status',   // clients cannot change status (only drivers/admins)
+      'update_shipment_status',    // clients cannot change status
       'apply_for_shipment',        // clients don't apply for loads
       'list_driver_applications',  // client-irrelevant
       'assign_driver',             // admin only
       'list_users',                // admin only
+      'withdraw_application',      // driver only
     ],
     driver: [
       'assign_driver',             // admin only
       'list_users',                // admin only
       'get_payment_info',          // driver cannot see payment records
+      'initiate_payment',          // client only
+      'get_driver_info',           // client/admin only
     ],
     admin: [
       'apply_for_shipment',        // driver only
       'list_driver_applications',  // driver only
+      'withdraw_application',      // driver only
     ],
     broker: [
       'update_shipment_status',    // drivers/admins only
@@ -79,6 +83,7 @@ function getToolsForRole(userRole: UserType): OpenAI.Chat.Completions.ChatComple
       'list_driver_applications',  // drivers only
       'assign_driver',             // admin only
       'list_users',                // admin only
+      'withdraw_application',      // driver only
     ],
   };
 
@@ -98,7 +103,7 @@ function getToolsForRole(userRole: UserType): OpenAI.Chat.Completions.ChatComple
  *
  * Conservative: only fires on very clear non-logistics messages.
  */
-const LOGISTICS_KEYWORDS = /\b(ship|shipment|shipments|shipping|freight|transport|carrier|pickup|delivery|quote|price|cost|rate|track|tracking|vehicle|car|truck|sedan|suv|toyota|ford|honda|bmw|mercedes|route|mile|haul|load|loads|driver|dispatch|invoice|book|booking|status|schedule|operable|origin|destination|assign|message|messages|conversation|conversations|apply|application|applications|payment|payments|profile|history|earnings|order|orders|cancel|cancelled|cancellation|pending|delivered|transit|accepted|assigned|users|available|jobs|withdraw|abort)\b/i;
+const LOGISTICS_KEYWORDS = /\b(ship|shipment|shipments|shipping|freight|transport|carrier|pickup|delivery|quote|price|cost|rate|track|tracking|vehicle|car|truck|sedan|suv|toyota|ford|honda|bmw|mercedes|route|mile|haul|load|loads|driver|dispatch|invoice|book|booking|status|schedule|operable|origin|destination|assign|message|messages|conversation|conversations|apply|application|applications|payment|payments|profile|history|earnings|order|orders|cancel|cancelled|cancellation|pending|delivered|transit|accepted|assigned|users|available|jobs|withdraw|abort|detail|terms|term|deposit|refund|enclosed|open|insurance|damage|photo|document|vin|plate|registration|title|receipt|expedited|flexible|deadline)\b/i;
 
 function isConversationalOnly(message: string, ctx: V3LogisticsContext): boolean {
   if (LOGISTICS_KEYWORDS.test(message)) return false;
@@ -154,9 +159,11 @@ function extractContextFromToolOutput(
       if (typeof d['total']         === 'number' &&
           typeof d['distanceMiles'] === 'number') {
         patch.lastQuote = {
-          total:        d['total']        as number,
-          distanceMiles: d['distanceMiles'] as number,
-          vehicleType:   typeof d['vehicleType'] === 'string' ? d['vehicleType'] as string : 'sedan',
+          total:             d['total']          as number,
+          distanceMiles:     d['distanceMiles']  as number,
+          vehicleType:       typeof d['vehicleType']      === 'string' ? d['vehicleType']      as string : 'sedan',
+          deliveryType:      typeof d['deliveryType']     === 'string' ? d['deliveryType']     as string : 'standard',
+          deliveryMultiplier: typeof d['deliveryMultiplier'] === 'number' ? d['deliveryMultiplier'] as number : 1.0,
         };
       }
       if (typeof d['origin']      === 'string') patch.pickup   = { location: d['origin']      as string };
@@ -168,6 +175,16 @@ function extractContextFromToolOutput(
         if (typeof d['vehicle_model'] === 'string' && d['vehicle_model']) v.model = d['vehicle_model'] as string;
         if (typeof d['vehicle_year']  === 'number')                       v.year  = d['vehicle_year']  as number;
         patch.vehicle = v;
+      }
+      // Store dates and transport type from quote
+      if (typeof d['pickupDate']    === 'string') {
+        patch.pickup   = { ...(patch.pickup   ?? {}), date: d['pickupDate']    as string };
+      }
+      if (typeof d['deliveryDate']  === 'string') {
+        patch.delivery = { ...(patch.delivery ?? {}), date: d['deliveryDate']  as string };
+      }
+      if (d['transportType'] === 'enclosed' || d['transportType'] === 'open') {
+        patch.transportType = d['transportType'] as 'open' | 'enclosed';
       }
       v3SessionStore.mergeContext(session.sessionId, patch);
       break;
@@ -260,6 +277,46 @@ function extractContextFromToolOutput(
     case 'get_profile':
       // No additional context mutation needed for these tools
       break;
+
+    case 'get_terms': {
+      // User received T&C — mark as presented (actual acceptance confirmed by conversation)
+      break;
+    }
+
+    case 'initiate_payment': {
+      // Mark payment as initiated in session context
+      if (d['shipment_id'] && typeof d['shipment_id'] === 'string') {
+        v3SessionStore.mergeContext(session.sessionId, {
+          activeShipmentId: d['shipment_id'] as string,
+          paymentInitiated: true,
+        });
+      }
+      break;
+    }
+
+    case 'get_shipment_detail': {
+      // Extract from the nested 'shipment' object in returned data
+      const shipment = d['shipment'] as Record<string, unknown> | undefined;
+      if (shipment && typeof shipment['id'] === 'string') {
+        const patch: Partial<V3LogisticsContext> = { activeShipmentId: shipment['id'] as string };
+        // Update vehicle if not already in context
+        if (!session.context.vehicle?.make) {
+          const v: Partial<NonNullable<V3LogisticsContext['vehicle']>> = {};
+          if (typeof shipment['vehicle_make']  === 'string') v.make  = shipment['vehicle_make']  as string;
+          if (typeof shipment['vehicle_model'] === 'string') v.model = shipment['vehicle_model'] as string;
+          if (typeof shipment['vehicle_year']  === 'number') v.year  = shipment['vehicle_year']  as number;
+          if (Object.keys(v).length > 0) patch.vehicle = v;
+        }
+        v3SessionStore.mergeContext(session.sessionId, patch);
+      }
+      break;
+    }
+
+    case 'withdraw_application':
+    case 'get_driver_info':
+    case 'process_document':
+      // No context mutation needed
+      break;
   }
 }
 
@@ -293,10 +350,21 @@ class BenjiV3Service {
       const systemPrompt = buildV3SystemPrompt(req.userType, session.context);
 
       // ── 3. Append user message ─────────────────────────────────────────
-      const userMsg: OpenAI.Chat.Completions.ChatCompletionUserMessageParam = {
-        role:    'user',
-        content: req.message,
-      };
+      // Build user message — support multimodal (text + image_url) if images provided
+      let userMsg: OpenAI.Chat.Completions.ChatCompletionUserMessageParam;
+      if (req.images && req.images.length > 0) {
+        // Multimodal message: text + images
+        const content: OpenAI.Chat.Completions.ChatCompletionContentPart[] = [
+          { type: 'text', text: req.message },
+          ...req.images.map(img => ({
+            type: 'image_url' as const,
+            image_url: { url: img.url, detail: img.detail ?? 'auto' },
+          })),
+        ];
+        userMsg = { role: 'user', content };
+      } else {
+        userMsg = { role: 'user', content: req.message };
+      }
       session.messages.push(userMsg);
 
       // ── 4. Agentic loop ────────────────────────────────────────────────
@@ -519,7 +587,19 @@ class BenjiV3Service {
       // ── Session + prompt ───────────────────────────────────────────────
       const session      = v3SessionStore.getOrCreate(req.sessionId, req.userId, req.userType);
       const systemPrompt = buildV3SystemPrompt(req.userType, session.context);
-      session.messages.push({ role: 'user', content: req.message } as OpenAI.Chat.Completions.ChatCompletionUserMessageParam);
+      // Support multimodal in streaming path
+      if (req.images && req.images.length > 0) {
+        const content: OpenAI.Chat.Completions.ChatCompletionContentPart[] = [
+          { type: 'text', text: req.message },
+          ...req.images.map(img => ({
+            type: 'image_url' as const,
+            image_url: { url: img.url, detail: img.detail ?? 'auto' },
+          })),
+        ];
+        session.messages.push({ role: 'user', content } as OpenAI.Chat.Completions.ChatCompletionUserMessageParam);
+      } else {
+        session.messages.push({ role: 'user', content: req.message } as OpenAI.Chat.Completions.ChatCompletionUserMessageParam);
+      }
 
       const recentMessages = session.messages.slice(-CTX_WINDOW);
       const fastPath       = isConversationalOnly(req.message, session.context);

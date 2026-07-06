@@ -8,6 +8,7 @@ import { asyncHandler, createError } from '@utils/error';
 import { successResponse } from '@utils/response';
 import { pricingConfigService } from '@services/pricingConfig.service';
 import { supabaseAdmin } from '@lib/supabase';
+import { emailService } from '@services/email.service';
 
 const router = Router();
 
@@ -174,6 +175,7 @@ router.post('/drivers/create', asyncHandler(async (req: Request, res: Response) 
       last_name,
       role: 'driver',
       created_by_admin: true,
+      force_password_change: true, // Force driver to set their own password on first login
     },
   });
 
@@ -247,13 +249,61 @@ router.post('/drivers/create', asyncHandler(async (req: Request, res: Response) 
       // Non-critical — driver can still function without this record
     }
 
-    // Step 4: Optionally send welcome email
+    // Step 4: Send welcome email with credentials and first-login instructions
     if (send_welcome_email) {
       try {
-        // Use Supabase's built-in invite or just log — email service can be added
-        console.log(`[Admin] In-house driver created: ${email} (${userId})`);
+        const loginUrl = `${process.env['FRONTEND_URL'] || 'https://www.drivedrop.us.com'}/login`;
+        const htmlContent = `
+          <!DOCTYPE html>
+          <html>
+            <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
+            <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+              <div style="background: linear-gradient(135deg, #F59E0B 0%, #D97706 100%); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
+                <h1 style="color: white; margin: 0; font-size: 28px;">Welcome to DriveDrop! 🚗</h1>
+                <p style="color: rgba(255,255,255,0.9); margin: 8px 0 0; font-size: 16px;">Your driver account is ready</p>
+              </div>
+              <div style="background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px;">
+                <p style="font-size: 16px; margin-bottom: 20px;">Hi ${first_name},</p>
+                <p style="font-size: 16px; margin-bottom: 20px;">
+                  Your DriveDrop driver account has been created by our admin team. You can now log in and start accepting shipments.
+                </p>
+                <div style="background: #fff3cd; border: 1px solid #ffc107; border-radius: 8px; padding: 20px; margin: 20px 0;">
+                  <h3 style="margin: 0 0 12px; color: #856404;">Your Login Credentials</h3>
+                  <p style="margin: 4px 0;"><strong>Email:</strong> ${email}</p>
+                  <p style="margin: 4px 0;"><strong>Temporary Password:</strong> ${password}</p>
+                </div>
+                <div style="background: #d1ecf1; border: 1px solid #bee5eb; border-radius: 8px; padding: 16px; margin: 20px 0;">
+                  <p style="margin: 0; color: #0c5460; font-size: 14px;">
+                    <strong>⚠️ Important:</strong> For your security, you will be prompted to set a new password the first time you log in.
+                  </p>
+                </div>
+                <div style="text-align: center; margin: 30px 0;">
+                  <a href="${loginUrl}" style="background: #F59E0B; color: white; padding: 14px 32px; border-radius: 8px; text-decoration: none; font-weight: bold; font-size: 16px; display: inline-block;">
+                    Log In to DriveDrop →
+                  </a>
+                </div>
+                <p style="font-size: 14px; color: #666; margin-top: 24px;">
+                  If you have any questions, contact us at support@drivedrop.us.com
+                </p>
+              </div>
+            </body>
+          </html>
+        `;
+        const textContent = `Welcome to DriveDrop, ${first_name}!\n\nYour driver account is ready.\n\nEmail: ${email}\nTemporary Password: ${password}\n\nIMPORTANT: You will be asked to change your password on first login.\n\nLogin at: ${loginUrl}\n\nQuestions? Email support@drivedrop.us.com`;
+
+        const sent = await emailService.sendEmail({
+          to: email,
+          subject: '🚗 Welcome to DriveDrop — Your Driver Account is Ready',
+          htmlContent,
+          textContent,
+        });
+        if (!sent) {
+          console.warn(`[Admin] Welcome email delivery failed for ${email} — credentials still created`);
+        } else {
+          console.log(`[Admin] Welcome email sent to in-house driver: ${email} (${userId})`);
+        }
       } catch (emailErr) {
-        console.warn('Welcome email failed (non-critical):', emailErr);
+        console.warn('[Admin] Welcome email threw an error (non-critical):', emailErr);
       }
     }
 
