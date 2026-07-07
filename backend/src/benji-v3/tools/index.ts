@@ -1671,13 +1671,20 @@ function execGetTerms(): V3ToolResult {
 PAYMENT
 • A 20% deposit is required at booking to confirm service.
 • The remaining 80% is charged upon successful delivery.
-• Payment is processed securely through Stripe.
+• Payment is processed securely through Stripe (PCI-DSS compliant).
+• DriveDrop does not store full card numbers or CVV codes.
 
 CANCELLATION POLICY
 • 48+ hours before pickup: full refund minus 10% processing fee.
 • 24–48 hours before pickup: 50% refund.
 • Less than 24 hours before pickup: no refund.
-• If driver cancels: full refund.
+• If driver cancels: full refund to client.
+
+PRICING
+• Standard rate based on distance, vehicle type, and shipping speed.
+• Expedited shipping: +25% surcharge.
+• Flexible timing: -5% discount.
+• Enclosed transport: +30% surcharge.
 
 LIABILITY & INSURANCE
 • DriveDrop carries cargo insurance covering up to $100,000 per vehicle.
@@ -1690,12 +1697,20 @@ VEHICLE REQUIREMENTS
 • Ensure vehicle is accessible for loading.
 
 DRIVER TERMS
-• Drivers are independent contractors.
-• Drivers receive 80% of the shipment fee.
-• $25 cancellation fee for cancellations within 2 hours of pickup.
+• Drivers are independent contractors, not employees of DriveDrop.
+• Drivers receive 80% of the shipment fee; DriveDrop retains 20% platform fee.
 
-By confirming a booking with Benji, you agree to be bound by these terms.
-Full terms at: https://drivedrop.us.com/terms`;
+SMS NOTIFICATIONS
+• By booking, you consent to receive transactional SMS updates about your shipment.
+• Reply STOP to opt out; reply HELP for support.
+• Standard message and data rates may apply.
+
+BENJI AI ASSISTANT
+• Quotes and bookings accepted through Benji are legally binding once payment is confirmed.
+• Benji may make mistakes — always verify critical details before confirming.
+
+By confirming a booking with Benji or via the platform, you agree to be bound by DriveDrop's full Terms of Service.
+Full terms: https://drivedrop.us.com/terms | Privacy Policy: https://drivedrop.us.com/privacy`;
 
   return {
     success: true,
