@@ -25,6 +25,9 @@ import healthRoutes from '@routes/health.routes';
 // Benji background jobs
 import { startConfirmationCleanup } from '@benji/confirmation/confirmation-cleanup.service';
 
+// SMS notification event listeners (fires for REST and Benji mutations alike)
+import { registerSmsNotificationListeners } from './services/sms-notification.listener';
+
 // Load environment variables
 dotenv.config();
 
@@ -87,4 +90,6 @@ app.listen(port, '0.0.0.0', () => {
   logger.info(`🌐 Network: http://0.0.0.0:${port}${config.server.apiPrefix}`);
   // Start Benji background jobs
   startConfirmationCleanup();
+  // Register SMS notification event listeners
+  registerSmsNotificationListeners();
 });

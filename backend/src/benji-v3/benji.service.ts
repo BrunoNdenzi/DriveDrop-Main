@@ -344,7 +344,7 @@ class BenjiV3Service {
       });
 
       // ── 1. Session ─────────────────────────────────────────────────────
-      const session = v3SessionStore.getOrCreate(req.sessionId, req.userId, req.userType);
+      const session = await v3SessionStore.getOrCreate(req.sessionId, req.userId, req.userType);
 
       // ── 2. System prompt with injected context ─────────────────────────
       const systemPrompt = buildV3SystemPrompt(req.userType, session.context);
@@ -475,7 +475,7 @@ class BenjiV3Service {
       }
 
       // ── 5. Save session ────────────────────────────────────────────────
-      v3SessionStore.save(session);
+      await v3SessionStore.save(session);
 
       const latencyMs = Date.now() - startTime;
 
@@ -585,7 +585,7 @@ class BenjiV3Service {
       send({ type: 'start', sessionId: req.sessionId });
 
       // ── Session + prompt ───────────────────────────────────────────────
-      const session      = v3SessionStore.getOrCreate(req.sessionId, req.userId, req.userType);
+      const session      = await v3SessionStore.getOrCreate(req.sessionId, req.userId, req.userType);
       const systemPrompt = buildV3SystemPrompt(req.userType, session.context);
       // Support multimodal in streaming path
       if (req.images && req.images.length > 0) {
@@ -671,7 +671,7 @@ class BenjiV3Service {
 
           // Save to session history
           session.messages.push({ role: 'assistant', content });
-          v3SessionStore.save(session);
+          await v3SessionStore.save(session);
 
           const latencyMs = Date.now() - startTime;
           console.log('[BENJI_V3_STREAM_RESPONSE]', {

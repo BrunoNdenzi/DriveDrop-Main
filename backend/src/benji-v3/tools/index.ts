@@ -23,6 +23,7 @@ import { pricingService }        from '../../services/pricing.service';
 import { googleMapsService }     from '../../services/google-maps.service';
 import { estimateDistanceMiles } from './distance.utils';
 import type { V3ToolResult, UserType } from '../benji.types';
+import { notificationEvents }    from '../../lib/notification-events';
 
 const _nlService = new NaturalLanguageShipmentService();
 
@@ -778,6 +779,12 @@ async function execCreateShipment(args: Record<string, unknown>): Promise<V3Tool
       };
     }
 
+    // Emit event so SMS notification listener fires automatically
+    notificationEvents.emit('shipment.created', {
+      shipmentId,
+      clientId: String(args['user_id'] ?? ''),
+    });
+
     return {
       success: true,
       data:    result,
@@ -1085,6 +1092,21 @@ async function execUpdateShipmentStatus(
 
     const vehicle = [data.vehicle_make, data.vehicle_model].filter(Boolean).join(' ') || 'Vehicle';
     const summary = `Shipment ${String(data.id).slice(0, 8)}… (${vehicle}) status updated to "${newStatus}".`;
+
+    // Emit event so SMS notification listener fires automatically
+    if (newStatus === 'delivered') {
+      notificationEvents.emit('delivered', {
+        shipmentId:  String(data.id),
+        clientId:    '',
+        deliveredAt: new Date().toISOString(),
+      });
+    } else {
+      notificationEvents.emit('status.updated', {
+        shipmentId: String(data.id),
+        newStatus,
+        clientId:   '',
+      });
+    }
 
     return { success: true, data, summary };
   } catch (err: unknown) {
@@ -1497,6 +1519,13 @@ async function execAssignDriver(
 
     const vehicle = [data.vehicle_make, data.vehicle_model].filter(Boolean).join(' ') || 'Vehicle';
     const summary = `Driver ${driverId.slice(0, 8)}… assigned to ${vehicle} shipment ${String(data.id).slice(0, 8)}… (status → assigned).`;
+
+    // Emit event so SMS notification listener fires automatically
+    notificationEvents.emit('driver.assigned', {
+      shipmentId: String(data.id),
+      clientId:   '', // listener will look up client from DB via shipment
+      driverId,
+    });
 
     return { success: true, data, summary };
   } catch (err: unknown) {

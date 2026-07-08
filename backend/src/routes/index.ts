@@ -6,7 +6,8 @@ import userRoutes from './user.routes';
 import shipmentRoutes from './shipment.routes';
 import authRoutes from './auth.routes';
 import paymentsRoutes from './payments.routes';
-import smsRoutes from './sms.routes';
+import smsRoutes         from './sms.routes';
+import smsWebhookRoutes  from './sms-webhook.routes';
 import mapsRoutes from './maps.routes';
 import applicationRoutes from './application.routes';
 import driverRoutes from './driver.routes';
@@ -104,6 +105,7 @@ router.use('/shipments', pickupVerificationRoutes); // Pickup verification route
 router.use('/shipments', shipmentRoutes);
 router.use('/payments', paymentsRoutes);
 router.use('/sms', smsRoutes);
+router.use('/sms', smsWebhookRoutes);
 router.use('/maps', mapsRoutes);
 router.use('/applications', applicationRoutes);
 router.use('/drivers', driverRoutes);

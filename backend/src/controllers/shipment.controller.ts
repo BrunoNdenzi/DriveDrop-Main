@@ -8,6 +8,7 @@ import { shipmentService } from '@services/supabase.service';
 import { pricingService } from '@services/pricing.service';
 import { isValidUuid } from '@utils/validation';
 import { ShipmentStatus } from '../types/api.types';
+import { notificationEvents } from '../lib/notification-events';
 
 /**
  * Get shipment by ID
@@ -220,6 +221,22 @@ export const updateShipmentStatus = asyncHandler(async (req: Request, res: Respo
     status as ShipmentStatus, 
     req.user.role === 'driver' ? req.user.id : undefined
   );
+
+  // Fire notification events (listener handles SMS send)
+  const clientId = (shipment as Record<string, unknown>)['client_id'] as string | undefined;
+  if (status === ShipmentStatus.DELIVERED) {
+    notificationEvents.emit('delivered', {
+      shipmentId:  id,
+      clientId:    clientId ?? '',
+      deliveredAt: new Date().toISOString(),
+    });
+  } else {
+    notificationEvents.emit('status.updated', {
+      shipmentId: id,
+      newStatus:  status,
+      clientId:   clientId ?? '',
+    });
+  }
 
   res.status(200).json(successResponse(shipment));
 });

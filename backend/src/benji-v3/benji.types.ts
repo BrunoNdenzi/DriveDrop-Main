@@ -57,15 +57,19 @@ export type V3Message = OpenAI.Chat.Completions.ChatCompletionMessageParam;
 
 /** Full server-side session stored in the V3SessionStore. */
 export interface V3Session {
-  readonly sessionId:   string;
-  readonly userId:      string;
-  readonly userType:    UserType;
+  readonly sessionId:    string;
+  readonly userId:       string;
+  readonly userType:     UserType;
+  readonly channel:      'web' | 'mobile' | 'sms' | 'voice';
+  /** E.164 phone number — set when channel = 'sms'. */
+  readonly phoneNumber?: string;
   /** Conversation turns — includes assistant, user, tool, and tool-result messages. */
-  messages:             V3Message[];
+  messages:              V3Message[];
   /** Accumulated logistics context updated by the agent each turn. */
-  context:              V3LogisticsContext;
-  readonly createdAt:   number;
-  lastActive:           number;
+  context:               V3LogisticsContext;
+  readonly createdAt:    number;
+  lastActive:            number;
+  expiresAt:             number;
 }
 
 // ─── Request / Response ───────────────────────────────────────────────────────
