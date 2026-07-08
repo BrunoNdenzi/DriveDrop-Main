@@ -24,6 +24,7 @@ function SignUpPageContent() {
     password: '',
     confirmPassword: '',
   })
+  const [smsConsent, setSmsConsent] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState(false)
@@ -75,6 +76,7 @@ function SignUpPageContent() {
           lastName: formData.lastName,
           phone: formData.phone,
           role,
+          smsConsent,
         }),
       })
 
@@ -295,6 +297,24 @@ function SignUpPageContent() {
                       {showConfirmPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                     </button>
                   </div>
+                </div>
+
+                {/* SMS Consent */}
+                <div className="flex items-start gap-3 p-3 bg-muted/40 border border-border rounded-md">
+                  <input
+                    id="smsConsent"
+                    type="checkbox"
+                    checked={smsConsent}
+                    onChange={(e) => setSmsConsent(e.target.checked)}
+                    className="mt-0.5 h-4 w-4 flex-shrink-0 accent-blue-500"
+                  />
+                  <label htmlFor="smsConsent" className="text-xs text-muted-foreground leading-relaxed cursor-pointer">
+                    By providing my phone number, I consent to receive transactional SMS messages from DriveDrop about my
+                    shipments and account updates. Message frequency varies. Msg &amp; data rates may apply.
+                    Reply <strong>STOP</strong> to opt out, <strong>HELP</strong> for help.
+                    See our <a href="/privacy" className="underline hover:text-foreground">Privacy Policy</a> and{' '}
+                    <a href="/terms" className="underline hover:text-foreground">Terms of Service</a>.
+                  </label>
                 </div>
 
                 {/* Submit Button */}

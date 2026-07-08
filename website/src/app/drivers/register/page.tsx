@@ -126,6 +126,7 @@ const agreementsSchema = z.object({
   dataUseConsent: z.boolean().refine((v) => v === true, 'You must consent to data use'),
   insuranceConsent: z.boolean().refine((v) => v === true, 'You must confirm valid insurance'),
   termsAccepted: z.boolean().refine((v) => v === true, 'You must accept the terms and conditions'),
+  smsConsent: z.boolean().refine((v) => v === true, 'You must consent to receive SMS updates about your shipments'),
 })
 
 type PersonalInfo = z.infer<typeof personalInfoSchema>
@@ -686,6 +687,7 @@ function AgreementsStep({ onSubmit, onBack, isSubmitting }: any) {
       dataUseConsent: false,
       insuranceConsent: false,
       termsAccepted: false,
+      smsConsent: false,
     },
   })
 
@@ -693,6 +695,7 @@ function AgreementsStep({ onSubmit, onBack, isSubmitting }: any) {
   const dataUseConsent = watch('dataUseConsent')
   const insuranceConsent = watch('insuranceConsent')
   const termsAccepted = watch('termsAccepted')
+  const smsConsent = watch('smsConsent')
 
   return (
     <Card>
@@ -758,6 +761,24 @@ function AgreementsStep({ onSubmit, onBack, isSubmitting }: any) {
               </div>
             </div>
             {errors.termsAccepted && <p className="text-sm text-destructive">{errors.termsAccepted.message}</p>}
+
+            <div className="flex items-start space-x-3">
+              <Checkbox
+                checked={smsConsent}
+                onCheckedChange={(checked) => setValue('smsConsent', checked as boolean)}
+              />
+              <div className="space-y-1">
+                <Label>I consent to receive SMS messages from DriveDrop *</Label>
+                <p className="text-sm text-muted-foreground">
+                  By providing my phone number, I consent to receive transactional SMS messages from DriveDrop
+                  about my loads, assignments, and account updates. Message frequency varies. Msg &amp; data rates
+                  may apply. Reply <strong>STOP</strong> to opt out, <strong>HELP</strong> for help.
+                  See our <a href="/privacy" className="underline">Privacy Policy</a> and{' '}
+                  <a href="/terms" className="underline">Terms of Service</a>.
+                </p>
+              </div>
+            </div>
+            {errors.smsConsent && <p className="text-sm text-destructive">{errors.smsConsent.message}</p>}
           </div>
 
           <div className="p-4 bg-muted rounded-lg">
