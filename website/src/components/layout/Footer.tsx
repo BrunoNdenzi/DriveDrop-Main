@@ -15,6 +15,9 @@ export default function Footer() {
             <p className="text-sm text-muted-foreground leading-relaxed">
               Vehicle shipping made simple. Ship your vehicle anywhere in the US with trusted drivers.
             </p>
+            <p className="text-xs text-muted-foreground">
+              DriveDrop is a service of Calkons Groups LLC.
+            </p>
           </div>
 
           {/* Quick Links */}
