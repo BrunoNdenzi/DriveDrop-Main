@@ -25,6 +25,11 @@ function SignUpPageContent() {
     confirmPassword: '',
   })
   const [smsConsent, setSmsConsent] = useState(false)
+  const [userId, setUserId] = useState<string | null>(null)
+  const [otpStep, setOtpStep] = useState(false)
+  const [otpCode, setOtpCode] = useState('')
+  const [otpLoading, setOtpLoading] = useState(false)
+  const [otpError, setOtpError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState(false)
@@ -85,6 +90,10 @@ function SignUpPageContent() {
         throw new Error(errorBody.error || 'Failed to create account. Please try again.')
       }
 
+      const responseData = await response.json().catch(() => ({}))
+      const returnedUserId = (responseData as { userId?: string }).userId
+      if (returnedUserId) setUserId(returnedUserId)
+
       // Send welcome email (don't block on this)
       try {
         await fetch('/api/emails/welcome', {
@@ -101,10 +110,26 @@ function SignUpPageContent() {
         console.error('Failed to send welcome email:', emailError)
       }
 
-      setSuccess(true)
-      // Fire Google Ads Sign-up conversion
       trackSignupCompleted(role)
-      // Don't auto-redirect - users need to verify email first
+
+      // Try to trigger phone OTP if phone + smsConsent provided
+      if (formData.phone && smsConsent && returnedUserId) {
+        try {
+          const otpRes = await fetch('/api/auth/send-phone-otp', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ phone: formData.phone }),
+          })
+          if (otpRes.ok) {
+            setOtpStep(true)
+            return
+          }
+        } catch {
+          // OTP service unavailable — skip to success
+        }
+      }
+
+      setSuccess(true)
     } catch (err: any) {
       console.error('Signup error:', err)
       setError(getSignupErrorMessage(err.message))
@@ -113,11 +138,93 @@ function SignUpPageContent() {
     }
   }
 
-  if (success) {
+  const handleVerifyOtp = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setOtpLoading(true)
+    setOtpError(null)
+    try {
+      const res = await fetch('/api/auth/verify-phone-otp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone: formData.phone, code: otpCode, userId }),
+      })
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        throw new Error((data as { error?: string }).error || 'Invalid code. Please try again.')
+      }
+      setSuccess(true)
+    } catch (err: any) {
+      setOtpError(err.message || 'Verification failed. Please try again.')
+    } finally {
+      setOtpLoading(false)
+    }
+  }
+
+  if (otpStep) {
     return (
       <>
         <Header />
-        <main className="min-h-screen pt-20 pb-16 bg-background flex items-center justify-center">
+        <main className="min-h-screen pt-20 pb-16 bg-[hsl(var(--surface-field))] flex items-center justify-center">
+          <div className="container">
+            <div className="max-w-md mx-auto">
+              <div className="bg-white border border-border rounded-md p-6 shadow-sm">
+                <div className="text-center mb-6">
+                  <div className="inline-flex items-center justify-center w-12 h-12 rounded-md bg-blue-500 mb-4">
+                    <Phone className="w-6 h-6 text-white" />
+                  </div>
+                  <h1 className="text-xl font-bold">Verify Your Phone</h1>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    We sent a 6-digit code to <strong>{formData.phone}</strong>
+                  </p>
+                </div>
+
+                {otpError && (
+                  <div className="flex items-center gap-2 p-3 mb-4 rounded-md bg-destructive/10 border border-destructive/20 text-destructive">
+                    <AlertCircle className="w-5 h-5 flex-shrink-0" />
+                    <p className="text-sm">{otpError}</p>
+                  </div>
+                )}
+
+                <form onSubmit={handleVerifyOtp} className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="otpCode">Verification Code</Label>
+                    <Input
+                      id="otpCode"
+                      type="text"
+                      inputMode="numeric"
+                      maxLength={6}
+                      placeholder="000000"
+                      value={otpCode}
+                      onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                      required
+                      className="h-10 rounded-md text-center text-lg tracking-widest"
+                    />
+                  </div>
+                  <Button
+                    type="submit"
+                    disabled={otpLoading || otpCode.length !== 6}
+                    className="w-full h-10 bg-blue-500 hover:bg-blue-600 text-white"
+                  >
+                    {otpLoading ? 'Verifying...' : 'Verify Phone Number'}
+                  </Button>
+                  <button
+                    type="button"
+                    onClick={() => setSuccess(true)}
+                    className="w-full text-sm text-muted-foreground hover:text-foreground text-center py-1"
+                  >
+                    Skip for now
+                  </button>
+                </form>
+              </div>
+            </div>
+          </div>
+        </main>
+        <Footer />
+      </>
+    )
+  }
+
+  if (success) {
           <div className="container">
             <div className="max-w-md mx-auto text-center space-y-6 bg-white border border-border rounded-md p-10">
               <div className="inline-flex items-center justify-center w-14 h-14 rounded-md bg-emerald-50 border border-emerald-200">

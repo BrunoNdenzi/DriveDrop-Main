@@ -12,6 +12,7 @@ export async function POST(request: NextRequest) {
       lastName,
       phone,
       brokerProfile,
+      smsConsent,
     } = await request.json()
 
     if (!email || !password || !role || !firstName) {
@@ -183,6 +184,7 @@ export async function POST(request: NextRequest) {
           last_name: lastName || '',
           phone: phone || '',
           role,
+          sms_consent: smsConsent === true,
         },
         { onConflict: 'id' }
       )
@@ -267,7 +269,7 @@ export async function POST(request: NextRequest) {
     }
 
     console.log('[Signup API] Signup completed successfully')
-    return NextResponse.json({ success: true })
+    return NextResponse.json({ success: true, userId })
   } catch (error: any) {
     console.error('Signup API error:', error)
     return NextResponse.json(
