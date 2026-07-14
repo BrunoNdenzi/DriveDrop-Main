@@ -225,6 +225,10 @@ function SignUpPageContent() {
   }
 
   if (success) {
+    return (
+      <>
+        <Header />
+        <main className="min-h-screen pt-20 pb-16 bg-background flex items-center justify-center">
           <div className="container">
             <div className="max-w-md mx-auto text-center space-y-6 bg-white border border-border rounded-md p-10">
               <div className="inline-flex items-center justify-center w-14 h-14 rounded-md bg-emerald-50 border border-emerald-200">
