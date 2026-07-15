@@ -207,7 +207,7 @@ export default function ClientDashboardLayout({
       </div>
 
       {/* Benji V3 — global floating assistant */}
-      <BenjiAssistant userType="client" />
+      <BenjiAssistant userType="client" userId={user?.id} />
     </div>
   )
 }

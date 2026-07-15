@@ -33,8 +33,18 @@ interface UseBenjiSessionReturn {
 
 const SESSION_STORAGE_KEY = 'benji_v3_session_id'
 
-function getOrCreateSessionId(): string {
+function getOrCreateSessionId(userId?: string): string {
   if (typeof window === 'undefined') return crypto.randomUUID()
+  // Logged-in users get a stable deterministic session across tabs
+  if (userId) {
+    const key = `benji_v3_session_user_${userId}`
+    const existing = localStorage.getItem(key)
+    if (existing) return existing
+    const id = `user_${userId.slice(0, 8)}_${crypto.randomUUID()}`
+    localStorage.setItem(key, id)
+    return id
+  }
+  // Guest: tab-scoped session
   const existing = sessionStorage.getItem(SESSION_STORAGE_KEY)
   if (existing) return existing
   const id = crypto.randomUUID()
@@ -42,15 +52,15 @@ function getOrCreateSessionId(): string {
   return id
 }
 
-export function useBenjiSession(userType?: 'client' | 'driver' | 'admin' | 'broker'): UseBenjiSessionReturn {
+export function useBenjiSession(userType?: 'client' | 'driver' | 'admin' | 'broker', userId?: string): UseBenjiSessionReturn {
   const [messages, setMessages]   = useState<V3Message[]>([])
   const [isTyping, setIsTyping]   = useState(false)
   const sessionIdRef              = useRef<string>('')
 
   // Init sessionId once on mount
   useEffect(() => {
-    sessionIdRef.current = getOrCreateSessionId()
-  }, [])
+    sessionIdRef.current = getOrCreateSessionId(userId)
+  }, [userId])
 
   const sendMessage = useCallback(async (text: string) => {
     if (!text.trim() || isTyping) return

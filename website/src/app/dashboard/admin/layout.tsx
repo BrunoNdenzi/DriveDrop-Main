@@ -283,7 +283,7 @@ export default function AdminDashboardLayout({
       </div>
 
       {/* Benji V3 — global floating assistant */}
-      <BenjiAssistant userType="admin" />
+      <BenjiAssistant userType="admin" userId={user?.id} />
     </div>
   )
 }

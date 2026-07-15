@@ -1,14 +1,5 @@
 'use client'
 
-/**
- * Benji V3 — Single message bubble
- *
- * User messages: right-aligned, blue bubble
- * Assistant messages: left-aligned, white bubble with subtle border
- * Error messages: left-aligned, soft red tint
- * Tool badge: small pill showing which logistics tools were used
- */
-
 import { Bot } from 'lucide-react'
 import type { V3Message } from './hooks/useBenjiSession'
 
@@ -21,7 +12,78 @@ const TOOL_LABELS: Record<string, string> = {
   parse_shipment_details: 'Parsed',
   create_shipment:        'Booked',
   track_shipment:         'Tracked',
+  initiate_payment:       'Payment',
+  get_terms:              'Terms',
+  cancel_shipment:        'Cancelled',
+  list_shipments:         'Loaded',
 }
+
+// ─── Content renderer (URLs → links, **bold**, line breaks) ──────────────────
+
+function renderContent(content: string, isUser: boolean): React.ReactNode {
+  const URL_RE  = /https?:\/\/[^\s<>"')\]]+/g
+  const BOLD_RE = /\*\*(.+?)\*\*/g
+
+  return content.split('\n').map((line, lineIdx, arr) => {
+    const nodes: React.ReactNode[] = []
+    let cursor = 0
+
+    // Collect URL spans
+    const urlSpans: { start: number; end: number; url: string }[] = []
+    let m: RegExpExecArray | null
+    URL_RE.lastIndex = 0
+    while ((m = URL_RE.exec(line)) !== null) {
+      urlSpans.push({ start: m.index, end: m.index + m[0].length, url: m[0] })
+    }
+
+    let seg = 0
+    for (const { start, end, url } of urlSpans) {
+      // Render text before URL (with bold)
+      if (start > cursor) renderBold(line.slice(cursor, start), nodes, seg, isUser)
+      // Render URL as link
+      const label = url.replace(/^https?:\/\/(www\.)?/, '').slice(0, 44)
+      nodes.push(
+        <a
+          key={`url-${seg}`}
+          href={url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className={`underline break-all font-medium ${isUser ? 'text-blue-100 hover:text-white' : 'text-blue-500 hover:text-blue-700'}`}
+        >
+          {label}{url.replace(/^https?:\/\/(www\.)?/, '').length > 44 ? '…' : ''}
+        </a>
+      )
+      cursor = end
+      seg++
+    }
+
+    // Remaining text after last URL
+    if (cursor < line.length) renderBold(line.slice(cursor), nodes, seg + 100, isUser)
+
+    return (
+      <span key={lineIdx}>
+        {nodes.length > 0 ? nodes : line}
+        {lineIdx < arr.length - 1 && <br />}
+      </span>
+    )
+  })
+}
+
+function renderBold(text: string, out: React.ReactNode[], offset: number, isUser: boolean) {
+  const BOLD_RE = /\*\*(.+?)\*\*/g
+  let last = 0
+  let m: RegExpExecArray | null
+  let i = 0
+  while ((m = BOLD_RE.exec(text)) !== null) {
+    if (m.index > last) out.push(<span key={`${offset}-t${i}`}>{text.slice(last, m.index)}</span>)
+    out.push(<strong key={`${offset}-b${i}`} className="font-semibold">{m[1]}</strong>)
+    last = m.index + m[0].length
+    i++
+  }
+  if (last < text.length) out.push(<span key={`${offset}-te`}>{text.slice(last)}</span>)
+}
+
+// ─── Component ────────────────────────────────────────────────────────────────
 
 export function MessageBubble({ message }: MessageBubbleProps) {
   const isUser = message.role === 'user'
@@ -53,13 +115,7 @@ export function MessageBubble({ message }: MessageBubbleProps) {
               : 'bg-white border border-gray-100 text-gray-800',
           ].join(' ')}
         >
-          {/* Render with line breaks preserved */}
-          {message.content.split('\n').map((line, i) => (
-            <span key={i}>
-              {line}
-              {i < message.content.split('\n').length - 1 && <br />}
-            </span>
-          ))}
+          {renderContent(message.content, false)}
           {/* Streaming cursor */}
           {message.isStreaming && (
             <span className="inline-block w-0.5 h-4 bg-blue-400 ml-0.5 animate-pulse align-middle" />
@@ -74,6 +130,16 @@ export function MessageBubble({ message }: MessageBubbleProps) {
                 key={tool}
                 className="text-[10px] bg-blue-50 text-blue-600 border border-blue-100 rounded-full px-2 py-0.5 font-medium"
               >
+                {TOOL_LABELS[tool] ?? tool}
+              </span>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
                 {TOOL_LABELS[tool] ?? tool}
               </span>
             ))}

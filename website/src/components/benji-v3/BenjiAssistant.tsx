@@ -18,7 +18,7 @@
 
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Bot, Send, Sparkles } from 'lucide-react'
+import { Bot, Send, Sparkles, ImagePlus, Paperclip } from 'lucide-react'
 import { BenjiHeader }    from './BenjiHeader'
 import { MessageBubble }  from './MessageBubble'
 import { TypingIndicator } from './TypingIndicator'
@@ -47,20 +47,24 @@ const WELCOME: Record<string, string> = {
 export interface BenjiAssistantProps {
   userType?: 'client' | 'driver' | 'admin' | 'broker'
   shipmentId?: string
+  userId?: string
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export function BenjiAssistant({ userType = 'client', shipmentId }: BenjiAssistantProps) {
+export function BenjiAssistant({ userType = 'client', shipmentId, userId }: BenjiAssistantProps) {
   const [isOpen,      setIsOpen]      = useState(false)
   const [isMinimized, setIsMinimized] = useState(false)
   const [inputValue,  setInputValue]  = useState('')
   const [hasWelcome,  setHasWelcome]  = useState(false)
+  const [uploadError, setUploadError] = useState<string | null>(null)
 
-  const { messages, isTyping, sendMessage, clearSession } = useBenjiSession(userType)
+  const { messages, isTyping, sendMessage, clearSession } = useBenjiSession(userType, userId)
 
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const inputRef       = useRef<HTMLTextAreaElement>(null)
+  const fileInputRef   = useRef<HTMLInputElement>(null)
+  const prevTypingRef  = useRef(false)
   const suggestions    = SUGGESTIONS[userType] ?? SUGGESTIONS.client!
   const welcomeText    = WELCOME[userType] ?? WELCOME.client!
 
@@ -75,6 +79,14 @@ export function BenjiAssistant({ userType = 'client', shipmentId }: BenjiAssista
       setTimeout(() => inputRef.current?.focus(), 100)
     }
   }, [isOpen, isMinimized])
+
+  // Refocus input after Benji finishes responding
+  useEffect(() => {
+    if (prevTypingRef.current && !isTyping && isOpen && !isMinimized) {
+      setTimeout(() => inputRef.current?.focus(), 80)
+    }
+    prevTypingRef.current = isTyping
+  }, [isTyping, isOpen, isMinimized])
 
   // Inject welcome message once when first opened
   useEffect(() => {
@@ -106,6 +118,26 @@ export function BenjiAssistant({ userType = 'client', shipmentId }: BenjiAssista
     clearSession()
     setHasWelcome(false)
   }
+
+  const handleFileSelect = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setUploadError(null)
+    if (file.size > 10 * 1024 * 1024) {
+      setUploadError('Image must be under 10 MB')
+      return
+    }
+    const reader = new FileReader()
+    reader.onload = async () => {
+      const dataUrl = reader.result as string
+      // Send as a message — Benji will call process_document automatically
+      const caption = file.name ? `[Image: ${file.name}] ` : ''
+      await sendMessage(`${caption}${dataUrl}`)
+    }
+    reader.readAsDataURL(file)
+    // Reset so same file can be re-selected
+    e.target.value = ''
+  }, [sendMessage])
 
   return (
     <>
@@ -204,26 +236,61 @@ export function BenjiAssistant({ userType = 'client', shipmentId }: BenjiAssista
                 )}
 
                 {/* Input */}
-                <div className="flex items-end gap-2 px-3 py-3 border-t border-gray-100 bg-white">
-                  <textarea
-                    ref={inputRef}
-                    value={inputValue}
-                    onChange={e => setInputValue(e.target.value)}
-                    onKeyDown={handleKeyDown}
-                    placeholder="Message Benji…"
-                    rows={1}
-                    disabled={isTyping}
-                    className="flex-1 resize-none rounded-2xl border border-gray-200 bg-gray-50 px-4 py-2.5 text-sm text-gray-800 placeholder-gray-400 outline-none focus:border-blue-400 focus:bg-white transition-colors disabled:opacity-50 max-h-28 overflow-y-auto"
-                    style={{ lineHeight: '1.5' }}
-                  />
-                  <button
-                    onClick={handleSend}
-                    disabled={!inputValue.trim() || isTyping}
-                    className="w-9 h-9 flex-shrink-0 bg-blue-500 hover:bg-blue-600 disabled:bg-gray-200 rounded-full flex items-center justify-center transition-colors"
-                    aria-label="Send"
-                  >
-                    <Send className="w-4 h-4 text-white" />
-                  </button>
+                <div className="px-3 py-3 border-t border-gray-100 bg-white">
+                  {uploadError && (
+                    <p className="text-xs text-red-500 mb-1 px-1">{uploadError}</p>
+                  )}
+                  <div className="flex items-end gap-1.5">
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/*,.pdf"
+                      className="hidden"
+                      onChange={handleFileSelect}
+                    />
+                    <button
+                      onClick={() => { setUploadError(null); fileInputRef.current?.click() }}
+                      disabled={isTyping}
+                      title="Attach image or document"
+                      className="w-8 h-8 flex-shrink-0 flex items-center justify-center text-gray-400 hover:text-blue-500 disabled:opacity-40 transition-colors rounded-full hover:bg-blue-50"
+                    >
+                      <ImagePlus className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={() => {
+                        setUploadError(null)
+                        if (fileInputRef.current) {
+                          fileInputRef.current.setAttribute('capture', 'environment')
+                          fileInputRef.current.click()
+                          setTimeout(() => fileInputRef.current?.removeAttribute('capture'), 500)
+                        }
+                      }}
+                      disabled={isTyping}
+                      title="Scan document / take photo"
+                      className="w-8 h-8 flex-shrink-0 flex items-center justify-center text-gray-400 hover:text-blue-500 disabled:opacity-40 transition-colors rounded-full hover:bg-blue-50"
+                    >
+                      <Paperclip className="w-4 h-4" />
+                    </button>
+                    <textarea
+                      ref={inputRef}
+                      value={inputValue}
+                      onChange={e => setInputValue(e.target.value)}
+                      onKeyDown={handleKeyDown}
+                      placeholder="Message Benji…"
+                      rows={1}
+                      disabled={isTyping}
+                      className="flex-1 resize-none rounded-2xl border border-gray-200 bg-gray-50 px-3 py-2.5 text-sm text-gray-800 placeholder-gray-400 outline-none focus:border-blue-400 focus:bg-white transition-colors disabled:opacity-50 max-h-28 overflow-y-auto"
+                      style={{ lineHeight: '1.5' }}
+                    />
+                    <button
+                      onClick={handleSend}
+                      disabled={!inputValue.trim() || isTyping}
+                      className="w-9 h-9 flex-shrink-0 bg-blue-500 hover:bg-blue-600 disabled:bg-gray-200 rounded-full flex items-center justify-center transition-colors"
+                      aria-label="Send"
+                    >
+                      <Send className="w-4 h-4 text-white" />
+                    </button>
+                  </div>
                 </div>
               </>
             )}

@@ -50,6 +50,35 @@ function PaymentForm({ shipmentData, completionData, onPaymentComplete, onFinalS
     }
   }, [clientSecret])
 
+  // Called when shipment was pre-created by Benji — update instead of insert
+  const updateShipmentAfterPayment = async (paymentIntentId: string): Promise<string> => {
+    const existingId = shipmentData.id as string
+    const { error } = await supabase
+      .from('shipments')
+      .update({
+        payment_intent_id: paymentIntentId,
+        payment_status: 'processing',
+        ...(completionData.vehiclePhotos.length > 0 && {
+          client_vehicle_photos: JSON.stringify({
+            front: completionData.vehiclePhotos[0] || null,
+            rear:  completionData.vehiclePhotos[1] || null,
+            left:  completionData.vehiclePhotos[2] || null,
+            right: completionData.vehiclePhotos[3] || null,
+            interior: completionData.vehiclePhotos[4] || null,
+            damage: completionData.vehiclePhotos[5] || null,
+          }),
+        }),
+      })
+      .eq('id', existingId)
+    if (error) throw new Error(`Failed to update shipment: ${error.message}`)
+    // Link payment record
+    await supabase
+      .from('payments')
+      .update({ shipment_id: existingId, status: 'completed' })
+      .eq('payment_intent_id', paymentIntentId)
+    return existingId
+  }
+
   const createShipmentInDatabase = async (paymentIntentId: string) => {
     try {
       console.log('Creating shipment with data:', {
@@ -170,8 +199,10 @@ function PaymentForm({ shipmentData, completionData, onPaymentComplete, onFinalS
         console.log('[PaymentForm] Payment confirmed! Status:', paymentIntent.status)
         console.log('[PaymentForm] About to create shipment in database...')
         
-        // Create shipment in database
-        const shipmentId = await createShipmentInDatabase(paymentIntentId)
+        // If shipment was pre-created by Benji, update it — otherwise create fresh
+        const shipmentId = shipmentData.preCreated
+          ? await updateShipmentAfterPayment(paymentIntentId!)
+          : await createShipmentInDatabase(paymentIntentId!)
         console.log('[PaymentForm] Shipment created, ID:', shipmentId)
         
         // Update payment intent metadata with shipment and client IDs

@@ -276,7 +276,7 @@ export default function DriverDashboardLayout({
       </div>
 
       {/* Benji V3 — global floating assistant */}
-      <BenjiAssistant userType="driver" />
+      <BenjiAssistant userType="driver" userId={user?.id} />
     </div>
   )
 }

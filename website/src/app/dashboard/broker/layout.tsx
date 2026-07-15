@@ -247,7 +247,7 @@ export default function BrokerDashboardLayout({
       </div>
 
       {/* Benji V3 — global floating assistant */}
-      <BenjiAssistant userType="broker" />
+      <BenjiAssistant userType="broker" userId={user?.id} />
     </div>
   )
 }
