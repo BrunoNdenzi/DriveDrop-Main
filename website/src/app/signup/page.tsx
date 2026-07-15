@@ -160,7 +160,7 @@ function SignUpPageContent() {
     }
   }
 
-  if (otpStep) {
+  if (otpStep && !success) {
     return (
       <>
         <Header />
@@ -209,7 +209,7 @@ function SignUpPageContent() {
                   </Button>
                   <button
                     type="button"
-                    onClick={() => setSuccess(true)}
+                    onClick={() => { setOtpStep(false); setSuccess(true) }}
                     className="w-full text-sm text-muted-foreground hover:text-foreground text-center py-1"
                   >
                     Skip for now
