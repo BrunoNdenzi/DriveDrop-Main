@@ -139,13 +139,3 @@ export function MessageBubble({ message }: MessageBubbleProps) {
     </div>
   )
 }
-
-                {TOOL_LABELS[tool] ?? tool}
-              </span>
-            ))}
-          </div>
-        )}
-      </div>
-    </div>
-  )
-}

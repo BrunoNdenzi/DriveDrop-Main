@@ -116,6 +116,60 @@ function isConversationalOnly(message: string, ctx: V3LogisticsContext): boolean
   return false;
 }
 
+// ─── SMS ↔ Web session continuity ────────────────────────────────────────────
+
+/**
+ * When a verified authenticated user opens a web session with no active context,
+ * look up their SMS session (by verified phone) and merge its logistics context
+ * into the web session. Only logistics facts are merged — not conversation history.
+ *
+ * Security: only merges if the user's profile has phone_verified_at set (OTP verified).
+ */
+async function mergeSmsContinuityContext(userId: string, webSessionId: string): Promise<void> {
+  const { supabaseAdmin } = await import('../lib/supabase');
+
+  const { data: profile } = await supabaseAdmin
+    .from('profiles')
+    .select('phone, phone_verified_at')
+    .eq('id', userId)
+    .maybeSingle();
+
+  if (!profile?.phone || !profile?.phone_verified_at) return;
+
+  const phone        = profile.phone as string;
+  const smsSessionId = `sms:${phone}`;
+
+  const { data: smsRow } = await supabaseAdmin
+    .from('benji_sessions')
+    .select('context')
+    .eq('session_id', smsSessionId)
+    .gt('expires_at', new Date().toISOString())
+    .maybeSingle();
+
+  if (!smsRow?.context) return;
+
+  const sms = smsRow.context as Record<string, unknown>;
+  const hasUsefulContext =
+    sms['vehicle'] || sms['lastQuote'] || sms['draftShipmentId'] || sms['lastShipmentId'];
+
+  if (!hasUsefulContext) return;
+
+  const patch: Partial<V3LogisticsContext> = {};
+  if (sms['vehicle'] != null)         patch.vehicle               = sms['vehicle']               as NonNullable<V3LogisticsContext['vehicle']>;
+  if (sms['pickup'] != null)           patch.pickup                = sms['pickup']                as NonNullable<V3LogisticsContext['pickup']>;
+  if (sms['delivery'] != null)         patch.delivery              = sms['delivery']              as NonNullable<V3LogisticsContext['delivery']>;
+  if (sms['lastQuote'] != null)        patch.lastQuote             = sms['lastQuote']             as NonNullable<V3LogisticsContext['lastQuote']>;
+  if (sms['draftShipmentId'])          patch.draftShipmentId       = sms['draftShipmentId']       as string;
+  if (sms['lastShipmentId'])           patch.lastShipmentId        = sms['lastShipmentId']        as string;
+  if (sms['transportType'])            patch.transportType         = sms['transportType']         as 'open' | 'enclosed';
+  if (sms['termsAccepted'])            patch.termsAccepted         = sms['termsAccepted']         as boolean;
+  if (sms['workflowState'])            patch.workflowState         = sms['workflowState']         as import('./benji.types').WorkflowState;
+  if (sms['activePaymentIntentId'])    patch.activePaymentIntentId = sms['activePaymentIntentId'] as string;
+
+  v3SessionStore.mergeContext(webSessionId, patch);
+  logger.info('[BENJI] SMS context merged into web session', { userId, fieldsmerged: Object.keys(patch) });
+}
+
 // ─── Context extraction helpers ───────────────────────────────────────────────
 
 /**
@@ -194,8 +248,10 @@ function extractContextFromToolOutput(
       const shipmentId = d['shipment_id'] as string | undefined;
       if (shipmentId) {
         v3SessionStore.mergeContext(session.sessionId, {
-          lastShipmentId: shipmentId,
+          lastShipmentId:  shipmentId,
+          draftShipmentId: shipmentId,
           shipmentCreated: true,
+          workflowState:   'AWAITING_PAYMENT',
         });
       }
       break;
@@ -229,6 +285,18 @@ function extractContextFromToolOutput(
       const rows = Array.isArray(d) ? d as Record<string, unknown>[] : null;
       if (rows && rows.length === 1 && typeof rows[0]?.['id'] === 'string') {
         v3SessionStore.mergeContext(session.sessionId, { activeShipmentId: rows[0]['id'] as string });
+      }
+      break;
+    }
+
+    case 'initiate_payment': {
+      const paymentIntentId = d['payment_intent_id'] as string | undefined;
+      if (paymentIntentId) {
+        v3SessionStore.mergeContext(session.sessionId, {
+          paymentInitiated:       true,
+          activePaymentIntentId:  paymentIntentId,
+          workflowState:          'AWAITING_PAYMENT',
+        });
       }
       break;
     }
@@ -346,6 +414,23 @@ class BenjiV3Service {
       // ── 1. Session ─────────────────────────────────────────────────────
       const session = await v3SessionStore.getOrCreate(req.sessionId, req.userId, req.userType);
 
+      // ── 1b. SMS ↔ Web continuity ───────────────────────────────────────
+      // If this is a web/mobile session and the user has no active context,
+      // check if they have a verified phone with an active SMS session.
+      // Only merge logistics context (not conversation history) — privacy-safe.
+      if (
+        req.userType === 'client' &&
+        session.channel !== 'sms' &&
+        !session.context.workflowState &&
+        !session.context.lastShipmentId
+      ) {
+        try {
+          await mergeSmsContinuityContext(req.userId, session.sessionId);
+        } catch {
+          // Non-fatal — web session continues normally if SMS lookup fails
+        }
+      }
+
       // ── 2. System prompt with injected context ─────────────────────────
       const systemPrompt = buildV3SystemPrompt(req.userType, session.context);
 
@@ -429,7 +514,16 @@ class BenjiV3Service {
               ts:        new Date().toISOString(),
             });
 
-            const result = await executeV3Tool(toolName, toolCall.function.arguments, req.userId, req.userType);
+            const result = await executeV3Tool(
+              toolName,
+              toolCall.function.arguments,
+              req.userId,
+              req.userType,
+              {
+                context:      session.context,
+                mergeContext: (patch) => v3SessionStore.mergeContext(session.sessionId, patch),
+              },
+            );
 
             // Extract context updates from successful tool results
             if (result.success) {
@@ -586,6 +680,10 @@ class BenjiV3Service {
 
       // ── Session + prompt ───────────────────────────────────────────────
       const session      = await v3SessionStore.getOrCreate(req.sessionId, req.userId, req.userType);
+      // SMS ↔ Web continuity (same logic as non-streaming path)
+      if (req.userType === 'client' && session.channel !== 'sms' && !session.context.workflowState && !session.context.lastShipmentId) {
+        try { await mergeSmsContinuityContext(req.userId, session.sessionId); } catch { /* non-fatal */ }
+      }
       const systemPrompt = buildV3SystemPrompt(req.userType, session.context);
       // Support multimodal in streaming path
       if (req.images && req.images.length > 0) {
@@ -643,7 +741,16 @@ class BenjiV3Service {
             send({ type: 'tool', name: toolName });
 
             console.log('[BENJI_V3_TOOL]', { sessionId: req.sessionId, tool: toolName });
-            const result = await executeV3Tool(toolName, toolCall.function.arguments, req.userId, req.userType);
+            const result = await executeV3Tool(
+              toolName,
+              toolCall.function.arguments,
+              req.userId,
+              req.userType,
+              {
+                context:      session.context,
+                mergeContext: (patch) => v3SessionStore.mergeContext(session.sessionId, patch),
+              },
+            );
 
             if (result.success) {
               extractContextFromToolOutput(toolName, result.data, session);

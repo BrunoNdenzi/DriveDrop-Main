@@ -22,7 +22,7 @@ import NaturalLanguageShipmentService from '../../services/NaturalLanguageShipme
 import { pricingService }        from '../../services/pricing.service';
 import { googleMapsService }     from '../../services/google-maps.service';
 import { estimateDistanceMiles } from './distance.utils';
-import type { V3ToolResult, UserType } from '../benji.types';
+import type { V3ToolResult, UserType, V3LogisticsContext, WorkflowState } from '../benji.types';
 import { notificationEvents }    from '../../lib/notification-events';
 
 const _nlService = new NaturalLanguageShipmentService();
@@ -575,6 +575,88 @@ export const V3_TOOL_DEFINITIONS: OpenAI.Chat.Completions.ChatCompletionTool[] =
       },
     },
   },
+
+  // ── Sprint 2: Reasoning + Workflow tools ─────────────────────────────────
+
+  {
+    type: 'function',
+    function: {
+      name: 'update_context',
+      description:
+        'Update the structured conversation context with newly learned information. ' +
+        'Call this whenever the user provides vehicle details, locations, dates, or preferences ' +
+        'that should be remembered for the current session — even if no other tool is being called. ' +
+        'Also use this to advance the workflow state when appropriate. ' +
+        'NEVER ask for information that is already in context. ' +
+        'After calling this, Benji should acknowledge what it learned and ask the next most useful question.',
+      parameters: {
+        type: 'object',
+        properties: {
+          workflowState: {
+            type: 'string',
+            enum: ['DISCOVERING', 'COLLECTING_INFO', 'QUOTING', 'AWAITING_BOOKING_CONFIRMATION', 'CREATING_DRAFT', 'AWAITING_PAYMENT', 'BOOKED', 'POST_BOOKING_SUPPORT'],
+            description: 'Current workflow stage. Only update when the conversation has genuinely moved to a new stage.',
+          },
+          vehicle_make:  { type: 'string', description: 'Vehicle manufacturer (e.g. Toyota)' },
+          vehicle_model: { type: 'string', description: 'Vehicle model (e.g. Camry)' },
+          vehicle_year:  { type: 'number', description: 'Model year (e.g. 2022)' },
+          vehicle_type:  {
+            type: 'string',
+            enum: ['sedan', 'suv', 'pickup', 'luxury', 'motorcycle', 'golfcart', 'heavy'],
+            description: 'Vehicle category',
+          },
+          vehicle_vin:   { type: 'string', description: 'VIN if known' },
+          pickup_location: { type: 'string', description: 'Pickup city/state or address' },
+          pickup_date:     { type: 'string', description: 'ISO pickup date e.g. 2026-08-15' },
+          delivery_location: { type: 'string', description: 'Delivery city/state or address' },
+          delivery_date:     { type: 'string', description: 'ISO delivery date' },
+          transport_type: {
+            type: 'string',
+            enum: ['open', 'enclosed'],
+            description: 'Transport preference',
+          },
+          is_operable: { type: 'boolean', description: 'Whether the vehicle drives. Defaults to true.' },
+          terms_accepted: { type: 'boolean', description: 'Set true when user explicitly accepts T&C.' },
+        },
+        required: [],
+      },
+    },
+  },
+
+  {
+    type: 'function',
+    function: {
+      name: 'prepare_booking',
+      description:
+        'Validate all booking requirements and generate a structured summary for customer confirmation. ' +
+        'Call this AFTER the quote has been shown and the user expresses intent to book. ' +
+        'This tool validates that all required information is present, identifies any assumptions made, ' +
+        'and produces a structured summary that the customer must explicitly confirm. ' +
+        'After calling this, present the summary and ask: \'Would you like me to create this booking?\' ' +
+        'Only proceed to create_shipment after the customer explicitly confirms.',
+      parameters: {
+        type: 'object',
+        properties: {
+          vehicle_make:    { type: 'string', description: 'Vehicle make — must be known before booking' },
+          vehicle_model:   { type: 'string', description: 'Vehicle model — must be known before booking' },
+          vehicle_year:    { type: 'number', description: 'Year (optional)' },
+          vehicle_type:    {
+            type: 'string',
+            enum: ['sedan', 'suv', 'pickup', 'luxury', 'motorcycle', 'golfcart', 'heavy'],
+          },
+          origin:          { type: 'string', description: 'Pickup location' },
+          destination:     { type: 'string', description: 'Delivery location' },
+          pickup_date:     { type: 'string', description: 'ISO pickup date (optional)' },
+          delivery_date:   { type: 'string', description: 'ISO delivery date (optional)' },
+          transport_type:  { type: 'string', enum: ['open', 'enclosed'] },
+          estimated_price: { type: 'number', description: 'Price from get_shipping_quote' },
+          distance_miles:  { type: 'number', description: 'Distance from get_shipping_quote' },
+          is_operable:     { type: 'boolean', description: 'Vehicle operability. Default true.' },
+        },
+        required: ['vehicle_make', 'vehicle_model', 'origin', 'destination', 'estimated_price'],
+      },
+    },
+  },
 ];
 
 // ─── Tool Executors ───────────────────────────────────────────────────────────
@@ -729,8 +811,21 @@ async function execParseShipmentDetails(args: Record<string, unknown>, userId: s
 
 // ─── create_shipment ──────────────────────────────────────────────────────────
 
-async function execCreateShipment(args: Record<string, unknown>): Promise<V3ToolResult> {
+async function execCreateShipment(
+  args: Record<string, unknown>,
+  ctx?: { context: V3LogisticsContext; mergeContext: (patch: Partial<V3LogisticsContext>) => void },
+): Promise<V3ToolResult> {
   try {
+    // ── Workflow state guard (server-side enforcement) ──────────────────────────
+    if (ctx?.context.workflowState === 'AWAITING_PAYMENT') {
+      return {
+        success:      false,
+        data:         { draftShipmentId: ctx.context.draftShipmentId },
+        summary:      '',
+        errorMessage: `A draft booking already exists (ID: ${ctx.context.draftShipmentId ?? 'unknown'}) and is awaiting payment. To make changes the current draft must be cancelled first. Ask the customer: 'Would you like to cancel the current draft and start over?'`,
+      };
+    }
+
     const termsAccepted = args['terms_accepted'] === true;
     if (!termsAccepted) {
       return {
@@ -739,6 +834,61 @@ async function execCreateShipment(args: Record<string, unknown>): Promise<V3Tool
         summary:      '',
         errorMessage: 'The user must explicitly accept DriveDrop Terms & Conditions before a booking can be created. Please call get_terms first, present them to the user, and confirm acceptance.',
       };
+    }
+
+    // ── Backend validation guard ─────────────────────────────────────────────────
+    const missing: string[] = [];
+    const make  = String(args['vehicle_make']  ?? '').trim();
+    const model = String(args['vehicle_model'] ?? '').trim();
+    const origin = String(args['origin'] ?? '').trim();
+    const dest   = String(args['destination'] ?? '').trim();
+    if (!make)   missing.push('vehicle make');
+    if (!model)  missing.push('vehicle model');
+    if (!origin) missing.push('pickup location');
+    if (!dest)   missing.push('delivery location');
+    if (missing.length > 0) {
+      return {
+        success:       false,
+        data:          null,
+        summary:       '',
+        errorMessage:  `Cannot create shipment — missing required information: ${missing.join(', ')}.`,
+        missingFields: missing,
+      };
+    }
+
+    // ── Duplicate booking protection ─────────────────────────────────────────────
+    const userId = String(args['user_id'] ?? '');
+    try {
+      const { supabaseAdmin } = await import('../../lib/supabase');
+      const { data: existingDraft } = await supabaseAdmin
+        .from('shipments')
+        .select('id, status, payment_intent_id, draft_expires_at')
+        .eq('client_id', userId)
+        .eq('status', 'draft')
+        .ilike('vehicle_make', make)
+        .ilike('vehicle_model', model)
+        .ilike('pickup_address', `%${origin.split(',')[0]?.trim() ?? origin}%`)
+        .ilike('delivery_address', `%${dest.split(',')[0]?.trim() ?? dest}%`)
+        .gt('draft_expires_at', new Date().toISOString())
+        .maybeSingle();
+
+      if (existingDraft) {
+        // Update context to reflect the existing draft
+        ctx?.mergeContext({
+          draftShipmentId:       String(existingDraft.id),
+          workflowState:         'AWAITING_PAYMENT',
+          ...(typeof existingDraft?.payment_intent_id === 'string'
+            ? { activePaymentIntentId: existingDraft.payment_intent_id as string }
+            : {}),
+        });
+        return {
+          success: true,
+          data:    { shipment_id: existingDraft.id, reused: true },
+          summary: `An existing draft booking for your ${make} ${model} from ${origin} to ${dest} was found (ID: ${String(existingDraft.id).slice(0, 8)}…). Reusing it instead of creating a duplicate. Proceed directly to initiate_payment with the existing shipment ID and amount.`,
+        };
+      }
+    } catch {
+      // Non-fatal — proceed with creation if duplicate check fails
     }
 
     const parsedData = {
@@ -766,6 +916,9 @@ async function execCreateShipment(args: Record<string, unknown>): Promise<V3Tool
         transport_type: (args['transport_type'] === 'enclosed' ? 'enclosed' : 'open') as 'open' | 'enclosed',
         terms_accepted: true as boolean,
         payment_status: 'pending',
+        // Create as draft — only becomes active after Stripe payment confirmation
+        status: 'draft',
+        draft_expires_at: new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString(),
       }).filter(([, v]) => v !== undefined)),
     );
 
@@ -779,6 +932,11 @@ async function execCreateShipment(args: Record<string, unknown>): Promise<V3Tool
       };
     }
 
+    ctx?.mergeContext({
+      draftShipmentId:   shipmentId,
+      workflowState:     'AWAITING_PAYMENT',
+    });
+
     // Emit event so SMS notification listener fires automatically
     notificationEvents.emit('shipment.created', {
       shipmentId,
@@ -788,7 +946,7 @@ async function execCreateShipment(args: Record<string, unknown>): Promise<V3Tool
     return {
       success: true,
       data:    result,
-      summary: `Shipment created successfully! Your shipment ID is ${shipmentId}. Next step: complete the 20% deposit to confirm your booking.`,
+      summary: `Draft booking created! Shipment ID: ${shipmentId}. Proceed to initiate_payment to generate the payment link and complete the booking.`,
     };
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);
@@ -1765,15 +1923,50 @@ async function execInitiatePayment(
   if (!shipmentId) return { success: false, data: null, summary: '', errorMessage: 'Shipment ID is required.' };
   if (totalAmount <= 0) return { success: false, data: null, summary: '', errorMessage: 'Valid amount is required.' };
 
-  const depositAmount    = Math.round(totalAmount * 0.20);
+  const depositAmount      = Math.round(totalAmount * 0.20);
   const depositAmountCents = Math.round(depositAmount * 100);
-  const remainingAmount  = Math.round(totalAmount * 0.80);
+  const remainingAmount    = Math.round(totalAmount * 0.80);
 
   try {
     const { stripeService } = await import('../../services/stripe.service');
     const { supabaseAdmin } = await import('../../lib/supabase');
 
-    // Create Stripe payment intent
+    // ── Idempotency: check if a valid unpaid payment intent already exists ──────────
+    const { data: existingShipment } = await supabaseAdmin
+      .from('shipments')
+      .select('payment_intent_id, payment_status')
+      .eq('id', shipmentId)
+      .maybeSingle();
+
+    if (existingShipment?.payment_intent_id) {
+      try {
+        const existingPI = await stripeService.getPaymentIntent(existingShipment.payment_intent_id);
+        // Reuse if still awaiting payment (not succeeded, canceled, or expired)
+        if (['requires_payment_method', 'requires_confirmation', 'requires_action', 'processing', 'requires_capture'].includes(existingPI.status)) {
+          const frontendUrl = process.env['FRONTEND_URL'] ?? 'https://drivedrop.us.com';
+          const paymentUrl  = `${frontendUrl}/dashboard/client/new-shipment/completion?shipmentId=${shipmentId}&mode=payment`;
+          return {
+            success: true,
+            data: {
+              shipment_id:       shipmentId,
+              payment_intent_id: existingPI.id,
+              deposit_amount:    depositAmount,
+              total_amount:      totalAmount,
+              remaining_amount:  remainingAmount,
+              payment_url:       paymentUrl,
+              reused:            true,
+            },
+            summary:
+              `Existing payment session found for shipment ${shipmentId.slice(0, 8)}…\n` +
+              `  20% deposit due: $${depositAmount.toFixed(2)}\n` +
+              `  Complete payment at: ${paymentUrl}`,
+          };
+        }
+        // PI is in a terminal state — fall through to create a new one
+      } catch {
+        // PI not retrievable — create a fresh one
+      }
+    }
     const paymentIntent = await stripeService.createPaymentIntent({
       amount:      depositAmountCents,
       currency:    'usd',
@@ -2042,6 +2235,156 @@ async function execGetDriverInfo(
   }
 }
 
+// ─── Sprint 2 executors ───────────────────────────────────────────────────────────
+
+/**
+ * update_context — merges partial context into the session via the ctx callback.
+ * This is handled specially in benji.service.ts which passes mergeContext.
+ */
+export function execUpdateContext(
+  args:         Record<string, unknown>,
+  mergeContext: (patch: Partial<V3LogisticsContext>) => void,
+): V3ToolResult {
+  const patch: Partial<V3LogisticsContext> = {};
+
+  if (typeof args['workflowState'] === 'string') {
+    patch.workflowState = args['workflowState'] as WorkflowState;
+  }
+  if (typeof args['vehicle_make'] === 'string' || typeof args['vehicle_model'] === 'string' || typeof args['vehicle_year'] === 'number') {
+    patch.vehicle = {
+      ...(typeof args['vehicle_make']  === 'string' ? { make:  args['vehicle_make']  as string } : {}),
+      ...(typeof args['vehicle_model'] === 'string' ? { model: args['vehicle_model'] as string } : {}),
+      ...(typeof args['vehicle_year']  === 'number' ? { year:  args['vehicle_year']  as number } : {}),
+      ...(typeof args['vehicle_type']  === 'string' ? { type:  args['vehicle_type']  as string } : {}),
+      ...(typeof args['vehicle_vin']   === 'string' ? { vin:   args['vehicle_vin']   as string } : {}),
+    };
+  }
+  if (typeof args['pickup_location'] === 'string' || typeof args['pickup_date'] === 'string') {
+    patch.pickup = {
+      ...(typeof args['pickup_location'] === 'string' ? { location: args['pickup_location'] as string } : {}),
+      ...(typeof args['pickup_date']     === 'string' ? { date:     args['pickup_date']     as string } : {}),
+    };
+  }
+  if (typeof args['delivery_location'] === 'string' || typeof args['delivery_date'] === 'string') {
+    patch.delivery = {
+      ...(typeof args['delivery_location'] === 'string' ? { location: args['delivery_location'] as string } : {}),
+      ...(typeof args['delivery_date']     === 'string' ? { date:     args['delivery_date']     as string } : {}),
+    };
+  }
+  if (typeof args['transport_type'] === 'string')  patch.transportType = args['transport_type'] as 'open' | 'enclosed';
+  if (typeof args['is_operable']   === 'boolean')  patch.isOperable    = args['is_operable']   as boolean;
+  if (typeof args['terms_accepted'] === 'boolean') patch.termsAccepted = args['terms_accepted'] as boolean;
+
+  mergeContext(patch);
+
+  const updated = Object.keys(patch)
+    .filter(k => k !== 'workflowState')
+    .map(k => k.replace(/_/g, ' '))
+    .join(', ');
+  const stateNote = patch.workflowState ? ` Workflow advanced to ${patch.workflowState}.` : '';
+
+  return {
+    success: true,
+    data:    patch,
+    summary: `Context updated${updated ? ': ' + updated : ''}.${stateNote}`,
+  };
+}
+
+/**
+ * prepare_booking — validates all required fields and builds a structured booking summary.
+ * Sets workflowState to AWAITING_BOOKING_CONFIRMATION.
+ */
+export function execPrepareBooking(
+  args:         Record<string, unknown>,
+  mergeContext: (patch: Partial<V3LogisticsContext>) => void,
+  context?:     V3LogisticsContext,
+): V3ToolResult {
+  // ── Workflow state guard ──────────────────────────────────────────────────────
+  if (context?.workflowState === 'AWAITING_PAYMENT') {
+    return {
+      success:      false,
+      data:         { draftShipmentId: context.draftShipmentId },
+      summary:      '',
+      errorMessage: `A draft booking is already awaiting payment (ID: ${context.draftShipmentId ?? 'unknown'}). Cannot prepare a new booking until the existing draft is resolved. Ask the customer if they want to cancel the current draft.`,
+    };
+  }
+  const make          = String(args['vehicle_make']    ?? '').trim();
+  const model         = String(args['vehicle_model']   ?? '').trim();
+  const origin        = String(args['origin']          ?? '').trim();
+  const destination   = String(args['destination']     ?? '').trim();
+  const estimatedPrice = typeof args['estimated_price'] === 'number' ? args['estimated_price'] : 0;
+
+  // ── Backend validation guard ──────────────────────────────────────────────────
+  const missing: string[] = [];
+  if (!make)           missing.push('vehicle make (e.g. Toyota)');
+  if (!model)          missing.push('vehicle model (e.g. Camry)');
+  if (!origin)         missing.push('pickup location');
+  if (!destination)    missing.push('delivery location');
+  if (estimatedPrice <= 0) missing.push('estimated price (call get_shipping_quote first)');
+
+  if (missing.length > 0) {
+    return {
+      success:       false,
+      data:          null,
+      summary:       '',
+      errorMessage:  `Cannot prepare booking summary — missing required information.`,
+      missingFields: missing,
+    };
+  }
+
+  const year          = typeof args['vehicle_year']   === 'number' ? args['vehicle_year']   : null;
+  const vehicleType   = String(args['vehicle_type']   ?? inferVehicleType(make, model));
+  const transportType = String(args['transport_type'] ?? 'open');
+  const isOperable    = args['is_operable'] !== false;
+  const pickupDate    = typeof args['pickup_date']    === 'string' ? args['pickup_date']    : null;
+  const deliveryDate  = typeof args['delivery_date']  === 'string' ? args['delivery_date']  : null;
+  const distanceMiles = typeof args['distance_miles'] === 'number' ? args['distance_miles'] : null;
+  const depositAmount = Math.round(estimatedPrice * 0.20);
+
+  // Build assumptions list (things Benji inferred, not explicitly provided)
+  const assumptions: string[] = [];
+  if (!args['vehicle_type'])   assumptions.push(`Vehicle type assumed to be ${vehicleType} (inferred from make/model)`);
+  if (!args['transport_type']) assumptions.push('Open transport assumed (standard)');
+  if (isOperable && !Object.prototype.hasOwnProperty.call(args, 'is_operable')) {
+    assumptions.push('Vehicle assumed to be operable');
+  }
+
+  const vehicleLabel = [year, make, model].filter(Boolean).join(' ');
+  const distNote     = distanceMiles ? ` (${Math.round(distanceMiles)} miles)` : '';
+  const transportNote = transportType === 'enclosed' ? 'Enclosed transport' : 'Open transport (standard)';
+  const pickupNote   = pickupDate   ? `  Pickup date: ${pickupDate}\n` : '';
+  const delivNote    = deliveryDate ? `  Delivery date: ${deliveryDate}\n` : '';
+
+  const summary =
+    `📋 Booking Summary\n` +
+    `  Vehicle: ${vehicleLabel}\n` +
+    `  Pickup: ${origin}\n` +
+    `  Delivery: ${destination}${distNote}\n` +
+    `${pickupNote}` +
+    `${delivNote}` +
+    `  Transport: ${transportNote}\n` +
+    `  Estimated price: $${estimatedPrice.toFixed(2)}\n` +
+    `  Deposit required now (20%): $${depositAmount.toFixed(2)}\n` +
+    `  Remaining on delivery (80%): $${(estimatedPrice - depositAmount).toFixed(2)}\n` +
+    (assumptions.length > 0 ? `  Assumptions: ${assumptions.join('; ')}\n` : '') +
+    `\nWould you like me to create this booking?`;
+
+  // Advance workflow state to awaiting confirmation
+  mergeContext({ workflowState: 'AWAITING_BOOKING_CONFIRMATION' });
+
+  return {
+    success: true,
+    data: {
+      vehicle_make: make, vehicle_model: model, vehicle_year: year, vehicle_type: vehicleType,
+      origin, destination, pickup_date: pickupDate, delivery_date: deliveryDate,
+      transport_type: transportType, is_operable: isOperable,
+      estimated_price: estimatedPrice, deposit_amount: depositAmount,
+      distance_miles: distanceMiles, assumptions,
+    },
+    summary,
+  };
+}
+
 // ─── Dispatch ─────────────────────────────────────────────────────────────────
 
 /**
@@ -2049,21 +2392,36 @@ async function execGetDriverInfo(
  * Always returns V3ToolResult — never throws.
  *
  * userRole is passed so tools can enforce role-based access server-side.
+ * ctx is passed for stateful operations (update_context, prepare_booking) and
+ * backend validation guards on critical tools.
  */
 export async function executeV3Tool(
   toolName: string,
   argsRaw:  string,
   userId:   string,
   userRole: UserType = 'client',
+  ctx?: {
+    context:      V3LogisticsContext;
+    mergeContext: (patch: Partial<V3LogisticsContext>) => void;
+  },
 ): Promise<V3ToolResult> {
   const args = parseArgs(argsRaw);
 
   try {
     switch (toolName) {
+      // ── Sprint 2: Reasoning + Workflow tools ─────────────────────────
+      case 'update_context': {
+        if (!ctx) return { success: false, data: null, summary: '', errorMessage: 'Context not available for update_context.' };
+        return execUpdateContext(args, ctx.mergeContext);
+      }
+      case 'prepare_booking': {
+        if (!ctx) return { success: false, data: null, summary: '', errorMessage: 'Context not available for prepare_booking.' };
+        return execPrepareBooking(args, ctx.mergeContext, ctx.context);
+      }
       // ── V3 tools ───────────────────────────────────────────────────────
       case 'get_shipping_quote':       return await execGetShippingQuote(args);
       case 'parse_shipment_details':   return await execParseShipmentDetails(args, userId);
-      case 'create_shipment':          return await execCreateShipment({ ...args, user_id: userId });
+      case 'create_shipment':          return await execCreateShipment({ ...args, user_id: userId }, ctx);
       case 'track_shipment':           return await execTrackShipment(args, userId);
       // ── V4 tools ───────────────────────────────────────────────────────
       case 'list_shipments':           return await execListShipments(args, userId, userRole);

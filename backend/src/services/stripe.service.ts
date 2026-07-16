@@ -931,20 +931,26 @@ export const stripeService = {
           });
         }
 
-        // Update shipment status
+        // Activate draft shipment → transition to 'pending' (operational)
+        // This is the authoritative activation point: card is authorized, funds guaranteed.
         const { error: shipmentError } = await supabase
           .from('shipments')
           .update({
-            payment_status: 'authorized',
-            updated_at: new Date().toISOString(),
+            status:          'pending',        // Becomes operational
+            draft_expires_at: null,            // Clear expiry — no longer a draft
+            payment_status:  'authorized',
+            updated_at:      new Date().toISOString(),
           })
-          .eq('id', shipmentId);
+          .eq('id', shipmentId)
+          .eq('status', 'draft');             // Only transition from draft, not from other states
 
         if (shipmentError) {
-          logger.error('Error updating shipment for authorization', {
+          logger.error('Error activating draft shipment on authorization', {
             error: shipmentError,
             shipmentId,
           });
+        } else {
+          logger.info('Draft shipment activated after payment authorization', { shipmentId });
         }
       }
     } catch (error) {

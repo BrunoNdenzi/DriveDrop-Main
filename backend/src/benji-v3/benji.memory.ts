@@ -23,7 +23,7 @@ import type { V3Session, V3LogisticsContext, UserType } from './benji.types';
 
 // ─── TTL constants ────────────────────────────────────────────────────────────
 
-const TTL_WEB_MS   = 2 * 60 * 60 * 1_000;        // 2 h
+const TTL_WEB_MS   = 24 * 60 * 60 * 1_000;       // 24 h (logistics conversations persist across the day)
 const TTL_SMS_MS   = 7 * 24 * 60 * 60 * 1_000;   // 7 days
 const MAX_MESSAGES = 60;
 const CACHE_TTL_MS = 30_000;                       // 30 s read-through cache
