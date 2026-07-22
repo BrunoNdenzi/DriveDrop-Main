@@ -107,6 +107,9 @@ const LOGISTICS_KEYWORDS = /\b(ship|shipment|shipments|shipping|freight|transpor
 
 function isConversationalOnly(message: string, ctx: V3LogisticsContext): boolean {
   if (LOGISTICS_KEYWORDS.test(message)) return false;
+  // If logistics intent was ever detected in this session, keep tools available.
+  // This prevents tool dropout during multi-turn information gathering.
+  if (ctx.logisticsIntentActive) return false;
   // If there is active logistics context (active quote, active shipment, vehicle on record),
   // keep tools available even for short follow-up replies like "ok", "yes", "sure", "do it".
   // Without this, an affirmative reply to "Want me to book it?" would never reach create_shipment.
@@ -431,6 +434,13 @@ class BenjiV3Service {
         }
       }
 
+      // ── 1c. Sticky logistics intent ────────────────────────────────────
+      // Once logistics keywords are detected, set a persistent flag.
+      // This prevents tool dropout during multi-turn information gathering.
+      if (!session.context.logisticsIntentActive && LOGISTICS_KEYWORDS.test(req.message)) {
+        v3SessionStore.mergeContext(session.sessionId, { logisticsIntentActive: true });
+      }
+
       // ── 2. System prompt with injected context ─────────────────────────
       const systemPrompt = buildV3SystemPrompt(req.userType, session.context);
 
@@ -683,6 +693,10 @@ class BenjiV3Service {
       // SMS ↔ Web continuity (same logic as non-streaming path)
       if (req.userType === 'client' && session.channel !== 'sms' && !session.context.workflowState && !session.context.lastShipmentId) {
         try { await mergeSmsContinuityContext(req.userId, session.sessionId); } catch { /* non-fatal */ }
+      }
+      // Sticky logistics intent (same logic as non-streaming path)
+      if (!session.context.logisticsIntentActive && LOGISTICS_KEYWORDS.test(req.message)) {
+        v3SessionStore.mergeContext(session.sessionId, { logisticsIntentActive: true });
       }
       const systemPrompt = buildV3SystemPrompt(req.userType, session.context);
       // Support multimodal in streaming path

@@ -89,6 +89,8 @@ export interface V3LogisticsContext {
   transportType?:    'open' | 'enclosed';
   /** Is the vehicle operable? Defaults to true unless stated otherwise. */
   isOperable?:       boolean;
+  /** True once logistics intent is detected — prevents tool dropout on short follow-up messages. */
+  logisticsIntentActive?: boolean;
 }
 
 /** One entry in the session's conversation history (OpenAI wire format). */
