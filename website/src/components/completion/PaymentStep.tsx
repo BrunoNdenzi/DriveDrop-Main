@@ -487,15 +487,19 @@ function PaymentForm({ shipmentData, completionData, onPaymentComplete, onFinalS
         <div className="space-y-2 text-sm">
           <div className="flex justify-between">
             <span className="text-gray-600">Name:</span>
-            <span className="font-medium text-gray-900">{shipmentData.customerName}</span>
+            <span className="font-medium text-gray-900">
+              {profile?.first_name && profile?.last_name 
+                ? `${profile.first_name} ${profile.last_name}` 
+                : profile?.first_name || '(Not provided)'}
+            </span>
           </div>
           <div className="flex justify-between">
             <span className="text-gray-600">Email:</span>
-            <span className="font-medium text-gray-900">{profile?.email || shipmentData.customerEmail}</span>
+            <span className="font-medium text-gray-900">{profile?.email || '(Not provided)'}</span>
           </div>
           <div className="flex justify-between">
             <span className="text-gray-600">Phone:</span>
-            <span className="font-medium text-gray-900">{shipmentData.customerPhone}</span>
+            <span className="font-medium text-gray-900">{profile?.phone || '(Not provided)'}</span>
           </div>
         </div>
       </div>

@@ -32,6 +32,7 @@ interface UseBenjiSessionReturn {
 }
 
 const SESSION_STORAGE_KEY = 'benji_v3_session_id'
+const MESSAGES_STORAGE_KEY = 'benji_v3_messages'
 
 function getOrCreateSessionId(userId?: string): string {
   if (typeof window === 'undefined') return crypto.randomUUID()
@@ -52,8 +53,32 @@ function getOrCreateSessionId(userId?: string): string {
   return id
 }
 
+function loadStoredMessages(): V3Message[] {
+  if (typeof window === 'undefined') return []
+  try {
+    const stored = localStorage.getItem(MESSAGES_STORAGE_KEY)
+    if (!stored) return []
+    const parsed = JSON.parse(stored)
+    return parsed.map((msg: any) => ({
+      ...msg,
+      timestamp: new Date(msg.timestamp)
+    }))
+  } catch {
+    return []
+  }
+}
+
+function saveMessages(messages: V3Message[]) {
+  if (typeof window === 'undefined') return
+  try {
+    localStorage.setItem(MESSAGES_STORAGE_KEY, JSON.stringify(messages))
+  } catch (err) {
+    console.error('Failed to save messages:', err)
+  }
+}
+
 export function useBenjiSession(userType?: 'client' | 'driver' | 'admin' | 'broker', userId?: string): UseBenjiSessionReturn {
-  const [messages, setMessages]   = useState<V3Message[]>([])
+  const [messages, setMessages]   = useState<V3Message[]>(loadStoredMessages)
   const [isTyping, setIsTyping]   = useState(false)
   const sessionIdRef              = useRef<string>('')
 
@@ -61,6 +86,11 @@ export function useBenjiSession(userType?: 'client' | 'driver' | 'admin' | 'brok
   useEffect(() => {
     sessionIdRef.current = getOrCreateSessionId(userId)
   }, [userId])
+
+  // Persist messages to localStorage whenever they change
+  useEffect(() => {
+    saveMessages(messages)
+  }, [messages])
 
   const sendMessage = useCallback(async (text: string) => {
     if (!text.trim() || isTyping) return
@@ -175,6 +205,7 @@ export function useBenjiSession(userType?: 'client' | 'driver' | 'admin' | 'brok
     const newId = crypto.randomUUID()
     sessionIdRef.current = newId
     sessionStorage.setItem(SESSION_STORAGE_KEY, newId)
+    localStorage.removeItem(MESSAGES_STORAGE_KEY)
     setMessages([])
   }, [])
 

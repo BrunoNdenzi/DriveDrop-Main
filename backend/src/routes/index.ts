@@ -53,6 +53,9 @@ import voiceAgentRoutes from './voice-agent.routes';
 // Voice Agent (Retell)
 import retellAgentRoutes from './retell-agent.routes';
 
+// File Upload
+import uploadRoutes from './upload.routes';
+
 const router = Router();
 
 // API welcome message
@@ -144,5 +147,8 @@ router.use('/email-webhooks', emailWebhooksRoutes);
 router.use('/voice', voiceAgentRoutes);
 // Voice Agent (Retell)
 router.use('/retell', retellAgentRoutes);
+
+// File Upload
+router.use('/upload', uploadRoutes);
 
 export default router;
