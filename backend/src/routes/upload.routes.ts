@@ -118,7 +118,7 @@ router.post('/vehicle-photos', authenticate, upload.array('photos', 6), async (r
 });
 
 // DELETE /api/upload/:path - Delete uploaded file
-router.delete('/:path(*)', authenticate, async (req, res, next) => {
+router.delete('/:path*', authenticate, async (req, res, next) => {
   try {
     const filePath = decodeURIComponent(req.params['path'] || '');
     const userId = req.user!.id;
