@@ -117,19 +117,25 @@ router.post('/vehicle-photos', authenticate, upload.array('photos', 6), async (r
   }
 });
 
-// DELETE /api/upload/:path - Delete uploaded file
-router.delete('/:path*', authenticate, async (req, res, next) => {
+// DELETE /api/upload - Delete uploaded file (path in query string)
+router.delete('/', authenticate, async (req, res, next) => {
   try {
-    const filePath = decodeURIComponent(req.params['path'] || '');
-    const userId = req.user!.id;
+    const filePath = req.query['path'] as string;
+    
+    if (!filePath) {
+      throw createError('File path is required', 400, 'NO_PATH');
+    }
 
-    if (!filePath.startsWith(`${userId}/`)) {
+    const userId = req.user!.id;
+    const decodedPath = decodeURIComponent(filePath);
+
+    if (!decodedPath.startsWith(`${userId}/`)) {
       throw createError('Unauthorized to delete this file', 403, 'FORBIDDEN');
     }
 
     const { error } = await supabaseAdmin.storage
       .from('shipment-photos')
-      .remove([filePath]);
+      .remove([decodedPath]);
 
     if (error) {
       throw createError(`Delete failed: ${error.message}`, 500, 'DELETE_FAILED');
