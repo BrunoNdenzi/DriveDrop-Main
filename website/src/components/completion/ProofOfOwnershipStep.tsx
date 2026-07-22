@@ -50,26 +50,37 @@ export default function ProofOfOwnershipStep({ shipmentData, documents, onDocume
 
     setUploading(true)
     try {
-      // Convert files to base64 with metadata
-      const docPromises = acceptedFiles.map(file => {
-        return new Promise<string>((resolve, reject) => {
-          const reader = new FileReader()
-          reader.onload = () => {
-            // Store both data and filename
-            const docData = {
-              data: reader.result as string,
-              name: file.name,
-              type: file.type,
-              size: file.size,
-            }
-            resolve(JSON.stringify(docData))
-          }
-          reader.onerror = reject
-          reader.readAsDataURL(file)
-        })
+      // Upload files to Supabase Storage
+      const { getSupabaseBrowserClient } = await import('@/lib/supabase-client')
+      const supabase = getSupabaseBrowserClient()
+
+      const uploadPromises = acceptedFiles.map(async (file) => {
+        const fileName = `${Date.now()}-${file.name}`
+        const { data: uploadData, error: uploadError } = await supabase.storage
+          .from('shipment-photos')
+          .upload(`documents/${fileName}`, file, {
+            contentType: file.type,
+            upsert: false
+          })
+
+        if (uploadError) throw uploadError
+
+        const { data: urlData } = supabase.storage
+          .from('shipment-photos')
+          .getPublicUrl(uploadData.path)
+
+        // Store URL with metadata instead of base64
+        const docData = {
+          url: urlData.publicUrl,
+          path: uploadData.path,
+          name: file.name,
+          type: file.type,
+          size: file.size,
+        }
+        return JSON.stringify(docData)
       })
 
-      const newDocs = await Promise.all(docPromises)
+      const newDocs = await Promise.all(uploadPromises)
       onDocumentsUpdate([...documents, ...newDocs])
     } catch (error) {
       console.error('Error uploading documents:', error)
@@ -98,7 +109,7 @@ export default function ProofOfOwnershipStep({ shipmentData, documents, onDocume
     try {
       return JSON.parse(docString)
     } catch {
-      return { name: 'Document', type: 'application/pdf', size: 0 }
+      return { name: 'Document', type: 'application/pdf', size: 0, url: '' }
     }
   }
 

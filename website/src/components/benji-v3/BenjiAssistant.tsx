@@ -123,18 +123,43 @@ export function BenjiAssistant({ userType = 'client', shipmentId, userId }: Benj
     const file = e.target.files?.[0]
     if (!file) return
     setUploadError(null)
+    
     if (file.size > 10 * 1024 * 1024) {
       setUploadError('Image must be under 10 MB')
       return
     }
-    const reader = new FileReader()
-    reader.onload = async () => {
-      const dataUrl = reader.result as string
-      // Send as a message — Benji will call process_document automatically
-      const caption = file.name ? `[Image: ${file.name}] ` : ''
-      await sendMessage(`${caption}${dataUrl}`)
+
+    try {
+      // Upload to backend storage
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://drivedrop-main-production.up.railway.app/api/v1'
+      const formData = new FormData()
+      formData.append('file', file)
+
+      // Get auth token (from localStorage, cookies, or wherever it's stored)
+      const token = localStorage.getItem('access_token') || sessionStorage.getItem('access_token')
+      
+      const uploadResponse = await fetch(`${apiUrl}/upload/image`, {
+        method: 'POST',
+        headers: token ? { 'Authorization': `Bearer ${token}` } : {},
+        body: formData,
+      })
+
+      if (!uploadResponse.ok) {
+        const errorData = await uploadResponse.json().catch(() => ({}))
+        throw new Error(errorData.message || `Upload failed: ${uploadResponse.statusText}`)
+      }
+
+      const uploadData = await uploadResponse.json()
+      
+      // Send the public URL to Benji (instead of base64 dataURL)
+      const caption = file.name ? `[Uploaded: ${file.name}] ` : '[Uploaded image] '
+      await sendMessage(`${caption}${uploadData.url}`)
+      
+    } catch (error) {
+      console.error('File upload error:', error)
+      setUploadError(error instanceof Error ? error.message : 'Upload failed. Please try again.')
     }
-    reader.readAsDataURL(file)
+
     // Reset so same file can be re-selected
     e.target.value = ''
   }, [sendMessage])

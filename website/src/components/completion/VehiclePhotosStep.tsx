@@ -30,17 +30,30 @@ export default function VehiclePhotosStep({ shipmentData, photos, onPhotosUpdate
 
     setUploading(true)
     try {
-      // Convert files to base64 for preview
-      const photoPromises = acceptedFiles.map(file => {
-        return new Promise<string>((resolve, reject) => {
-          const reader = new FileReader()
-          reader.onload = () => resolve(reader.result as string)
-          reader.onerror = reject
-          reader.readAsDataURL(file)
-        })
+      // Upload photos to Supabase Storage
+      const { getSupabaseBrowserClient } = await import('@/lib/supabase-client')
+      const supabase = getSupabaseBrowserClient()
+
+      const uploadPromises = acceptedFiles.map(async (file) => {
+        const fileName = `${Date.now()}-${file.name}`
+        const { data: uploadData, error: uploadError } = await supabase.storage
+          .from('shipment-photos')
+          .upload(`vehicle-photos/${fileName}`, file, {
+            contentType: file.type,
+            upsert: false
+          })
+
+        if (uploadError) throw uploadError
+
+        const { data: urlData } = supabase.storage
+          .from('shipment-photos')
+          .getPublicUrl(uploadData.path)
+
+        // Return public URL instead of base64
+        return urlData.publicUrl
       })
 
-      const newPhotos = await Promise.all(photoPromises)
+      const newPhotos = await Promise.all(uploadPromises)
       onPhotosUpdate([...photos, ...newPhotos])
     } catch (error) {
       console.error('Error uploading photos:', error)
