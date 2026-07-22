@@ -130,17 +130,25 @@ export function BenjiAssistant({ userType = 'client', shipmentId, userId }: Benj
     }
 
     try {
+      // Get auth token from Supabase session
+      const { getSupabaseBrowserClient } = await import('@/lib/supabase-client')
+      const supabase = getSupabaseBrowserClient()
+      const { data: { session } } = await supabase.auth.getSession()
+      
+      if (!session?.access_token) {
+        throw new Error('Please sign in to upload files')
+      }
+
       // Upload to backend storage
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://drivedrop-main-production.up.railway.app/api/v1'
       const formData = new FormData()
       formData.append('file', file)
-
-      // Get auth token (from localStorage, cookies, or wherever it's stored)
-      const token = localStorage.getItem('access_token') || sessionStorage.getItem('access_token')
       
       const uploadResponse = await fetch(`${apiUrl}/upload/image`, {
         method: 'POST',
-        headers: token ? { 'Authorization': `Bearer ${token}` } : {},
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`
+        },
         body: formData,
       })
 
