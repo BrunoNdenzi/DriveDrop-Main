@@ -121,52 +121,101 @@ export class DriverVerificationService {
         return { verified: false, error: 'Invalid DOT number format (must be 1-8 digits)' };
       }
 
-      // TODO: Integrate with FMCSA SAFER API (FREE, PUBLIC, NO CONSENT REQUIRED)
-      // Real API endpoint: https://mobile.fmcsa.dot.gov/qc/services/carriers/{dotNumber}
+      // FMCSA SAFER API Integration (FREE, PUBLIC, NO CONSENT REQUIRED)
       // Get FREE API key at: https://mobile.fmcsa.dot.gov/developer/home.page
-      // Example:
-      // const response = await fetch(
-      //   `https://mobile.fmcsa.dot.gov/qc/services/carriers/${formatted}?webKey=${process.env.FMCSA_API_KEY}`
-      // );
-      // if (!response.ok) {
-      //   return { verified: false, error: 'DOT number not found in FMCSA database' };
-      // }
-      // const data = await response.json();
-      // const carrier = data.content.carrier;
-      // return {
-      //   verified: carrier.carrierOperationCode === 'A', // A = ACTIVE
-      //   dotNumber: formatted,
-      //   companyName: carrier.legalName,
-      //   status: carrier.carrierOperationCode === 'A' ? 'ACTIVE' : 'INACTIVE',
-      //   mcNumber: carrier.docketNumber,
-      //   physicalAddress: `${carrier.phyStreet}, ${carrier.phyCity}, ${carrier.phyState} ${carrier.phyZipcode}`,
-      // };
+      const FMCSA_API_KEY = process.env.FMCSA_API_KEY;
 
-      // MOCK DATA for development - returns rich details for driver confirmation
-      // In production, this will be REAL FMCSA data
-      const mockResult: DOTVerificationResult = {
-        verified: true,
-        dotNumber: formatted,
-        companyName: 'Verified Transport LLC',
-        status: 'ACTIVE',
-        mcNumber: '123456',
-        physicalAddress: '123 Main St, Chicago, IL 60601',
-      };
+      if (!FMCSA_API_KEY) {
+        console.warn('⚠️ FMCSA_API_KEY not configured - using mock data. Get your FREE key at: https://mobile.fmcsa.dot.gov/developer/home.page');
+        
+        // FALLBACK: Mock data when API key not configured
+        const mockResult: DOTVerificationResult = {
+          verified: true,
+          dotNumber: formatted,
+          companyName: `[MOCK] DOT ${formatted} Company`,
+          status: 'ACTIVE',
+          mcNumber: '123456',
+          physicalAddress: '123 Main St, Chicago, IL 60601',
+        };
 
-      // Only save to database if it's a real application (not pre-check)
-      if (params.applicationId !== 'pre-check') {
-        await supabaseAdmin
-          .from('driver_applications')
-          .update({
-            dot_verified: mockResult.verified,
-            dot_company_name: mockResult.companyName,
-            dot_status: mockResult.status,
-            dot_verified_at: new Date().toISOString(),
-          })
-          .eq('id', params.applicationId);
+        if (params.applicationId !== 'pre-check') {
+          await supabaseAdmin
+            .from('driver_applications')
+            .update({
+              dot_verified: mockResult.verified,
+              dot_company_name: mockResult.companyName,
+              dot_status: mockResult.status,
+              dot_verified_at: new Date().toISOString(),
+            })
+            .eq('id', params.applicationId);
+        }
+
+        return mockResult;
       }
 
-      return mockResult;
+      // Real FMCSA SAFER API call
+      try {
+        const response = await fetch(
+          `https://mobile.fmcsa.dot.gov/qc/services/carriers/${formatted}?webKey=${FMCSA_API_KEY}`
+        );
+
+        if (!response.ok) {
+          return { 
+            verified: false, 
+            error: response.status === 404 
+              ? 'DOT number not found in FMCSA database' 
+              : 'Failed to verify DOT number with FMCSA'
+          };
+        }
+
+        const data = await response.json();
+        
+        // Check if carrier data exists
+        if (!data.content || !data.content.carrier) {
+          return { verified: false, error: 'DOT number not found in FMCSA database' };
+        }
+
+        const carrier = data.content.carrier;
+        
+        // Map FMCSA operation codes to our status
+        const operationCode = carrier.carrierOperationCode || carrier.carrierOperation;
+        let status: 'ACTIVE' | 'INACTIVE' | 'OUT_OF_SERVICE' = 'INACTIVE';
+        
+        if (operationCode === 'A' || operationCode === 'ACTIVE') {
+          status = 'ACTIVE';
+        } else if (operationCode === 'O' || operationCode === 'OUT_OF_SERVICE') {
+          status = 'OUT_OF_SERVICE';
+        }
+
+        const result: DOTVerificationResult = {
+          verified: status === 'ACTIVE',
+          dotNumber: formatted,
+          companyName: carrier.legalName || carrier.dbaName || 'Unknown Company',
+          status: status,
+          mcNumber: carrier.docketNumber || undefined,
+          physicalAddress: carrier.phyStreet 
+            ? `${carrier.phyStreet}, ${carrier.phyCity}, ${carrier.phyState} ${carrier.phyZipcode}`.trim()
+            : undefined,
+        };
+
+        // Only save to database if it's a real application (not pre-check)
+        if (params.applicationId !== 'pre-check') {
+          await supabaseAdmin
+            .from('driver_applications')
+            .update({
+              dot_verified: result.verified,
+              dot_company_name: result.companyName,
+              dot_status: result.status,
+              dot_verified_at: new Date().toISOString(),
+            })
+            .eq('id', params.applicationId);
+        }
+
+        return result;
+      } catch (fetchError) {
+        console.error('FMCSA API fetch error:', fetchError);
+        return { verified: false, error: 'Failed to connect to FMCSA database' };
+      }
     } catch (error) {
       console.error('DOT verification error:', error);
       return { verified: false, error: 'Failed to verify DOT number' };
