@@ -205,7 +205,6 @@ export class DriverVerificationService {
           dotNumber: formatted,
           companyName: carrier.legalName || carrier.dbaName || 'Unknown Company',
           status: status,
-          mcNumber: undefined, // Would need separate API call to /docket-numbers
           physicalAddress: physicalAddr,
         };
 
