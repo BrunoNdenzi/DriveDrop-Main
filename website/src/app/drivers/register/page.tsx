@@ -23,6 +23,8 @@ import Header from '@/components/layout/Header'
 import Footer from '@/components/layout/Footer'
 import { GooglePlacesAutocomplete } from '@/components/GooglePlacesAutocomplete'
 
+const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL || 'https://drivedrop-main-production.up.railway.app/api/v1'
+
 const US_STATES = [
   { code: 'AL', name: 'Alabama' }, { code: 'AK', name: 'Alaska' }, { code: 'AZ', name: 'Arizona' },
   { code: 'AR', name: 'Arkansas' }, { code: 'CA', name: 'California' }, { code: 'CO', name: 'Colorado' },
@@ -119,7 +121,7 @@ export default function DriverRegistrationPage() {
     if (data.dotNumber && data.dotNumber.trim()) {
       setIsVerifying(true)
       try {
-        const response = await fetch('/api/v1/drivers/verify-dot', {
+        const response = await fetch(`${BACKEND_URL}/drivers/verify-dot`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ dotNumber: data.dotNumber }),
@@ -152,7 +154,7 @@ export default function DriverRegistrationPage() {
     setIsVerifying(true)
 
     try {
-      const response = await fetch('/api/v1/drivers/verify', {
+      const response = await fetch(`${BACKEND_URL}/drivers/verify`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -212,7 +214,7 @@ export default function DriverRegistrationPage() {
       formDataObj.append('termsAccepted', data.termsAccepted.toString())
       formDataObj.append('smsConsent', data.smsConsent.toString())
 
-      const response = await fetch('/api/v1/drivers/complete-application', {
+      const response = await fetch(`${BACKEND_URL}/drivers/complete-application`, {
         method: 'POST',
         body: formDataObj,
       })
