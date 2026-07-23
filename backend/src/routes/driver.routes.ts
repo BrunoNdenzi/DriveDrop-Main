@@ -33,7 +33,10 @@ router.post('/verify-dot', async (req, res) => {
   try {
     const { dotNumber } = req.body;
 
+    console.log('🔍 DOT Verification Request:', { dotNumber, body: req.body });
+
     if (!dotNumber) {
+      console.error('❌ DOT Verification Failed: No DOT number provided');
       return res.status(400).json({ error: 'DOT number required' });
     }
 
@@ -42,7 +45,10 @@ router.post('/verify-dot', async (req, res) => {
       applicationId: 'pre-check', // Not saved yet
     });
 
+    console.log('✅ DOT Verification Result:', result);
+
     if (!result.verified) {
+      console.warn('⚠️ DOT Not Verified:', result);
       return res.status(400).json({
         verified: false,
         error: result.error || 'DOT number not found in FMCSA database',
@@ -54,9 +60,11 @@ router.post('/verify-dot', async (req, res) => {
       dotNumber: result.dotNumber,
       companyName: result.companyName,
       status: result.status,
+      mcNumber: result.mcNumber,
+      physicalAddress: result.physicalAddress,
     });
   } catch (error) {
-    console.error('DOT pre-verification error:', error);
+    console.error('❌ DOT pre-verification error:', error);
     return res.status(500).json({ error: 'Failed to verify DOT number' });
   }
 });

@@ -125,6 +125,8 @@ export class DriverVerificationService {
       // Get FREE API key at: https://mobile.fmcsa.dot.gov/developer/home.page
       const FMCSA_API_KEY = process.env['FMCSA_API_KEY'];
 
+      console.log('🔑 FMCSA API Key configured:', FMCSA_API_KEY ? 'YES' : 'NO');
+
       if (!FMCSA_API_KEY) {
         console.warn('⚠️ FMCSA_API_KEY not configured - using mock data. Get your FREE key at: https://mobile.fmcsa.dot.gov/developer/home.page');
         
@@ -155,11 +157,16 @@ export class DriverVerificationService {
 
       // Real FMCSA SAFER API call
       try {
-        const response = await fetch(
-          `https://mobile.fmcsa.dot.gov/qc/services/carriers/${formatted}?webKey=${FMCSA_API_KEY}`
-        );
+        const apiUrl = `https://mobile.fmcsa.dot.gov/qc/services/carriers/${formatted}?webKey=${FMCSA_API_KEY}`;
+        console.log('🌐 Calling FMCSA API for DOT:', formatted);
+        
+        const response = await fetch(apiUrl);
+
+        console.log('📡 FMCSA API Response Status:', response.status);
 
         if (!response.ok) {
+          const errorText = await response.text();
+          console.error('❌ FMCSA API Error:', { status: response.status, error: errorText });
           return { 
             verified: false, 
             error: response.status === 404 
@@ -169,6 +176,7 @@ export class DriverVerificationService {
         }
 
         const data: any = await response.json();
+        console.log('📦 FMCSA API Data received:', JSON.stringify(data, null, 2));
         
         // Check if carrier data exists
         if (!data.content || !data.content.carrier) {
@@ -207,6 +215,16 @@ export class DriverVerificationService {
           status: status,
           physicalAddress: physicalAddr,
         };
+
+        console.log('✅ DOT Verification Complete:', {
+          dotNumber: result.dotNumber,
+          companyName: result.companyName,
+          status: result.status,
+          verified: result.verified,
+          allowedToOperate,
+          operationCode,
+          statusCode: carrier.statusCode
+        });
 
         // Only save to database if it's a real application (not pre-check)
         if (params.applicationId !== 'pre-check') {
