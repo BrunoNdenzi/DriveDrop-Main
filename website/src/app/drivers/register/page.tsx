@@ -1,7 +1,7 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { useForm, Controller } from 'react-hook-form'
+import { useState } from 'react'
+import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import * as z from 'zod'
 import { Button } from '@/components/ui/button'
@@ -9,7 +9,6 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Checkbox } from '@/components/ui/checkbox'
-import { Textarea } from '@/components/ui/textarea'
 import { Progress } from '@/components/ui/progress'
 import { DatePicker } from '@/components/ui/date-picker'
 import {
@@ -19,42 +18,31 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { ArrowRight, ArrowLeft, CheckCircle, Truck, Shield, FileText, AlertCircle } from 'lucide-react'
+import { CheckCircle, Shield, Loader2 } from 'lucide-react'
 import Header from '@/components/layout/Header'
 import Footer from '@/components/layout/Footer'
 import { GooglePlacesAutocomplete } from '@/components/GooglePlacesAutocomplete'
 
-// ── US States ────────────────────────────────────────────────────────────────
 const US_STATES = [
-  { code: 'AL', name: 'Alabama' }, { code: 'AK', name: 'Alaska' },
-  { code: 'AZ', name: 'Arizona' }, { code: 'AR', name: 'Arkansas' },
-  { code: 'CA', name: 'California' }, { code: 'CO', name: 'Colorado' },
-  { code: 'CT', name: 'Connecticut' }, { code: 'DE', name: 'Delaware' },
-  { code: 'FL', name: 'Florida' }, { code: 'GA', name: 'Georgia' },
-  { code: 'HI', name: 'Hawaii' }, { code: 'ID', name: 'Idaho' },
-  { code: 'IL', name: 'Illinois' }, { code: 'IN', name: 'Indiana' },
-  { code: 'IA', name: 'Iowa' }, { code: 'KS', name: 'Kansas' },
-  { code: 'KY', name: 'Kentucky' }, { code: 'LA', name: 'Louisiana' },
-  { code: 'ME', name: 'Maine' }, { code: 'MD', name: 'Maryland' },
-  { code: 'MA', name: 'Massachusetts' }, { code: 'MI', name: 'Michigan' },
-  { code: 'MN', name: 'Minnesota' }, { code: 'MS', name: 'Mississippi' },
-  { code: 'MO', name: 'Missouri' }, { code: 'MT', name: 'Montana' },
-  { code: 'NE', name: 'Nebraska' }, { code: 'NV', name: 'Nevada' },
-  { code: 'NH', name: 'New Hampshire' }, { code: 'NJ', name: 'New Jersey' },
-  { code: 'NM', name: 'New Mexico' }, { code: 'NY', name: 'New York' },
-  { code: 'NC', name: 'North Carolina' }, { code: 'ND', name: 'North Dakota' },
-  { code: 'OH', name: 'Ohio' }, { code: 'OK', name: 'Oklahoma' },
-  { code: 'OR', name: 'Oregon' }, { code: 'PA', name: 'Pennsylvania' },
-  { code: 'RI', name: 'Rhode Island' }, { code: 'SC', name: 'South Carolina' },
-  { code: 'SD', name: 'South Dakota' }, { code: 'TN', name: 'Tennessee' },
-  { code: 'TX', name: 'Texas' }, { code: 'UT', name: 'Utah' },
-  { code: 'VT', name: 'Vermont' }, { code: 'VA', name: 'Virginia' },
-  { code: 'WA', name: 'Washington' }, { code: 'WV', name: 'West Virginia' },
-  { code: 'WI', name: 'Wisconsin' }, { code: 'WY', name: 'Wyoming' },
-  { code: 'DC', name: 'Washington D.C.' },
+  { code: 'AL', name: 'Alabama' }, { code: 'AK', name: 'Alaska' }, { code: 'AZ', name: 'Arizona' },
+  { code: 'AR', name: 'Arkansas' }, { code: 'CA', name: 'California' }, { code: 'CO', name: 'Colorado' },
+  { code: 'CT', name: 'Connecticut' }, { code: 'DE', name: 'Delaware' }, { code: 'FL', name: 'Florida' },
+  { code: 'GA', name: 'Georgia' }, { code: 'HI', name: 'Hawaii' }, { code: 'ID', name: 'Idaho' },
+  { code: 'IL', name: 'Illinois' }, { code: 'IN', name: 'Indiana' }, { code: 'IA', name: 'Iowa' },
+  { code: 'KS', name: 'Kansas' }, { code: 'KY', name: 'Kentucky' }, { code: 'LA', name: 'Louisiana' },
+  { code: 'ME', name: 'Maine' }, { code: 'MD', name: 'Maryland' }, { code: 'MA', name: 'Massachusetts' },
+  { code: 'MI', name: 'Michigan' }, { code: 'MN', name: 'Minnesota' }, { code: 'MS', name: 'Mississippi' },
+  { code: 'MO', name: 'Missouri' }, { code: 'MT', name: 'Montana' }, { code: 'NE', name: 'Nebraska' },
+  { code: 'NV', name: 'Nevada' }, { code: 'NH', name: 'New Hampshire' }, { code: 'NJ', name: 'New Jersey' },
+  { code: 'NM', name: 'New Mexico' }, { code: 'NY', name: 'New York' }, { code: 'NC', name: 'North Carolina' },
+  { code: 'ND', name: 'North Dakota' }, { code: 'OH', name: 'Ohio' }, { code: 'OK', name: 'Oklahoma' },
+  { code: 'OR', name: 'Oregon' }, { code: 'PA', name: 'Pennsylvania' }, { code: 'RI', name: 'Rhode Island' },
+  { code: 'SC', name: 'South Carolina' }, { code: 'SD', name: 'South Dakota' }, { code: 'TN', name: 'Tennessee' },
+  { code: 'TX', name: 'Texas' }, { code: 'UT', name: 'Utah' }, { code: 'VT', name: 'Vermont' },
+  { code: 'VA', name: 'Virginia' }, { code: 'WA', name: 'Washington' }, { code: 'WV', name: 'West Virginia' },
+  { code: 'WI', name: 'Wisconsin' }, { code: 'WY', name: 'Wyoming' }, { code: 'DC', name: 'Washington D.C.' },
 ]
 
-// ── Helpers ──────────────────────────────────────────────────────────────────
 const calculateAge = (dateString: string): number => {
   const birthDate = new Date(dateString + 'T00:00:00')
   const today = new Date()
@@ -71,136 +59,141 @@ const isDateExpired = (dateString: string): boolean => {
   return expiryDate < today
 }
 
-// Accepts (555) 123-4567, 555-123-4567, 5551234567, +15551234567, international
 const isValidPhone = (value: string) => {
   const digits = value.replace(/\D/g, '')
   return digits.length >= 10 && digits.length <= 15
 }
 
-// ── Schemas ──────────────────────────────────────────────────────────────────
-const personalInfoSchema = z.object({
-  fullName: z.string().min(2, 'Full name is required'),
-  dateOfBirth: z
-    .string()
-    .min(1, 'Date of birth is required')
-    .refine((d) => calculateAge(d) >= 18, 'You must be at least 18 years old to apply'),
-  email: z.string().email('Valid email is required'),
-  phone: z
-    .string()
-    .min(1, 'Phone number is required')
-    .refine(isValidPhone, 'Enter a valid phone number — e.g. (555) 123-4567'),
-  address: z.string().min(5, 'Address is required'),
+// Step 1: Minimal verification data
+const verificationSchema = z.object({
+  firstName: z.string().min(2, 'First name required'),
+  lastName: z.string().min(2, 'Last name required'),
+  dateOfBirth: z.string().min(1, 'Date of birth required')
+    .refine((d) => calculateAge(d) >= 21, 'Must be 21+ to drive'),
+  licenseNumber: z.string().min(1, 'License number required'),
+  licenseState: z.string().min(2, 'State required'),
+  dotNumber: z.string().optional(),
 })
 
-const licenseSchema = z.object({
-  licenseNumber: z.string().min(1, 'License number is required'),
-  licenseState: z.string().min(2, 'State is required'),
-  licenseExpiration: z
-    .string()
-    .min(1, 'Expiration date is required')
-    .refine((d) => !isDateExpired(d), "Your driver's license has expired — please renew before applying"),
-  licenseFront: z.any().optional(),
-  licenseBack: z.any().optional(),
-  proofOfAddress: z.any().optional(),
+// Step 3: Complete registration
+const completeRegistrationSchema = z.object({
+  email: z.string().email('Valid email required'),
+  phone: z.string().min(1, 'Phone required').refine(isValidPhone, 'Valid phone required'),
+  address: z.string().min(5, 'Address required'),
+  insuranceProvider: z.string().min(1, 'Insurance provider required'),
+  policyNumber: z.string().min(1, 'Policy number required'),
+  policyExpiration: z.string().min(1, 'Expiration date required')
+    .refine((d) => !isDateExpired(d), 'Policy expired'),
+  coverageAmount: z.string().min(1, 'Coverage amount required'),
+  ssn: z.string().min(4, 'SSN last 4 digits required').max(4),
 })
 
-const drivingHistorySchema = z.object({
-  hasSuspensions: z.boolean(),
-  hasCriminalRecord: z.boolean(),
-  incidentDescription: z.string().optional(),
-})
-
-const insuranceSchema = z.object({
-  insuranceProvider: z.string().min(1, 'Insurance provider is required'),
-  policyNumber: z.string().min(1, 'Policy number is required'),
-  policyExpiration: z
-    .string()
-    .min(1, 'Expiration date is required')
-    .refine((d) => !isDateExpired(d), 'Your insurance policy has expired — please renew before applying'),
-  insuranceProof: z.any().optional(),
-  coverageAmount: z.string().min(1, 'Coverage amount is required'),
-})
-
+// Step 4: Agreements
 const agreementsSchema = z.object({
-  backgroundCheckConsent: z.boolean().refine((v) => v === true, 'You must consent to a background check'),
-  dataUseConsent: z.boolean().refine((v) => v === true, 'You must consent to data use'),
-  insuranceConsent: z.boolean().refine((v) => v === true, 'You must confirm valid insurance'),
-  termsAccepted: z.boolean().refine((v) => v === true, 'You must accept the terms and conditions'),
-  smsConsent: z.boolean().refine((v) => v === true, 'You must consent to receive SMS updates about your shipments'),
+  insuranceConsent: z.boolean().refine((v) => v === true, 'Must confirm insurance'),
+  termsAccepted: z.boolean().refine((v) => v === true, 'Must accept terms'),
+  smsConsent: z.boolean().refine((v) => v === true, 'Must accept SMS updates'),
 })
 
-type PersonalInfo = z.infer<typeof personalInfoSchema>
-type LicenseInfo = z.infer<typeof licenseSchema>
-type DrivingHistory = z.infer<typeof drivingHistorySchema>
-type InsuranceInfo = z.infer<typeof insuranceSchema>
+type VerificationData = z.infer<typeof verificationSchema>
+type CompleteRegistration = z.infer<typeof completeRegistrationSchema>
 type Agreements = z.infer<typeof agreementsSchema>
-
-type FormData = PersonalInfo & LicenseInfo & DrivingHistory & InsuranceInfo & Agreements
 
 export default function DriverRegistrationPage() {
   const [currentStep, setCurrentStep] = useState(1)
-  const [formData, setFormData] = useState<Partial<FormData>>({})
+  const [formData, setFormData] = useState<any>({})
+  const [isVerifying, setIsVerifying] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [submitted, setSubmitted] = useState(false)
+  const [verificationResult, setVerificationResult] = useState<any>(null)
+  const [applicationId, setApplicationId] = useState('')
 
-  const totalSteps = 5
+  const totalSteps = 4
   const progress = (currentStep / totalSteps) * 100
 
-  // Auto-scroll to top when step changes
-  useEffect(() => {
-    window.scrollTo({ top: 0, behavior: 'smooth' })
-  }, [currentStep])
-
-  const nextStep = (data: Partial<FormData>) => {
+  const handleVerification = async (data: VerificationData) => {
     setFormData({ ...formData, ...data })
-    setCurrentStep(prev => Math.min(prev + 1, totalSteps))
+    setCurrentStep(2)
   }
 
-  const prevStep = () => {
-    setCurrentStep(prev => Math.max(prev - 1, 1))
-  }
-
-  const handleFinalSubmit = async (data: Partial<FormData>) => {
-    setIsSubmitting(true)
-    const completeData = { ...formData, ...data }
+  const handleFCRAConsent = async () => {
+    setIsVerifying(true)
 
     try {
-      // Create FormData object for file uploads
-      const formDataObj = new window.FormData()
-      
-      // Add all fields to FormData
-      Object.entries(completeData).forEach(([key, value]) => {
-        if (value !== null && value !== undefined) {
-          // Handle file inputs
-          if (value instanceof FileList && value.length > 0) {
-            formDataObj.append(key, value[0])
-          }
-          // Handle boolean values
-          else if (typeof value === 'boolean') {
-            formDataObj.append(key, value.toString())
-          }
-          // Handle other values
-          else if (typeof value === 'string' || typeof value === 'number') {
-            formDataObj.append(key, value.toString())
-          }
-        }
-      })
-
-      const response = await fetch('/api/drivers/apply', {
+      const response = await fetch('/api/v1/drivers/verify', {
         method: 'POST',
-        body: formDataObj, // Send as multipart/form-data
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          firstName: formData.firstName,
+          lastName: formData.lastName,
+          dateOfBirth: formData.dateOfBirth,
+          licenseNumber: formData.licenseNumber,
+          licenseState: formData.licenseState,
+          dotNumber: formData.dotNumber || null,
+          fcraConsentObtained: true,
+          fcraConsentIpAddress: 'client-ip',
+          fcraConsentSignature: `${formData.firstName} ${formData.lastName}`,
+        }),
       })
 
       const result = await response.json()
 
       if (!response.ok) {
-        throw new Error(result.error || 'Application submission failed')
+        throw new Error(result.error || 'Verification failed')
+      }
+
+      setVerificationResult(result)
+      setApplicationId(result.applicationId)
+      setCurrentStep(3)
+    } catch (error: any) {
+      alert(error.message || 'Failed to verify')
+    } finally {
+      setIsVerifying(false)
+    }
+  }
+
+  const handleCompleteRegistration = async (data: CompleteRegistration) => {
+    setFormData({ ...formData, ...data })
+    setCurrentStep(4)
+  }
+
+  const handleFinalSubmit = async (data: Agreements) => {
+    setIsSubmitting(true)
+
+    try {
+      const formDataObj = new window.FormData()
+      formDataObj.append('applicationId', applicationId)
+      formDataObj.append('email', formData.email)
+      formDataObj.append('phone', formData.phone)
+      formDataObj.append('address', JSON.stringify({
+        street: formData.address,
+        city: '',
+        state: formData.licenseState,
+        zipCode: '',
+      }))
+      formDataObj.append('ssnEncrypted', formData.ssn)
+      formDataObj.append('insuranceProvider', formData.insuranceProvider)
+      formDataObj.append('policyNumber', formData.policyNumber)
+      formDataObj.append('policyExpiration', formData.policyExpiration)
+      formDataObj.append('coverageAmount', formData.coverageAmount)
+      formDataObj.append('insuranceConsent', data.insuranceConsent.toString())
+      formDataObj.append('termsAccepted', data.termsAccepted.toString())
+      formDataObj.append('smsConsent', data.smsConsent.toString())
+
+      const response = await fetch('/api/v1/drivers/complete-application', {
+        method: 'POST',
+        body: formDataObj,
+      })
+
+      const result = await response.json()
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Submission failed')
       }
 
       setSubmitted(true)
     } catch (error: any) {
-      console.error('Submission error:', error)
-      alert(error.message || 'Failed to submit application. Please try again.')
+      alert(error.message || 'Failed to submit')
     } finally {
       setIsSubmitting(false)
     }
@@ -218,10 +211,9 @@ export default function DriverRegistrationPage() {
               </div>
               <h2 className="text-3xl font-bold mb-4">Application Submitted!</h2>
               <p className="text-lg text-muted-foreground mb-8">
-                Thank you for applying to become a DriveDrop driver. We've received your application and will review it within 3-5 business days.
-              </p>
-              <p className="text-sm text-muted-foreground mb-6">
-                You'll receive an email at <strong>{formData.email}</strong> with updates on your application status.
+                {verificationResult?.autoApproved
+                  ? '✅ Your application was auto-approved! Check your email for next steps.'
+                  : 'Your application is under review. We\'ll email you within 2-3 business days.'}
               </p>
               <Button asChild size="lg">
                 <a href="/">Return to Home</a>
@@ -238,84 +230,51 @@ export default function DriverRegistrationPage() {
     <main className="min-h-screen bg-[hsl(var(--surface-field))]">
       <Header />
       
-      {/* Page Header */}
       <section className="border-b border-border bg-white pt-20 py-8">
         <div className="container">
           <div className="max-w-4xl mx-auto">
-            <div className="flex items-center gap-3 mb-3">
-              <div className="w-10 h-10 rounded-md bg-amber-500 flex items-center justify-center">
-                <Truck className="h-5 w-5 text-white" />
-              </div>
-              <h1 className="text-2xl font-bold tracking-tight">Driver Application</h1>
-            </div>
-            <p className="text-sm text-muted-foreground mb-6">
-              Complete the application below to register as a DriveDrop carrier.
-            </p>
-            
-            {/* Requirements */}
-            <div className="flex gap-6 text-sm text-muted-foreground">
-              <div className="flex items-center gap-2">
-                <Shield className="h-4 w-4 text-amber-500" />
-                <span>Background check required</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <Truck className="h-4 w-4 text-amber-500" />
-                <span>Valid license &amp; insurance</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <FileText className="h-4 w-4 text-amber-500" />
-                <span>Weekly payouts</span>
-              </div>
-            </div>
+            <h1 className="text-2xl font-bold tracking-tight mb-2">Driver Registration</h1>
+            <p className="text-sm text-muted-foreground">Quick verification process - takes 3 minutes</p>
           </div>
         </div>
       </section>
 
-      {/* Registration Form */}
       <section className="py-12">
         <div className="container">
           <div className="max-w-3xl mx-auto">
-            {/* Progress Bar */}
             <div className="mb-8">
               <div className="flex justify-between mb-2">
                 <span className="text-sm font-medium">Step {currentStep} of {totalSteps}</span>
-                <span className="text-sm text-muted-foreground">{Math.round(progress)}% Complete</span>
+                <span className="text-sm text-muted-foreground">{Math.round(progress)}%</span>
               </div>
               <Progress value={progress} />
             </div>
 
-            {/* Step Content */}
             {currentStep === 1 && (
-              <PersonalInfoStep
-                defaultValues={formData as PersonalInfo}
-                onNext={nextStep}
+              <Step1Verification
+                defaultValues={formData}
+                onNext={handleVerification}
               />
             )}
             {currentStep === 2 && (
-              <LicenseStep
-                defaultValues={formData as LicenseInfo}
-                onNext={nextStep}
-                onBack={prevStep}
+              <Step2FCRAConsent
+                onNext={handleFCRAConsent}
+                onBack={() => setCurrentStep(1)}
+                isVerifying={isVerifying}
               />
             )}
             {currentStep === 3 && (
-              <DrivingHistoryStep
-                defaultValues={formData as DrivingHistory}
-                onNext={nextStep}
-                onBack={prevStep}
+              <Step3CompleteRegistration
+                defaultValues={formData}
+                verificationResult={verificationResult}
+                onNext={handleCompleteRegistration}
+                onBack={() => setCurrentStep(2)}
               />
             )}
             {currentStep === 4 && (
-              <InsuranceStep
-                defaultValues={formData as InsuranceInfo}
-                onNext={nextStep}
-                onBack={prevStep}
-              />
-            )}
-            {currentStep === 5 && (
-              <AgreementsStep
+              <Step4Agreements
                 onSubmit={handleFinalSubmit}
-                onBack={prevStep}
+                onBack={() => setCurrentStep(3)}
                 isSubmitting={isSubmitting}
               />
             )}
@@ -328,350 +287,236 @@ export default function DriverRegistrationPage() {
   )
 }
 
-// ── Step Components ──────────────────────────────────────────────────────────
-function PersonalInfoStep({ defaultValues, onNext }: { defaultValues: PersonalInfo; onNext: (d: PersonalInfo) => void }) {
-  const today = new Date()
-  const maxDob = new Date(today.getFullYear() - 18, today.getMonth(), today.getDate())
-  const minDob = new Date(today.getFullYear() - 100, 0, 1)
-
-  const { register, handleSubmit, control, setValue, formState: { errors } } = useForm<PersonalInfo>({
-    resolver: zodResolver(personalInfoSchema),
+// Step 1: Minimal Verification Data
+function Step1Verification({ defaultValues, onNext }: any) {
+  const { register, handleSubmit, setValue, watch, formState: { errors } } = useForm<VerificationData>({
+    resolver: zodResolver(verificationSchema),
     defaultValues,
   })
 
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Personal Information</CardTitle>
-        <CardDescription>Please provide your basic information</CardDescription>
+        <CardTitle>Step 1: License Verification</CardTitle>
+        <CardDescription>We&apos;ll verify your license in seconds</CardDescription>
       </CardHeader>
       <CardContent>
-        <form onSubmit={handleSubmit(onNext)} className="space-y-5" noValidate>
-          <div className="space-y-1.5">
-            <Label htmlFor="fullName">Full Legal Name *</Label>
-            <Input {...register('fullName')} id="fullName" placeholder="John Doe" />
-            {errors.fullName && <p className="text-sm text-destructive">{errors.fullName.message}</p>}
-          </div>
-
-          <div className="space-y-1.5">
-            <Label htmlFor="dateOfBirth">Date of Birth *</Label>
-            <Controller
-              name="dateOfBirth"
-              control={control}
-              render={({ field }) => (
-                <DatePicker
-                  id="dateOfBirth"
-                  value={field.value}
-                  onChange={field.onChange}
-                  placeholder="Select your date of birth"
-                  maxDate={maxDob}
-                  minDate={minDob}
-                  hasError={!!errors.dateOfBirth}
-                />
-              )}
-            />
-            {errors.dateOfBirth && <p className="text-sm text-destructive">{errors.dateOfBirth.message}</p>}
-          </div>
-
-          <div className="space-y-1.5">
-            <Label htmlFor="email">Email Address *</Label>
-            <Input type="email" {...register('email')} id="email" placeholder="john@example.com" />
-            {errors.email && <p className="text-sm text-destructive">{errors.email.message}</p>}
-          </div>
-
-          <div className="space-y-1.5">
-            <Label htmlFor="phone">Phone Number *</Label>
-            <Input {...register('phone')} id="phone" placeholder="(555) 123-4567" type="tel" inputMode="tel" />
-            <p className="text-xs text-muted-foreground">Accepts any format — e.g. (555) 123-4567, 555-123-4567, +1 555 123 4567</p>
-            {errors.phone && <p className="text-sm text-destructive">{errors.phone.message}</p>}
-          </div>
-
-          <div className="space-y-1.5">
-            <Label htmlFor="address">Current Address *</Label>
-            <GooglePlacesAutocomplete
-              onSelect={(address) => setValue('address', address, { shouldValidate: true })}
-              onInputChange={(value) => setValue('address', value)}
-              placeholder="Start typing your address..."
-              defaultValue={defaultValues.address}
-            />
-            {errors.address && <p className="text-sm text-destructive">{errors.address.message}</p>}
-          </div>
-
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 flex items-start gap-3">
-            <Shield className="h-5 w-5 text-blue-600 flex-shrink-0 mt-0.5" />
-            <div className="text-sm text-blue-900">
-              <p className="font-semibold mb-1">Age Requirement</p>
-              <p>You must be at least 18 years old to become a driver. We&apos;ll verify your age from your date of birth.</p>
+        <form onSubmit={handleSubmit(onNext)} className="space-y-4">
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <Label htmlFor="firstName">First Name *</Label>
+              <Input id="firstName" {...register('firstName')} />
+              {errors.firstName && <p className="text-sm text-red-500 mt-1">{errors.firstName.message}</p>}
+            </div>
+            <div>
+              <Label htmlFor="lastName">Last Name *</Label>
+              <Input id="lastName" {...register('lastName')} />
+              {errors.lastName && <p className="text-sm text-red-500 mt-1">{errors.lastName.message}</p>}
             </div>
           </div>
 
-          <Button type="submit" className="w-full">
-            Next Step <ArrowRight className="ml-2 h-4 w-4" />
-          </Button>
-        </form>
-      </CardContent>
-    </Card>
-  )
-}
-
-function LicenseStep({ defaultValues, onNext, onBack }: { defaultValues: LicenseInfo; onNext: (d: LicenseInfo) => void; onBack: () => void }) {
-  const today = new Date()
-  const minExpiry = new Date(today)
-  minExpiry.setDate(today.getDate() + 1)
-
-  const { register, handleSubmit, control, formState: { errors } } = useForm<LicenseInfo>({
-    resolver: zodResolver(licenseSchema),
-    defaultValues,
-  })
-
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Driver&apos;s License</CardTitle>
-        <CardDescription>Provide your driver&apos;s license details — formats vary by state</CardDescription>
-      </CardHeader>
-      <CardContent>
-        <form onSubmit={handleSubmit(onNext)} className="space-y-5" noValidate>
-          <div className="space-y-1.5">
-            <Label htmlFor="licenseNumber">License Number *</Label>
-            <Input {...register('licenseNumber')} id="licenseNumber" placeholder="Varies by state (e.g. D1234567, A123-456-789-01)" />
-            <p className="text-xs text-muted-foreground">Enter exactly as it appears on your license</p>
-            {errors.licenseNumber && <p className="text-sm text-destructive">{errors.licenseNumber.message}</p>}
+          <div>
+            <Label htmlFor="dateOfBirth">Date of Birth *</Label>
+            <DatePicker
+              value={watch('dateOfBirth')}
+              onChange={(date) => setValue('dateOfBirth', date || '')}
+            />
+            {errors.dateOfBirth && <p className="text-sm text-red-500 mt-1">{errors.dateOfBirth.message}</p>}
           </div>
 
           <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-1.5">
-              <Label htmlFor="licenseState">Issuing State *</Label>
-              <Controller
-                name="licenseState"
-                control={control}
-                render={({ field }) => (
-                  <Select value={field.value} onValueChange={field.onChange}>
-                    <SelectTrigger id="licenseState" className={errors.licenseState ? 'border-destructive' : ''}>
-                      <SelectValue placeholder="Select state" />
-                    </SelectTrigger>
-                    <SelectContent className="max-h-60">
-                      {US_STATES.map((s) => (
-                        <SelectItem key={s.code} value={s.code}>
-                          {s.code} — {s.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                )}
-              />
-              {errors.licenseState && <p className="text-sm text-destructive">{errors.licenseState.message}</p>}
+            <div>
+              <Label htmlFor="licenseNumber">License Number *</Label>
+              <Input id="licenseNumber" {...register('licenseNumber')} placeholder="A1234567" />
+              {errors.licenseNumber && <p className="text-sm text-red-500 mt-1">{errors.licenseNumber.message}</p>}
             </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="licenseExpiration">Expiration Date *</Label>
-              <Controller
-                name="licenseExpiration"
-                control={control}
-                render={({ field }) => (
-                  <DatePicker
-                    id="licenseExpiration"
-                    value={field.value}
-                    onChange={field.onChange}
-                    placeholder="Select expiry date"
-                    minDate={minExpiry}
-                    hasError={!!errors.licenseExpiration}
-                  />
-                )}
-              />
-              {errors.licenseExpiration && <p className="text-sm text-destructive">{errors.licenseExpiration.message}</p>}
+            <div>
+              <Label htmlFor="licenseState">State *</Label>
+              <Select value={watch('licenseState')} onValueChange={(v) => setValue('licenseState', v)}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select state" />
+                </SelectTrigger>
+                <SelectContent>
+                  {US_STATES.map(s => (
+                    <SelectItem key={s.code} value={s.code}>{s.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {errors.licenseState && <p className="text-sm text-red-500 mt-1">{errors.licenseState.message}</p>}
             </div>
           </div>
 
-          <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 flex items-start gap-3">
-            <AlertCircle className="h-5 w-5 text-amber-600 flex-shrink-0 mt-0.5" />
-            <div className="text-sm text-amber-900">
-              <p className="font-semibold mb-1">License Expiry Check</p>
-              <p>Your driver&apos;s license must be current and not expired. Applications with expired licenses cannot be processed.</p>
-            </div>
+          <div>
+            <Label htmlFor="dotNumber">DOT Number (Optional - for owner-operators)</Label>
+            <Input id="dotNumber" {...register('dotNumber')} placeholder="12345678" />
           </div>
 
-          <div className="space-y-1.5">
-            <Label htmlFor="licenseFront">Upload License (Front) *</Label>
-            <Input type="file" accept="image/*,.pdf" {...register('licenseFront')} id="licenseFront" />
-            <p className="text-xs text-muted-foreground">Upload a clear photo or scan</p>
-          </div>
-
-          <div className="space-y-1.5">
-            <Label htmlFor="licenseBack">Upload License (Back) *</Label>
-            <Input type="file" accept="image/*,.pdf" {...register('licenseBack')} id="licenseBack" />
-          </div>
-
-          <div className="space-y-1.5">
-            <Label htmlFor="proofOfAddress">Proof of Address *</Label>
-            <Input type="file" accept="image/*,.pdf" {...register('proofOfAddress')} id="proofOfAddress" />
-            <p className="text-xs text-muted-foreground">Utility bill, lease agreement, or bank statement</p>
-          </div>
-
-          <div className="flex gap-4">
-            <Button type="button" variant="outline" onClick={onBack} className="w-full">
-              <ArrowLeft className="mr-2 h-4 w-4" /> Back
-            </Button>
-            <Button type="submit" className="w-full">
-              Next Step <ArrowRight className="ml-2 h-4 w-4" />
-            </Button>
-          </div>
+          <Button type="submit" className="w-full">Continue to Verification</Button>
         </form>
       </CardContent>
     </Card>
   )
 }
 
-function DrivingHistoryStep({ defaultValues, onNext, onBack }: { defaultValues: DrivingHistory; onNext: (d: DrivingHistory) => void; onBack: () => void }) {
-  const { register, handleSubmit, watch, setValue } = useForm<DrivingHistory>({
-    resolver: zodResolver(drivingHistorySchema),
-    defaultValues: {
-      hasSuspensions: defaultValues?.hasSuspensions ?? false,
-      hasCriminalRecord: defaultValues?.hasCriminalRecord ?? false,
-      incidentDescription: defaultValues?.incidentDescription,
-    },
-  })
-
-  const hasSuspensions = watch('hasSuspensions')
-  const hasCriminalRecord = watch('hasCriminalRecord')
+// Step 2: FCRA Consent
+function Step2FCRAConsent({ onNext, onBack, isVerifying }: any) {
+  const [consent, setConsent] = useState(false)
 
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Driving History</CardTitle>
-        <CardDescription>Help us understand your driving record</CardDescription>
+        <div className="flex items-center gap-2 mb-2">
+          <Shield className="h-5 w-5 text-amber-500" />
+          <CardTitle>Step 2: Background Check Disclosure</CardTitle>
+        </div>
+        <CardDescription>Required by Fair Credit Reporting Act (FCRA)</CardDescription>
       </CardHeader>
-      <CardContent>
-        <form onSubmit={handleSubmit(onNext)} className="space-y-6" noValidate>
-          <div className="space-y-3">
-            <div className="flex items-start space-x-3 p-4 rounded-lg border border-border hover:bg-muted/30 transition-colors cursor-pointer">
-              <Checkbox
-                checked={hasSuspensions}
-                onCheckedChange={(checked) => setValue('hasSuspensions', checked as boolean)}
-              />
-              <div className="space-y-1">
-                <Label className="cursor-pointer">Any license suspensions or DUIs in the past 5 years?</Label>
-                <p className="text-sm text-muted-foreground">Check if yes</p>
-              </div>
-            </div>
+      <CardContent className="space-y-4">
+        <div className="bg-muted p-4 rounded-md space-y-2 text-sm max-h-64 overflow-y-auto">
+          <p className="font-semibold">DISCLOSURE & AUTHORIZATION FOR BACKGROUND CHECK</p>
+          <p>
+            DriveDrop (&quot;Company&quot;) may obtain information about you from a consumer reporting agency for employment purposes.
+            This includes your driving record (MVR - Motor Vehicle Report) from your state DMV.
+          </p>
+          <p className="font-semibold mt-2">What we check:</p>
+          <ul className="list-disc list-inside pl-2">
+            <li>Driving record and license status</li>
+            <li>Traffic violations and suspensions</li>
+            <li>DUI/DWI history</li>
+            <li>License expiration and class</li>
+          </ul>
+          <p className="mt-2">
+            <strong>Your Rights:</strong> You have the right to request a copy of any report obtained.
+            If we take adverse action based on the report, you will receive notice and a copy of the report.
+          </p>
+          <p className="mt-2 text-xs text-muted-foreground">
+            Full FCRA disclosure: <a href="/fcra" className="underline" target="_blank">View Complete Disclosure</a>
+          </p>
+        </div>
 
-            <div className="flex items-start space-x-3 p-4 rounded-lg border border-border hover:bg-muted/30 transition-colors cursor-pointer">
-              <Checkbox
-                checked={hasCriminalRecord}
-                onCheckedChange={(checked) => setValue('hasCriminalRecord', checked as boolean)}
-              />
-              <div className="space-y-1">
-                <Label className="cursor-pointer">Any criminal record?</Label>
-                <p className="text-sm text-muted-foreground">Check if yes</p>
-              </div>
-            </div>
-          </div>
+        <div className="flex items-start gap-2 p-4 border-2 border-amber-500 rounded-md bg-amber-50">
+          <Checkbox
+            id="fcraConsent"
+            checked={consent}
+            onCheckedChange={(checked) => setConsent(checked === true)}
+          />
+          <label htmlFor="fcraConsent" className="text-sm leading-tight cursor-pointer">
+            I have read and understand the background check disclosure above. I authorize DriveDrop to obtain
+            my Motor Vehicle Report (MVR) for the purpose of evaluating my driver application.
+            <br />
+            <span className="font-semibold mt-1 inline-block">Electronic Signature: {new Date().toLocaleString()}</span>
+          </label>
+        </div>
 
-          {(hasSuspensions || hasCriminalRecord) && (
-            <div className="space-y-1.5">
-              <Label htmlFor="incidentDescription">Description of Incident(s)</Label>
-              <Textarea
-                {...register('incidentDescription')}
-                id="incidentDescription"
-                placeholder="Please provide details..."
-                rows={4}
-              />
-              <p className="text-xs text-muted-foreground">
-                This information helps us make an informed decision. Disclosure doesn&apos;t automatically disqualify you.
-              </p>
-            </div>
-          )}
-
-          <div className="flex gap-4">
-            <Button type="button" variant="outline" onClick={onBack} className="w-full">
-              <ArrowLeft className="mr-2 h-4 w-4" /> Back
-            </Button>
-            <Button type="submit" className="w-full">
-              Next Step <ArrowRight className="ml-2 h-4 w-4" />
-            </Button>
-          </div>
-        </form>
+        <div className="flex gap-2">
+          <Button type="button" variant="outline" onClick={onBack}>Back</Button>
+          <Button
+            onClick={onNext}
+            disabled={!consent || isVerifying}
+            className="flex-1"
+          >
+            {isVerifying ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Verifying...</> : 'I Authorize - Run Check'}
+          </Button>
+        </div>
       </CardContent>
     </Card>
   )
 }
 
-function InsuranceStep({ defaultValues, onNext, onBack }: { defaultValues: InsuranceInfo; onNext: (d: InsuranceInfo) => void; onBack: () => void }) {
-  const today = new Date()
-  const minExpiry = new Date(today)
-  minExpiry.setDate(today.getDate() + 1)
-
-  const { register, handleSubmit, control, formState: { errors } } = useForm<InsuranceInfo>({
-    resolver: zodResolver(insuranceSchema),
+// Step 3: Complete Registration
+function Step3CompleteRegistration({ defaultValues, verificationResult, onNext, onBack }: any) {
+  const { register, handleSubmit, setValue, watch, formState: { errors } } = useForm<CompleteRegistration>({
+    resolver: zodResolver(completeRegistrationSchema),
     defaultValues,
   })
 
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Insurance Information</CardTitle>
-        <CardDescription>Verify your auto insurance coverage</CardDescription>
+        <CardTitle>Step 3: Complete Your Profile</CardTitle>
+        <CardDescription>
+          {verificationResult?.mvr?.eligible && (
+            <span className="flex items-center gap-2 text-emerald-600">
+              <CheckCircle className="h-4 w-4" />
+              ✅ License verified! {verificationResult.mvr.licenseStatus} - CDL Class {verificationResult.mvr.cdlClass}
+            </span>
+          )}
+        </CardDescription>
       </CardHeader>
       <CardContent>
-        <form onSubmit={handleSubmit(onNext)} className="space-y-5" noValidate>
-          <div className="space-y-1.5">
-            <Label htmlFor="insuranceProvider">Insurance Provider *</Label>
-            <Input {...register('insuranceProvider')} id="insuranceProvider" placeholder="State Farm, Geico, Progressive…" />
-            {errors.insuranceProvider && <p className="text-sm text-destructive">{errors.insuranceProvider.message}</p>}
-          </div>
-
-          <div className="space-y-1.5">
-            <Label htmlFor="policyNumber">Policy Number *</Label>
-            <Input {...register('policyNumber')} id="policyNumber" placeholder="Your policy number" />
-            {errors.policyNumber && <p className="text-sm text-destructive">{errors.policyNumber.message}</p>}
-          </div>
-
-          <div className="space-y-1.5">
-            <Label htmlFor="policyExpiration">Policy Expiration Date *</Label>
-            <Controller
-              name="policyExpiration"
-              control={control}
-              render={({ field }) => (
-                <DatePicker
-                  id="policyExpiration"
-                  value={field.value}
-                  onChange={field.onChange}
-                  placeholder="Select expiration date"
-                  minDate={minExpiry}
-                  hasError={!!errors.policyExpiration}
-                />
-              )}
-            />
-            {errors.policyExpiration && <p className="text-sm text-destructive">{errors.policyExpiration.message}</p>}
-          </div>
-
-          <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 flex items-start gap-3">
-            <AlertCircle className="h-5 w-5 text-amber-600 flex-shrink-0 mt-0.5" />
-            <div className="text-sm text-amber-900">
-              <p className="font-semibold mb-1">Insurance Expiry Check</p>
-              <p>Your insurance policy must be current and not expired. Applications with expired insurance cannot be processed.</p>
+        <form onSubmit={handleSubmit(onNext)} className="space-y-4">
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <Label htmlFor="email">Email *</Label>
+              <Input id="email" type="email" {...register('email')} />
+              {errors.email && <p className="text-sm text-red-500 mt-1">{errors.email.message}</p>}
+            </div>
+            <div>
+              <Label htmlFor="phone">Phone *</Label>
+              <Input id="phone" {...register('phone')} placeholder="(555) 123-4567" />
+              {errors.phone && <p className="text-sm text-red-500 mt-1">{errors.phone.message}</p>}
             </div>
           </div>
 
-          <div className="space-y-1.5">
-            <Label htmlFor="insuranceProof">Upload Proof of Insurance *</Label>
-            <Input type="file" accept="image/*,.pdf" {...register('insuranceProof')} id="insuranceProof" />
-            <p className="text-xs text-muted-foreground">Insurance card or policy document</p>
+          <div>
+            <Label htmlFor="address">Address *</Label>
+            <GooglePlacesAutocomplete
+              onSelect={(addr: string) => setValue('address', addr)}
+              onInputChange={(value: string) => setValue('address', value)}
+              placeholder="123 Main St, City, State"
+              defaultValue={watch('address')}
+            />
+            {errors.address && <p className="text-sm text-red-500 mt-1">{errors.address.message}</p>}
           </div>
 
-          <div className="space-y-1.5">
-            <Label htmlFor="coverageAmount">Coverage Amount *</Label>
-            <Input {...register('coverageAmount')} id="coverageAmount" placeholder="$100,000 / $300,000" />
-            <p className="text-xs text-muted-foreground">Liability and damage coverage amounts</p>
-            {errors.coverageAmount && <p className="text-sm text-destructive">{errors.coverageAmount.message}</p>}
+          <div>
+            <Label htmlFor="ssn">SSN (Last 4 digits) *</Label>
+            <Input id="ssn" {...register('ssn')} placeholder="1234" maxLength={4} />
+            {errors.ssn && <p className="text-sm text-red-500 mt-1">{errors.ssn.message}</p>}
           </div>
 
-          <div className="flex gap-4">
-            <Button type="button" variant="outline" onClick={onBack} className="w-full">
-              <ArrowLeft className="mr-2 h-4 w-4" /> Back
-            </Button>
-            <Button type="submit" className="w-full">
-              Next Step <ArrowRight className="ml-2 h-4 w-4" />
-            </Button>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <Label htmlFor="insuranceProvider">Insurance Provider *</Label>
+              <Input id="insuranceProvider" {...register('insuranceProvider')} placeholder="State Farm" />
+              {errors.insuranceProvider && <p className="text-sm text-red-500 mt-1">{errors.insuranceProvider.message}</p>}
+            </div>
+            <div>
+              <Label htmlFor="policyNumber">Policy Number *</Label>
+              <Input id="policyNumber" {...register('policyNumber')} />
+              {errors.policyNumber && <p className="text-sm text-red-500 mt-1">{errors.policyNumber.message}</p>}
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <Label htmlFor="policyExpiration">Policy Expiration *</Label>
+              <DatePicker
+                value={watch('policyExpiration')}
+                onChange={(date) => setValue('policyExpiration', date || '')}
+              />
+              {errors.policyExpiration && <p className="text-sm text-red-500 mt-1">{errors.policyExpiration.message}</p>}
+            </div>
+            <div>
+              <Label htmlFor="coverageAmount">Coverage Amount *</Label>
+              <Select value={watch('coverageAmount')} onValueChange={(v) => setValue('coverageAmount', v)}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="100k">$100,000</SelectItem>
+                  <SelectItem value="300k">$300,000</SelectItem>
+                  <SelectItem value="500k">$500,000</SelectItem>
+                  <SelectItem value="1m">$1,000,000+</SelectItem>
+                </SelectContent>
+              </Select>
+              {errors.coverageAmount && <p className="text-sm text-red-500 mt-1">{errors.coverageAmount.message}</p>}
+            </div>
+          </div>
+
+          <div className="flex gap-2">
+            <Button type="button" variant="outline" onClick={onBack}>Back</Button>
+            <Button type="submit" className="flex-1">Continue to Agreements</Button>
           </div>
         </form>
       </CardContent>
@@ -679,123 +524,65 @@ function InsuranceStep({ defaultValues, onNext, onBack }: { defaultValues: Insur
   )
 }
 
-function AgreementsStep({ onSubmit, onBack, isSubmitting }: any) {
-  const { register, handleSubmit, watch, setValue, formState: { errors } } = useForm<Agreements>({
+// Step 4: Final Agreements
+function Step4Agreements({ onSubmit, onBack, isSubmitting }: any) {
+  const { register, handleSubmit, setValue, watch, formState: { errors } } = useForm<Agreements>({
     resolver: zodResolver(agreementsSchema),
-    defaultValues: {
-      backgroundCheckConsent: false,
-      dataUseConsent: false,
-      insuranceConsent: false,
-      termsAccepted: false,
-      smsConsent: false,
-    },
   })
-
-  const backgroundCheckConsent = watch('backgroundCheckConsent')
-  const dataUseConsent = watch('dataUseConsent')
-  const insuranceConsent = watch('insuranceConsent')
-  const termsAccepted = watch('termsAccepted')
-  const smsConsent = watch('smsConsent')
 
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Agreements & Consent</CardTitle>
-        <CardDescription>Please review and accept the following terms</CardDescription>
+        <CardTitle>Step 4: Final Agreements</CardTitle>
+        <CardDescription>Review and accept to complete registration</CardDescription>
       </CardHeader>
       <CardContent>
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-6" noValidate>
-          <div className="space-y-4">
-            <div className="flex items-start space-x-3">
-              <Checkbox 
-                checked={backgroundCheckConsent}
-                onCheckedChange={(checked) => setValue('backgroundCheckConsent', checked as boolean)}
-              />
-              <div className="space-y-1">
-                <Label>I consent to a background check</Label>
-                <p className="text-sm text-muted-foreground">
-                  Required under the Fair Credit Reporting Act (FCRA). <a href="/fcra" className="underline">Learn more</a>
-                </p>
-              </div>
-            </div>
-            {errors.backgroundCheckConsent && <p className="text-sm text-destructive">{errors.backgroundCheckConsent.message}</p>}
-
-            <div className="flex items-start space-x-3">
-              <Checkbox 
-                checked={dataUseConsent}
-                onCheckedChange={(checked) => setValue('dataUseConsent', checked as boolean)}
-              />
-              <div className="space-y-1">
-                <Label>I agree to data use for verification</Label>
-                <p className="text-sm text-muted-foreground">
-                  Your information will be used solely for driver verification purposes
-                </p>
-              </div>
-            </div>
-            {errors.dataUseConsent && <p className="text-sm text-destructive">{errors.dataUseConsent.message}</p>}
-
-            <div className="flex items-start space-x-3">
-              <Checkbox 
-                checked={insuranceConsent}
-                onCheckedChange={(checked) => setValue('insuranceConsent', checked as boolean)}
-              />
-              <div className="space-y-1">
-                <Label>I confirm I have valid auto insurance</Label>
-                <p className="text-sm text-muted-foreground">
-                  You must maintain active insurance coverage while driving for DriveDrop
-                </p>
-              </div>
-            </div>
-            {errors.insuranceConsent && <p className="text-sm text-destructive">{errors.insuranceConsent.message}</p>}
-
-            <div className="flex items-start space-x-3">
-              <Checkbox 
-                checked={termsAccepted}
-                onCheckedChange={(checked) => setValue('termsAccepted', checked as boolean)}
-              />
-              <div className="space-y-1">
-                <Label>I accept the Terms of Service and Privacy Policy</Label>
-                <p className="text-sm text-muted-foreground">
-                  <a href="/terms" className="underline">Terms of Service</a> • <a href="/privacy" className="underline">Privacy Policy</a>
-                </p>
-              </div>
-            </div>
-            {errors.termsAccepted && <p className="text-sm text-destructive">{errors.termsAccepted.message}</p>}
-
-            <div className="flex items-start space-x-3">
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+          <div className="space-y-3">
+            <div className="flex items-start gap-2">
               <Checkbox
-                checked={smsConsent}
-                onCheckedChange={(checked) => setValue('smsConsent', checked as boolean)}
+                id="insuranceConsent"
+                checked={watch('insuranceConsent')}
+                onCheckedChange={(checked) => setValue('insuranceConsent', checked === true)}
               />
-              <div className="space-y-1">
-                <Label>I consent to receive SMS messages from DriveDrop *</Label>
-                <p className="text-sm text-muted-foreground">
-                  By providing my phone number, I consent to receive transactional SMS messages from DriveDrop
-                  about my loads, assignments, and account updates. Message frequency varies. Msg &amp; data rates
-                  may apply. Reply <strong>STOP</strong> to opt out, <strong>HELP</strong> for help.
-                  See our <a href="/privacy" className="underline">Privacy Policy</a> and{' '}
-                  <a href="/terms" className="underline">Terms of Service</a>.
-                </p>
-              </div>
+              <label htmlFor="insuranceConsent" className="text-sm">
+                I confirm I have valid commercial auto insurance with minimum $500k coverage.
+              </label>
             </div>
-            {errors.smsConsent && <p className="text-sm text-destructive">{errors.smsConsent.message}</p>}
+
+            <div className="flex items-start gap-2">
+              <Checkbox
+                id="termsAccepted"
+                checked={watch('termsAccepted')}
+                onCheckedChange={(checked) => setValue('termsAccepted', checked === true)}
+              />
+              <label htmlFor="termsAccepted" className="text-sm">
+                I accept the <a href="/terms" className="underline" target="_blank">Terms & Conditions</a> and <a href="/privacy" className="underline" target="_blank">Privacy Policy</a>.
+              </label>
+            </div>
+
+            <div className="flex items-start gap-2">
+              <Checkbox
+                id="smsConsent"
+                checked={watch('smsConsent')}
+                onCheckedChange={(checked) => setValue('smsConsent', checked === true)}
+              />
+              <label htmlFor="smsConsent" className="text-sm">
+                I consent to receive SMS updates about shipments and account activity.
+              </label>
+            </div>
           </div>
 
-          <div className="p-4 bg-muted rounded-lg">
-            <h4 className="font-semibold mb-2">Legal Disclosure</h4>
-            <p className="text-sm text-muted-foreground">
-              By clicking Submit, you confirm that all information provided is accurate and complete. 
-              Misrepresentation of any information may lead to disqualification from the DriveDrop driver program. 
-              You have the right to request your background report and dispute any errors under the Fair Credit Reporting Act (FCRA).
-            </p>
-          </div>
+          {(errors.insuranceConsent || errors.termsAccepted || errors.smsConsent) && (
+            <div className="bg-red-50 border border-red-200 rounded-md p-3">
+              <p className="text-sm text-red-600">All agreements must be accepted to continue</p>
+            </div>
+          )}
 
-          <div className="flex gap-4">
-            <Button type="button" variant="outline" onClick={onBack} className="w-full" disabled={isSubmitting}>
-              <ArrowLeft className="mr-2 h-4 w-4" /> Back
-            </Button>
-            <Button type="submit" className="w-full" disabled={isSubmitting}>
-              {isSubmitting ? 'Submitting...' : 'Submit Application'}
+          <div className="flex gap-2">
+            <Button type="button" variant="outline" onClick={onBack}>Back</Button>
+            <Button type="submit" disabled={isSubmitting} className="flex-1">
+              {isSubmitting ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Submitting...</> : 'Submit Application'}
             </Button>
           </div>
         </form>
