@@ -23,7 +23,7 @@ interface DOTVerificationResult {
   companyName?: string;
   status?: 'ACTIVE' | 'INACTIVE' | 'OUT_OF_SERVICE';
   mcNumber?: string;
-  physicalAddress?: string;
+  physicalAddress?: string | undefined;
   error?: string;
 }
 
@@ -123,7 +123,7 @@ export class DriverVerificationService {
 
       // FMCSA SAFER API Integration (FREE, PUBLIC, NO CONSENT REQUIRED)
       // Get FREE API key at: https://mobile.fmcsa.dot.gov/developer/home.page
-      const FMCSA_API_KEY = process.env.FMCSA_API_KEY;
+      const FMCSA_API_KEY = process.env['FMCSA_API_KEY'];
 
       if (!FMCSA_API_KEY) {
         console.warn('⚠️ FMCSA_API_KEY not configured - using mock data. Get your FREE key at: https://mobile.fmcsa.dot.gov/developer/home.page');
@@ -168,7 +168,7 @@ export class DriverVerificationService {
           };
         }
 
-        const data = await response.json();
+        const data: any = await response.json();
         
         // Check if carrier data exists
         if (!data.content || !data.content.carrier) {
@@ -187,15 +187,17 @@ export class DriverVerificationService {
           status = 'OUT_OF_SERVICE';
         }
 
+        const physicalAddr = carrier.phyStreet 
+          ? `${carrier.phyStreet}, ${carrier.phyCity}, ${carrier.phyState} ${carrier.phyZipcode}`.trim()
+          : undefined;
+
         const result: DOTVerificationResult = {
           verified: status === 'ACTIVE',
           dotNumber: formatted,
           companyName: carrier.legalName || carrier.dbaName || 'Unknown Company',
           status: status,
           mcNumber: carrier.docketNumber || undefined,
-          physicalAddress: carrier.phyStreet 
-            ? `${carrier.phyStreet}, ${carrier.phyCity}, ${carrier.phyState} ${carrier.phyZipcode}`.trim()
-            : undefined,
+          physicalAddress: physicalAddr,
         };
 
         // Only save to database if it's a real application (not pre-check)
