@@ -25,12 +25,18 @@ interface DOTVerificationResult {
   mcNumber?: string;
   physicalAddress?: string | undefined;
   error?: string;
+  requiresManualReview?: boolean;
 }
 
 export class DriverVerificationService {
   /**
    * Run MVR check via FCRA-compliant vendor (Checkr/HireRight/Truework)
    * This is a PLACEHOLDER - requires actual vendor API integration
+   *
+   * IMPORTANT: This mock always returns eligible=true. Because of that,
+   * checkAutoApprovalEligibility() below no longer relies on this alone -
+   * it also requires DOT verification to have actually succeeded. Do not
+   * remove that DOT gate until this MVR check is wired to a real vendor.
    */
   static async runMVRCheck(params: {
     firstName: string;
@@ -93,7 +99,7 @@ export class DriverVerificationService {
       return mockResult;
     } catch (error) {
       console.error('MVR check error:', error);
-      
+
       await supabaseAdmin
         .from('driver_applications')
         .update({
@@ -129,8 +135,9 @@ export class DriverVerificationService {
 
       if (!FMCSA_API_KEY) {
         console.warn('⚠️ FMCSA_API_KEY not configured - using mock data. Get your FREE key at: https://mobile.fmcsa.dot.gov/developer/home.page');
-        
+
         // FALLBACK: Mock data when API key not configured
+        // (Only hit in local/dev environments where the env var is genuinely absent)
         const mockResult: DOTVerificationResult = {
           verified: true,
           dotNumber: formatted,
@@ -159,61 +166,100 @@ export class DriverVerificationService {
       try {
         const apiUrl = `https://mobile.fmcsa.dot.gov/qc/services/carriers/${formatted}?webKey=${FMCSA_API_KEY}`;
         console.log('🌐 Calling FMCSA API for DOT:', formatted);
-        
-        const response = await fetch(apiUrl);
+
+        const response = await fetch(apiUrl, {
+          headers: {
+            // FMCSA's edge (Akamai) frequently blocks bare server-to-server
+            // requests with no User-Agent, returning a raw HTML 403 before
+            // the webKey is ever validated. Sending a real User-Agent and
+            // Accept header avoids that WAF-level block.
+            'User-Agent': 'DriveDrop/1.0 (+https://drivedrop-five.vercel.app; support@drivedrop.com)',
+            'Accept': 'application/json',
+          },
+        });
 
         console.log('📡 FMCSA API Response Status:', response.status);
 
         if (!response.ok) {
           const errorText = await response.text();
           console.error('❌ FMCSA API Error:', { status: response.status, error: errorText });
-          
+
           // Handle specific error codes
           if (response.status === 403) {
-            console.error('🚫 FMCSA API Key Rejected (403 Forbidden). Check:');
+            console.error('🚫 FMCSA API request blocked (403 Forbidden). Check:');
             console.error('   1. API key is valid and not expired');
             console.error('   2. IP address is whitelisted in FMCSA developer portal');
             console.error('   3. API key is approved for production use');
-            console.error('   Falling back to mock data...');
-            
-            // Fallback to mock data on 403
-            const mockResult: DOTVerificationResult = {
-              verified: true,
+            console.error('   4. Request includes a User-Agent header (Akamai WAF often blocks bare requests)');
+            console.error('   Flagging application for manual review - NOT auto-verifying.');
+
+            const failResult: DOTVerificationResult = {
+              verified: false,
               dotNumber: formatted,
-              companyName: `DOT ${formatted} - Verification Temporarily Unavailable`,
-              status: 'ACTIVE',
-              physicalAddress: 'FMCSA API temporarily unavailable - manual verification required',
+              error: 'FMCSA verification temporarily unavailable - flagged for manual review',
+              requiresManualReview: true,
             };
-            return mockResult;
+
+            if (params.applicationId !== 'pre-check') {
+              await supabaseAdmin
+                .from('driver_applications')
+                .update({
+                  dot_verified: false,
+                  dot_status: null,
+                  dot_verified_at: new Date().toISOString(),
+                  requires_manual_review: true,
+                  manual_review_reason: 'FMCSA API unavailable (403) - DOT could not be verified automatically',
+                })
+                .eq('id', params.applicationId);
+            }
+
+            return failResult;
           }
-          
-          return { 
-            verified: false, 
-            error: response.status === 404 
-              ? 'DOT number not found in FMCSA database' 
-              : 'Failed to verify DOT number with FMCSA'
+
+          const notFoundOrOther: DOTVerificationResult = {
+            verified: false,
+            error: response.status === 404
+              ? 'DOT number not found in FMCSA database'
+              : 'Failed to verify DOT number with FMCSA',
           };
+
+          if (params.applicationId !== 'pre-check') {
+            await supabaseAdmin
+              .from('driver_applications')
+              .update({
+                dot_verified: false,
+                dot_verified_at: new Date().toISOString(),
+                requires_manual_review: response.status !== 404,
+                manual_review_reason:
+                  response.status !== 404
+                    ? `FMCSA API error (${response.status}) - DOT could not be verified automatically`
+                    : null,
+              })
+              .eq('id', params.applicationId);
+          }
+
+          return notFoundOrOther;
         }
 
         const data: any = await response.json();
         console.log('📦 FMCSA API Data received:', JSON.stringify(data, null, 2));
-        
+
         // Check if carrier data exists
         if (!data.content || !data.content.carrier) {
           return { verified: false, error: 'DOT number not found in FMCSA database' };
         }
 
         const carrier = data.content.carrier;
-        
+
         // FMCSA API structure:
         // - carrierOperation.carrierOperationCode: "A" (Interstate), etc
         // - statusCode: "A" (Authorized), "I" (Inactive), etc
         // - allowedToOperate: "Y" or "N"
         const operationCode = carrier.carrierOperation?.carrierOperationCode || carrier.statusCode;
         const allowedToOperate = carrier.allowedToOperate === 'Y';
-        
+
         let status: 'ACTIVE' | 'INACTIVE' | 'OUT_OF_SERVICE' = 'INACTIVE';
-        
+
         if (allowedToOperate && (operationCode === 'A' || carrier.statusCode === 'A')) {
           status = 'ACTIVE';
         } else if (carrier.oosDate) {
@@ -223,8 +269,8 @@ export class DriverVerificationService {
         // Get MC number from broker/contract authority (not in main carrier object)
         // This would require a separate API call to /docket-numbers endpoint
         // For now, we'll leave it undefined
-        
-        const physicalAddr = carrier.phyStreet 
+
+        const physicalAddr = carrier.phyStreet
           ? `${carrier.phyStreet.trim()}, ${carrier.phyCity}, ${carrier.phyState} ${carrier.phyZipcode}`.trim()
           : undefined;
 
@@ -243,7 +289,7 @@ export class DriverVerificationService {
           verified: result.verified,
           allowedToOperate,
           operationCode,
-          statusCode: carrier.statusCode
+          statusCode: carrier.statusCode,
         });
 
         // Only save to database if it's a real application (not pre-check)
@@ -262,7 +308,20 @@ export class DriverVerificationService {
         return result;
       } catch (fetchError) {
         console.error('FMCSA API fetch error:', fetchError);
-        return { verified: false, error: 'Failed to connect to FMCSA database' };
+
+        if (params.applicationId !== 'pre-check') {
+          await supabaseAdmin
+            .from('driver_applications')
+            .update({
+              dot_verified: false,
+              dot_verified_at: new Date().toISOString(),
+              requires_manual_review: true,
+              manual_review_reason: 'Failed to connect to FMCSA database',
+            })
+            .eq('id', params.applicationId);
+        }
+
+        return { verified: false, error: 'Failed to connect to FMCSA database', requiresManualReview: true };
       }
     } catch (error) {
       console.error('DOT verification error:', error);
@@ -272,6 +331,14 @@ export class DriverVerificationService {
 
   /**
    * Determine auto-approval eligibility
+   *
+   * Auto-approves ONLY if BOTH:
+   *  1. MVR check completed, eligible, and zero violations
+   *  2. DOT number was actually verified as ACTIVE by FMCSA (dot_verified === true)
+   *
+   * Previously this only checked MVR (which is currently a mock that always
+   * passes), meaning DOT verification failures had no effect on approval.
+   * That gap is closed here.
    */
   static async checkAutoApprovalEligibility(applicationId: string): Promise<{
     eligible: boolean;
@@ -287,15 +354,14 @@ export class DriverVerificationService {
       return { eligible: false, reason: 'Application not found' };
     }
 
-    // Auto-approve if:
-    // 1. MVR check completed and eligible
-    // 2. No violations
-    // 3. License status is valid
-    if (
+    const mvrPassed =
       application.mvr_check_status === 'completed' &&
       application.mvr_eligible === true &&
-      application.mvr_violations_count === 0
-    ) {
+      application.mvr_violations_count === 0;
+
+    const dotPassed = application.dot_verified === true;
+
+    if (mvrPassed && dotPassed) {
       await supabaseAdmin
         .from('driver_applications')
         .update({
@@ -308,15 +374,19 @@ export class DriverVerificationService {
       return { eligible: true };
     }
 
-    // Require manual review if violations or failed checks
+    // Require manual review if violations, failed checks, or DOT unverified
+    const reason = !dotPassed
+      ? 'DOT number could not be verified'
+      : 'MVR violations or verification issues';
+
     await supabaseAdmin
       .from('driver_applications')
       .update({
         requires_manual_review: true,
-        manual_review_reason: 'MVR violations or verification issues',
+        manual_review_reason: reason,
       })
       .eq('id', applicationId);
 
-    return { eligible: false, reason: 'Requires manual review' };
+    return { eligible: false, reason };
   }
 }
