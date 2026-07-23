@@ -110,6 +110,8 @@ export default function DriverRegistrationPage() {
   const [verificationResult, setVerificationResult] = useState<any>(null)
   const [applicationId, setApplicationId] = useState('')
   const [dotPreVerified, setDotPreVerified] = useState(false)
+  const [showDotConfirmation, setShowDotConfirmation] = useState(false)
+  const [pendingDotResult, setPendingDotResult] = useState<any>(null)
 
   const totalSteps = 4
   const progress = (currentStep / totalSteps) * 100
@@ -130,38 +132,37 @@ export default function DriverRegistrationPage() {
         const result = await response.json()
         
         if (!response.ok || !result.verified) {
-          alert(`DOT Verification Failed: ${result.error || 'Invalid DOT number. Please check and try again.'}`)
+          alert(`❌ DOT Verification Failed\n\n${result.error || 'DOT number not found in FMCSA database. Please check and try again.'}`)
           setIsVerifying(false)
           return
         }
         
-        // CRITICAL: Require driver to confirm this is their company (prevents typo issues)
-        const confirmMessage = `DOT #${result.dotNumber} found in FMCSA database:\n\n` +
-          `Company: ${result.companyName}\n` +
-          `Status: ${result.status}\n` +
-          (result.mcNumber ? `MC Number: ${result.mcNumber}\n` : '') +
-          (result.physicalAddress ? `Address: ${result.physicalAddress}\n` : '') +
-          `\n⚠️ Is this YOUR company? (Click OK to confirm, Cancel to re-enter DOT number)`
-        
-        if (!confirm(confirmMessage)) {
-          alert('Please double-check your DOT number and try again.')
-          setIsVerifying(false)
-          return
-        }
-        
-        // Store DOT verification result
-        setDotPreVerified(true)
-        setVerificationResult({ dot: result })
+        // Show confirmation modal instead of browser confirm
+        setPendingDotResult(result)
+        setShowDotConfirmation(true)
+        setIsVerifying(false)
       } catch (error: any) {
         alert('Failed to verify DOT number. Please try again.')
         setIsVerifying(false)
-        return
-      } finally {
-        setIsVerifying(false)
       }
+    } else {
+      // No DOT number, proceed directly
+      setCurrentStep(2)
     }
-    
+  }
+
+  const handleDotConfirmYes = () => {
+    setDotPreVerified(true)
+    setVerificationResult({ dot: pendingDotResult })
+    setShowDotConfirmation(false)
+    setPendingDotResult(null)
     setCurrentStep(2)
+  }
+
+  const handleDotConfirmNo = () => {
+    setShowDotConfirmation(false)
+    setPendingDotResult(null)
+    // User stays on Step 1 to re-enter DOT number
   }
 
   const handleFCRAConsent = async () => {
@@ -277,6 +278,74 @@ export default function DriverRegistrationPage() {
   return (
     <main className="min-h-screen bg-[hsl(var(--surface-field))]">
       <Header />
+      
+      {/* DOT Confirmation Modal */}
+      {showDotConfirmation && pendingDotResult && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <Card className="max-w-lg w-full">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <CheckCircle className="h-6 w-6 text-green-500" />
+                DOT Number Found
+              </CardTitle>
+              <CardDescription>Please confirm this is your company</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="bg-muted p-4 rounded-lg space-y-2">
+                <div className="flex justify-between">
+                  <span className="text-sm font-semibold">DOT Number:</span>
+                  <span className="text-sm">#{pendingDotResult.dotNumber}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-sm font-semibold">Company Name:</span>
+                  <span className="text-sm">{pendingDotResult.companyName}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-sm font-semibold">Status:</span>
+                  <span className={`text-sm font-semibold ${pendingDotResult.status === 'ACTIVE' ? 'text-green-600' : 'text-red-600'}`}>
+                    {pendingDotResult.status}
+                  </span>
+                </div>
+                {pendingDotResult.mcNumber && (
+                  <div className="flex justify-between">
+                    <span className="text-sm font-semibold">MC Number:</span>
+                    <span className="text-sm">{pendingDotResult.mcNumber}</span>
+                  </div>
+                )}
+                {pendingDotResult.physicalAddress && (
+                  <div className="pt-2 border-t">
+                    <span className="text-sm font-semibold">Physical Address:</span>
+                    <p className="text-sm text-muted-foreground mt-1">{pendingDotResult.physicalAddress}</p>
+                  </div>
+                )}
+              </div>
+
+              <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+                <p className="text-sm font-semibold text-amber-900">⚠️ Important: Verify this information</p>
+                <p className="text-xs text-amber-700 mt-1">
+                  Make sure this is YOUR company. If any details are incorrect, click "No, re-enter" to fix your DOT number.
+                </p>
+              </div>
+
+              <div className="flex gap-3">
+                <Button
+                  variant="outline"
+                  onClick={handleDotConfirmNo}
+                  className="flex-1"
+                >
+                  No, re-enter DOT
+                </Button>
+                <Button
+                  onClick={handleDotConfirmYes}
+                  className="flex-1 bg-green-600 hover:bg-green-700"
+                >
+                  Yes, this is my company
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
       
       <section className="border-b border-border bg-white pt-20 py-8">
         <div className="container">
