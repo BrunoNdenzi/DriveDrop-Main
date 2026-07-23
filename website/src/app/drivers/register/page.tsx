@@ -135,6 +135,20 @@ export default function DriverRegistrationPage() {
           return
         }
         
+        // CRITICAL: Require driver to confirm this is their company (prevents typo issues)
+        const confirmMessage = `DOT #${result.dotNumber} found in FMCSA database:\n\n` +
+          `Company: ${result.companyName}\n` +
+          `Status: ${result.status}\n` +
+          (result.mcNumber ? `MC Number: ${result.mcNumber}\n` : '') +
+          (result.physicalAddress ? `Address: ${result.physicalAddress}\n` : '') +
+          `\n⚠️ Is this YOUR company? (Click OK to confirm, Cancel to re-enter DOT number)`
+        
+        if (!confirm(confirmMessage)) {
+          alert('Please double-check your DOT number and try again.')
+          setIsVerifying(false)
+          return
+        }
+        
         // Store DOT verification result
         setDotPreVerified(true)
         setVerificationResult({ dot: result })
@@ -416,11 +430,21 @@ function Step2FCRAConsent({ onNext, onBack, isVerifying, dotPreVerified, dotResu
           <div className="mt-3 p-3 bg-emerald-50 border border-emerald-200 rounded-md">
             <p className="text-sm text-emerald-800 font-semibold flex items-center gap-2">
               <CheckCircle className="h-4 w-4" />
-              ✅ DOT #{dotResult.dotNumber} Verified (FREE public lookup)
+              ✅ DOT #{dotResult.dotNumber} Verified (Confirmed by driver)
             </p>
             <p className="text-xs text-emerald-700 mt-1">
               Company: <strong>{dotResult.companyName}</strong> • Status: <strong>{dotResult.status}</strong>
             </p>
+            {dotResult.mcNumber && (
+              <p className="text-xs text-emerald-700">
+                MC Number: <strong>{dotResult.mcNumber}</strong>
+              </p>
+            )}
+            {dotResult.physicalAddress && (
+              <p className="text-xs text-emerald-700">
+                Address: <strong>{dotResult.physicalAddress}</strong>
+              </p>
+            )}
           </div>
         )}
       </CardHeader>

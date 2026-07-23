@@ -22,6 +22,8 @@ interface DOTVerificationResult {
   dotNumber?: string;
   companyName?: string;
   status?: 'ACTIVE' | 'INACTIVE' | 'OUT_OF_SERVICE';
+  mcNumber?: string;
+  physicalAddress?: string;
   error?: string;
 }
 
@@ -130,20 +132,25 @@ export class DriverVerificationService {
       //   return { verified: false, error: 'DOT number not found in FMCSA database' };
       // }
       // const data = await response.json();
+      // const carrier = data.content.carrier;
       // return {
-      //   verified: data.content.carrier.carrierOperationCode === 'A', // A = ACTIVE
+      //   verified: carrier.carrierOperationCode === 'A', // A = ACTIVE
       //   dotNumber: formatted,
-      //   companyName: data.content.carrier.legalName,
-      //   status: data.content.carrier.carrierOperationCode === 'A' ? 'ACTIVE' : 'INACTIVE',
+      //   companyName: carrier.legalName,
+      //   status: carrier.carrierOperationCode === 'A' ? 'ACTIVE' : 'INACTIVE',
+      //   mcNumber: carrier.docketNumber,
+      //   physicalAddress: `${carrier.phyStreet}, ${carrier.phyCity}, ${carrier.phyState} ${carrier.phyZipcode}`,
       // };
 
-      // MOCK DATA for development
+      // MOCK DATA for development - returns rich details for driver confirmation
       // In production, this will be REAL FMCSA data
       const mockResult: DOTVerificationResult = {
         verified: true,
         dotNumber: formatted,
         companyName: 'Verified Transport LLC',
         status: 'ACTIVE',
+        mcNumber: '123456',
+        physicalAddress: '123 Main St, Chicago, IL 60601',
       };
 
       // Only save to database if it's a real application (not pre-check)
