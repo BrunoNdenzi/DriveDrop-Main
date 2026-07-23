@@ -177,18 +177,27 @@ export class DriverVerificationService {
 
         const carrier = data.content.carrier;
         
-        // Map FMCSA operation codes to our status
-        const operationCode = carrier.carrierOperationCode || carrier.carrierOperation;
+        // FMCSA API structure:
+        // - carrierOperation.carrierOperationCode: "A" (Interstate), etc
+        // - statusCode: "A" (Authorized), "I" (Inactive), etc
+        // - allowedToOperate: "Y" or "N"
+        const operationCode = carrier.carrierOperation?.carrierOperationCode || carrier.statusCode;
+        const allowedToOperate = carrier.allowedToOperate === 'Y';
+        
         let status: 'ACTIVE' | 'INACTIVE' | 'OUT_OF_SERVICE' = 'INACTIVE';
         
-        if (operationCode === 'A' || operationCode === 'ACTIVE') {
+        if (allowedToOperate && (operationCode === 'A' || carrier.statusCode === 'A')) {
           status = 'ACTIVE';
-        } else if (operationCode === 'O' || operationCode === 'OUT_OF_SERVICE') {
+        } else if (carrier.oosDate) {
           status = 'OUT_OF_SERVICE';
         }
 
+        // Get MC number from broker/contract authority (not in main carrier object)
+        // This would require a separate API call to /docket-numbers endpoint
+        // For now, we'll leave it undefined
+        
         const physicalAddr = carrier.phyStreet 
-          ? `${carrier.phyStreet}, ${carrier.phyCity}, ${carrier.phyState} ${carrier.phyZipcode}`.trim()
+          ? `${carrier.phyStreet.trim()}, ${carrier.phyCity}, ${carrier.phyState} ${carrier.phyZipcode}`.trim()
           : undefined;
 
         const result: DOTVerificationResult = {
@@ -196,7 +205,7 @@ export class DriverVerificationService {
           dotNumber: formatted,
           companyName: carrier.legalName || carrier.dbaName || 'Unknown Company',
           status: status,
-          mcNumber: carrier.docketNumber || undefined,
+          mcNumber: undefined, // Would need separate API call to /docket-numbers
           physicalAddress: physicalAddr,
         };
 
