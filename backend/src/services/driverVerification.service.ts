@@ -104,7 +104,8 @@ export class DriverVerificationService {
   }
 
   /**
-   * Verify DOT number via FMCSA SAFER lookup (Free API)
+   * Verify DOT number via FMCSA SAFER lookup (Free API - NO CONSENT NEEDED)
+   * This is PUBLIC government data, can be checked BEFORE FCRA consent
    * Reuses existing brokerVerification.ts logic
    */
   static async verifyDOTNumber(params: {
@@ -115,13 +116,29 @@ export class DriverVerificationService {
       const formatted = params.dotNumber.replace(/\D/g, '');
 
       if (!formatted || formatted.length < 1 || formatted.length > 8) {
-        return { verified: false, error: 'Invalid DOT number format' };
+        return { verified: false, error: 'Invalid DOT number format (must be 1-8 digits)' };
       }
 
-      // TODO: Integrate with FMCSA SAFER API
+      // TODO: Integrate with FMCSA SAFER API (FREE, PUBLIC, NO CONSENT REQUIRED)
       // Real API endpoint: https://mobile.fmcsa.dot.gov/qc/services/carriers/{dotNumber}
-      // For now, using mock data
+      // Get FREE API key at: https://mobile.fmcsa.dot.gov/developer/home.page
+      // Example:
+      // const response = await fetch(
+      //   `https://mobile.fmcsa.dot.gov/qc/services/carriers/${formatted}?webKey=${process.env.FMCSA_API_KEY}`
+      // );
+      // if (!response.ok) {
+      //   return { verified: false, error: 'DOT number not found in FMCSA database' };
+      // }
+      // const data = await response.json();
+      // return {
+      //   verified: data.content.carrier.carrierOperationCode === 'A', // A = ACTIVE
+      //   dotNumber: formatted,
+      //   companyName: data.content.carrier.legalName,
+      //   status: data.content.carrier.carrierOperationCode === 'A' ? 'ACTIVE' : 'INACTIVE',
+      // };
 
+      // MOCK DATA for development
+      // In production, this will be REAL FMCSA data
       const mockResult: DOTVerificationResult = {
         verified: true,
         dotNumber: formatted,
@@ -129,16 +146,18 @@ export class DriverVerificationService {
         status: 'ACTIVE',
       };
 
-      // Update database
-      await supabaseAdmin
-        .from('driver_applications')
-        .update({
-          dot_verified: mockResult.verified,
-          dot_company_name: mockResult.companyName,
-          dot_status: mockResult.status,
-          dot_verified_at: new Date().toISOString(),
-        })
-        .eq('id', params.applicationId);
+      // Only save to database if it's a real application (not pre-check)
+      if (params.applicationId !== 'pre-check') {
+        await supabaseAdmin
+          .from('driver_applications')
+          .update({
+            dot_verified: mockResult.verified,
+            dot_company_name: mockResult.companyName,
+            dot_status: mockResult.status,
+            dot_verified_at: new Date().toISOString(),
+          })
+          .eq('id', params.applicationId);
+      }
 
       return mockResult;
     } catch (error) {

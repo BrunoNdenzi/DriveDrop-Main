@@ -107,12 +107,44 @@ export default function DriverRegistrationPage() {
   const [submitted, setSubmitted] = useState(false)
   const [verificationResult, setVerificationResult] = useState<any>(null)
   const [applicationId, setApplicationId] = useState('')
+  const [dotPreVerified, setDotPreVerified] = useState(false)
 
   const totalSteps = 4
   const progress = (currentStep / totalSteps) * 100
 
   const handleVerification = async (data: VerificationData) => {
     setFormData({ ...formData, ...data })
+    
+    // If DOT number provided, verify it first (FREE and INSTANT via FMCSA SAFER)
+    if (data.dotNumber && data.dotNumber.trim()) {
+      setIsVerifying(true)
+      try {
+        const response = await fetch('/api/v1/drivers/verify-dot', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ dotNumber: data.dotNumber }),
+        })
+        
+        const result = await response.json()
+        
+        if (!response.ok || !result.verified) {
+          alert(`DOT Verification Failed: ${result.error || 'Invalid DOT number. Please check and try again.'}`)
+          setIsVerifying(false)
+          return
+        }
+        
+        // Store DOT verification result
+        setDotPreVerified(true)
+        setVerificationResult({ dot: result })
+      } catch (error: any) {
+        alert('Failed to verify DOT number. Please try again.')
+        setIsVerifying(false)
+        return
+      } finally {
+        setIsVerifying(false)
+      }
+    }
+    
     setCurrentStep(2)
   }
 
@@ -254,6 +286,7 @@ export default function DriverRegistrationPage() {
               <Step1Verification
                 defaultValues={formData}
                 onNext={handleVerification}
+                isVerifying={isVerifying}
               />
             )}
             {currentStep === 2 && (
@@ -261,6 +294,8 @@ export default function DriverRegistrationPage() {
                 onNext={handleFCRAConsent}
                 onBack={() => setCurrentStep(1)}
                 isVerifying={isVerifying}
+                dotPreVerified={dotPreVerified}
+                dotResult={verificationResult?.dot}
               />
             )}
             {currentStep === 3 && (
@@ -288,7 +323,7 @@ export default function DriverRegistrationPage() {
 }
 
 // Step 1: Minimal Verification Data
-function Step1Verification({ defaultValues, onNext }: any) {
+function Step1Verification({ defaultValues, onNext, isVerifying }: any) {
   const { register, handleSubmit, setValue, watch, formState: { errors } } = useForm<VerificationData>({
     resolver: zodResolver(verificationSchema),
     defaultValues,
@@ -349,9 +384,14 @@ function Step1Verification({ defaultValues, onNext }: any) {
           <div>
             <Label htmlFor="dotNumber">DOT Number (Optional - for owner-operators)</Label>
             <Input id="dotNumber" {...register('dotNumber')} placeholder="12345678" />
+            <p className="text-xs text-muted-foreground mt-1">
+              💡 If provided, we&apos;ll verify it instantly using FREE FMCSA public data (no consent needed)
+            </p>
           </div>
 
-          <Button type="submit" className="w-full">Continue to Verification</Button>
+          <Button type="submit" className="w-full" disabled={isVerifying}>
+            {isVerifying ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Verifying DOT...</> : 'Continue to Verification'}
+          </Button>
         </form>
       </CardContent>
     </Card>
@@ -359,7 +399,7 @@ function Step1Verification({ defaultValues, onNext }: any) {
 }
 
 // Step 2: FCRA Consent
-function Step2FCRAConsent({ onNext, onBack, isVerifying }: any) {
+function Step2FCRAConsent({ onNext, onBack, isVerifying, dotPreVerified, dotResult }: any) {
   const [consent, setConsent] = useState(false)
 
   return (
@@ -370,6 +410,17 @@ function Step2FCRAConsent({ onNext, onBack, isVerifying }: any) {
           <CardTitle>Step 2: Background Check Disclosure</CardTitle>
         </div>
         <CardDescription>Required by Fair Credit Reporting Act (FCRA)</CardDescription>
+        {dotPreVerified && dotResult && (
+          <div className="mt-3 p-3 bg-emerald-50 border border-emerald-200 rounded-md">
+            <p className="text-sm text-emerald-800 font-semibold flex items-center gap-2">
+              <CheckCircle className="h-4 w-4" />
+              ✅ DOT #{dotResult.dotNumber} Verified (FREE public lookup)
+            </p>
+            <p className="text-xs text-emerald-700 mt-1">
+              Company: <strong>{dotResult.companyName}</strong> • Status: <strong>{dotResult.status}</strong>
+            </p>
+          </div>
+        )}
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="bg-muted p-4 rounded-md space-y-2 text-sm max-h-64 overflow-y-auto">

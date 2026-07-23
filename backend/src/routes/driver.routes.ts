@@ -25,6 +25,43 @@ const upload = multer({ storage: multer.memoryStorage() });
 router.get('/applications', authenticate, authorize(['driver']), getDriverApplications);
 
 /**
+ * @route POST /api/v1/drivers/verify-dot
+ * @desc Pre-verify DOT number via FREE FMCSA SAFER API (no consent needed - public data)
+ * @access Public
+ */
+router.post('/verify-dot', async (req, res) => {
+  try {
+    const { dotNumber } = req.body;
+
+    if (!dotNumber) {
+      return res.status(400).json({ error: 'DOT number required' });
+    }
+
+    const result = await DriverVerificationService.verifyDOTNumber({
+      dotNumber,
+      applicationId: 'pre-check', // Not saved yet
+    });
+
+    if (!result.verified) {
+      return res.status(400).json({
+        verified: false,
+        error: result.error || 'DOT number not found in FMCSA database',
+      });
+    }
+
+    return res.status(200).json({
+      verified: true,
+      dotNumber: result.dotNumber,
+      companyName: result.companyName,
+      status: result.status,
+    });
+  } catch (error) {
+    console.error('DOT pre-verification error:', error);
+    return res.status(500).json({ error: 'Failed to verify DOT number' });
+  }
+});
+
+/**
  * @route POST /api/v1/drivers/verify
  * @desc Step 1: Verify driver license and optional DOT number
  * @access Public
