@@ -112,6 +112,7 @@ export default function DriverRegistrationPage() {
   const [dotPreVerified, setDotPreVerified] = useState(false)
   const [showDotConfirmation, setShowDotConfirmation] = useState(false)
   const [pendingDotResult, setPendingDotResult] = useState<any>(null)
+  const [errorMessage, setErrorMessage] = useState<string | null>(null)
 
   const totalSteps = 4
   const progress = (currentStep / totalSteps) * 100
@@ -132,7 +133,7 @@ export default function DriverRegistrationPage() {
         const result = await response.json()
         
         if (!response.ok || !result.verified) {
-          alert(`❌ DOT Verification Failed\n\n${result.error || 'DOT number not found in FMCSA database. Please check and try again.'}`)
+          setErrorMessage(result.error || 'DOT number not found in FMCSA database. Please check and try again.')
           setIsVerifying(false)
           return
         }
@@ -141,8 +142,9 @@ export default function DriverRegistrationPage() {
         setPendingDotResult(result)
         setShowDotConfirmation(true)
         setIsVerifying(false)
+        setErrorMessage(null)
       } catch (error: any) {
-        alert('Failed to verify DOT number. Please try again.')
+        setErrorMessage('Failed to verify DOT number. Please try again.')
         setIsVerifying(false)
       }
     } else {
@@ -242,7 +244,7 @@ export default function DriverRegistrationPage() {
 
       setSubmitted(true)
     } catch (error: any) {
-      alert(error.message || 'Failed to submit')
+      setErrorMessage(error.message || 'Failed to verify driver credentials')
     } finally {
       setIsSubmitting(false)
     }
@@ -340,6 +342,31 @@ export default function DriverRegistrationPage() {
                   className="flex-1 bg-green-600 hover:bg-green-700"
                 >
                   Yes, this is my company
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+      
+      {/* Error Message Toast */}
+      {errorMessage && (
+        <div className="fixed top-4 right-4 z-50 max-w-md animate-in fade-in slide-in-from-top-2">
+          <Card className="border-red-500 bg-red-50">
+            <CardContent className="pt-4 pb-4">
+              <div className="flex items-start gap-3">
+                <div className="h-5 w-5 text-red-600 mt-0.5">❌</div>
+                <div className="flex-1">
+                  <p className="text-sm font-semibold text-red-900">Error</p>
+                  <p className="text-sm text-red-700 mt-1">{errorMessage}</p>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setErrorMessage(null)}
+                  className="h-6 w-6 p-0 text-red-600 hover:text-red-800 hover:bg-red-100"
+                >
+                  ×
                 </Button>
               </div>
             </CardContent>

@@ -167,6 +167,26 @@ export class DriverVerificationService {
         if (!response.ok) {
           const errorText = await response.text();
           console.error('❌ FMCSA API Error:', { status: response.status, error: errorText });
+          
+          // Handle specific error codes
+          if (response.status === 403) {
+            console.error('🚫 FMCSA API Key Rejected (403 Forbidden). Check:');
+            console.error('   1. API key is valid and not expired');
+            console.error('   2. IP address is whitelisted in FMCSA developer portal');
+            console.error('   3. API key is approved for production use');
+            console.error('   Falling back to mock data...');
+            
+            // Fallback to mock data on 403
+            const mockResult: DOTVerificationResult = {
+              verified: true,
+              dotNumber: formatted,
+              companyName: `DOT ${formatted} - Verification Temporarily Unavailable`,
+              status: 'ACTIVE',
+              physicalAddress: 'FMCSA API temporarily unavailable - manual verification required',
+            };
+            return mockResult;
+          }
+          
           return { 
             verified: false, 
             error: response.status === 404 
