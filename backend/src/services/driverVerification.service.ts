@@ -30,13 +30,33 @@ interface DOTVerificationResult {
 
 export class DriverVerificationService {
   /**
-   * Run MVR check via FCRA-compliant vendor (Checkr/HireRight/Truework)
-   * This is a PLACEHOLDER - requires actual vendor API integration
+   * Run MVR check via FCRA-compliant vendor (Checkr/HireRight/etc.)
    *
-   * IMPORTANT: This mock always returns eligible=true. Because of that,
-   * checkAutoApprovalEligibility() below no longer relies on this alone -
-   * it also requires DOT verification to have actually succeeded. Do not
-   * remove that DOT gate until this MVR check is wired to a real vendor.
+   * NOT YET INTEGRATED. Truework does not offer MVR/driving-record checks
+   * (their product is income & employment verification only) and no
+   * alternative vendor is wired up yet. Rather than fabricate a passing
+   * result, this marks the application as pending manual review so a human
+   * admin pulls the driver's MVR themselves until a real vendor API is
+   * connected. This does NOT block registration - the driver can still
+   * complete all steps; they just won't be auto-approved.
+   *
+   * TODO: Replace with a real vendor integration, e.g. Checkr:
+   * const response = await fetch('https://api.checkr.com/v1/mvr_checks', {
+   *   method: 'POST',
+   *   headers: {
+   *     'Authorization': `Bearer ${process.env.CHECKR_API_KEY}`,
+   *     'Content-Type': 'application/json',
+   *   },
+   *   body: JSON.stringify({
+   *     candidate_id: params.applicationId,
+   *     license_number: params.licenseNumber,
+   *     license_state: params.licenseState,
+   *     dob: params.dateOfBirth,
+   *   }),
+   * });
+   * Once wired up, set mvr_check_status to 'completed' with real
+   * eligible/violations data - only then will checkAutoApprovalEligibility
+   * be able to auto-approve anyone.
    */
   static async runMVRCheck(params: {
     firstName: string;
@@ -47,56 +67,26 @@ export class DriverVerificationService {
     applicationId: string;
   }): Promise<MVRCheckResult> {
     try {
-      // TODO: Integrate with chosen MVR vendor API
-      // Example for Checkr:
-      // const response = await fetch('https://api.checkr.com/v1/mvr_checks', {
-      //   method: 'POST',
-      //   headers: {
-      //     'Authorization': `Bearer ${process.env.CHECKR_API_KEY}`,
-      //     'Content-Type': 'application/json',
-      //   },
-      //   body: JSON.stringify({
-      //     candidate_id: params.applicationId,
-      //     license_number: params.licenseNumber,
-      //     license_state: params.licenseState,
-      //     dob: params.dateOfBirth,
-      //   }),
-      // });
-
-      // Update database with check status
-      await supabaseAdmin
-        .from('driver_applications')
-        .update({
-          mvr_check_status: 'pending',
-          mvr_check_vendor: 'checkr', // or 'hireright', 'truework'
-          mvr_check_id: 'placeholder-check-id',
-        })
-        .eq('id', params.applicationId);
-
-      // MOCK RESPONSE FOR DEVELOPMENT
-      // Real implementation would poll vendor API or use webhooks
-      const mockResult: MVRCheckResult = {
-        eligible: true,
+      const pendingResult: MVRCheckResult = {
+        eligible: false,
         violations: [],
-        licenseStatus: 'valid',
-        cdlClass: 'A',
-        cdlEndorsements: ['H', 'N'],
+        licenseStatus: 'valid', // unknown until a human/vendor actually checks - not asserted to the driver
       };
 
-      // Update with results
       await supabaseAdmin
         .from('driver_applications')
         .update({
-          mvr_check_status: 'completed',
-          mvr_check_result: mockResult,
-          mvr_check_completed_at: new Date().toISOString(),
-          mvr_violations_count: mockResult.violations.length,
-          mvr_eligible: mockResult.eligible,
-          mvr_ineligible_reasons: mockResult.eligible ? [] : ['License not valid'],
+          mvr_check_status: 'pending_manual_review',
+          mvr_check_vendor: null,
+          mvr_check_id: null,
+          mvr_check_completed_at: null,
+          mvr_eligible: null,
+          mvr_violations_count: 0,
+          mvr_ineligible_reasons: ['MVR check not yet automated - pending manual admin review'],
         })
         .eq('id', params.applicationId);
 
-      return mockResult;
+      return pendingResult;
     } catch (error) {
       console.error('MVR check error:', error);
 
@@ -374,10 +364,18 @@ export class DriverVerificationService {
       return { eligible: true };
     }
 
-    // Require manual review if violations, failed checks, or DOT unverified
-    const reason = !dotPassed
-      ? 'DOT number could not be verified'
-      : 'MVR violations or verification issues';
+    // Require manual review if violations, failed checks, or DOT unverified.
+    // Note: mvrPassed will always be false until a real MVR vendor is wired
+    // up in runMVRCheck(), so every application currently lands here for a
+    // human admin to review - that's expected, not a bug.
+    let reason: string;
+    if (!dotPassed && !mvrPassed) {
+      reason = 'DOT number could not be verified and MVR check is pending manual review';
+    } else if (!dotPassed) {
+      reason = 'DOT number could not be verified';
+    } else {
+      reason = 'MVR check pending manual review (automated MVR not yet configured)';
+    }
 
     await supabaseAdmin
       .from('driver_applications')
