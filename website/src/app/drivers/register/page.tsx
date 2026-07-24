@@ -75,12 +75,12 @@ const verificationSchema = z.object({
   licenseNumber: z.string().min(1, 'License number required'),
   licenseState: z.string().min(2, 'State required'),
   dotNumber: z.string().optional(),
+  email: z.string().email('Valid email required'),
+  phone: z.string().min(1, 'Phone required').refine(isValidPhone, 'Valid phone required'),
 })
 
 // Step 3: Complete registration
 const completeRegistrationSchema = z.object({
-  email: z.string().email('Valid email required'),
-  phone: z.string().min(1, 'Phone required').refine(isValidPhone, 'Valid phone required'),
   address: z.string().min(5, 'Address required'),
   insuranceProvider: z.string().min(1, 'Insurance provider required'),
   policyNumber: z.string().min(1, 'Policy number required'),
@@ -194,8 +194,9 @@ export default function DriverRegistrationPage() {
           licenseNumber: formData.licenseNumber,
           licenseState: formData.licenseState,
           dotNumber: formData.dotNumber || null,
+          email: formData.email,
+          phone: formData.phone,
           fcraConsentObtained: true,
-          // Backend will extract IP from request headers
           fcraConsentSignature: `${formData.firstName} ${formData.lastName}`,
         }),
       })
@@ -539,6 +540,19 @@ function Step1Verification({ defaultValues, onNext, isVerifying }: any) {
             </p>
           </div>
 
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <Label htmlFor="email">Email *</Label>
+              <Input id="email" type="email" {...register('email')} placeholder="john@example.com" />
+              {errors.email && <p className="text-sm text-red-500 mt-1">{errors.email.message}</p>}
+            </div>
+            <div>
+              <Label htmlFor="phone">Phone *</Label>
+              <Input id="phone" type="tel" {...register('phone')} placeholder="(555) 123-4567" />
+              {errors.phone && <p className="text-sm text-red-500 mt-1">{errors.phone.message}</p>}
+            </div>
+          </div>
+
           <Button type="submit" className="w-full" disabled={isVerifying}>
             {isVerifying ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Verifying DOT...</> : 'Continue to Verification'}
           </Button>
@@ -656,19 +670,6 @@ function Step3CompleteRegistration({ defaultValues, verificationResult, onNext, 
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit(onNext)} className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <Label htmlFor="email">Email *</Label>
-              <Input id="email" type="email" {...register('email')} />
-              {errors.email && <p className="text-sm text-red-500 mt-1">{errors.email.message}</p>}
-            </div>
-            <div>
-              <Label htmlFor="phone">Phone *</Label>
-              <Input id="phone" {...register('phone')} placeholder="(555) 123-4567" />
-              {errors.phone && <p className="text-sm text-red-500 mt-1">{errors.phone.message}</p>}
-            </div>
-          </div>
-
           <div>
             <Label htmlFor="address">Address *</Label>
             <GooglePlacesAutocomplete

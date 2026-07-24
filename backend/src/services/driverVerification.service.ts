@@ -156,19 +156,23 @@ export class DriverVerificationService {
       try {
         const apiUrl = `https://mobile.fmcsa.dot.gov/qc/services/carriers/${formatted}?webKey=${FMCSA_API_KEY}`;
         console.log('🌐 Calling FMCSA API for DOT:', formatted);
+        console.log('🔗 API URL:', apiUrl.replace(FMCSA_API_KEY, '***KEY***'));
 
-        const response = await fetch(apiUrl, {
-          headers: {
-            // FMCSA's edge (Akamai) frequently blocks bare server-to-server
-            // requests with no User-Agent, returning a raw HTML 403 before
-            // the webKey is ever validated. Sending a real User-Agent and
-            // Accept header avoids that WAF-level block.
-            'User-Agent': 'DriveDrop/1.0 (+https://drivedrop-five.vercel.app; support@drivedrop.com)',
-            'Accept': 'application/json',
-          },
-        });
+        const headers = {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+          'Accept': 'application/json',
+          'Accept-Encoding': 'gzip, deflate, br',
+          'Accept-Language': 'en-US,en;q=0.9',
+          'Cache-Control': 'no-cache',
+          'Connection': 'keep-alive',
+        };
+
+        console.log('📤 Request Headers:', JSON.stringify(headers, null, 2));
+
+        const response = await fetch(apiUrl, { headers });
 
         console.log('📡 FMCSA API Response Status:', response.status);
+        console.log('📥 Response Headers:', JSON.stringify(Object.fromEntries(response.headers.entries()), null, 2));
 
         if (!response.ok) {
           const errorText = await response.text();

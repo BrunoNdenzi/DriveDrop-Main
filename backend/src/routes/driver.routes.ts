@@ -97,14 +97,16 @@ router.post('/verify', async (req, res) => {
       licenseNumber,
       licenseState,
       dotNumber,
+      email,
+      phone,
       fcraConsentObtained,
       fcraConsentSignature,
     } = req.body;
 
     // Validate required fields
-    if (!firstName || !lastName || !dateOfBirth || !licenseNumber || !licenseState) {
+    if (!firstName || !lastName || !dateOfBirth || !licenseNumber || !licenseState || !email || !phone) {
       return res.status(400).json({
-        error: 'Missing required fields: firstName, lastName, dateOfBirth, licenseNumber, licenseState',
+        error: 'Missing required fields: firstName, lastName, dateOfBirth, licenseNumber, licenseState, email, phone',
       });
     }
 
@@ -130,8 +132,8 @@ router.post('/verify', async (req, res) => {
       .insert({
         full_name: `${firstName} ${lastName}`,
         date_of_birth: dateOfBirth,
-        email: 'temp@temp.com', // Will be updated in next step
-        phone: 'temp', // Will be updated in next step
+        email: email,
+        phone: phone,
         address: { street: '', city: '', state: '', zipCode: '' }, // Will be updated
         ssn_encrypted: 'pending', // Will be updated
         license_number: licenseNumber,
