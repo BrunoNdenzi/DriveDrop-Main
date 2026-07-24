@@ -1311,7 +1311,6 @@ class EmailService {
   private async sendTemplateEmail(
     templateType: EmailTemplateType,
     recipientEmail: string,
-    recipientName: string,
     variables: Record<string, string>
   ): Promise<boolean> {
     const template = EmailTemplates[templateType];
@@ -1377,7 +1376,6 @@ class EmailService {
     return this.sendTemplateEmail(
       'driver_application_received',
       data.email,
-      data.firstName,
       variables
     );
   }
@@ -1440,7 +1438,6 @@ class EmailService {
     return this.sendTemplateEmail(
       'admin_driver_application',
       adminEmail,
-      'Admin',
       variables
     );
   }
