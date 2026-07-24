@@ -8,6 +8,7 @@ import {
 } from '@controllers/application.controller';
 import { supabaseAdmin } from '../lib/supabase';
 import { DriverVerificationService } from '../services/driverVerification.service';
+import { emailService } from '../services/email.service';
 import multer from 'multer';
 
 const router = Router();
@@ -185,6 +186,73 @@ router.post('/verify', async (req, res) => {
     const autoApproval = await DriverVerificationService.checkAutoApprovalEligibility(
       application.id
     );
+
+    // Send confirmation emails (non-blocking - don't fail if emails fail)
+    try {
+      console.log('📧 Sending driver application confirmation emails...');
+
+      // Email 1: Confirmation to driver
+      await emailService.sendDriverApplicationReceivedEmail({
+        email: email,
+        firstName: firstName,
+        fullName: `${firstName} ${lastName}`,
+        phone: phone,
+        licenseState: licenseState,
+        licenseNumber: licenseNumber,
+        dateOfBirth: dateOfBirth,
+        applicationId: application.id,
+        dotNumber: dotNumber,
+      });
+
+      // Build verification status for admin email
+      let verificationStatus = '';
+      
+      if (mvrResult.eligible) {
+        verificationStatus += `<span style="color:#22c55e;">✅ MVR Check: Passed</span><br>`;
+      } else {
+        verificationStatus += `<span style="color:#ef4444;">❌ MVR Check: Failed</span><br>`;
+      }
+
+      if (dotResult) {
+        if (dotResult.verified) {
+          verificationStatus += `<span style="color:#22c55e;">✅ DOT Verification: ${dotResult.companyName} (${dotResult.status})</span><br>`;
+        } else if (dotResult.requiresManualReview) {
+          verificationStatus += `<span style="color:#f59e0b;">⚠️ DOT Verification: Requires Manual Review</span><br>`;
+        } else {
+          verificationStatus += `<span style="color:#ef4444;">❌ DOT Verification: Failed</span><br>`;
+        }
+      } else {
+        verificationStatus += `<span style="color:#6b7280;">No DOT number provided</span><br>`;
+      }
+
+      if (autoApproval.eligible) {
+        verificationStatus += `<span style="color:#22c55e;">✅ Auto-Approval: Eligible</span>`;
+      } else {
+        verificationStatus += `<span style="color:#f59e0b;">⚠️ Manual Review Required</span>`;
+      }
+
+      // Email 2: Admin notification
+      await emailService.sendAdminDriverApplicationEmail({
+        email: email,
+        firstName: firstName,
+        lastName: lastName,
+        fullName: `${firstName} ${lastName}`,
+        phone: phone,
+        dateOfBirth: dateOfBirth,
+        licenseNumber: licenseNumber,
+        licenseState: licenseState,
+        applicationId: application.id,
+        dotNumber: dotNumber,
+        verificationStatus: verificationStatus,
+        ...(clientIp && { fcraConsentIp: clientIp }),
+        ...(clientIp && { fcraConsentTimestamp: new Date().toISOString() }),
+      });
+
+      console.log('✅ Application confirmation emails sent successfully');
+    } catch (emailError) {
+      console.error('⚠️ Failed to send confirmation emails (non-blocking):', emailError);
+      // Continue anyway - email failure shouldn't block registration
+    }
 
     return res.status(200).json({
       success: true,

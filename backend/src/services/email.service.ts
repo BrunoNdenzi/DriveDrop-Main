@@ -1,6 +1,8 @@
 ﻿import * as brevo from '@getbrevo/brevo';
 import nodemailer from 'nodemailer';
 import { logger } from '../utils/logger';
+import { EmailTemplates } from './EmailTemplates';
+import { EmailTemplateType } from '../types/email.types';
 
 interface EmailOptions {
   to: string | string[];
@@ -1301,6 +1303,146 @@ class EmailService {
       htmlContent,
       textContent,
     });
+  }
+
+  /**
+   * Send templated email with variable replacement
+   */
+  private async sendTemplateEmail(
+    templateType: EmailTemplateType,
+    recipientEmail: string,
+    recipientName: string,
+    variables: Record<string, string>
+  ): Promise<boolean> {
+    const template = EmailTemplates[templateType];
+    if (!template) {
+      logger.error(`Email template not found: ${templateType}`);
+      return false;
+    }
+
+    // Replace all {{variable}} placeholders in subject and HTML
+    let subject = template.subject;
+    let htmlContent = template.htmlContent;
+
+    Object.entries(variables).forEach(([key, value]) => {
+      const placeholder = new RegExp(`{{${key}}}`, 'g');
+      subject = subject.replace(placeholder, value);
+      htmlContent = htmlContent.replace(placeholder, value);
+    });
+
+    // Replace empty optional rows
+    htmlContent = htmlContent.replace(/{{[a-zA-Z]+Row}}/g, '');
+    htmlContent = htmlContent.replace(/{{[a-zA-Z]+Html}}/g, '');
+
+    return this.sendEmail({
+      to: recipientEmail,
+      subject,
+      htmlContent,
+      senderName: 'DriveDrop',
+      senderEmail: 'noreply@drivedrop.us.com',
+    });
+  }
+
+  /**
+   * Send driver application received confirmation email
+   */
+  async sendDriverApplicationReceivedEmail(data: {
+    email: string;
+    firstName: string;
+    fullName: string;
+    phone: string;
+    licenseState: string;
+    licenseNumber: string;
+    dateOfBirth: string;
+    applicationId: string;
+    dotNumber?: string;
+  }): Promise<boolean> {
+    logger.info('📧 Sending driver application received email', { email: data.email });
+
+    const variables: Record<string, string> = {
+      firstName: data.firstName,
+      fullName: data.fullName,
+      email: data.email,
+      phone: data.phone,
+      licenseState: data.licenseState,
+      applicationId: data.applicationId,
+      dotNumberRow: data.dotNumber
+        ? `<tr>
+            <td style="padding:6px 0;color:#6b7280;font-size:13px;"><strong>DOT Number:</strong></td>
+            <td style="padding:6px 0;font-size:13px;font-family:monospace;">${data.dotNumber}</td>
+          </tr>`
+        : '',
+    };
+
+    return this.sendTemplateEmail(
+      'driver_application_received',
+      data.email,
+      data.firstName,
+      variables
+    );
+  }
+
+  /**
+   * Send admin notification email about new driver application
+   */
+  async sendAdminDriverApplicationEmail(data: {
+    email: string;
+    firstName: string;
+    lastName: string;
+    fullName: string;
+    phone: string;
+    dateOfBirth: string;
+    licenseNumber: string;
+    licenseState: string;
+    applicationId: string;
+    dotNumber?: string;
+    verificationStatus: string;
+    fcraConsentIp?: string;
+    fcraConsentTimestamp?: string;
+  }): Promise<boolean> {
+    const adminEmail = 'infos@calkons.com';
+    logger.info('📧 Sending admin driver application notification', { adminEmail });
+
+    const submittedAt = new Date().toLocaleString('en-US', {
+      timeZone: 'America/New_York',
+      dateStyle: 'full',
+      timeStyle: 'short',
+    });
+
+    const variables: Record<string, string> = {
+      fullName: data.fullName,
+      email: data.email,
+      phone: data.phone,
+      dateOfBirth: data.dateOfBirth,
+      licenseNumber: data.licenseNumber,
+      licenseState: data.licenseState,
+      applicationId: data.applicationId,
+      submittedAt,
+      verificationStatus: data.verificationStatus || 'Pending verification',
+      dotNumberRow: data.dotNumber
+        ? `<tr>
+            <td style="padding:8px 0;color:#6b7280;font-size:13px;"><strong>DOT Number:</strong></td>
+            <td style="padding:8px 0;font-size:13px;font-family:monospace;">${data.dotNumber}</td>
+          </tr>`
+        : '',
+      fcraConsentInfo: data.fcraConsentIp && data.fcraConsentTimestamp
+        ? `<div style="background-color:#f0fdf4;border-left:3px solid #22c55e;padding:16px 20px;margin:20px 0;border-radius:0 6px 6px 0;font-size:13px;line-height:1.8;">
+            <strong style="color:#166534;">✅ FCRA Consent Verified:</strong><br>
+            <div style="margin-top:8px;color:#166534;">
+              <strong>IP Address:</strong> ${data.fcraConsentIp}<br>
+              <strong>Timestamp:</strong> ${new Date(data.fcraConsentTimestamp).toLocaleString('en-US', { timeZone: 'America/New_York' })}
+            </div>
+          </div>`
+        : '',
+      reviewUrl: `https://www.drivedrop.us.com/admin/drivers/applications/${data.applicationId}`,
+    };
+
+    return this.sendTemplateEmail(
+      'admin_driver_application',
+      adminEmail,
+      'Admin',
+      variables
+    );
   }
 }
 

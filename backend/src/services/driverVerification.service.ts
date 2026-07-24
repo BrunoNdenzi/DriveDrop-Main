@@ -167,9 +167,18 @@ export class DriverVerificationService {
           'Connection': 'keep-alive',
         };
 
+        // Optional: Use proxy if configured (for bypassing AWS ELB blocking)
+        // Set FMCSA_PROXY_URL in Railway env vars if using a proxy service
+        const proxyUrl = process.env['FMCSA_PROXY_URL'];
+        const finalUrl = proxyUrl ? `${proxyUrl}${encodeURIComponent(apiUrl)}` : apiUrl;
+        
+        if (proxyUrl) {
+          console.log('🔄 Using proxy for FMCSA request');
+        }
+
         console.log('📤 Request Headers:', JSON.stringify(headers, null, 2));
 
-        const response = await fetch(apiUrl, { headers });
+        const response = await fetch(finalUrl, { headers });
 
         console.log('📡 FMCSA API Response Status:', response.status);
         console.log('📥 Response Headers:', JSON.stringify(Object.fromEntries(response.headers.entries()), null, 2));

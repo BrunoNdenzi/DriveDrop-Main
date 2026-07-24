@@ -331,33 +331,67 @@ export const EmailTemplates: Record<EmailTemplateType, EmailTemplate> = {
 
   // ─── DRIVER APPLICATION EMAILS ──────────────────────────────────
   driver_application_received: {
-    subject: 'Driver Application Received — DriveDrop',
+    subject: 'Application Received — DriveDrop Carrier Network',
     sender: 'driver',
     htmlContent: emailBase('Application Received', `
       <h2 style="margin:0 0 16px;color:${DD.text};font-size:20px;">Thank you, {{firstName}}!</h2>
       <p>We've received your driver application for the DriveDrop carrier network.</p>
 
       ${infoBox(`
+        <strong>Application Summary:</strong>
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:12px;">
+          <tr>
+            <td style="padding:6px 0;color:${DD.sub};width:40%;font-size:13px;"><strong>Application ID:</strong></td>
+            <td style="padding:6px 0;font-size:13px;font-family:monospace;">{{applicationId}}</td>
+          </tr>
+          <tr>
+            <td style="padding:6px 0;color:${DD.sub};font-size:13px;"><strong>Full Name:</strong></td>
+            <td style="padding:6px 0;font-size:13px;">{{fullName}}</td>
+          </tr>
+          <tr>
+            <td style="padding:6px 0;color:${DD.sub};font-size:13px;"><strong>Email:</strong></td>
+            <td style="padding:6px 0;font-size:13px;">{{email}}</td>
+          </tr>
+          <tr>
+            <td style="padding:6px 0;color:${DD.sub};font-size:13px;"><strong>Phone:</strong></td>
+            <td style="padding:6px 0;font-size:13px;">{{phone}}</td>
+          </tr>
+          <tr>
+            <td style="padding:6px 0;color:${DD.sub};font-size:13px;"><strong>License State:</strong></td>
+            <td style="padding:6px 0;font-size:13px;">{{licenseState}}</td>
+          </tr>
+          {{dotNumberRow}}
+        </table>
+      `, DD.green)}
+
+      ${infoBox(`
         <strong>What happens next?</strong>
-        <ol style="margin:8px 0 0;padding-left:18px;">
-          <li>Our team will review your application and documents</li>
-          <li>We'll initiate your background check</li>
-          <li>You'll receive a decision within 3-5 business days</li>
-          <li>If approved, you'll get login credentials to start accepting loads</li>
+        <ol style="margin:8px 0 0;padding-left:18px;line-height:1.8;">
+          <li><strong>Background Check:</strong> We'll verify your license and driving record through our FCRA-compliant partner</li>
+          <li><strong>Document Review:</strong> Our team will review your insurance and vehicle information</li>
+          <li><strong>DOT Verification:</strong> If applicable, we'll verify your DOT number and carrier authority</li>
+          <li><strong>Decision:</strong> You'll receive a response within <strong>3-5 business days</strong></li>
         </ol>
       `, DD.amber)}
 
-      <div style="background-color:${DD.muted};padding:12px 16px;border-radius:6px;margin:20px 0;font-size:13px;color:${DD.sub};">
-        <strong>Application ID:</strong> <span style="font-family:monospace;">{{applicationId}}</span><br>
-        Keep this for your records.
+      <div style="background-color:${DD.muted};padding:16px 20px;border-radius:6px;margin:24px 0;font-size:13px;">
+        <p style="margin:0 0 8px;color:${DD.sub};"><strong style="color:${DD.text};">📧 Keep this email</strong></p>
+        <p style="margin:0;color:${DD.sub};line-height:1.6;">
+          Save your <strong>Application ID</strong> (above) for your records. You may need it if you contact support about your application status.
+        </p>
+      </div>
+
+      <div style="background-color:#f0fdf4;border-left:3px solid ${DD.green};padding:16px 20px;margin:20px 0;border-radius:0 6px 6px 0;font-size:13px;line-height:1.7;">
+        <strong style="color:#166534;">💰 What you'll earn:</strong><br>
+        <span style="color:#166534;">Approved drivers earn <strong>90% of each shipment value</strong> with weekly direct deposits. Top drivers average $2,000-$5,000 per week.</span>
       </div>
 
       <p style="color:${DD.sub};font-size:13px;">
-        Questions? Contact us at <a href="mailto:support@drivedrop.us.com" style="color:${DD.blue};text-decoration:none;">support@drivedrop.us.com</a>
+        Questions about your application? Contact us at <a href="mailto:support@drivedrop.us.com" style="color:${DD.blue};text-decoration:none;">support@drivedrop.us.com</a>
       </p>
 
       <p>Thank you for your interest in joining the DriveDrop carrier network!</p>
-      <p><strong>The DriveDrop Team</strong></p>
+      <p style="margin-top:24px;"><strong>The DriveDrop Team</strong></p>
     `)
   },
 
@@ -407,49 +441,74 @@ export const EmailTemplates: Record<EmailTemplateType, EmailTemplate> = {
   },
 
   admin_driver_application: {
-    subject: 'New Driver Application Submitted — DriveDrop',
+    subject: '🚛 New Driver Application — {{fullName}} ({{licenseState}})',
     sender: 'admin',
-    htmlContent: emailBase('New Driver Application', `
-      <p style="color:${DD.red};font-weight:600;">A new driver application requires review.</p>
+    htmlContent: emailBase('New Driver Application Submitted', `
+      <div style="background-color:#fef2f2;border-left:4px solid ${DD.red};padding:16px 20px;margin:0 0 24px;border-radius:0 6px 6px 0;">
+        <strong style="color:#991b1b;font-size:15px;">⚠️ Action Required:</strong>
+        <p style="margin:6px 0 0;color:#991b1b;font-size:13px;">A new driver application requires your review and approval.</p>
+      </div>
 
       ${infoBox(`
-        <strong>Applicant Information</strong><br>
-        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:8px;">
+        <strong style="font-size:16px;color:${DD.text};">Applicant Information</strong>
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:12px;">
           <tr>
-            <td style="padding:6px 0;color:${DD.sub};width:40%;font-size:13px;"><strong>Full Name:</strong></td>
-            <td style="padding:6px 0;font-size:13px;">{{fullName}}</td>
+            <td style="padding:8px 0;color:${DD.sub};width:40%;font-size:13px;"><strong>Full Name:</strong></td>
+            <td style="padding:8px 0;font-size:14px;font-weight:600;">{{fullName}}</td>
           </tr>
           <tr>
-            <td style="padding:6px 0;color:${DD.sub};font-size:13px;"><strong>Email:</strong></td>
-            <td style="padding:6px 0;font-size:13px;">{{email}}</td>
+            <td style="padding:8px 0;color:${DD.sub};font-size:13px;"><strong>Email:</strong></td>
+            <td style="padding:8px 0;font-size:13px;"><a href="mailto:{{email}}" style="color:${DD.blue};text-decoration:none;">{{email}}</a></td>
           </tr>
           <tr>
-            <td style="padding:6px 0;color:${DD.sub};font-size:13px;"><strong>Phone:</strong></td>
-            <td style="padding:6px 0;font-size:13px;">{{phone}}</td>
+            <td style="padding:8px 0;color:${DD.sub};font-size:13px;"><strong>Phone:</strong></td>
+            <td style="padding:8px 0;font-size:13px;"><a href="tel:{{phone}}" style="color:${DD.blue};text-decoration:none;">{{phone}}</a></td>
           </tr>
           <tr>
-            <td style="padding:6px 0;color:${DD.sub};font-size:13px;"><strong>License State:</strong></td>
-            <td style="padding:6px 0;font-size:13px;">{{licenseState}}</td>
+            <td style="padding:8px 0;color:${DD.sub};font-size:13px;"><strong>Date of Birth:</strong></td>
+            <td style="padding:8px 0;font-size:13px;">{{dateOfBirth}}</td>
           </tr>
           <tr>
-            <td style="padding:6px 0;color:${DD.sub};font-size:13px;"><strong>Application ID:</strong></td>
-            <td style="padding:6px 0;font-size:13px;font-family:monospace;">{{applicationId}}</td>
+            <td style="padding:8px 0;color:${DD.sub};font-size:13px;"><strong>License #:</strong></td>
+            <td style="padding:8px 0;font-size:13px;font-family:monospace;">{{licenseNumber}}</td>
           </tr>
           <tr>
-            <td style="padding:6px 0;color:${DD.sub};font-size:13px;"><strong>Submitted:</strong></td>
-            <td style="padding:6px 0;font-size:13px;">{{submittedAt}}</td>
+            <td style="padding:8px 0;color:${DD.sub};font-size:13px;"><strong>License State:</strong></td>
+            <td style="padding:8px 0;font-size:13px;">{{licenseState}}</td>
+          </tr>
+          {{dotNumberRow}}
+          <tr>
+            <td colspan="2" style="padding:12px 0 0;border-top:1px solid ${DD.border};"><strong style="color:${DD.sub};font-size:13px;">Application ID:</strong><br><span style="font-family:monospace;font-size:13px;color:${DD.text};">{{applicationId}}</span></td>
+          </tr>
+          <tr>
+            <td colspan="2" style="padding:8px 0;"><strong style="color:${DD.sub};font-size:13px;">Submitted:</strong><br><span style="font-size:13px;color:${DD.text};">{{submittedAt}}</span></td>
           </tr>
         </table>
       `, DD.purple)}
 
       <div style="background-color:#fffbeb;border-left:3px solid ${DD.amber};padding:16px 20px;margin:20px 0;border-radius:0 6px 6px 0;font-size:13px;line-height:1.8;">
-        <strong style="color:#92400e;">Documents Status:</strong><br>
-        {{documentsStatus}}
+        <strong style="color:#92400e;">📋 Verification Status:</strong><br>
+        <div style="margin-top:8px;">
+          {{verificationStatus}}
+        </div>
       </div>
 
-      ${btn('Review Application', '{{reviewUrl}}', DD.purple)}
+      {{fcraConsentInfo}}
 
-      <p style="color:#9ca3af;font-size:12px;text-align:center;">This is an automated notification from the DriveDrop driver application system.</p>
+      ${btn('Review Application in Admin', '{{reviewUrl}}', DD.purple)}
+
+      <div style="background-color:${DD.muted};padding:16px 20px;border-radius:6px;margin:24px 0 0;font-size:12px;color:${DD.sub};line-height:1.7;">
+        <strong style="color:${DD.text};">Review Checklist:</strong>
+        <ul style="margin:8px 0 0;padding-left:18px;">
+          <li>Verify license is valid and not expired</li>
+          <li>Check DOT number status (if applicable)</li>
+          <li>Review MVR results for violations</li>
+          <li>Confirm insurance coverage meets requirements</li>
+          <li>Approve or reject within 3 business days</li>
+        </ul>
+      </div>
+
+      <p style="color:#9ca3af;font-size:11px;text-align:center;margin-top:24px;">This is an automated notification from the DriveDrop driver application system.</p>
     `)
   },
 
