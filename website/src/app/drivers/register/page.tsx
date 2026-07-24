@@ -113,6 +113,7 @@ export default function DriverRegistrationPage() {
   const [showDotConfirmation, setShowDotConfirmation] = useState(false)
   const [pendingDotResult, setPendingDotResult] = useState<any>(null)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
+  const [infoMessage, setInfoMessage] = useState<string | null>(null)
 
   const totalSteps = 4
   const progress = (currentStep / totalSteps) * 100
@@ -131,7 +132,19 @@ export default function DriverRegistrationPage() {
         })
         
         const result = await response.json()
-        
+
+        // Service unavailable, not a bad DOT number - never block registration
+        // for this. Proceed to the next step with a neutral notice instead.
+        if (result.requiresManualReview) {
+          setInfoMessage(result.message || 'DOT verification is temporarily unavailable. You can continue - our team will verify it manually.')
+          setErrorMessage(null)
+          setDotPreVerified(false)
+          setVerificationResult({ dot: { verified: false, requiresManualReview: true } })
+          setIsVerifying(false)
+          setCurrentStep(2)
+          return
+        }
+
         if (!response.ok || !result.verified) {
           setErrorMessage(result.error || 'DOT number not found in FMCSA database. Please check and try again.')
           setIsVerifying(false)
@@ -349,6 +362,31 @@ export default function DriverRegistrationPage() {
         </div>
       )}
       
+      {/* Info Message Toast (non-blocking notices, e.g. manual review) */}
+      {infoMessage && (
+        <div className="fixed top-4 right-4 z-50 max-w-md animate-in fade-in slide-in-from-top-2">
+          <Card className="border-blue-400 bg-blue-50">
+            <CardContent className="pt-4 pb-4">
+              <div className="flex items-start gap-3">
+                <div className="h-5 w-5 text-blue-600 mt-0.5">ℹ️</div>
+                <div className="flex-1">
+                  <p className="text-sm font-semibold text-blue-900">Heads up</p>
+                  <p className="text-sm text-blue-700 mt-1">{infoMessage}</p>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setInfoMessage(null)}
+                  className="h-6 w-6 p-0 text-blue-600 hover:text-blue-800 hover:bg-blue-100"
+                >
+                  ×
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
       {/* Error Message Toast */}
       {errorMessage && (
         <div className="fixed top-4 right-4 z-50 max-w-md animate-in fade-in slide-in-from-top-2">

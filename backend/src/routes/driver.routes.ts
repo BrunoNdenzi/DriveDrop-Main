@@ -47,6 +47,20 @@ router.post('/verify-dot', async (req, res) => {
 
     console.log('✅ DOT Verification Result:', result);
 
+    // FMCSA being unreachable is a service problem, not a bad DOT number -
+    // never block registration for it. Return 200 with a manual-review flag
+    // so the driver proceeds and gets checked by a human later.
+    if (result.requiresManualReview) {
+      console.warn('⚠️ DOT verification unavailable - proceeding, flagged for manual review:', result);
+      return res.status(200).json({
+        verified: false,
+        requiresManualReview: true,
+        message: 'DOT verification is temporarily unavailable. You can continue - our team will verify it manually.',
+      });
+    }
+
+    // Only block on a genuinely invalid/not-found DOT number, so the driver
+    // can correct a typo before proceeding.
     if (!result.verified) {
       console.warn('⚠️ DOT Not Verified:', result);
       return res.status(400).json({
