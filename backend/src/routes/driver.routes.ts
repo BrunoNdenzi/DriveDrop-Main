@@ -98,7 +98,6 @@ router.post('/verify', async (req, res) => {
       licenseState,
       dotNumber,
       fcraConsentObtained,
-      fcraConsentIpAddress,
       fcraConsentSignature,
     } = req.body;
 
@@ -115,6 +114,15 @@ router.post('/verify', async (req, res) => {
         error: 'FCRA consent required before running background check',
       });
     }
+
+    // Extract client IP from request (Railway/Vercel sets X-Forwarded-For)
+    const clientIp = req.ip || 
+                     req.headers['x-forwarded-for']?.toString().split(',')[0]?.trim() || 
+                     req.headers['x-real-ip']?.toString() || 
+                     req.socket.remoteAddress || 
+                     null;
+
+    console.log('📍 Client IP extracted:', clientIp);
 
     // Create draft application
     const { data: application, error: createError } = await supabaseAdmin
@@ -141,7 +149,7 @@ router.post('/verify', async (req, res) => {
         dot_number: dotNumber || null,
         fcra_disclosure_shown_at: new Date().toISOString(),
         fcra_consent_obtained_at: new Date().toISOString(),
-        fcra_consent_ip_address: fcraConsentIpAddress,
+        fcra_consent_ip_address: clientIp,
         fcra_consent_signature: fcraConsentSignature,
       })
       .select()

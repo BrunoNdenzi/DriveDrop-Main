@@ -45,6 +45,9 @@ try {
 const app = express();
 const PORT = config.server.port;
 
+// Trust proxy - required for Railway/Vercel to get correct client IP
+app.set('trust proxy', true);
+
 // Middleware
 app.use(helmet());
 app.use(cors({

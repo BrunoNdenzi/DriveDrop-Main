@@ -195,7 +195,7 @@ export default function DriverRegistrationPage() {
           licenseState: formData.licenseState,
           dotNumber: formData.dotNumber || null,
           fcraConsentObtained: true,
-          fcraConsentIpAddress: 'client-ip',
+          // Backend will extract IP from request headers
           fcraConsentSignature: `${formData.firstName} ${formData.lastName}`,
         }),
       })
