@@ -173,6 +173,7 @@ export default function RouteOptimizer({ driverId }: { driverId: string }) {
   const [detectingLocation, setDetectingLocation] = useState(false)
   const locationInputRef = useRef<HTMLInputElement>(null)
   const autocompleteRef = useRef<google.maps.places.Autocomplete | null>(null)
+  const benjiSessionIdRef = useRef(`route-planner-${driverId}`)
 
   // ── Auth Token ──────────────────────────────────────────────────────
 
@@ -464,28 +465,21 @@ export default function RouteOptimizer({ driverId }: { driverId: string }) {
     setLoadingBenji(true)
     try {
       const headers = await getHeaders()
-      const response = await fetch(`${API_BASE_URL}/route-optimization/benji-assist`, {
+      const message = driverLocation.trim()
+        ? `${q}\nCurrent driver location: ${driverLocation.trim()}`
+        : q
+      const response = await fetch(`${API_BASE_URL}/benji-v3/chat`, {
         method: 'POST',
         headers,
         body: JSON.stringify({
-          query: q,
-          context: {
-            driverLocation,
-            activeShipments: activeShipments.map(s => ({
-              id: s.id,
-              pickup: s.pickup_address,
-              delivery: s.delivery_address,
-              status: s.status,
-            })),
-            currentRoute: optimizedRoute || undefined,
-          },
+          message,
+          sessionId: benjiSessionIdRef.current,
         }),
       })
 
       const result = await response.json()
-      if (result.success) {
-        setBenjiResponse({ answer: result.answer, suggestions: result.suggestions || [] })
-      }
+      if (!response.ok) throw new Error(result.error || 'Benji could not plan this route')
+      setBenjiResponse({ answer: result.response, suggestions: [] })
     } catch (err) {
       console.error('Benji assist error:', err)
     } finally {
@@ -831,12 +825,19 @@ export default function RouteOptimizer({ driverId }: { driverId: string }) {
           </div>
 
           {/* Optimized Shipments Count */}
-          <div className="flex items-center gap-2 px-4 py-3 bg-amber-50 border border-amber-200 rounded-lg">
+          <div className="flex flex-wrap items-center gap-2 px-4 py-3 bg-amber-50 border border-amber-200 rounded-lg">
             <Package className="h-5 w-5 text-amber-600" />
             <span className="text-sm font-medium text-amber-800">
               {optimizedRoute.stops.filter(s => s.type === 'pickup' || s.type === 'delivery').length / 2} optimized shipments
             </span>
-            <span className="text-xs text-amber-600 ml-auto">
+            <span
+              className="inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-2 py-1 text-xs font-medium text-emerald-700"
+              title="Pickup-before-delivery order and trailer capacity are validated by the route optimizer"
+            >
+              <CheckCircle className="h-3.5 w-3.5" />
+              Legal &amp; capacity-safe
+            </span>
+            <span className="text-xs text-amber-600 sm:ml-auto">
               Net Profit: ${(activeShipments.filter(s => selectedShipmentIds.has(s.id)).reduce((sum, s) => sum + (s.estimated_price || 0), 0) - optimizedRoute.summary.totalFuelCost).toFixed(2)}
             </span>
           </div>

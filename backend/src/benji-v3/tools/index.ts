@@ -19,11 +19,13 @@
 
 import type OpenAI from 'openai';
 import NaturalLanguageShipmentService from '../../services/NaturalLanguageShipmentService';
-import { pricingService }        from '../../services/pricing.service';
+import { pricingDecisionService } from '../../services/pricingDecision.service';
 import { googleMapsService }     from '../../services/google-maps.service';
+import { routeOptimizationService, RouteStop } from '../../services/RouteOptimizationService';
 import { estimateDistanceMiles } from './distance.utils';
 import type { V3ToolResult, UserType, V3LogisticsContext, WorkflowState } from '../benji.types';
 import { notificationEvents }    from '../../lib/notification-events';
+import { formatForSms }          from '../sms-formatter';
 
 const _nlService = new NaturalLanguageShipmentService();
 
@@ -136,6 +138,7 @@ export const V3_TOOL_DEFINITIONS: OpenAI.Chat.Completions.ChatCompletionTool[] =
         'Look up the current status and details of an existing shipment. ' +
         'ALWAYS call this tool immediately when the user asks where their car/vehicle/shipment is, ' +
         'or asks about status/tracking — even with NO ID provided. ' +
+        'Do NOT use this for route planning, today\'s driving plan, stop order, mileage, or ETA; drivers use plan_route for those requests. ' +
         'Do NOT ask for an ID or vehicle details before calling — call with no arguments and the tool finds the most recent active shipment automatically. ' +
         'Can also find a shipment by UUID or by describing the vehicle/route.',
       parameters: {
@@ -168,6 +171,37 @@ export const V3_TOOL_DEFINITIONS: OpenAI.Chat.Completions.ChatCompletionTool[] =
   },
 
   // ── V4 tools ──────────────────────────────────────────────────────────────
+
+  {
+    type: 'function',
+    function: {
+      name: 'plan_route',
+      description:
+        'Build the driver\'s real optimized route from their currently accepted or assigned DriveDrop shipments. ' +
+        'DRIVER ONLY. Call immediately when a driver asks how their route or day looks, asks for today\'s plan, ' +
+        'the best stop order, route optimization, mileage, ETA, or route costs. ' +
+        'Shipment addresses and coordinates are loaded securely from the database; never ask the driver to repeat them.',
+      parameters: {
+        type: 'object',
+        properties: {
+          current_location: {
+            type: 'string',
+            description:
+              'Optional current driver address or city/state. Omit when unavailable; the first pickup becomes the planning origin and the summary labels that assumption.',
+          },
+          vehicle_slots: {
+            type: 'number',
+            description: 'Optional trailer vehicle capacity. Defaults to the existing 8-car hauler assumption.',
+          },
+          departure_time: {
+            type: 'string',
+            description: 'Optional ISO departure date/time. Defaults to now.',
+          },
+        },
+        required: [],
+      },
+    },
+  },
 
   {
     type: 'function',
@@ -724,24 +758,28 @@ async function execGetShippingQuote(args: Record<string, unknown>): Promise<V3To
     };
   }
 
-  // Use dynamic pricing config (includes surge, fuel adjustment, delivery type multiplier)
+  // Use Phase 2 Decision Layer (includes surge, fuel adjustment, delivery type multiplier)
   let total = 0;
   let deliveryType = 'standard';
   let deliveryMultiplier = 1.0;
   try {
-    const quoteResult = await pricingService.calculateQuoteWithDynamicConfig({
+    const result = await pricingDecisionService.generateQuote({
       vehicleType:  vType,
       distanceMiles,
       pickupDate,
       deliveryDate,
+      routeOrigin: origin,
+      routeDestination: dest,
+      enableIntelligence: false,
+      logToHistory: true,
+      requestSource: 'benji',
     });
-    total              = quoteResult.total;
-    deliveryType       = quoteResult.breakdown.deliveryType;
-    deliveryMultiplier = quoteResult.breakdown.deliveryTypeMultiplier;
-  } catch {
-    // Fallback to static pricing
-    const fallback = pricingService.calculateQuote({ vehicleType: vType, distanceMiles });
-    total = fallback.total;
+    total              = result.total;
+    deliveryType       = result.breakdown.deliveryType;
+    deliveryMultiplier = result.breakdown.deliveryTypeMultiplier;
+  } catch (err) {
+    // Fallback: use minimum price
+    total = 150;
   }
 
   // Enclosed transport adds ~30% premium
@@ -1103,6 +1141,186 @@ async function execTrackShipment(
 }
 
 // ─── V4 executors ─────────────────────────────────────────────────────────────
+
+// ─── plan_route ───────────────────────────────────────────────────────────────
+
+interface DriverRouteShipment {
+  id: string;
+  status: 'accepted' | 'assigned';
+  title?: string | null;
+  vehicle_year?: number | null;
+  vehicle_make?: string | null;
+  vehicle_model?: string | null;
+  pickup_address: string;
+  delivery_address: string;
+  estimated_price?: number | null;
+}
+
+interface ShipmentCoordinates {
+  pickup_lat?: number | null;
+  pickup_lng?: number | null;
+  delivery_lat?: number | null;
+  delivery_lng?: number | null;
+}
+
+export async function execPlanRoute(
+  args:     Record<string, unknown>,
+  userId:   string,
+  userRole: UserType,
+): Promise<V3ToolResult> {
+  if (userRole !== 'driver') {
+    return {
+      success: false,
+      data: null,
+      summary: '',
+      errorMessage: 'Route planning is available to drivers only.',
+    };
+  }
+
+  const currentLocation = typeof args['current_location'] === 'string'
+    ? args['current_location'].trim()
+    : '';
+  const departureTime = typeof args['departure_time'] === 'string'
+    ? args['departure_time']
+    : undefined;
+  const vehicleSlots = args['vehicle_slots'] === undefined
+    ? undefined
+    : Number(args['vehicle_slots']);
+
+  if (vehicleSlots !== undefined && (!Number.isInteger(vehicleSlots) || vehicleSlots < 1)) {
+    return {
+      success: false,
+      data: null,
+      summary: '',
+      errorMessage: 'Trailer capacity must be a positive whole number.',
+    };
+  }
+
+  try {
+    const { supabaseAdmin } = await import('../../lib/supabase');
+    const { data, error } = await supabaseAdmin
+      .from('shipments')
+      .select('id, status, title, vehicle_year, vehicle_make, vehicle_model, pickup_address, delivery_address, estimated_price')
+      .eq('driver_id', userId)
+      .in('status', ['accepted', 'assigned'])
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      return {
+        success: false,
+        data: null,
+        summary: '',
+        errorMessage: `I couldn't load your assigned shipments: ${error.message}`,
+      };
+    }
+
+    const shipments = (data ?? []) as DriverRouteShipment[];
+    if (shipments.length === 0) {
+      return {
+        success: true,
+        data: { shipments: [], route: null },
+        summary: 'You have no accepted or assigned shipments to plan right now.',
+      };
+    }
+
+    const coordinates = await Promise.all(shipments.map(async shipment => {
+      const { data: coordinateRows, error: coordinateError } = await supabaseAdmin
+        .rpc('get_shipment_coordinates', { shipment_id: shipment.id });
+
+      if (coordinateError) return {} as ShipmentCoordinates;
+      return ((coordinateRows as ShipmentCoordinates[] | null)?.[0] ?? {}) as ShipmentCoordinates;
+    }));
+
+    const firstShipment = shipments[0]!;
+    const firstCoordinates = coordinates[0] ?? {};
+    const assumedOrigin = !currentLocation;
+    const stops: RouteStop[] = [
+      {
+        id: 'driver-start',
+        address: currentLocation || firstShipment.pickup_address,
+        type: 'current_location',
+        estimatedDuration: 0,
+        ...(assumedOrigin && Number.isFinite(firstCoordinates.pickup_lat) && Number.isFinite(firstCoordinates.pickup_lng)
+          ? { latitude: firstCoordinates.pickup_lat!, longitude: firstCoordinates.pickup_lng! }
+          : {}),
+      },
+    ];
+
+    shipments.forEach((shipment, index) => {
+      const coordinate = coordinates[index] ?? {};
+      const vehicle = [shipment.vehicle_year, shipment.vehicle_make, shipment.vehicle_model]
+        .filter(Boolean)
+        .join(' ') || shipment.title || 'Vehicle';
+
+      stops.push({
+        id: `pickup-${shipment.id}`,
+        address: shipment.pickup_address,
+        type: 'pickup',
+        shipmentId: shipment.id,
+        vehicleInfo: vehicle,
+        estimatedDuration: 20,
+        ...(Number.isFinite(coordinate.pickup_lat) && Number.isFinite(coordinate.pickup_lng)
+          ? { latitude: coordinate.pickup_lat!, longitude: coordinate.pickup_lng! }
+          : {}),
+      });
+      stops.push({
+        id: `delivery-${shipment.id}`,
+        address: shipment.delivery_address,
+        type: 'delivery',
+        shipmentId: shipment.id,
+        vehicleInfo: vehicle,
+        estimatedDuration: 15,
+        ...(Number.isFinite(coordinate.delivery_lat) && Number.isFinite(coordinate.delivery_lng)
+          ? { latitude: coordinate.delivery_lat!, longitude: coordinate.delivery_lng! }
+          : {}),
+      });
+    });
+
+    const route = await routeOptimizationService.optimizeRoute(stops, {
+      ...(departureTime ? { departureTime } : {}),
+      ...(vehicleSlots !== undefined ? { vehicleSlots } : {}),
+    });
+
+    const sequence = route.stops
+      .filter(stop => stop.type === 'pickup' || stop.type === 'delivery')
+      .map((stop, index) => {
+        const action = stop.type === 'pickup' ? 'Pickup' : 'Deliver';
+        const vehicle = stop.vehicleInfo ? ` — ${stop.vehicleInfo}` : '';
+        return `${index + 1}. ${action}: ${stop.address}${vehicle}`;
+      });
+    const totalRevenue = shipments.reduce(
+      (sum, shipment) => sum + (typeof shipment.estimated_price === 'number' ? shipment.estimated_price : 0),
+      0
+    );
+    const hours = Math.round((route.summary.totalDuration / 60) * 10) / 10;
+    const originNote = assumedOrigin
+      ? `Planning starts at your first pickup (${firstShipment.pickup_address}) because no current location was available.\n`
+      : '';
+    const summary = formatForSms(
+      `Your optimized route covers ${shipments.length} shipment${shipments.length === 1 ? '' : 's'}.\n` +
+      originNote +
+      `${sequence.join('\n')}\n` +
+      `Total: ${route.summary.totalDistance} miles · about ${hours} hours · ` +
+      `$${totalRevenue.toFixed(2)} assigned revenue · $${route.summary.totalFuelCost.toFixed(2)} estimated fuel.`
+    );
+
+    return {
+      success: true,
+      data: {
+        route,
+        shipmentCount: shipments.length,
+        shipmentIds: shipments.map(shipment => shipment.id),
+        totalRevenue,
+        vehicleSlots: vehicleSlots ?? 8,
+        originAssumed: assumedOrigin,
+      },
+      summary,
+    };
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    return { success: false, data: null, summary: '', errorMessage: `Route planning failed: ${msg}` };
+  }
+}
 
 // ─── list_shipments ───────────────────────────────────────────────────────────
 
@@ -2424,6 +2642,7 @@ export async function executeV3Tool(
       case 'create_shipment':          return await execCreateShipment({ ...args, user_id: userId }, ctx);
       case 'track_shipment':           return await execTrackShipment(args, userId);
       // ── V4 tools ───────────────────────────────────────────────────────
+      case 'plan_route':              return await execPlanRoute(args, userId, userRole);
       case 'list_shipments':           return await execListShipments(args, userId, userRole);
       case 'update_shipment_status':   return await execUpdateShipmentStatus(args, userId, userRole);
       case 'apply_for_shipment':       return await execApplyForShipment(args, userId, userRole);

@@ -4,7 +4,6 @@
  * Endpoints:
  * POST /api/v1/route-optimization/optimize        - Optimize multi-stop route
  * POST /api/v1/route-optimization/daily-plan       - Generate full daily plan
- * POST /api/v1/route-optimization/benji-assist     - Benji natural language route help
  * GET  /api/v1/route-optimization/fuel-prices      - Regional fuel price estimates
  * GET  /api/v1/route-optimization/traffic           - Current Carolina traffic conditions
  */
@@ -133,45 +132,6 @@ router.post('/daily-plan', authenticate, async (req: Request, res: Response): Pr
     console.error('Daily plan error:', error);
     res.status(500).json({
       error: 'Failed to generate daily plan',
-      details: error.message,
-    });
-  }
-});
-
-/**
- * POST /api/v1/route-optimization/benji-assist
- * Natural language route assistance from Benji AI
- * 
- * Body: {
- *   query: string,
- *   context?: { driverLocation, activeShipments, currentRoute }
- * }
- */
-router.post('/benji-assist', authenticate, async (req: Request, res: Response): Promise<void> => {
-  try {
-    const { query, context = {} } = req.body;
-
-    if (!query || typeof query !== 'string') {
-      res.status(400).json({ error: 'Query is required' });
-      return;
-    }
-
-    console.log('Benji route assist:', {
-      userId: req.user?.id,
-      query,
-    });
-
-    const response = await routeOptimizationService.benjiRouteAssist(query, context);
-
-    res.status(200).json({
-      success: true,
-      ...response,
-      timestamp: new Date().toISOString(),
-    });
-  } catch (error: any) {
-    console.error('Benji route assist error:', error);
-    res.status(500).json({
-      error: 'Benji could not process your route question',
       details: error.message,
     });
   }

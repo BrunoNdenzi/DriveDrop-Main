@@ -54,10 +54,11 @@ const CTX_WINDOW      = 20;            // Max recent messages sent to API (limit
  * Sending fewer tools improves routing accuracy and prevents the LLM from calling
  * restricted tools that would be rejected server-side anyway.
  */
-function getToolsForRole(userRole: UserType): OpenAI.Chat.Completions.ChatCompletionTool[] {
+export function getToolsForRole(userRole: UserType): OpenAI.Chat.Completions.ChatCompletionTool[] {
   // Tools restricted by role (blocked tools per role):
   const BLOCKED: Record<string, string[]> = {
     client: [
+      'plan_route',                 // driver only
       'update_shipment_status',    // clients cannot change status
       'apply_for_shipment',        // clients don't apply for loads
       'list_driver_applications',  // client-irrelevant
@@ -73,11 +74,13 @@ function getToolsForRole(userRole: UserType): OpenAI.Chat.Completions.ChatComple
       'get_driver_info',           // client/admin only
     ],
     admin: [
+      'plan_route',                 // driver only
       'apply_for_shipment',        // driver only
       'list_driver_applications',  // driver only
       'withdraw_application',      // driver only
     ],
     broker: [
+      'plan_route',                 // driver only
       'update_shipment_status',    // drivers/admins only
       'apply_for_shipment',        // drivers only
       'list_driver_applications',  // drivers only
@@ -479,18 +482,16 @@ class BenjiV3Service {
 
       let finalResponse = '';
       let loopCount     = 0;
-      // Use stronger model only when we already have tool calls in-flight
-      let useStrongModel = false;
 
       while (loopCount < MAX_LOOP) {
         loopCount++;
 
         const completion = await openaiClient.chat.completions.create({
-          model:       useStrongModel ? MODEL_WITH_TOOLS : MODEL,
+          model:       fastPath ? MODEL : MODEL_WITH_TOOLS,
           messages:    apiMessages,
           tools:       fastPath ? [] : roleTools,
           tool_choice: fastPath ? 'none' : ('auto' as const),
-          max_tokens:  fastPath && !useStrongModel ? MAX_TOKENS_FAST : MAX_TOKENS,
+          max_tokens:  fastPath ? MAX_TOKENS_FAST : MAX_TOKENS,
           temperature: TEMPERATURE,
         });
 
@@ -499,15 +500,13 @@ class BenjiV3Service {
           totalPromptTokens     += completion.usage.prompt_tokens;
           totalCompletionTokens += completion.usage.completion_tokens;
         }
-        audit.model = useStrongModel ? MODEL_WITH_TOOLS : MODEL;
+        audit.model = fastPath ? MODEL : MODEL_WITH_TOOLS;
 
         const choice = completion.choices[0];
         if (!choice) break;
 
         // ── Tool calls ───────────────────────────────────────────────────
         if (choice.finish_reason === 'tool_calls' && choice.message.tool_calls) {
-          useStrongModel = true; // Subsequent passes use the stronger model
-
           // Append the assistant message with tool_calls to history
           apiMessages.push(choice.message);
 
@@ -722,7 +721,6 @@ class BenjiV3Service {
       ];
 
       // ── Agentic loop (non-streaming) for tool calls ────────────────────
-      let useStrongModel = false;
       let loopCount      = 0;
 
       while (loopCount < MAX_LOOP) {
@@ -730,11 +728,11 @@ class BenjiV3Service {
 
         // Non-streaming for tool resolution; switch to streaming only for final response
         const completion = await openaiClient.chat.completions.create({
-          model:       useStrongModel ? MODEL_WITH_TOOLS : MODEL,
+          model:       fastPath ? MODEL : MODEL_WITH_TOOLS,
           messages:    apiMessages,
           tools:       fastPath ? [] : getToolsForRole(req.userType),
           tool_choice: fastPath ? 'none' : ('auto' as const),
-          max_tokens:  fastPath && !useStrongModel ? MAX_TOKENS_FAST : MAX_TOKENS,
+          max_tokens:  fastPath ? MAX_TOKENS_FAST : MAX_TOKENS,
           temperature: TEMPERATURE,
           stream:      false,
         });
@@ -743,7 +741,6 @@ class BenjiV3Service {
         if (!choice) break;
 
         if (choice.finish_reason === 'tool_calls' && choice.message.tool_calls) {
-          useStrongModel = true;
           apiMessages.push(choice.message);
 
           for (const rawToolCall of choice.message.tool_calls) {
