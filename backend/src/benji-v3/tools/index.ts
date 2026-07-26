@@ -19,7 +19,7 @@
 
 import type OpenAI from 'openai';
 import NaturalLanguageShipmentService from '../../services/NaturalLanguageShipmentService';
-import { pricingDecisionService } from '../../services/pricingDecision.service';
+import { pricingService }        from '../../services/pricing.service';
 import { googleMapsService }     from '../../services/google-maps.service';
 import { routeOptimizationService, RouteStop } from '../../services/RouteOptimizationService';
 import { estimateDistanceMiles } from './distance.utils';
@@ -758,28 +758,24 @@ async function execGetShippingQuote(args: Record<string, unknown>): Promise<V3To
     };
   }
 
-  // Use Phase 2 Decision Layer (includes surge, fuel adjustment, delivery type multiplier)
+  // Use dynamic pricing config (includes surge, fuel adjustment, delivery type multiplier)
   let total = 0;
   let deliveryType = 'standard';
   let deliveryMultiplier = 1.0;
   try {
-    const result = await pricingDecisionService.generateQuote({
+    const quoteResult = await pricingService.calculateQuoteWithDynamicConfig({
       vehicleType:  vType,
       distanceMiles,
       pickupDate,
       deliveryDate,
-      routeOrigin: origin,
-      routeDestination: dest,
-      enableIntelligence: false,
-      logToHistory: true,
-      requestSource: 'benji',
     });
-    total              = result.total;
-    deliveryType       = result.breakdown.deliveryType;
-    deliveryMultiplier = result.breakdown.deliveryTypeMultiplier;
-  } catch (err) {
-    // Fallback: use minimum price
-    total = 150;
+    total              = quoteResult.total;
+    deliveryType       = quoteResult.breakdown.deliveryType;
+    deliveryMultiplier = quoteResult.breakdown.deliveryTypeMultiplier;
+  } catch {
+    // Fallback to static pricing
+    const fallback = pricingService.calculateQuote({ vehicleType: vType, distanceMiles });
+    total = fallback.total;
   }
 
   // Enclosed transport adds ~30% premium
