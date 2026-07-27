@@ -6,6 +6,7 @@ import { useAuth } from '@/hooks/useAuth'
 import { getSupabaseBrowserClient } from '@/lib/supabase-client'
 import { toast } from '@/components/ui/toast'
 import { OptimizedLink } from '@/components/ui/optimized-link'
+import VerifiedPhoneField from '@/components/profile/VerifiedPhoneField'
 import { 
   User, 
   Car, 
@@ -59,7 +60,7 @@ interface DriverStats {
 }
 
 export default function DriverProfilePage() {
-  const { profile } = useAuth()
+  const { profile, refreshProfile } = useAuth()
   const router = useRouter()
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -193,8 +194,7 @@ export default function DriverProfilePage() {
         .from('profiles')
         .update({
           first_name: firstName,
-          last_name: lastName,
-          phone
+          last_name: lastName
         })
         .eq('id', profile?.id)
 
@@ -422,11 +422,12 @@ export default function DriverProfilePage() {
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Phone Number
                   </label>
-                  <input
-                    type="tel"
+                  <VerifiedPhoneField
                     value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
-                    className="w-full px-3 py-2 border rounded-md focus:ring-1 focus:ring-amber-500 focus:border-transparent"
+                    onVerified={async verifiedPhone => {
+                      setPhone(verifiedPhone)
+                      await refreshProfile()
+                    }}
                   />
                 </div>
 

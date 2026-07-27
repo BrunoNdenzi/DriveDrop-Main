@@ -65,13 +65,16 @@ export const updateCurrentUser = asyncHandler(async (req: Request, res: Response
     throw createError('Authentication required', 401, 'UNAUTHORIZED');
   }
 
-  const { first_name, last_name, phone, avatar_url } = req.body;
+  const { first_name, last_name, avatar_url } = req.body;
+
+  if (Object.prototype.hasOwnProperty.call(req.body, 'phone')) {
+    throw createError('Phone changes require SMS verification', 409, 'PHONE_VERIFICATION_REQUIRED');
+  }
 
   // Validate input
-  const updates: Partial<{ first_name: string; last_name: string; phone: string; avatar_url: string; }> = {};
+  const updates: Partial<{ first_name: string; last_name: string; avatar_url: string; }> = {};
   if (first_name) updates.first_name = first_name.trim();
   if (last_name) updates.last_name = last_name.trim();
-  if (phone) updates.phone = phone.trim();
   if (avatar_url) updates.avatar_url = avatar_url.trim();
 
   if (Object.keys(updates).length === 0) {

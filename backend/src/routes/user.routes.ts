@@ -12,6 +12,7 @@ import {
   getDriversNearby
 } from '@controllers/user.controller';
 import { getDriverApplications } from '@controllers/application.controller';
+import { sendPhoneChangeOtp, verifyPhoneChangeOtp } from '@controllers/phone-otp.controller';
 
 const router = Router();
 
@@ -28,6 +29,8 @@ router.get('/me', authenticate, getCurrentUser);
  * @access Private
  */
 router.put('/me', authenticate, updateCurrentUser);
+router.post('/me/phone/send-otp', authenticate, sendPhoneChangeOtp);
+router.post('/me/phone/verify', authenticate, verifyPhoneChangeOtp);
 
 /**
  * @route GET /api/v1/users/drivers/nearby

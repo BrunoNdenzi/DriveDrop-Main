@@ -16,6 +16,7 @@ import {
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { toast } from '@/components/ui/toast'
+import VerifiedPhoneField from '@/components/profile/VerifiedPhoneField'
 
 export default function ClientProfilePage() {
   const { profile, refreshProfile } = useAuth()
@@ -50,7 +51,8 @@ export default function ClientProfilePage() {
       const { error } = await supabase
         .from('profiles')
         .update({
-          ...formData,
+          first_name: formData.first_name,
+          last_name: formData.last_name,
           updated_at: new Date().toISOString(),
         })
         .eq('id', profile.id)
@@ -189,16 +191,13 @@ export default function ClientProfilePage() {
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Phone Number
                 </label>
-                <div className="relative">
-                  <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
-                  <Input
-                    type="tel"
-                    value={formData.phone}
-                    onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                    className="pl-10"
-                    placeholder="(555) 123-4567"
-                  />
-                </div>
+                <VerifiedPhoneField
+                  value={formData.phone}
+                  onVerified={async phone => {
+                    setFormData(current => ({ ...current, phone }))
+                    await refreshProfile()
+                  }}
+                />
               </div>
             </div>
           </div>

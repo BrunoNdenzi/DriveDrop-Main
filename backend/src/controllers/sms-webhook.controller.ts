@@ -25,6 +25,7 @@ import { v3SessionStore }         from '../benji-v3/benji.memory';
 import { executeV3Tool }          from '../benji-v3/tools/index';
 import type { UserType }          from '../benji-v3/benji.types';
 import config                     from '@config';
+import { normalizePhoneToE164 }   from '@utils/phone';
 
 // ─── Counters (in-process; reset on restart) ─────────────────────────────────
 
@@ -68,11 +69,7 @@ function validateTwilioSignature(req: Request): boolean {
 // ─── Phone normalization ──────────────────────────────────────────────────────
 
 function normalizePhone(raw: string): string | null {
-  if (!raw) return null;
-  // Twilio always sends E.164 (+1XXXXXXXXXX) — validate it looks right
-  const cleaned = raw.trim();
-  if (/^\+\d{7,15}$/.test(cleaned)) return cleaned;
-  return null;
+  return normalizePhoneToE164(raw);
 }
 
 // ─── Twilio media download (Basic Auth required) ──────────────────────────────
@@ -169,16 +166,35 @@ interface ResolvedProfile {
   isGuest:    boolean;
 }
 
+interface SmsProfileRow {
+  id: string;
+  phone: string | null;
+  role: UserType | null;
+  first_name: string | null;
+  is_guest: boolean | null;
+  phone_verified_at: string | null;
+}
+
 async function resolveOrCreateProfile(normalizedPhone: string): Promise<ResolvedProfile | null> {
   try {
     const { supabaseAdmin } = await import('../lib/supabase');
 
-    // Lookup by phone — try both verified and unverified
-    const { data: existing } = await supabaseAdmin
+    const { data: profiles, error: lookupError } = await supabaseAdmin
       .from('profiles')
-      .select('id, role, first_name, is_guest')
-      .eq('phone', normalizedPhone)
-      .maybeSingle();
+      .select('id, phone, role, first_name, is_guest, phone_verified_at')
+      .not('phone', 'is', null);
+    if (lookupError) throw lookupError;
+
+    const matches = ((profiles ?? []) as SmsProfileRow[]).filter(profile =>
+      normalizePhoneToE164(String(profile.phone ?? '')) === normalizedPhone
+    );
+    const verifiedMatches = matches.filter(profile => Boolean(profile.phone_verified_at));
+    const existing = verifiedMatches.length === 1 ? verifiedMatches[0] : undefined;
+
+    if (verifiedMatches.length > 1) {
+      logger.error('[SMS_WEBHOOK] Ambiguous verified phone ownership', { phone: normalizedPhone });
+      return null;
+    }
 
     if (existing) {
       return {
@@ -296,6 +312,16 @@ async function handleFastPath(
     return "Got it — a DriveDrop team member will follow up shortly. Reply here anytime in the meantime.";
   }
 
+  if ((upper === 'MY LOADS' || upper === 'SHIPMENTS') && profile.role === 'driver') {
+    const result = await executeV3Tool(
+      'list_shipments',
+      JSON.stringify({ limit: 10 }),
+      profile.id,
+      'driver',
+    );
+    return formatForSms(result.summary || (result.success ? 'No assigned shipments found.' : (result.errorMessage ?? 'Could not fetch your shipments.')));
+  }
+
   if (upper === 'LOADS' && profile.role === 'driver') {
     const result = await executeV3Tool(
       'list_shipments',
@@ -303,7 +329,8 @@ async function handleFastPath(
       profile.id,
       'driver',
     );
-    return formatForSms(result.summary || (result.success ? 'No loads available right now.' : (result.errorMessage ?? 'Could not fetch loads.')));
+    const reply = result.summary || (result.success ? 'No marketplace loads available right now.' : (result.errorMessage ?? 'Could not fetch marketplace loads.'));
+    return formatForSms(`${reply}\nReply MY LOADS to see shipments assigned to you.`);
   }
 
   // APPLY <n>  (driver only)
