@@ -2,10 +2,71 @@
  * Twilio SMS and phone verification controller
  */
 import { Request, Response } from 'express';
+import { createHmac, timingSafeEqual } from 'crypto';
 import { asyncHandler, createError } from '@utils/error';
 import { successResponse } from '@utils/response';
 import { twilioService } from '@services/twilio.service';
 import { isValidPhone } from '@utils/validation';
+
+const PARKING_ALERT_PHONE = '+17045247921';
+
+function hasValidParkingSignature(req: Request): boolean {
+  const timestamp = req.header('x-parking-timestamp');
+  const suppliedSignature = req.header('x-parking-signature');
+  const signingKey = process.env['SUPABASE_SERVICE_ROLE_KEY'];
+  if (!timestamp || !suppliedSignature || !signingKey) return false;
+
+  const timestampNumber = Number(timestamp);
+  if (!Number.isFinite(timestampNumber) || Math.abs(Date.now() - timestampNumber) > 5 * 60 * 1000) {
+    return false;
+  }
+
+  const expectedSignature = createHmac('sha256', signingKey)
+    .update(`${timestamp}.${JSON.stringify(req.body)}`)
+    .digest('hex');
+
+  const expected = Buffer.from(expectedSignature, 'hex');
+  const supplied = Buffer.from(suppliedSignature, 'hex');
+  return expected.length === supplied.length && timingSafeEqual(expected, supplied);
+}
+
+export const sendParkingInterestNotification = asyncHandler(async (req: Request, res: Response) => {
+  if (!hasValidParkingSignature(req)) {
+    throw createError('Invalid or expired request signature', 401, 'INVALID_SIGNATURE');
+  }
+
+  const {
+    fullName,
+    companyName,
+    email,
+    phone,
+    spacesNeeded,
+    vehicleTypes,
+    parkingFrequency,
+    neededBy,
+  } = req.body as Record<string, unknown>;
+
+  if (
+    typeof fullName !== 'string' || !fullName.trim() ||
+    typeof companyName !== 'string' || !companyName.trim() ||
+    typeof email !== 'string' || !email.trim() ||
+    typeof phone !== 'string' || !phone.trim() ||
+    typeof spacesNeeded !== 'number' || !Number.isInteger(spacesNeeded) || spacesNeeded < 1 || spacesNeeded > 500 ||
+    !Array.isArray(vehicleTypes) || vehicleTypes.length === 0 || !vehicleTypes.every(value => typeof value === 'string') ||
+    typeof parkingFrequency !== 'string' || !parkingFrequency.trim() ||
+    typeof neededBy !== 'string' || !neededBy.trim()
+  ) {
+    throw createError('Invalid parking interest notification data', 400, 'INVALID_PARKING_INTEREST');
+  }
+
+  const message = `DriveDrop parking lead: ${companyName} needs ${spacesNeeded} space${spacesNeeded === 1 ? '' : 's'} for ${vehicleTypes.join(', ')}. ${parkingFrequency}; needed ${neededBy}. Contact ${fullName}: ${phone}, ${email}.`;
+  const messageSid = await twilioService.sendSMS({
+    to: PARKING_ALERT_PHONE,
+    message,
+  });
+
+  res.status(201).json(successResponse({ messageSid, status: 'sent' }));
+});
 
 /**
  * Send SMS message

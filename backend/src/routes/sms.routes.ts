@@ -12,9 +12,17 @@ import {
   sendDeliveryConfirmation,
   validatePhoneNumber,
   getMessageStatus,
+  sendParkingInterestNotification,
 } from '@controllers/sms.controller';
 
 const router = Router();
+
+/**
+ * @route POST /api/v1/sms/parking-interest
+ * @desc Send a fixed-recipient parking demand alert through the shared Twilio service
+ * @access Internal (HMAC signed by the website server)
+ */
+router.post('/parking-interest', sendParkingInterestNotification);
 
 /**
  * @route POST /api/v1/sms/send
