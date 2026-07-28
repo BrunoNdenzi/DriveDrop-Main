@@ -4,6 +4,7 @@ import UserPathways from '@/components/sections/UserPathways'
 import QuoteCalculator from '@/components/sections/QuoteCalculator'
 import Header from '@/components/layout/Header'
 import Footer from '@/components/layout/Footer'
+import ParkingInterestFloater from '@/components/parking/ParkingInterestFloater'
 
 export default function Home() {
   return (
@@ -14,6 +15,7 @@ export default function Home() {
       <LiveMarketData />
       <QuoteCalculator />
       <Footer />
+      <ParkingInterestFloater />
     </main>
   )
 }
