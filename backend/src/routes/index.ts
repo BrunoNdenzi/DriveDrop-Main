@@ -14,7 +14,6 @@ import driverRoutes from './driver.routes';
 import messagesRoutes from './messages.routes';
 import { diagnosticsRoutes } from './diagnostics.routes';
 import pricingRoutes from './pricing.routes';
-import intelligenceRoutes from './intelligence.routes';
 import adminRoutes from './admin.routes';
 import emailRoutes from './email.routes';
 
@@ -80,7 +79,6 @@ router.get('/', (_req, res) => {
       notifications: '/api/v1/notifications',
       emails: '/api/v1/emails',
       pricing: '/api/v1/pricing',
-      intelligence: '/api/v1/intelligence',  // Phase 3: Operational Memory
       pickupVerification: '/api/v1/shipments (pickup verification endpoints)',
       // Commercial Expansion APIs
       commercial: '/api/v1/commercial',
@@ -118,7 +116,6 @@ router.use('/maps', mapsRoutes);
 router.use('/applications', applicationRoutes);
 router.use('/drivers', driverRoutes);
 router.use('/messages', messagesRoutes);
-router.use('/intelligence', intelligenceRoutes);  // Phase 3: Operational Memory
 router.use('/diagnostics', diagnosticsRoutes);
 router.use('/pricing', pricingRoutes);
 router.use('/admin', adminRoutes);
