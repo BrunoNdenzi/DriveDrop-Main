@@ -5,7 +5,7 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || ''
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const supabase = getSupabaseBrowserClient()
   const { data: { session } } = await supabase.auth.getSession()
-  const response = await fetch(`${API_URL}/api/v1/quick-send${path}`, {
+  const response = await fetch(`${API_URL}/quick-send${path}`, {
     ...init,
     headers: {
       Authorization: `Bearer ${session?.access_token ?? ''}`,
