@@ -56,6 +56,13 @@ const config = {
     apiKey: process.env['GOOGLE_MAPS_API_KEY'] || '',
   },
 
+  // HERE commercial truck routing (server-side only)
+  here: {
+    apiKey: process.env['HERE_API_KEY'] || '',
+    routingBaseUrl: process.env['HERE_ROUTING_BASE_URL'] || 'https://router.hereapi.com/v8',
+    matrixBaseUrl: process.env['HERE_MATRIX_BASE_URL'] || 'https://matrix.router.hereapi.com/v8',
+  },
+
   // Logging Configuration
   logging: {
     level: process.env['LOG_LEVEL'] || 'info',

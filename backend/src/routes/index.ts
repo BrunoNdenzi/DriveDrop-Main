@@ -14,6 +14,7 @@ import driverRoutes from './driver.routes';
 import messagesRoutes from './messages.routes';
 import { diagnosticsRoutes } from './diagnostics.routes';
 import pricingRoutes from './pricing.routes';
+import intelligenceRoutes from './intelligence.routes';
 import adminRoutes from './admin.routes';
 import emailRoutes from './email.routes';
 
@@ -47,6 +48,7 @@ import campaignsRoutes from './campaigns.routes';
 import carriersRoutes from './carriers.routes';
 import analyticsRoutes from './analytics.routes';
 import emailWebhooksRoutes from './email-webhooks.routes';
+import quickSendRoutes from './quick-send.routes';
 
 // Voice Agent (Vapi)
 import voiceAgentRoutes from './voice-agent.routes';
@@ -77,6 +79,8 @@ router.get('/', (_req, res) => {
       admin: '/api/v1/admin',
       notifications: '/api/v1/notifications',
       emails: '/api/v1/emails',
+      pricing: '/api/v1/pricing',
+      intelligence: '/api/v1/intelligence',  // Phase 3: Operational Memory
       pickupVerification: '/api/v1/shipments (pickup verification endpoints)',
       // Commercial Expansion APIs
       commercial: '/api/v1/commercial',
@@ -94,6 +98,7 @@ router.get('/', (_req, res) => {
       carriers: '/api/v1/carriers',
       analytics: '/api/v1/analytics',
       emailWebhooks: '/api/v1/email-webhooks',
+      quickSend: '/api/v1/quick-send',
       // Voice Agents
       voice:   '/api/v1/voice',
       retell:  '/api/v1/retell',
@@ -113,6 +118,7 @@ router.use('/maps', mapsRoutes);
 router.use('/applications', applicationRoutes);
 router.use('/drivers', driverRoutes);
 router.use('/messages', messagesRoutes);
+router.use('/intelligence', intelligenceRoutes);  // Phase 3: Operational Memory
 router.use('/diagnostics', diagnosticsRoutes);
 router.use('/pricing', pricingRoutes);
 router.use('/admin', adminRoutes);
@@ -142,6 +148,7 @@ router.use('/campaigns', campaignsRoutes);
 router.use('/carriers', carriersRoutes);
 router.use('/analytics', analyticsRoutes);
 router.use('/email-webhooks', emailWebhooksRoutes);
+router.use('/quick-send', quickSendRoutes);
 
 // Voice Agent (Vapi)
 router.use('/voice', voiceAgentRoutes);
