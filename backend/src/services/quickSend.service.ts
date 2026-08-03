@@ -12,6 +12,7 @@ const EXPECTED_MAILBOX = 'infos@calkons.com';
 export interface QuickSendRecipientInput {
   email: string;
   name?: string;
+  customFields?: Record<string, string>;
 }
 
 interface GmailTokenResponse {
@@ -149,6 +150,7 @@ class QuickSendService {
         batch_id: batch.id,
         email: recipient.email,
         name: recipient.name ?? null,
+        custom_fields: recipient.customFields ?? {},
         status: suppressedEmails.has(recipient.email) ? 'suppressed' : 'pending',
       })));
     if (recipientError) {
@@ -175,7 +177,7 @@ class QuickSendService {
 
     const { data: recipients, error: recipientError } = await supabaseAdmin
       .from('quick_send_recipients')
-      .select('id, email, name')
+      .select('id, email, name, custom_fields')
       .eq('batch_id', batchId)
       .eq('status', 'pending')
       .order('created_at', { ascending: true });
@@ -185,12 +187,38 @@ class QuickSendService {
     let failedCount = 0;
     for (let index = 0; index < (recipients ?? []).length; index += 1) {
       const recipient = recipients![index]!;
+      const customFields = (recipient.custom_fields ?? {}) as Record<string, string>;
+
+      // Substitute {{placeholders}} in subject and message per recipient
+      const personalize = (text: string): string => {
+        const firstName = recipient.name?.split(' ')[0]
+          || customFields['firstName']
+          || customFields['first_name']
+          || customFields['name']
+          || 'there';
+        const lastName = recipient.name?.split(' ').slice(1).join(' ')
+          || customFields['lastName']
+          || customFields['last_name']
+          || '';
+        const defaults: Record<string, string> = {
+          firstName,
+          lastName,
+          name: recipient.name || customFields['name'] || 'there',
+          email: recipient.email,
+          company: customFields['company'] || customFields['companyName'] || customFields['organization'] || '',
+          ...customFields,
+        };
+        return text.replace(/\{\{(?:customField:)?([a-zA-Z0-9_]+)\}\}/g, (_match, key: string) =>
+          defaults[key] || defaults[key.charAt(0).toLowerCase() + key.slice(1)] || ''
+        );
+      };
+
       try {
         const messageId = await this.sendMessage({
           to: recipient.email,
           name: recipient.name ?? undefined,
-          subject: batch.subject,
-          message: batch.message,
+          subject: personalize(batch.subject),
+          message: personalize(batch.message),
           batchId,
         });
         sentCount += 1;

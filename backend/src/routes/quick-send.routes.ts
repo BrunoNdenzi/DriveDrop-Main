@@ -12,15 +12,21 @@ import multer from 'multer';
 const router = Router();
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-// Configure multer for file uploads (CSV files)
+// Accept .csv regardless of MIME type — browsers report many types for the same file
+const ACCEPTED_CSV_MIMES = new Set([
+  'text/csv', 'text/plain', 'application/csv',
+  'application/vnd.ms-excel', 'application/octet-stream',
+]);
+
 const upload = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
+  limits: { fileSize: 5 * 1024 * 1024 },
   fileFilter: (_req, file, cb) => {
-    if (file.mimetype === 'text/csv' || file.originalname.endsWith('.csv')) {
+    const ext = file.originalname.split('.').pop()?.toLowerCase();
+    if (ext === 'csv' || ACCEPTED_CSV_MIMES.has(file.mimetype)) {
       cb(null, true);
     } else {
-      cb(new Error('Only CSV files are allowed'));
+      cb(new Error(`Unsupported file type: ${file.mimetype}. Please upload a .csv file.`));
     }
   },
 });

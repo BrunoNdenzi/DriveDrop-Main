@@ -193,50 +193,48 @@ class RecipientParsingService {
     const firstRecord = records[0]!;
     const columns = Object.keys(firstRecord);
 
-    // Detect email column
-    const emailColumn = this.findColumn(columns, [
-      'email',
-      'e-mail',
-      'email address',
-      'mail',
-      'contact',
-      'recipient',
+    // Detect email column by header name first
+    let emailColumn: string | undefined = this.findColumn(columns, [
+      'email', 'e-mail', 'email address', 'emailaddress', 'mail',
+      'contact email', 'contactemail', 'recipient', 'address',
     ]);
 
+    // Fallback: scan first data row for a column that contains a valid email
     if (!emailColumn) {
-      throw new Error('Could not detect email column. Please ensure your CSV has an "Email" column.');
+      const emailLike = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      emailColumn = columns.find(col => {
+        const val = firstRecord[col]?.trim() || '';
+        return emailLike.test(val);
+      });
+    }
+
+    if (!emailColumn) {
+      const available = columns.join(', ');
+      throw new Error(
+        `Could not detect an email column. Found columns: ${available}. ` +
+        'Rename the email column to "Email" or ensure a column contains email addresses.'
+      );
     }
 
     // Detect name column
     const nameColumn = this.findColumn(columns, [
-      'name',
-      'full name',
-      'fullname',
-      'contact name',
-      'recipient name',
-      'first name',
-      'firstname',
+      'name', 'full name', 'fullname', 'contact name', 'contactname',
+      'recipient name', 'first name', 'firstname', 'display name', 'displayname',
     ]);
 
     // Map remaining columns as custom fields
     const customFieldMappings: Record<string, string> = {};
     for (const col of columns) {
       if (col !== emailColumn && col !== nameColumn) {
-        // Convert column name to camelCase field name
         const fieldName = col
           .toLowerCase()
-          .replace(/[^a-z0-9]+(.)/g, (_, char) => char.toUpperCase())
-          .replace(/^./, (char) => char.toLowerCase());
-        
+          .replace(/[^a-z0-9]+(.)/g, (_, char: string) => char.toUpperCase())
+          .replace(/^(.)/, (char: string) => char.toLowerCase());
         customFieldMappings[fieldName] = col;
       }
     }
 
-    return {
-      emailColumn,
-      nameColumn,
-      customFieldMappings,
-    };
+    return { emailColumn, nameColumn, customFieldMappings };
   }
 
   /**
