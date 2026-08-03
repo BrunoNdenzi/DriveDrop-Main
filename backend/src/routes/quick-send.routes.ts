@@ -204,15 +204,12 @@ router.post('/parse/csv/columns', upload.single('file'), asyncHandler(async (req
 
 // ----- Batch Management (Enhanced) -----
 router.post('/batches', asyncHandler(async (req: Request, res: Response) => {
-  const { category, subject, message, recipients, pacingSeconds = 3, templateId, fieldMappings, sourceType } = req.body as {
+  const { category, subject, message, recipients, pacingSeconds = 3 } = req.body as {
     category?: string;
     subject?: string;
     message?: string;
     recipients?: QuickSendRecipientInput[];
     pacingSeconds?: number;
-    templateId?: string;
-    fieldMappings?: Record<string, string>;
-    sourceType?: string;
   };
   if (!category?.trim() || !subject?.trim() || !message?.trim() || !Array.isArray(recipients)) {
     return res.status(400).json(errorResponse('category, subject, message, and recipients are required'));

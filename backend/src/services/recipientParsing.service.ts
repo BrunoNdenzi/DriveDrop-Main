@@ -3,10 +3,10 @@ import { logger } from '@utils/logger';
 
 export interface ParsedRecipient {
   email: string;
-  name?: string;
+  name?: string | undefined;
   customFields: Record<string, string>;
   isValid: boolean;
-  validationError?: string;
+  validationError?: string | undefined;
 }
 
 export interface ParseResult {
@@ -19,8 +19,8 @@ export interface ParseResult {
 
 export interface CSVMapping {
   emailColumn: string;
-  nameColumn?: string;
-  customFieldMappings: Record<string, string>; // fieldName -> columnName
+  nameColumn?: string | undefined;
+  customFieldMappings: Record<string, string>;
 }
 
 class RecipientParsingService {

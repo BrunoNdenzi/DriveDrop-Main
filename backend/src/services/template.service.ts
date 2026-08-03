@@ -45,7 +45,7 @@ class TemplateService {
   /**
    * Get all templates (system + user-created)
    */
-  async listTemplates(userId?: string, category?: string) {
+  async listTemplates(_userId?: string, category?: string) {
     let query = supabaseAdmin
       .from('quick_send_templates')
       .select('*')
@@ -223,30 +223,27 @@ class TemplateService {
 
     // Replace standard placeholders
     const replacements: Record<string, string> = {
-      firstName: recipientData.firstName || recipientData.name?.split(' ')[0] || 'there',
-      lastName: recipientData.lastName || recipientData.name?.split(' ').slice(1).join(' ') || '',
-      name: recipientData.name || 'there',
-      email: recipientData.email || '',
-      company: recipientData.company || 'your company',
-      ...recipientData.customFields, // Merge custom fields
+      firstName: (recipientData['firstName'] as string) || (recipientData['name'] as string | undefined)?.split(' ')[0] || 'there',
+      lastName: (recipientData['lastName'] as string) || (recipientData['name'] as string | undefined)?.split(' ').slice(1).join(' ') || '',
+      name: (recipientData['name'] as string) || 'there',
+      email: (recipientData['email'] as string) || '',
+      company: (recipientData['company'] as string) || 'your company',
+      ...(recipientData['customFields'] as Record<string, string> | undefined),
     };
 
     // Replace {{fieldName}} and {{customField:fieldName}}
     const placeholderRegex = /\{\{(customField:)?([a-zA-Z0-9_]+)\}\}/g;
 
-    subject = subject.replace(placeholderRegex, (match, isCustom, fieldName) => {
-      // Check template field mappings for fallback
+    subject = subject.replace(placeholderRegex, (_match, _isCustom, fieldName: string) => {
       const fieldMapping = template.fieldMappings.find(f => f.fieldName === fieldName);
-      const fallback = fieldMapping?.fallback || match;
-
-      return replacements[fieldName] || recipientData[fieldName] || fallback;
+      const fallback = fieldMapping?.fallback || _match;
+      return replacements[fieldName] || (recipientData[fieldName] as string) || fallback;
     });
 
-    message = message.replace(placeholderRegex, (match, isCustom, fieldName) => {
+    message = message.replace(placeholderRegex, (_match, _isCustom, fieldName: string) => {
       const fieldMapping = template.fieldMappings.find(f => f.fieldName === fieldName);
-      const fallback = fieldMapping?.fallback || match;
-
-      return replacements[fieldName] || recipientData[fieldName] || fallback;
+      const fallback = fieldMapping?.fallback || _match;
+      return replacements[fieldName] || (recipientData[fieldName] as string) || fallback;
     });
 
     return { subject, message };
@@ -309,7 +306,7 @@ class TemplateService {
       return ['logistics', 'broker_outreach', 'driver_recruitment', 'custom'];
     }
 
-    const categories = [...new Set(data.map(d => d.category))];
+    const categories = [...new Set(data.map((d: { category: string }) => d.category))];
     return categories.length > 0 ? categories : ['logistics', 'broker_outreach', 'driver_recruitment', 'custom'];
   }
 }
