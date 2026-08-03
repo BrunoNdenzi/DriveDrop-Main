@@ -46,7 +46,7 @@ class QuickSendAIService {
 
     try {
       const completion = await this.openai.chat.completions.create({
-        model: 'gpt-4-turbo-preview',
+        model: 'gpt-4o-mini',
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userPrompt }
@@ -93,7 +93,7 @@ class QuickSendAIService {
 
     try {
       const completion = await this.openai.chat.completions.create({
-        model: 'gpt-4-turbo-preview',
+        model: 'gpt-4o-mini',
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userPrompt }
@@ -132,7 +132,7 @@ class QuickSendAIService {
 
     try {
       const completion = await this.openai.chat.completions.create({
-        model: 'gpt-4-turbo-preview',
+        model: 'gpt-4o-mini',
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userPrompt }
@@ -174,7 +174,7 @@ class QuickSendAIService {
 
     try {
       const completion = await this.openai.chat.completions.create({
-        model: 'gpt-4-turbo-preview',
+        model: 'gpt-4o-mini',
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userPrompt }
