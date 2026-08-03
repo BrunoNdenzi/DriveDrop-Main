@@ -1,13 +1,33 @@
 import { Router, Request, Response } from 'express';
 import { authenticate, authorize } from '@middlewares/auth.middleware';
 import { quickSendService, QuickSendRecipientInput } from '@services/quickSend.service';
+import { quickSendAIService } from '@services/quickSendAI.service';
+import { recipientParsingService } from '@services/recipientParsing.service';
+import { templateService } from '@services/template.service';
 import { asyncHandler } from '@utils/error';
 import { errorResponse, successResponse } from '@utils/response';
 import { logger } from '@utils/logger';
+import multer from 'multer';
 
 const router = Router();
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
+// Configure multer for file uploads (CSV files)
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
+  fileFilter: (_req, file, cb) => {
+    if (file.mimetype === 'text/csv' || file.originalname.endsWith('.csv')) {
+      cb(null, true);
+    } else {
+      cb(new Error('Only CSV files are allowed'));
+    }
+  },
+});
+
+// =====================================================
+// Public Routes (no auth)
+// =====================================================
 router.get('/oauth/callback', asyncHandler(async (req: Request, res: Response) => {
   const code = typeof req.query['code'] === 'string' ? req.query['code'] : '';
   const state = typeof req.query['state'] === 'string' ? req.query['state'] : '';
@@ -31,8 +51,12 @@ router.get('/unsubscribe', asyncHandler(async (req: Request, res: Response) => {
   res.status(success ? 200 : 400).type('html').send(`<!doctype html><html><body style="font-family:Arial,sans-serif;background:#f4f4f4;padding:48px"><main style="max-width:520px;margin:auto;background:#fff;padding:32px;border-top:5px solid #00b8a9"><h1>${success ? 'You are unsubscribed' : 'This unsubscribe link is invalid'}</h1><p>${success ? 'You will not receive future Quick Send emails from DriveDrop.' : 'Please contact DriveDrop support for help.'}</p></main></body></html>`);
 }));
 
+// =====================================================
+// Admin-only Routes
+// =====================================================
 router.use(authenticate, authorize(['admin']));
 
+// ----- Connection Management -----
 router.get('/connection', asyncHandler(async (_req: Request, res: Response) => {
   const { data, error } = await quickSendService.getConnectionStatus();
   if (error) return res.status(500).json(errorResponse(error.message));
@@ -52,13 +76,143 @@ router.delete('/connection', asyncHandler(async (_req: Request, res: Response) =
   return res.json(successResponse({ connected: false }));
 }));
 
+// ----- Template Management -----
+router.get('/templates', asyncHandler(async (req: Request, res: Response) => {
+  const category = typeof req.query['category'] === 'string' ? req.query['category'] : undefined;
+  const templates = await templateService.listTemplates(req.user!.id, category);
+  return res.json(successResponse({ templates }));
+}));
+
+router.get('/templates/categories', asyncHandler(async (_req: Request, res: Response) => {
+  const categories = await templateService.getCategories();
+  return res.json(successResponse({ categories }));
+}));
+
+router.get('/templates/:id', asyncHandler(async (req: Request, res: Response) => {
+  const template = await templateService.getTemplate(req.params['id']!);
+  return res.json(successResponse({ template }));
+}));
+
+router.post('/templates', asyncHandler(async (req: Request, res: Response) => {
+  const validation = templateService.validateTemplate(req.body);
+  if (!validation.valid) {
+    return res.status(400).json(errorResponse(validation.errors.join(', ')));
+  }
+  
+  const template = await templateService.createTemplate(req.body, req.user!.id);
+  return res.status(201).json(successResponse({ template }));
+}));
+
+router.patch('/templates/:id', asyncHandler(async (req: Request, res: Response) => {
+  const validation = templateService.validateTemplate(req.body);
+  if (!validation.valid) {
+    return res.status(400).json(errorResponse(validation.errors.join(', ')));
+  }
+  
+  const template = await templateService.updateTemplate(req.params['id']!, req.body, req.user!.id);
+  return res.json(successResponse({ template }));
+}));
+
+router.delete('/templates/:id', asyncHandler(async (req: Request, res: Response) => {
+  await templateService.deleteTemplate(req.params['id']!, req.user!.id);
+  return res.json(successResponse({ deleted: true }));
+}));
+
+router.post('/templates/:id/clone', asyncHandler(async (req: Request, res: Response) => {
+  const template = await templateService.cloneTemplate(req.params['id']!, req.user!.id);
+  return res.status(201).json(successResponse({ template }));
+}));
+
+// ----- AI Content Generation -----
+router.post('/ai/generate', asyncHandler(async (req: Request, res: Response) => {
+  const { type, prompt, subject, body, tone, category, variations } = req.body;
+  
+  if (!type || !['subject', 'body', 'both', 'rewrite', 'variations'].includes(type)) {
+    return res.status(400).json(errorResponse('Invalid generation type'));
+  }
+
+  if (type === 'rewrite' && !subject && !body) {
+    return res.status(400).json(errorResponse('Subject or body required for rewrite'));
+  }
+
+  if (type !== 'rewrite' && !prompt) {
+    return res.status(400).json(errorResponse('Prompt required for generation'));
+  }
+
+  const result = type === 'rewrite'
+    ? await quickSendAIService.rewriteContent({ type, subject, body, tone }, req.user!.id)
+    : await quickSendAIService.generateFromPrompt({ type, prompt, tone, category, variations }, req.user!.id);
+
+  return res.json(successResponse(result));
+}));
+
+router.post('/ai/suggest-personalization', asyncHandler(async (req: Request, res: Response) => {
+  const { content } = req.body;
+  
+  if (!content || typeof content !== 'string') {
+    return res.status(400).json(errorResponse('Content required'));
+  }
+
+  const fields = await quickSendAIService.suggestPersonalization(content, req.user!.id);
+  return res.json(successResponse({ fields }));
+}));
+
+// ----- Recipient Parsing -----
+router.post('/parse/text', asyncHandler(async (req: Request, res: Response) => {
+  const { text } = req.body;
+  
+  if (!text || typeof text !== 'string') {
+    return res.status(400).json(errorResponse('Text required'));
+  }
+
+  const result = recipientParsingService.parseTextInput(text);
+  return res.json(successResponse(result));
+}));
+
+router.post('/parse/extract', asyncHandler(async (req: Request, res: Response) => {
+  const { content } = req.body;
+  
+  if (!content || typeof content !== 'string') {
+    return res.status(400).json(errorResponse('Content required'));
+  }
+
+  const result = recipientParsingService.extractEmailsFromContent(content);
+  return res.json(successResponse(result));
+}));
+
+router.post('/parse/csv', upload.single('file'), asyncHandler(async (req: Request, res: Response) => {
+  if (!req.file) {
+    return res.status(400).json(errorResponse('CSV file required'));
+  }
+
+  const fileContent = req.file.buffer.toString('utf-8');
+  const mapping = req.body['mapping'] ? JSON.parse(req.body['mapping'] as string) : undefined;
+
+  const result = recipientParsingService.parseCSV(fileContent, mapping);
+  return res.json(successResponse(result));
+}));
+
+router.post('/parse/csv/columns', upload.single('file'), asyncHandler(async (req: Request, res: Response) => {
+  if (!req.file) {
+    return res.status(400).json(errorResponse('CSV file required'));
+  }
+
+  const fileContent = req.file.buffer.toString('utf-8');
+  const columns = recipientParsingService.getCSVColumns(fileContent);
+  return res.json(successResponse({ columns }));
+}));
+
+// ----- Batch Management (Enhanced) -----
 router.post('/batches', asyncHandler(async (req: Request, res: Response) => {
-  const { category, subject, message, recipients, pacingSeconds = 3 } = req.body as {
+  const { category, subject, message, recipients, pacingSeconds = 3, templateId, fieldMappings, sourceType } = req.body as {
     category?: string;
     subject?: string;
     message?: string;
     recipients?: QuickSendRecipientInput[];
     pacingSeconds?: number;
+    templateId?: string;
+    fieldMappings?: Record<string, string>;
+    sourceType?: string;
   };
   if (!category?.trim() || !subject?.trim() || !message?.trim() || !Array.isArray(recipients)) {
     return res.status(400).json(errorResponse('category, subject, message, and recipients are required'));
@@ -81,6 +235,7 @@ router.post('/batches', asyncHandler(async (req: Request, res: Response) => {
     pacingSeconds: pacing,
     createdBy: req.user!.id,
   });
+  
   void quickSendService.processBatch(batch.id).catch(error => {
     logger.error('Quick Send batch processing failed', { batchId: batch.id, error });
   });
