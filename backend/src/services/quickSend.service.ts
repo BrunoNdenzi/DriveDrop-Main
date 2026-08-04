@@ -295,9 +295,9 @@ class QuickSendService {
     const accessToken = await this.getAccessToken();
     const unsubscribeToken = this.createUnsubscribeToken(params.to);
     const apiUrl = (process.env['API_PUBLIC_URL'] || '').replace(/\/$/, '');
-    const unsubscribeUrl = `${apiUrl}/api/v1/quick-send/unsubscribe?email=${encodeURIComponent(params.to)}&batch=${encodeURIComponent(params.batchId)}&token=${encodeURIComponent(unsubscribeToken)}`;
-    const html = this.buildHtml(params.message, unsubscribeUrl);
-    const text = `${params.message}\n\nUnsubscribe: ${unsubscribeUrl}`;
+    const optOutUrl = `${apiUrl}/api/v1/quick-send/unsubscribe?email=${encodeURIComponent(params.to)}&batch=${encodeURIComponent(params.batchId)}&token=${encodeURIComponent(unsubscribeToken)}`;
+    const html = this.buildHtml(params.message, optOutUrl);
+    const text = `${params.message}\n\n---\nNot interested? Remove yourself from this list:\n${optOutUrl}`;
     const raw = this.buildMimeMessage({ ...params, html, text });
 
     const response = await fetch(GMAIL_SEND_URL, {
@@ -348,9 +348,41 @@ class QuickSendService {
     return Buffer.from(mime).toString('base64url');
   }
 
-  private buildHtml(message: string, unsubscribeUrl: string): string {
-    const safeMessage = this.escapeHtml(message).replace(/\r?\n/g, '<br>');
-    return `<!doctype html><html><body style="margin:0;background:#f4f4f4;font-family:Arial,sans-serif;color:#333"><div style="max-width:600px;margin:0 auto;background:#fff"><div style="background:#00b8a9;padding:24px 32px;text-align:center;color:#fff;font-size:22px;font-weight:700">DriveDrop</div><div style="padding:32px;font-size:15px;line-height:1.7">${safeMessage}</div><div style="padding:20px 32px;background:#f9f9f9;border-top:1px solid #eee;text-align:center;font-size:12px;color:#777">DriveDrop &middot; Charlotte, NC<br><a href="${unsubscribeUrl}" style="color:#00897b">Unsubscribe</a></div></div></body></html>`;
+  private buildHtml(message: string, optOutUrl: string): string {
+    // Paragraph-aware rendering: blank lines → paragraph breaks
+    const paragraphs = message
+      .split(/\r?\n\s*\r?\n/)
+      .map(p => `<p style="margin:0 0 16px">${this.escapeHtml(p.trim()).replace(/\r?\n/g, '<br>')}</p>`)
+      .join('');
+
+    return `<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"></head>
+<body style="margin:0;padding:0;background-color:#f3f4f6;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#f3f4f6;">
+    <tr><td style="padding:40px 20px;">
+      <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="margin:0 auto;background-color:#ffffff;border-radius:8px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.1);">
+        <tr>
+          <td style="background-color:#030712;padding:32px 40px;text-align:center;">
+            <h1 style="margin:0 0 4px;color:#ffffff;font-size:22px;font-weight:700;letter-spacing:-0.3px;">Drive<span style="color:#3b82f6;">Drop</span></h1>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:36px 40px;color:#111827;font-size:15px;line-height:1.7;">
+            ${paragraphs}
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:24px 40px;background-color:#f9fafb;border-top:1px solid #e5e7eb;text-align:center;color:#6b7280;font-size:12px;">
+            <p style="margin:0 0 8px;"><a href="https://drivedrop.us.com" style="color:#3b82f6;text-decoration:none;">drivedrop.us.com</a>&nbsp;&middot;&nbsp;<a href="mailto:support@drivedrop.us.com" style="color:#3b82f6;text-decoration:none;">support@drivedrop.us.com</a></p>
+            <p style="margin:0 0 8px;color:#9ca3af;font-size:11px;">&copy; ${new Date().getFullYear()} DriveDrop Inc. &middot; Charlotte, NC</p>
+            <p style="margin:0;"><a href="${optOutUrl}" style="color:#9ca3af;font-size:11px;text-decoration:underline;">Not interested? Remove me from this list</a></p>
+          </td>
+        </tr>
+      </table>
+    </td></tr>
+  </table>
+</body></html>`;
   }
 
   private async getAccessToken(): Promise<string> {

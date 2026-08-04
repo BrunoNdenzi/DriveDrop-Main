@@ -54,7 +54,25 @@ router.get('/unsubscribe', asyncHandler(async (req: Request, res: Response) => {
   const token = typeof req.query['token'] === 'string' ? req.query['token'] : '';
   const batchId = typeof req.query['batch'] === 'string' ? req.query['batch'] : undefined;
   const success = email && token ? await quickSendService.unsubscribe(email, token, batchId) : false;
-  res.status(success ? 200 : 400).type('html').send(`<!doctype html><html><body style="font-family:Arial,sans-serif;background:#f4f4f4;padding:48px"><main style="max-width:520px;margin:auto;background:#fff;padding:32px;border-top:5px solid #00b8a9"><h1>${success ? 'You are unsubscribed' : 'This unsubscribe link is invalid'}</h1><p>${success ? 'You will not receive future Quick Send emails from DriveDrop.' : 'Please contact DriveDrop support for help.'}</p></main></body></html>`);
+  const year = new Date().getFullYear();
+  res.status(success ? 200 : 400).type('html').send(`<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><title>${success ? 'Removed from list' : 'Invalid link'}</title></head>
+<body style="margin:0;padding:0;background:#f3f4f6;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f3f4f6;">
+    <tr><td style="padding:60px 20px;text-align:center;">
+      <table role="presentation" width="480" cellpadding="0" cellspacing="0" style="margin:0 auto;background:#fff;border-radius:8px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.1);">
+        <tr><td style="background:#030712;padding:28px 40px;text-align:center;"><h1 style="margin:0;color:#fff;font-size:20px;font-weight:700;">Drive<span style="color:#3b82f6;">Drop</span></h1></td></tr>
+        <tr><td style="padding:40px;text-align:center;">
+          <p style="font-size:40px;margin:0 0 16px;">${success ? '✅' : '⚠️'}</p>
+          <h2 style="margin:0 0 12px;color:#111827;font-size:20px;">${success ? "You've been removed" : 'This link is no longer valid'}</h2>
+          <p style="color:#6b7280;font-size:14px;margin:0;">${success ? "You won't receive any further emails from DriveDrop on this list." : 'Please contact <a href=\'mailto:support@drivedrop.us.com\' style=\'color:#3b82f6;\'>support@drivedrop.us.com</a> for assistance.'}</p>
+        </td></tr>
+        <tr><td style="padding:20px 40px;background:#f9fafb;border-top:1px solid #e5e7eb;text-align:center;color:#9ca3af;font-size:11px;">&copy; ${year} DriveDrop Inc.</td></tr>
+      </table>
+    </td></tr>
+  </table>
+</body></html>`);
 }));
 
 // =====================================================
