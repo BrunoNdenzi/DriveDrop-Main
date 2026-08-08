@@ -1,0 +1,27 @@
+diff --git a/backend/src/routes/index.ts b/backend/src/routes/index.ts
+--- a/backend/src/routes/index.ts
++++ b/backend/src/routes/index.ts
+@@ -48,6 +48,7 @@ import campaignsRoutes from './campaigns.routes';
+ import carriersRoutes from './carriers.routes';
+ import analyticsRoutes from './analytics.routes';
+ import emailWebhooksRoutes from './email-webhooks.routes';
++import quickSendRoutes from './quick-send.routes';
+ 
+ // Voice Agent (Vapi)
+ import voiceAgentRoutes from './voice-agent.routes';
+@@ -94,6 +95,7 @@ router.get('/', (_req, res) => {
+       carriers: '/api/v1/carriers',
+       analytics: '/api/v1/analytics',
+       emailWebhooks: '/api/v1/email-webhooks',
++      quickSend: '/api/v1/quick-send',
+       // Voice Agents
+       voice:   '/api/v1/voice',
+       retell:  '/api/v1/retell',
+@@ -142,6 +144,7 @@ router.use('/campaigns', campaignsRoutes);
+ router.use('/carriers', carriersRoutes);
+ router.use('/analytics', analyticsRoutes);
+ router.use('/email-webhooks', emailWebhooksRoutes);
++router.use('/quick-send', quickSendRoutes);
+ 
+ // Voice Agent (Vapi)
+ router.use('/voice', voiceAgentRoutes);

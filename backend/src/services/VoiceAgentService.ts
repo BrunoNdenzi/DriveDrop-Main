@@ -19,7 +19,7 @@
 
 import { logger } from '@utils/logger';
 import { supabaseAdmin } from '@lib/supabase';
-import { calculateQuoteWithDynamicConfig } from './pricing.service';
+import { pricingDecisionService } from './pricingDecision.service';
 import { googleMapsService } from './google-maps.service';
 import { twilioService } from './twilio.service';
 import { emailService } from './email.service';
@@ -762,10 +762,15 @@ export class VoiceAgentTools {
         return { error: true, message: "I had trouble calculating the distance between those locations." };
       }
 
-      const quote = await calculateQuoteWithDynamicConfig({
+      const result = await pricingDecisionService.generateQuote({
         vehicleType: params.vehicle_type as any,
         distanceMiles,
         isAccidentRecovery: !params.is_operable,
+        routeOrigin: params.pickup_location,
+        routeDestination: params.delivery_location,
+        enableIntelligence: false,
+        logToHistory: true,
+        requestSource: 'benji',
       });
 
       return {
@@ -774,8 +779,8 @@ export class VoiceAgentTools {
         delivery: params.delivery_location,
         vehicle_type: params.vehicle_type,
         distance_miles: distanceMiles,
-        quote_usd: quote.total,
-        quote_readable: `$${quote.total.toFixed(0)}`,
+        quote_usd: result.total,
+        quote_readable: `$${result.total.toFixed(0)}`,
       };
     } catch (err) {
       logger.error('VoiceAgentTools.getPriceQuote error', { err });

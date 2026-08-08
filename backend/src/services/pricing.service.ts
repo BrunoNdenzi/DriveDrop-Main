@@ -4,7 +4,7 @@ import { pricingConfigService } from './pricingConfig.service';
 // Vehicle categories supported
 export type VehicleType = 'sedan' | 'suv' | 'pickup' | 'luxury' | 'motorcycle' | 'golfcart' | 'heavy';
 
-interface PricingInput {
+export interface PricingInput {
   vehicleType: VehicleType;
   distanceMiles: number; // total route distance in miles
   isAccidentRecovery?: boolean | undefined;

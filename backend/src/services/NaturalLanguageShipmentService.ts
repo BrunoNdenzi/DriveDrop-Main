@@ -29,7 +29,8 @@ import { createChatCompletion } from '@benji/ai/client/openai.client';
 import { getNlShipmentPrompt } from '@benji/ai/prompt.registry';
 import { SERVICE_MODEL_MAP, aiUsageTracker } from '../config/ai.config';
 import { googleMapsService } from './google-maps.service';
-import { pricingService, VehicleType } from './pricing.service';
+import { pricingDecisionService } from './pricingDecision.service';
+import { VehicleType } from './pricing.service';
 
 // Initialize Supabase client
 const supabase = createClient(
@@ -433,15 +434,20 @@ export class NaturalLanguageShipmentService {
           // Map vehicle type to pricing service type
           const vehicleType = this.mapVehicleTypeToPricing(parsedData.vehicle);
 
-          // Calculate price
-          const quote = await pricingService.calculateQuoteWithDynamicConfig({
+          // Calculate price via Decision Layer
+          const result = await pricingDecisionService.generateQuote({
             vehicleType,
             distanceMiles,
             isAccidentRecovery: false,
             vehicleCount: 1,
+            routeOrigin: parsedData.pickup.location,
+            routeDestination: parsedData.delivery.location,
+            enableIntelligence: false,
+            logToHistory: true,
+            requestSource: 'benji',
           });
 
-          estimatedPrice = Math.round(quote.total);
+          estimatedPrice = Math.round(result.total);
         } catch (error) {
           console.error('Error calculating price:', error);
           estimatedPrice = estimatedPrice || 150; // keep pre-computed price if available

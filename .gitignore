@@ -100,3 +100,15 @@ backend/src/benji-v3/test/v3.robustness.test.ts
 backend/src/benji-v3/test/v3.phase1-complete.test.ts
 supabase/migrations/20260715000001_profiles_sms_consent.sql
 supabase/migrations/20260716000001_shipment_draft_status.sql
+PHASE_2_ARCHITECTURAL_REFINEMENT.md
+PHASE_2_IMPLEMENTATION_SUMMARY.md
+PHASE_2_INTEGRATION_GUIDE.md
+PHASE_2_POLICY_PROVIDER_REFINEMENT.md
+PHASE_2_READY_FOR_REVIEW.md
+PRICING_ARCHITECTURE_REVIEW.md
+test-fmcsa-local.ps1
+test-e2e.ps1
+test-fmcsa-simple.ps1
+backend/tests/driver-registration.test.ts
+test-output/quote.json
+test-output/quote2.json

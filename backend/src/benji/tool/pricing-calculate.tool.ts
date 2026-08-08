@@ -13,8 +13,9 @@
  * avoiding a second Google Maps + pricing call inside NaturalLanguageShipmentService.
  */
 
-import { calculateQuoteWithDynamicConfig, type VehicleType } from '../../services/pricing.service';
+import { pricingDecisionService } from '../../services/pricingDecision.service';
 import { googleMapsService } from '../../services/google-maps.service';
+import type { VehicleType } from '../../services/pricing.service';
 import type { ToolDefinition, ToolContext } from '@benji/core/types/tool.types';
 
 // ─── I/O Types ────────────────────────────────────────────────────────────────
@@ -83,24 +84,29 @@ export const pricingCalculateTool: ToolDefinition<PricingCalculateInput, Pricing
       // Non-critical: pricing continues with fallback distance
     }
 
-    // 2. Calculate price
-    const { total, breakdown } = await calculateQuoteWithDynamicConfig({
+    // 2. Calculate price via Decision Layer
+    const result = await pricingDecisionService.generateQuote({
       vehicleType:        input.vehicleType,
       distanceMiles,
       isAccidentRecovery: input.isAccidentRecovery ?? false,
       vehicleCount:       input.vehicleCount ?? 1,
+      routeOrigin:        input.pickupLocation,
+      routeDestination:   input.deliveryLocation,
+      enableIntelligence: false,
+      logToHistory:       true,
+      requestSource:      'benji',
     });
 
     return {
-      total,
+      total:        result.total,
       distanceMiles,
-      vehicleType: input.vehicleType,
+      vehicleType:  input.vehicleType,
       breakdown: {
-        baseRatePerMile: breakdown.baseRatePerMile,
-        distanceBand:    breakdown.distanceBand,
-        surgeMultiplier: breakdown.surgeMultiplier,
-        deliveryType:    breakdown.deliveryType,
-        minimumApplied:  breakdown.minimumApplied,
+        baseRatePerMile: result.breakdown.baseRatePerMile,
+        distanceBand:    result.breakdown.distanceBand as 'short' | 'mid' | 'long',
+        surgeMultiplier: result.breakdown.surgeMultiplier,
+        deliveryType:    result.breakdown.deliveryType as 'expedited' | 'flexible' | 'standard',
+        minimumApplied:  result.breakdown.minimumApplied,
       },
     };
   },
