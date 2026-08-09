@@ -144,6 +144,16 @@ export const stripeService = {
     }
   },
 
+  async cancelPaymentIntent(paymentIntentId: string): Promise<void> {
+    try {
+      await stripe.paymentIntents.cancel(paymentIntentId);
+      logger.info('Stripe PaymentIntent canceled', { paymentIntentId });
+    } catch (error) {
+      logger.error('Failed to cancel PaymentIntent', { error, paymentIntentId });
+      // Non-fatal — log and continue; orphaned PIs expire automatically in Stripe
+    }
+  },
+
   /**
    * Update payment intent metadata
    */
@@ -370,7 +380,21 @@ export const stripeService = {
           throw createError('Failed to fetch shipment details', 500, 'SHIPMENT_FETCH_FAILED');
         }
 
-        // Check if this is upfront (20%) or final (80%) payment
+        // Fix 4: Idempotency — if this exact PI has already been marked completed, do nothing
+        const { data: piRecord } = await supabase
+          .from('payments')
+          .select('id, status')
+          .eq('payment_intent_id', paymentIntent.id)
+          .maybeSingle();
+
+        if (piRecord?.status === 'completed') {
+          logger.info('Payment already processed — skipping duplicate webhook', {
+            paymentIntentId: paymentIntent.id, shipmentId,
+          });
+          return;
+        }
+
+        // Determine whether this is the upfront (20%) or final (80%) payment
         const isUpfrontPayment = !shipment.upfront_payment_sent;
         const isFinalPayment = shipment.upfront_payment_sent && !shipment.final_receipt_sent;
 

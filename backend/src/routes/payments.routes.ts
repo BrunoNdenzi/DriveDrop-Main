@@ -3,7 +3,7 @@
  */
 import express from 'express';
 import { paymentsController } from '@controllers/payments.controller';
-import { authenticate } from '@middlewares/auth.middleware';
+import { authenticate, authorize } from '@middlewares/auth.middleware';
 
 const router = express.Router();
 
@@ -11,6 +11,7 @@ const router = express.Router();
 router.post(
   '/create-intent',
   authenticate,
+  authorize(['client']),  // Fix 2: only clients may initiate a deposit
   paymentsController.createPaymentIntent
 );
 

@@ -20,131 +20,144 @@ import { supabaseAdmin as supabase } from '@lib/supabase';
  * @access Private
  */
 export const createPaymentIntent = asyncHandler(async (req: Request, res: Response) => {
-  const { amount, currency = 'usd', shipmentId, description, metadata } = req.body;
+  const { currency = 'usd', shipmentId, description, metadata } = req.body;
 
-  logger.info('Received payment intent creation request', {
-    amount,
-    currency,
-    shipmentId: shipmentId || 'null (new flow)',
-    hasMetadata: !!metadata,
-    user: req.user?.id
-  });
-
-  if (!amount || amount <= 0) {
-    logger.warn('Invalid amount for payment intent', { amount });
-    throw createError('Invalid amount', 400, 'INVALID_AMOUNT');
-  }
-
+  // Auth guard (belt-and-suspenders — route already enforces this)
   if (!req.user?.id) {
-    logger.error('Authentication error in payment intent creation', {
-      user: req.user,
-      headers: req.headers,
-    });
     throw createError('Authentication required', 401, 'UNAUTHORIZED');
   }
 
-  try {
-    // Merge custom metadata with default metadata
-    const defaultMetadata = {
-      userId: req.user.id,
-      userEmail: req.user.email,
-      isInitialPayment: 'true',
-      totalAmount: Math.round(amount * 100).toString(),
-      remainingAmount: Math.round(amount * 0.80 * 100).toString(),
-    };
+  let authorizedAmount: number;
 
-    const finalMetadata = { ...defaultMetadata, ...metadata };
-    if (shipmentId) {
-      finalMetadata.shipmentId = shipmentId;
+  if (shipmentId) {
+    // Fix 3: fetch authoritative price from DB and verify client ownership
+    const { data: shipment, error: shipErr } = await supabase
+      .from('shipments')
+      .select('id, client_id, estimated_price')
+      .eq('id', shipmentId)
+      .single();
+
+    if (shipErr || !shipment) {
+      throw createError('Shipment not found', 404, 'SHIPMENT_NOT_FOUND');
+    }
+    if (shipment.client_id !== req.user.id) {
+      throw createError('Access denied', 403, 'FORBIDDEN');
     }
 
-    const paymentIntent = await stripeService.createPaymentIntent({
-      amount: Math.round(amount * 0.20 * 100), // 20% initial payment in cents
+    authorizedAmount = Number(shipment.estimated_price);
+    if (!authorizedAmount || authorizedAmount <= 0) {
+      throw createError('Shipment has no valid price', 400, 'INVALID_SHIPMENT_PRICE');
+    }
+
+    // Fix 1: return existing non-canceled PI instead of creating a duplicate
+    const { data: existingPayment } = await supabase
+      .from('payments')
+      .select('payment_intent_id, status')
+      .eq('shipment_id', shipmentId)
+      .eq('client_id', req.user.id)
+      .not('payment_intent_id', 'is', null)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (
+      existingPayment?.payment_intent_id &&
+      ['pending', 'processing', 'completed'].includes(existingPayment.status ?? '')
+    ) {
+      try {
+        const pi = await stripeService.getPaymentIntent(existingPayment.payment_intent_id);
+        if (pi.status !== 'canceled') {
+          logger.info('Returning existing payment intent (idempotent)', {
+            paymentIntentId: pi.id, shipmentId, clientId: req.user.id,
+          });
+          res.status(200).json(successResponse({
+            id: pi.id,
+            client_secret: pi.client_secret,
+            amount: pi.amount,
+            currency: pi.currency,
+            status: pi.status,
+          }));
+          return;
+        }
+      } catch {
+        // PI no longer in Stripe — fall through and create a fresh one
+      }
+    }
+  } else {
+    // No shipmentId: caller supplies amount (new / pre-creation mobile flow)
+    const bodyAmount = req.body.amount;
+    if (!bodyAmount || bodyAmount <= 0) {
+      throw createError('Invalid amount', 400, 'INVALID_AMOUNT');
+    }
+    authorizedAmount = bodyAmount;
+  }
+
+  const defaultMetadata: Record<string, string> = {
+    userId: req.user.id,
+    userEmail: req.user.email ?? '',
+    isInitialPayment: 'true',
+    totalAmount: Math.round(authorizedAmount * 100).toString(),
+    remainingAmount: Math.round(authorizedAmount * 0.80 * 100).toString(),
+  };
+  if (shipmentId) defaultMetadata['shipmentId'] = shipmentId;
+  const finalMetadata = { ...defaultMetadata, ...(metadata ?? {}) };
+
+  // Create Stripe PI — done after validation so a failure here leaves no DB artifact
+  let paymentIntent: Stripe.PaymentIntent;
+  try {
+    paymentIntent = await stripeService.createPaymentIntent({
+      amount: Math.round(authorizedAmount * 0.20 * 100),
       currency,
       clientId: req.user.id,
       shipmentId: shipmentId || undefined,
       description: description || `Initial 20% payment for DriveDrop shipment ${shipmentId || 'pending'}`,
       metadata: finalMetadata,
     });
-
-    // Only create payment record if shipmentId is provided (legacy flow)
-    // For new flow, payment record will be created after shipment creation
-    if (shipmentId) {
-      logger.info('💳 Creating payment record in database (legacy flow)', {
-        shipmentId,
-        clientId: req.user.id,
-        paymentIntentId: paymentIntent.id,
-        totalAmount: Math.round(amount * 100),
-        initialAmount: Math.round(amount * 0.20 * 100)
-      });
-
-      const { data: paymentRecord, error: paymentError } = await supabase
-        .from('payments')
-        .insert({
-          shipment_id: shipmentId,
-          client_id: req.user.id,
-          amount: Math.round(amount * 100),
-          initial_amount: Math.round(amount * 0.20 * 100),
-          remaining_amount: Math.round(amount * 0.80 * 100),
-          payment_intent_id: paymentIntent.id,
-          status: 'pending',
-          booking_timestamp: new Date().toISOString(),
-          refund_deadline: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
-        })
-        .select();
-
-      if (paymentError) {
-        logger.error('❌ Failed to create payment record', { 
-          error: paymentError, 
-          shipmentId,
-          paymentIntentId: paymentIntent.id 
-        });
-        throw createError('Failed to record payment', 500, 'PAYMENT_RECORD_FAILED');
-      }
-
-      logger.info('✅ Payment record created successfully', {
-        paymentRecord,
-        shipmentId,
-        paymentIntentId: paymentIntent.id
-      });
-    } else {
-      logger.info('💳 Skipping payment record creation (new flow - will create after shipment)', {
-        clientId: req.user.id,
-        paymentIntentId: paymentIntent.id,
-      });
-    }
-
-    logger.info('Successfully created payment intent', {
-      paymentIntentId: paymentIntent.id,
-      status: paymentIntent.status,
-      initialAmount: Math.round(amount * 0.20 * 100),
-      totalAmount: Math.round(amount * 100),
-      flow: shipmentId ? 'legacy' : 'new',
-    });
-
-    res.status(201).json(successResponse({
-      id: paymentIntent.id,
-      client_secret: paymentIntent.client_secret,
-      amount: paymentIntent.amount,
-      currency: paymentIntent.currency,
-      status: paymentIntent.status,
-    }));
   } catch (error) {
-    // Log the detailed error
-    logger.error('Failed to create payment intent', {
-      error,
-      user: req.user?.id,
-      amount,
-      shipmentId,
-    });
-    
-    // Re-throw with more details for better client-side debugging
+    logger.error('Stripe payment intent creation failed', { error, shipmentId, clientId: req.user.id });
     throw createError(
       error instanceof Error ? `Payment intent creation failed: ${error.message}` : 'Payment intent creation failed',
       400,
-      'PAYMENT_INTENT_FAILED'
+      'PAYMENT_INTENT_FAILED',
     );
   }
+
+  if (shipmentId) {
+    const { error: paymentError } = await supabase
+      .from('payments')
+      .insert({
+        shipment_id: shipmentId,
+        client_id: req.user.id,
+        amount: Math.round(authorizedAmount * 100),
+        initial_amount: Math.round(authorizedAmount * 0.20 * 100),
+        remaining_amount: Math.round(authorizedAmount * 0.80 * 100),
+        payment_intent_id: paymentIntent.id,
+        status: 'pending',
+        booking_timestamp: new Date().toISOString(),
+        refund_deadline: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
+      });
+
+    if (paymentError) {
+      // Cancel the Stripe PI to prevent a dangling chargeable object
+      await stripeService.cancelPaymentIntent(paymentIntent.id);
+      throw createError('Failed to record payment', 500, 'PAYMENT_RECORD_FAILED');
+    }
+  }
+
+  logger.info('Payment intent created', {
+    paymentIntentId: paymentIntent.id,
+    shipmentId: shipmentId ?? null,
+    initialAmountCents: paymentIntent.amount,
+    totalAmountCents: Math.round(authorizedAmount * 100),
+  });
+
+  res.status(201).json(successResponse({
+    id: paymentIntent.id,
+    client_secret: paymentIntent.client_secret,
+    amount: paymentIntent.amount,
+    currency: paymentIntent.currency,
+    status: paymentIntent.status,
+  }));
 });
 
 /**
