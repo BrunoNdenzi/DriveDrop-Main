@@ -19,6 +19,13 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    if (process.env.E2E_STRIPE_TEST_MODE === 'true' && !process.env.STRIPE_SECRET_KEY.startsWith('sk_test_')) {
+      return NextResponse.json(
+        { error: 'E2E payment requests require Stripe test mode.' },
+        { status: 503 }
+      )
+    }
+
     // Initialize Stripe
     const stripe = new Stripe(process.env.STRIPE_SECRET_KEY)
     

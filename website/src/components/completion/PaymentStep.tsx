@@ -74,7 +74,7 @@ function PaymentForm({ shipmentData, completionData, onPaymentComplete, onFinalS
     // Link payment record
     await supabase
       .from('payments')
-      .update({ shipment_id: existingId, status: 'completed' })
+      .update({ shipment_id: existingId })
       .eq('payment_intent_id', paymentIntentId)
     return existingId
   }
@@ -132,10 +132,7 @@ function PaymentForm({ shipmentData, completionData, onPaymentComplete, onFinalS
       // (Payment record was created by Next.js API, but without shipment_id)
       const { error: paymentUpdateError } = await supabase
         .from('payments')
-        .update({ 
-          shipment_id: shipment.id,
-          status: 'completed' 
-        })
+        .update({ shipment_id: shipment.id })
         .eq('payment_intent_id', paymentIntentId)
 
       if (paymentUpdateError) {
@@ -204,6 +201,26 @@ function PaymentForm({ shipmentData, completionData, onPaymentComplete, onFinalS
           ? await updateShipmentAfterPayment(paymentIntentId!)
           : await createShipmentInDatabase(paymentIntentId!)
         console.log('[PaymentForm] Shipment created, ID:', shipmentId)
+
+        const captureResponse = await fetch('/api/stripe/capture-upfront', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ paymentIntentId, upfrontAmount }),
+        })
+        const captureData = await captureResponse.json()
+
+        if (!captureResponse.ok || !captureData.success) {
+          throw new Error(captureData.error || 'Failed to capture the initial payment')
+        }
+
+        const { error: paymentStatusError } = await supabase
+          .from('payments')
+          .update({ status: 'completed' })
+          .eq('payment_intent_id', paymentIntentId)
+
+        if (paymentStatusError) {
+          throw new Error(`Payment captured but status update failed: ${paymentStatusError.message}`)
+        }
         
         // Update payment intent metadata with shipment and client IDs
         console.log('[PaymentForm] Updating payment intent metadata...')

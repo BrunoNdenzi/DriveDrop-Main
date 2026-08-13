@@ -2,15 +2,24 @@ import { NextRequest, NextResponse } from 'next/server'
 import Stripe from 'stripe'
 import { createAdminNotification } from '@/lib/admin-notifications'
 
-// Initialize Stripe with default API version from SDK
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!)
-
 /**
  * Capture the upfront payment (20%) immediately after authorization
  * This is called after the client confirms payment on the frontend
  */
 export async function POST(request: NextRequest) {
   try {
+    const stripeSecretKey = process.env.STRIPE_SECRET_KEY
+    if (!stripeSecretKey) {
+      return NextResponse.json({ error: 'Payment system not configured.' }, { status: 500 })
+    }
+    if (process.env.E2E_STRIPE_TEST_MODE === 'true' && !stripeSecretKey.startsWith('sk_test_')) {
+      return NextResponse.json(
+        { error: 'E2E payment requests require Stripe test mode.' },
+        { status: 503 }
+      )
+    }
+
+    const stripe = new Stripe(stripeSecretKey)
     const { paymentIntentId, upfrontAmount } = await request.json()
 
     if (!paymentIntentId) {

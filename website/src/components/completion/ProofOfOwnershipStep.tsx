@@ -53,12 +53,14 @@ export default function ProofOfOwnershipStep({ shipmentData, documents, onDocume
       // Upload files to Supabase Storage
       const { getSupabaseBrowserClient } = await import('@/lib/supabase-client')
       const supabase = getSupabaseBrowserClient()
+      const { data: { user }, error: userError } = await supabase.auth.getUser()
+      if (userError || !user) throw userError || new Error('You must be signed in to upload documents')
 
       const uploadPromises = acceptedFiles.map(async (file) => {
         const fileName = `${Date.now()}-${file.name}`
         const { data: uploadData, error: uploadError } = await supabase.storage
           .from('shipment-photos')
-          .upload(`documents/${fileName}`, file, {
+          .upload(`${user.id}/documents/${fileName}`, file, {
             contentType: file.type,
             upsert: false
           })
