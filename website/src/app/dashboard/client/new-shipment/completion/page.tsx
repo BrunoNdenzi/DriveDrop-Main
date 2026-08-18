@@ -150,15 +150,15 @@ export default function ShipmentCompletionPage() {
       {/* Header */}
       <div className="bg-white border-b">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
+          <div className="grid grid-cols-[auto_1fr_auto] items-center gap-2 h-14 sm:h-16">
             <button
               onClick={handleBack}
               className="flex items-center gap-2 text-gray-600 hover:text-gray-900 transition-colors"
             >
               <ArrowLeft className="h-5 w-5" />
-              <span className="font-medium">Back</span>
+              <span className="hidden sm:inline font-medium">Back</span>
             </button>
-            <h1 className="text-lg font-semibold text-gray-900">
+            <h1 className="text-sm sm:text-lg font-semibold text-gray-900 text-center truncate">
               {STEPS[currentStep - 1].title}
             </h1>
             <div className="bg-blue-500 text-white px-2.5 py-0.5 rounded-md text-xs font-semibold">
@@ -169,16 +169,16 @@ export default function ShipmentCompletionPage() {
       </div>
 
       {/* Content */}
-      <div className="max-w-5xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-5xl mx-auto py-5 sm:py-8 px-3 sm:px-6 lg:px-8">
         {/* Progress Indicator */}
         <div className="mb-4">
-          <div className="flex items-center justify-center gap-2">
+          <div className="flex items-center justify-center gap-0.5 sm:gap-2">
             {STEPS.map((step, index) => (
               <div key={step.id} className="flex items-center">
                 <div className="flex flex-col items-center">
                   <div
                     className={`
-                      w-9 h-9 rounded-full flex items-center justify-center border-2 transition-all
+                      w-8 h-8 sm:w-9 sm:h-9 rounded-full flex items-center justify-center border-2 transition-all
                       ${currentStep > step.id
                         ? 'bg-green-600 border-green-600'
                         : currentStep === step.id
@@ -207,7 +207,7 @@ export default function ShipmentCompletionPage() {
                 </div>
                 {index < STEPS.length - 1 && (
                   <div
-                    className={`w-12 sm:w-20 h-0.5 mx-2 transition-all ${
+                    className={`w-5 min-[375px]:w-8 sm:w-20 h-0.5 mx-1 sm:mx-2 transition-all ${
                       currentStep > step.id ? 'bg-green-600' : 'bg-gray-200'
                     }`}
                   />
@@ -228,7 +228,7 @@ export default function ShipmentCompletionPage() {
         </div>
 
         {/* Step Content */}
-        <div className="bg-white rounded-md border border-gray-200 p-4 mb-4">
+        <div className="bg-white rounded-md border border-gray-200 p-3 sm:p-4 mb-4">
           {currentStep === 1 && (
             <VehiclePhotosStep
               shipmentData={shipmentData}
@@ -267,12 +267,12 @@ export default function ShipmentCompletionPage() {
 
         {/* Navigation Buttons */}
         {currentStep < STEPS.length && (
-          <div className="flex justify-end">
+          <div className="flex justify-stretch sm:justify-end">
             <Button
               onClick={handleNext}
               disabled={!canProceed()}
               size="lg"
-              className="bg-blue-500 hover:bg-blue-600 px-6"
+              className="w-full sm:w-auto bg-blue-500 hover:bg-blue-600 px-6"
             >
               Continue
               <ArrowLeft className="h-5 w-5 ml-2 rotate-180" />

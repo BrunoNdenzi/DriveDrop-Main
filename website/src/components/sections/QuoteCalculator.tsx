@@ -83,19 +83,19 @@ export default function QuoteCalculator() {
 
   return (
     <section id="quote" className="border-b border-border bg-[hsl(var(--surface-field))]">
-      <div className="px-6 py-3 border-b border-border">
+      <div className="px-4 sm:px-6 py-3 border-b border-border">
         <h2 className="text-base font-semibold text-foreground tracking-tight">Pricing & Quote</h2>
         <p className="text-xs text-muted-foreground mt-0.5">
           Transparent per-mile pricing — receive your personalized quote by email
         </p>
       </div>
 
-      <div className="px-6 py-6 max-w-4xl mx-auto">
+      <div className="px-3 sm:px-6 py-5 sm:py-6 max-w-4xl mx-auto">
         {/* Pricing Tiers */}
         <div className="mb-6">
           <h3 className="text-sm font-semibold text-foreground mb-3">Per-Mile Rates by Vehicle Type</h3>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
-            <div className="bg-white border border-border rounded-lg p-4 text-center">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
+            <div className="bg-white border border-border rounded-lg p-3 sm:p-4 text-center">
               <div className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Short Distance</div>
               <div className="text-[10px] text-muted-foreground mb-2">Up to 500 miles</div>
               <div className="space-y-1 text-sm">
@@ -105,7 +105,7 @@ export default function QuoteCalculator() {
                 <div className="flex justify-between px-2"><span className="text-muted-foreground">Motorcycle</span><span className="font-semibold">$1.50/mi</span></div>
               </div>
             </div>
-            <div className="bg-white border-2 border-primary/30 rounded-lg p-4 text-center relative">
+            <div className="bg-white border-2 border-primary/30 rounded-lg p-3 sm:p-4 text-center relative">
               <div className="absolute -top-2 left-1/2 -translate-x-1/2 bg-primary text-primary-foreground text-[10px] px-2 py-0.5 rounded-full font-medium">Most Common</div>
               <div className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Mid Distance</div>
               <div className="text-[10px] text-muted-foreground mb-2">500–1,500 miles</div>
@@ -116,7 +116,7 @@ export default function QuoteCalculator() {
                 <div className="flex justify-between px-2"><span className="text-muted-foreground">Motorcycle</span><span className="font-semibold">$0.80/mi</span></div>
               </div>
             </div>
-            <div className="bg-white border border-border rounded-lg p-4 text-center">
+            <div className="bg-white border border-border rounded-lg p-3 sm:p-4 text-center">
               <div className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Long Distance</div>
               <div className="text-[10px] text-muted-foreground mb-2">Over 1,500 miles</div>
               <div className="space-y-1 text-sm">
@@ -127,7 +127,7 @@ export default function QuoteCalculator() {
               </div>
             </div>
           </div>
-          <div className="flex flex-wrap gap-4 text-xs text-muted-foreground">
+          <div className="grid grid-cols-1 sm:flex sm:flex-wrap gap-2 sm:gap-4 text-xs text-muted-foreground">
             <span>📅 Flexible (5+ day window): −5%</span>
             <span>💰 Minimum: $150</span>
             <span>💳 Pay 20% upfront, 80% on delivery</span>
@@ -187,7 +187,7 @@ export default function QuoteCalculator() {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-3 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   <div className="space-y-1.5">
                     <Label><Truck className="inline h-3.5 w-3.5 mr-1" />Type</Label>
                     <Select value={selectedVehicleType} onValueChange={(v) => setValue('vehicleType', v as any, { shouldValidate: true })}>

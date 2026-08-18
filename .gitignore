@@ -116,3 +116,6 @@ website/tests/e2e/payment-checkout.spec.ts
 website/src/components/ui/button.test.tsx
 website/tests/e2e/homepage.smoke.spec.ts
 website/docs/ui-test-inventory.md
+website/.env.local.example
+website/.env.example
+website/.env.example

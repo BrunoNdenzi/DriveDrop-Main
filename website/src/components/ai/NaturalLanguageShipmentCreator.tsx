@@ -489,7 +489,7 @@ export default function NaturalLanguageShipmentCreator({
   return (
     <div className={cn('space-y-4', className)}>
       {/* Input Mode Indicators */}
-      <div className="flex items-center gap-3 p-4 bg-gray-50 rounded-md border border-blue-200">
+      <div className="flex items-start sm:items-center gap-3 p-3 sm:p-4 bg-gray-50 rounded-md border border-blue-200">
         <Sparkles className="h-6 w-6 text-blue-500 flex-shrink-0" />
         <div className="flex-1">
           <h3 className="text-sm font-semibold text-gray-900">How to use Benji:</h3>
@@ -529,14 +529,14 @@ export default function NaturalLanguageShipmentCreator({
         </div>
 
         {/* Action Buttons Row */}
-        <div className="flex gap-3">
+        <div className="grid grid-cols-2 sm:flex gap-2 sm:gap-3">
           {/* Voice Input Button */}
           <button
             type="button"
             onClick={toggleVoiceInput}
             disabled={isProcessing}
             className={cn(
-              "px-4 py-3 rounded-md font-medium transition-all flex items-center space-x-2 border-2",
+              "px-3 sm:px-4 py-3 rounded-md font-medium transition-all flex items-center justify-center space-x-2 border-2",
               isListening
                 ? "bg-red-50 border-red-300 text-red-700 hover:bg-red-100"
                 : "bg-white border-gray-300 text-gray-700 hover:border-blue-300 hover:bg-blue-50"
@@ -560,7 +560,7 @@ export default function NaturalLanguageShipmentCreator({
             type="button"
             onClick={() => setShowDocScanner(true)}
             disabled={isProcessing}
-            className="px-4 py-3 rounded-md font-medium transition-all flex items-center space-x-2 border-2 bg-white border-gray-300 text-gray-700 hover:border-purple-300 hover:bg-purple-50"
+            className="px-3 sm:px-4 py-3 rounded-md font-medium transition-all flex items-center justify-center space-x-2 border-2 bg-white border-gray-300 text-gray-700 hover:border-purple-300 hover:bg-purple-50"
           >
             <Camera className="w-5 h-5" />
             <span>Scan Doc</span>
@@ -570,7 +570,7 @@ export default function NaturalLanguageShipmentCreator({
           <Button
             type="submit"
             disabled={isProcessing || !prompt.trim()}
-            className="flex-1 bg-blue-500 hover:bg-blue-600 text-white py-3"
+            className="col-span-2 sm:col-span-1 sm:flex-1 w-full bg-blue-500 hover:bg-blue-600 text-white py-3"
           >
             {isProcessing ? (
               <>

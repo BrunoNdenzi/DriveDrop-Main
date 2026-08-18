@@ -184,7 +184,7 @@ export function BenjiAssistant({ userType = 'client', shipmentId, userId }: Benj
             whileHover={{ scale: 1.08 }}
             whileTap={{ scale: 0.95 }}
             onClick={() => setIsOpen(true)}
-            className="fixed bottom-6 right-6 w-14 h-14 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-full flex items-center justify-center z-50 shadow-lg shadow-blue-500/30"
+            className="fixed bottom-4 right-4 sm:bottom-6 sm:right-6 w-12 h-12 sm:w-14 sm:h-14 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-full flex items-center justify-center z-50 shadow-lg shadow-blue-500/30"
             aria-label="Open Benji assistant"
           >
             <Bot className="w-6 h-6 text-white" />
@@ -206,12 +206,12 @@ export function BenjiAssistant({ userType = 'client', shipmentId, userId }: Benj
             initial={{ opacity: 0, y: 80, scale: 0.85 }}
             animate={{
               opacity: 1, y: 0, scale: 1,
-              height: isMinimized ? '60px' : '580px',
+              height: isMinimized ? '60px' : 'min(580px, calc(100dvh - 2rem))',
             }}
             exit={{ opacity: 0, y: 80, scale: 0.85 }}
             transition={{ type: 'spring', damping: 28, stiffness: 300 }}
-            className="fixed bottom-6 right-6 w-[380px] bg-white rounded-3xl z-50 flex flex-col overflow-hidden shadow-2xl shadow-gray-900/15 border border-gray-100"
-            style={{ maxHeight: '90vh' }}
+            className="fixed bottom-0 left-0 right-0 sm:bottom-6 sm:left-auto sm:right-6 w-full sm:w-[380px] bg-white rounded-t-2xl sm:rounded-3xl z-50 flex flex-col overflow-hidden shadow-2xl shadow-gray-900/15 border border-gray-100"
+            style={{ maxHeight: 'calc(100dvh - env(safe-area-inset-top, 0px))' }}
           >
             {/* Header */}
             <BenjiHeader

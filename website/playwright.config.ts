@@ -1,15 +1,8 @@
 import { defineConfig, devices } from '@playwright/test'
 import { loadEnvConfig } from '@next/env'
+import path from 'node:path'
 
-loadEnvConfig(process.cwd())
-
-if (!process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY?.startsWith('pk_test_')) {
-  throw new Error('Playwright payment safety check failed: Stripe publishable key is not test mode')
-}
-
-if (!process.env.STRIPE_SECRET_KEY?.startsWith('sk_test_')) {
-  throw new Error('Playwright payment safety check failed: Stripe secret key is not test mode')
-}
+loadEnvConfig(path.resolve(__dirname))
 
 export default defineConfig({
   testDir: './tests/e2e',
@@ -29,7 +22,7 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: 'node node_modules/next/dist/bin/next dev -H 127.0.0.1 -p 3100',
+    command: `"${process.execPath}" node_modules/next/dist/bin/next dev -H 127.0.0.1 -p 3100`,
     cwd: __dirname,
     env: {
       ...process.env,

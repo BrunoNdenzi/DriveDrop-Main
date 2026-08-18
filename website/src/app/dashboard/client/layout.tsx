@@ -62,10 +62,10 @@ export default function ClientDashboardLayout({
     <div className="min-h-screen bg-[hsl(var(--surface-field))]">
       {/* Header */}
       <header className="bg-white border-b border-gray-200 sticky top-0 z-40">
-        <div className="px-4 sm:px-6 lg:px-8">
+        <div className="px-2 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             {/* Logo & Mobile Menu */}
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2 sm:gap-4 min-w-0">
               <button
                 onClick={() => setSidebarOpen(!sidebarOpen)}
                 className="lg:hidden p-2 rounded-lg hover:bg-gray-100 transition-colors"
@@ -80,13 +80,13 @@ export default function ClientDashboardLayout({
                   width={120}
                   height={30}
                   priority
-                  className="h-8 w-auto"
+                  className="h-7 sm:h-8 w-auto max-w-[112px] sm:max-w-none"
                 />
               </Link>
             </div>
 
             {/* Right Side Actions */}
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-1 sm:gap-4">
               {/* Notifications */}
               <NotificationBell />
 
@@ -141,7 +141,7 @@ export default function ClientDashboardLayout({
         <aside
           className={`
             fixed lg:sticky top-16 left-0 h-[calc(100vh-4rem)] 
-            w-64 bg-white border-r border-gray-200 
+            w-[min(18rem,85vw)] lg:w-64 bg-white border-r border-gray-200
             transition-transform duration-300 ease-in-out z-30
             ${sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
           `}
@@ -199,7 +199,7 @@ export default function ClientDashboardLayout({
         )}
 
         {/* Main Content */}
-        <main className="flex-1 p-4 sm:p-6 lg:p-8">
+        <main className="flex-1 min-w-0 p-3 sm:p-6 lg:p-8">
           <div className="max-w-7xl mx-auto">
             {children}
           </div>

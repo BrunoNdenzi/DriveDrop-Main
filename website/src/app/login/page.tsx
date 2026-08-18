@@ -109,11 +109,11 @@ function LoginForm() {
   return (
     <>
       <Header />
-      <main className="min-h-screen pt-20 pb-16 bg-[hsl(var(--surface-field))]">
-        <div className="container">
+      <main className="min-h-screen pt-16 sm:pt-20 pb-8 sm:pb-16 bg-[hsl(var(--surface-field))]">
+        <div className="px-3 sm:container">
           <div className="max-w-md mx-auto">
             {/* Header */}
-            <div className="text-center space-y-3 mb-6">
+            <div className="text-center space-y-3 my-5 sm:mt-0 sm:mb-6">
               <div className={`inline-flex items-center justify-center w-12 h-12 rounded-md ${currentConfig.iconBg}`}>
                 <Icon className="w-6 h-6 text-white" />
               </div>
@@ -124,7 +124,7 @@ function LoginForm() {
             </div>
 
             {/* Login Card */}
-            <div className="bg-white border border-border rounded-md p-6 shadow-sm">
+            <div className="bg-white border border-border rounded-md p-4 sm:p-6 shadow-sm">
               {isVerified && (
                 <div className="flex items-center gap-2 p-3 rounded-md bg-green-50 border border-green-200 text-green-800 mb-4">
                   <CheckCircle className="w-5 h-5 flex-shrink-0 text-green-600" />
@@ -133,7 +133,7 @@ function LoginForm() {
               )}
               <Tabs value={activeRole} onValueChange={(v) => setActiveRole(v as UserRole)} className="w-full">
                 {/* Role Tabs */}
-                <TabsList className="grid w-full grid-cols-4 mb-6 bg-slate-100 p-1 rounded-md">
+                <TabsList className="grid w-full h-auto grid-cols-2 sm:grid-cols-4 gap-1 mb-6 bg-slate-100 p-1 rounded-md">
                   <TabsTrigger 
                     value="client" 
                     className={`rounded text-xs ${roleConfig.client.tabActive}`}

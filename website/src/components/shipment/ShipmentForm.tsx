@@ -92,22 +92,22 @@ const CollapsibleSection: React.FC<CollapsibleSectionProps> = ({
       <button
         type="button" // Explicitly set type to button to prevent form submission
         onClick={handleToggle}
-        className={`w-full px-4 py-4 flex items-center justify-between hover:bg-gray-50 transition-colors ${
+        className={`w-full min-w-0 px-3 sm:px-4 py-3 sm:py-4 flex items-center justify-between gap-2 hover:bg-gray-50 transition-colors ${
           isExpanded ? 'border-b border-gray-200 bg-blue-50' : ''
         }`}
       >
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 sm:gap-3 min-w-0">
           <div className={`${isValid ? 'text-green-600' : 'text-blue-500'}`}>
             {icon}
           </div>
-          <h3 className="text-lg font-semibold text-gray-900">{title}</h3>
+          <h3 className="text-sm sm:text-lg font-semibold text-gray-900 text-left">{title}</h3>
           {isValid && !isExpanded && (
             <CheckCircle className="h-5 w-5 text-green-600" />
           )}
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 sm:gap-3 min-w-0">
           {!isExpanded && summary && (
-            <span className="text-sm text-gray-500 max-w-xs truncate">{summary}</span>
+            <span className="hidden sm:block text-sm text-gray-500 max-w-xs truncate">{summary}</span>
           )}
           {isExpanded ? (
             <ChevronUp className="h-5 w-5 text-gray-400" />
@@ -344,7 +344,7 @@ export default function ShipmentForm({ onSubmit, isSubmitting, showClientFields 
         isValid={sectionValidity.customer}
         summary={getSummary('customer')}
       >
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <Label htmlFor="customerName">Full Name *</Label>
             <Input
@@ -366,7 +366,7 @@ export default function ShipmentForm({ onSubmit, isSubmitting, showClientFields 
               required
             />
           </div>
-          <div className="md:col-span-2">
+          <div className="sm:col-span-2">
             <Label htmlFor="customerPhone">Phone Number *</Label>
             <Input
               id="customerPhone"
@@ -416,7 +416,7 @@ export default function ShipmentForm({ onSubmit, isSubmitting, showClientFields 
               data-tour="delivery-address"
             />
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <Label htmlFor="pickupDate">Preferred Pickup Date *</Label>
               <Input
@@ -460,7 +460,7 @@ export default function ShipmentForm({ onSubmit, isSubmitting, showClientFields 
         summary={getSummary('vehicle')}
       >
         <div className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <Label htmlFor="vehicleType">Vehicle Type *</Label>
               <select
@@ -506,7 +506,7 @@ export default function ShipmentForm({ onSubmit, isSubmitting, showClientFields 
               />
             </div>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <Label htmlFor="vehicleMake">Make *</Label>
               <VehicleSelect

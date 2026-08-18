@@ -13,9 +13,9 @@ export default function OperationalHero() {
   return (
     <section className="bg-slate-950 border-b border-slate-800">
       {/* Telemetry bar — StatusBadge integrated into first metric cell */}
-      <div className="flex items-stretch border-b border-slate-800 bg-slate-900">
+      <div className="grid grid-cols-2 sm:grid-cols-5 items-stretch border-b border-slate-800 bg-slate-900">
         {/* First cell: System Online + Active Shipments */}
-        <div className="flex-1 min-w-[140px] flex flex-col items-center justify-center px-4 py-3">
+        <div className="col-span-2 sm:col-span-1 flex flex-col items-center justify-center px-2 sm:px-4 py-3 border-b sm:border-b-0 border-slate-800">
           <StatusBadge variant="success" label="System Online" size="sm" className="!bg-white/10 !border-white/20 !text-emerald-400" />
           <span className="text-lg font-semibold tabular-nums text-white mt-1">8</span>
         </div>
@@ -25,15 +25,15 @@ export default function OperationalHero() {
           { label: 'Coverage', value: 'Southeast US' },
           { label: 'Avg Response', value: '< 2 hrs' },
         ].map((metric) => (
-          <div key={metric.label} className="flex-1 min-w-[120px] flex flex-col items-center justify-center px-4 py-3 border-l border-slate-800">
-            <span className="text-xs font-medium text-slate-400 uppercase tracking-wider">{metric.label}</span>
-            <span className="text-lg font-semibold tabular-nums text-white">{metric.value}</span>
+          <div key={metric.label} className="min-w-0 flex flex-col items-center justify-center px-2 sm:px-4 py-3 border-l border-t sm:border-t-0 border-slate-800 text-center">
+            <span className="text-[10px] sm:text-xs font-medium text-slate-400 uppercase tracking-normal sm:tracking-wider">{metric.label}</span>
+            <span className="text-base sm:text-lg font-semibold tabular-nums text-white break-words">{metric.value}</span>
           </div>
         ))}
       </div>
 
       {/* Primary Content */}
-      <div className="px-6 py-8">
+      <div className="px-4 sm:px-6 py-6 sm:py-8">
         <div className="max-w-full">
           <h1 className="text-2xl font-bold text-white tracking-tight mb-2">
             Vehicle Logistics Operations
@@ -44,17 +44,17 @@ export default function OperationalHero() {
           </p>
 
           {/* CTAs */}
-          <div className="flex flex-wrap gap-3">
+          <div className="grid grid-cols-1 sm:flex gap-3">
             <Button
               size="default"
-              className="gap-2 bg-primary hover:bg-primary/90 text-white"
+              className="w-full sm:w-auto gap-2 bg-primary hover:bg-primary/90 text-white"
               onClick={() => setShowSignUpModal(true)}
             >
               Create Account
               <ArrowRight className="h-4 w-4" />
             </Button>
-            <Link href="/#quote">
-              <Button size="default" className="gap-2 bg-slate-700 hover:bg-slate-600 text-white border border-slate-600">
+            <Link href="/#quote" className="w-full sm:w-auto">
+              <Button size="default" className="w-full sm:w-auto gap-2 bg-slate-700 hover:bg-slate-600 text-white border border-slate-600">
                 Request Quote
                 <ArrowRight className="h-4 w-4" />
               </Button>

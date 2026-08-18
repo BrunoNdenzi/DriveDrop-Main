@@ -28,22 +28,22 @@ export default function Header() {
           : 'bg-slate-950'
       }`}
     >
-      <div className="container">
-        <div className="flex h-20 items-center justify-between">
+      <div className="px-3 sm:px-6 lg:container">
+        <div className="flex h-16 sm:h-20 items-center justify-between">
           {/* Logo with animated border */}
           <Link 
             href="/" 
             className="flex items-center group relative"
           >
             <div className="absolute inset-0 bg-gradient-to-r from-primary/20 to-secondary/20 rounded-xl blur-xl group-hover:blur-2xl transition-all opacity-0 group-hover:opacity-100" />
-            <div className="relative px-4 py-2 rounded-xl border border-primary/20 group-hover:border-primary/40 transition-all">
+            <div className="relative px-2.5 py-1.5 sm:px-4 sm:py-2 rounded-lg sm:rounded-xl border border-primary/20 group-hover:border-primary/40 transition-all">
               <Image 
                 src="/logo-primary.png" 
                 alt="DriveDrop" 
                 width={180} 
                 height={46}
                 priority
-                className={`h-10 w-auto group-hover:scale-105 transition-all ${
+                className={`h-8 sm:h-10 w-auto group-hover:scale-105 transition-all ${
                   isScrolled ? '' : 'brightness-0 invert'
                 }`}
               />
@@ -141,10 +141,10 @@ export default function Header() {
       {/* Mobile Navigation Menu */}
       {isMenuOpen && (
         <div className="lg:hidden glass-nav border-t border-white/20 animate-slide-down">
-          <nav className="container flex flex-col py-6 space-y-1">
+          <nav className="flex flex-col px-3 py-4 sm:px-6 sm:py-6 space-y-1 max-h-[calc(100dvh-4rem)] overflow-y-auto">
             <Link
               href="/#quote"
-              className="px-6 py-4 text-base font-medium rounded-xl hover:bg-primary/10 hover:text-primary transition-all hover:translate-x-2 flex items-center group"
+              className="px-4 py-3 text-base font-medium rounded-lg hover:bg-primary/10 hover:text-primary transition-all flex items-center group"
               onClick={() => setIsMenuOpen(false)}
             >
               <span className="w-1 h-1 rounded-full bg-primary mr-3 group-hover:scale-150 transition-transform" />
@@ -152,7 +152,7 @@ export default function Header() {
             </Link>
             <Link
               href="/services"
-              className="px-6 py-4 text-base font-medium rounded-xl hover:bg-primary/10 hover:text-primary transition-all hover:translate-x-2 flex items-center group"
+              className="px-4 py-3 text-base font-medium rounded-lg hover:bg-primary/10 hover:text-primary transition-all flex items-center group"
               onClick={() => setIsMenuOpen(false)}
             >
               <span className="w-1 h-1 rounded-full bg-primary mr-3 group-hover:scale-150 transition-transform" />
@@ -160,7 +160,7 @@ export default function Header() {
             </Link>
             <Link
               href="/drivers/register"
-              className="px-6 py-4 text-base font-medium rounded-xl hover:bg-primary/10 hover:text-primary transition-all hover:translate-x-2 flex items-center group"
+              className="px-4 py-3 text-base font-medium rounded-lg hover:bg-primary/10 hover:text-primary transition-all flex items-center group"
               onClick={() => setIsMenuOpen(false)}
             >
               <span className="w-1 h-1 rounded-full bg-primary mr-3 group-hover:scale-150 transition-transform" />
@@ -168,7 +168,7 @@ export default function Header() {
             </Link>
             <Link
               href="/login?redirect=/dashboard/client/track"
-              className="px-6 py-4 text-base font-medium rounded-xl hover:bg-primary/10 hover:text-primary transition-all hover:translate-x-2 flex items-center group"
+              className="px-4 py-3 text-base font-medium rounded-lg hover:bg-primary/10 hover:text-primary transition-all flex items-center group"
               onClick={() => setIsMenuOpen(false)}
             >
               <span className="w-1 h-1 rounded-full bg-primary mr-3 group-hover:scale-150 transition-transform" />
@@ -179,14 +179,14 @@ export default function Header() {
             
             <Link
               href="/login"
-              className="px-6 py-4 text-base font-medium rounded-xl hover:bg-primary/10 hover:text-primary transition-all flex items-center"
+              className="px-4 py-3 text-base font-medium rounded-lg hover:bg-primary/10 hover:text-primary transition-all flex items-center"
               onClick={() => setIsMenuOpen(false)}
             >
               <LogIn className="w-5 h-5 mr-3" />
               Sign In
             </Link>
             
-            <div className="px-6 pt-2">
+            <div className="px-4 pt-2">
               <Button 
                 className="w-full gradient-primary hover-lift"
                 size="lg"
