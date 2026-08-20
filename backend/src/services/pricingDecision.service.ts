@@ -198,10 +198,6 @@ export class PricingDecisionService {
           quoteId
         );
         
-        // Log intelligence analyzed event (only if intelligence succeeded)
-        if (intelligenceOutput) {
-          await this.logIntelligenceAnalyzedEvent(intelligenceOutput, quoteId, request.userId);
-        }
       }
       
       // Step 4: Make final pricing decision (apply business policies)
@@ -210,6 +206,15 @@ export class PricingDecisionService {
         intelligenceOutput,
         request
       );
+
+      if (intelligenceOutput) {
+        await this.logIntelligenceAnalyzedEvent(
+          intelligenceOutput,
+          decision,
+          quoteId,
+          request.userId
+        );
+      }
       
       // Log pricing decision made event
       await this.logPricingDecisionMadeEvent(
@@ -593,6 +598,12 @@ export class PricingDecisionService {
   
   private async logIntelligenceAnalyzedEvent(
     intelligence: PricingIntelligenceOutput,
+    decision: {
+      baselinePrice: number;
+      intelligentPrice: number;
+      finalPrice: number;
+      appliedPolicies: string[];
+    },
     quoteId: string,
     userId?: string
   ): Promise<void> {
@@ -604,14 +615,14 @@ export class PricingDecisionService {
       occurredAt: new Date(),
       payload: {
         quoteId,
-        baselinePrice: 0, // Will be set by Decision Layer
-        recommendedPrice: 0, // Will be set by Decision Layer
-        priceAdjustment: 0, // Will be set by Decision Layer
+        baselinePrice: decision.baselinePrice,
+        recommendedPrice: decision.intelligentPrice,
+        priceAdjustment: decision.intelligentPrice - decision.baselinePrice,
         confidenceScore: intelligence.intelligence.overallConfidence,
-        shouldOverride: false, // Decision Layer responsibility
-        fallbackToBaseline: false, // Decision Layer responsibility
+        shouldOverride: decision.intelligentPrice !== decision.baselinePrice,
+        fallbackToBaseline: decision.appliedPolicies.includes('fallback_insufficient_confidence'),
         reasoning: intelligence.intelligence.summary,
-        appliedRules: intelligence.intelligence.suggestedFactors,
+        appliedRules: decision.appliedPolicies,
         dataQuality: intelligence.observation.dataQuality,
         sampleSize: intelligence.observation.sampleSize,
         processingTimeMs: intelligence.processingTimeMs,

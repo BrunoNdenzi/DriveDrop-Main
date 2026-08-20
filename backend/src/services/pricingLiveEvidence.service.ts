@@ -84,6 +84,14 @@ function asRecord(value: unknown): Record<string, unknown> | undefined {
     : undefined;
 }
 
+function providerCode(prefix: string, value: unknown): string {
+  const normalized = String(value || 'UNKNOWN')
+    .toUpperCase()
+    .replace(/[^A-Z0-9]+/g, '_')
+    .replace(/^_+|_+$/g, '');
+  return `${prefix}_${normalized || 'UNKNOWN'}`;
+}
+
 class PricingLiveEvidenceService {
   async collect(origin: string, destination: string): Promise<PricingLiveEvidence> {
     let originCoordinates: Coordinates;
@@ -134,22 +142,35 @@ class PricingLiveEvidenceService {
       url.searchParams.set('destinations', `${destination.latitude},${destination.longitude}`);
       url.searchParams.set('departure_time', 'now');
       url.searchParams.set('traffic_model', 'best_guess');
+      url.searchParams.set('mode', 'driving');
       url.searchParams.set('units', 'imperial');
       url.searchParams.set('key', config.googleMaps.apiKey);
 
       const response = await fetch(url, { signal: AbortSignal.timeout(TIMEOUT_MS) });
       const body = asRecord(await response.json());
+      if (!response.ok) {
+        throw new Error(providerCode('HTTP', response.status));
+      }
+      if (body?.['status'] !== 'OK') {
+        throw new Error(providerCode('API', body?.['status']));
+      }
       const rows = Array.isArray(body?.['rows']) ? body['rows'] : [];
       const firstRow = asRecord(rows[0]);
       const elements = Array.isArray(firstRow?.['elements']) ? firstRow['elements'] : [];
       const element = asRecord(elements[0]);
+      if (element?.['status'] !== 'OK') {
+        throw new Error(providerCode('ELEMENT', element?.['status']));
+      }
       const duration = asRecord(element?.['duration']);
       const durationInTraffic = asRecord(element?.['duration_in_traffic']);
       const normalSeconds = Number(duration?.['value']);
       const trafficSeconds = Number(durationInTraffic?.['value']);
 
-      if (!response.ok || !Number.isFinite(normalSeconds) || !Number.isFinite(trafficSeconds)) {
-        throw new Error('TRAFFIC_RESPONSE_INVALID');
+      if (!Number.isFinite(normalSeconds)) {
+        throw new Error('DURATION_MISSING');
+      }
+      if (!Number.isFinite(trafficSeconds)) {
+        throw new Error('DURATION_IN_TRAFFIC_MISSING');
       }
 
       const observedAt = new Date();
@@ -167,8 +188,11 @@ class PricingLiveEvidenceService {
           delayPercent: normalSeconds > 0 ? (delaySeconds / normalSeconds) * 100 : 0,
         },
       };
-    } catch {
-      return failed('google_maps', startedAt, 'TRAFFIC_REQUEST_FAILED', 5);
+    } catch (error) {
+      const errorCode = error instanceof Error
+        ? providerCode('TRAFFIC', error.message)
+        : 'TRAFFIC_REQUEST_FAILED';
+      return failed('google_maps', startedAt, errorCode, 5);
     }
   }
 
