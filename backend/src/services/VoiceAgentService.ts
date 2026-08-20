@@ -768,7 +768,7 @@ export class VoiceAgentTools {
         isAccidentRecovery: !params.is_operable,
         routeOrigin: params.pickup_location,
         routeDestination: params.delivery_location,
-        enableIntelligence: false,
+        intelligenceMode: 'shadow',
         logToHistory: true,
         requestSource: 'benji',
       });

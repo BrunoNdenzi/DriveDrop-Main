@@ -35,7 +35,7 @@ router.post('/calculate', asyncHandler(async (req: Request, res: Response) => {
     vehicleCount: vehicle_count ? Number(vehicle_count) : 1,
     ...(route_origin && { routeOrigin: route_origin }),
     ...(route_destination && { routeDestination: route_destination }),
-    enableIntelligence: false,  // Phase 2: Intelligence OFF by default
+    intelligenceMode: 'shadow',
     logToHistory: true,         // Log all quotes to quote_history
     requestSource: 'website',
   });
@@ -64,7 +64,6 @@ router.post('/quote', authenticate, asyncHandler(async (req: Request, res: Respo
     vehicle_count,
     route_origin,
     route_destination,
-    enable_intelligence = false,  // Phase 2: Default OFF
   } = req.body;
 
   if (!vehicle_type || !distance_miles) {
@@ -81,7 +80,7 @@ router.post('/quote', authenticate, asyncHandler(async (req: Request, res: Respo
     vehicleCount: vehicle_count ? Number(vehicle_count) : 1,
     ...(route_origin && { routeOrigin: route_origin }),
     ...(route_destination && { routeDestination: route_destination }),
-    enableIntelligence: Boolean(enable_intelligence),  // Feature-flagged intelligence
+    intelligenceMode: 'shadow',
     logToHistory: true,
     requestSource: 'mobile',
     ...(req.user?.id && { userId: req.user.id }),
@@ -94,8 +93,6 @@ router.post('/quote', authenticate, asyncHandler(async (req: Request, res: Respo
     expiresAt: result.expiresAt,
     validityWindowHours: result.validityWindowHours,
     quoteId: result.quoteId,
-    // Include intelligence insights if enabled
-    ...(enable_intelligence && result.intelligence ? { intelligence: result.intelligence } : {}),
   };
 
   res.status(200).json(successResponse(quote));

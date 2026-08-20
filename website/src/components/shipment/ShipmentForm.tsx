@@ -10,6 +10,7 @@ import { useAuth } from '@/hooks/useAuth'
 import AddressAutocomplete from './AddressAutocomplete'
 import { VehicleSelect } from '@/components/ui/VehicleSelect'
 import { pricingService } from '@/services/pricingService'
+import { calculateShipmentQuote } from '@/lib/api/pricing'
 
 interface ShipmentData {
   // Customer Info (for regular users)
@@ -43,6 +44,7 @@ interface ShipmentData {
   
   // Pricing
   estimatedPrice: number
+  quoteId?: string
   distance: number
   pricingBreakdown?: {
     baseRatePerMile: number
@@ -130,6 +132,7 @@ import { trackQuoteSubmitted } from '@/lib/analytics'
 
 export default function ShipmentForm({ onSubmit, isSubmitting, showClientFields = false }: ShipmentFormProps) {
   const { profile } = useAuth()
+  const [pricingError, setPricingError] = useState<string | null>(null)
   
   // Expanded sections state
   const [expandedSections, setExpandedSections] = useState({
@@ -198,12 +201,58 @@ export default function ShipmentForm({ onSubmit, isSubmitting, showClientFields 
     })
   }, [formData])
 
-  // Recalculate price when vehicle type, dates, or distance changes
+  // Recalculate through the backend decision service when quote inputs change.
   useEffect(() => {
-    if (formData.distance > 0 && formData.vehicleType) {
-      calculatePrice(formData.distance)
+    if (formData.distance <= 0 || !formData.vehicleType) {
+      return
     }
-  }, [formData.vehicleType, formData.pickupDate, formData.deliveryDate, formData.distance])
+
+    const abortController = new AbortController()
+    const timeout = window.setTimeout(async () => {
+      try {
+        setPricingError(null)
+        const quote = await calculateShipmentQuote({
+          vehicleType: formData.vehicleType,
+          distanceMiles: formData.distance,
+          pickupDate: formData.pickupDate,
+          deliveryDate: formData.deliveryDate,
+          routeOrigin: formData.pickupAddress,
+          routeDestination: formData.deliveryAddress,
+        }, abortController.signal)
+
+        setFormData(previous => ({
+          ...previous,
+          estimatedPrice: quote.total,
+          quoteId: quote.quoteId,
+          pricingBreakdown: {
+            baseRatePerMile: quote.breakdown.baseRatePerMile,
+            distanceBand: quote.breakdown.distanceBand,
+            rawBasePrice: quote.breakdown.rawBasePrice,
+            deliveryType: quote.breakdown.deliveryType,
+            deliveryTypeMultiplier: quote.breakdown.deliveryTypeMultiplier,
+            fuelAdjustmentPercent: quote.breakdown.fuelAdjustmentPercent,
+            minimumApplied: quote.breakdown.minimumApplied,
+            total: quote.breakdown.total,
+          },
+        }))
+      } catch (error) {
+        if (!abortController.signal.aborted) {
+          setFormData(previous => ({
+            ...previous,
+            estimatedPrice: 0,
+            quoteId: undefined,
+            pricingBreakdown: undefined,
+          }))
+          setPricingError(error instanceof Error ? error.message : 'Unable to calculate pricing')
+        }
+      }
+    }, 250)
+
+    return () => {
+      window.clearTimeout(timeout)
+      abortController.abort()
+    }
+  }, [formData.vehicleType, formData.pickupDate, formData.deliveryDate, formData.distance, formData.pickupAddress, formData.deliveryAddress])
 
   const toggleSection = (section: keyof typeof expandedSections) => {
     // Only toggle the clicked section, don't auto-expand others
@@ -244,50 +293,6 @@ export default function ShipmentForm({ onSubmit, isSubmitting, showClientFields 
     const distance = pricingService.calculateDistance(from.lat, from.lng, to.lat, to.lng)
     
     updateFormData('distance', Math.round(distance))
-    
-    // Auto-calculate price based on distance
-    calculatePrice(Math.round(distance))
-  }
-
-  const calculatePrice = (distance: number) => {
-    // Don't calculate if no vehicle type selected
-    if (!formData.vehicleType) {
-      console.log('No vehicle type selected, skipping price calculation')
-      return
-    }
-
-    // Use proper pricing service that matches mobile app exactly
-    const quote = pricingService.calculateQuote({
-      vehicleType: formData.vehicleType,
-      distanceMiles: distance,
-      isAccidentRecovery: false,
-      vehicleCount: 1,
-      pickupDate: formData.pickupDate,
-      deliveryDate: formData.deliveryDate,
-      fuelPricePerGallon: 3.70, // Default current fuel price
-    })
-    
-    // Only update if price changed to prevent infinite loop
-    if (formData.estimatedPrice !== quote.total) {
-      updateFormData('estimatedPrice', quote.total)
-      updateFormData('pricingBreakdown', {
-        baseRatePerMile: quote.breakdown.baseRatePerMile,
-        distanceBand: quote.breakdown.distanceBand,
-        rawBasePrice: quote.breakdown.rawBasePrice,
-        deliveryType: quote.breakdown.deliveryType,
-        deliveryTypeMultiplier: quote.breakdown.deliveryTypeMultiplier,
-        fuelAdjustmentPercent: quote.breakdown.fuelAdjustmentPercent,
-        minimumApplied: quote.breakdown.minimumApplied,
-        total: quote.breakdown.total
-      })
-    }
-    
-    // Log breakdown for debugging
-    console.log('Pricing Breakdown:', {
-      vehicleType: formData.vehicleType,
-      distance,
-      breakdown: quote.breakdown
-    })
   }
 
   const getSummary = (section: keyof typeof expandedSections) => {

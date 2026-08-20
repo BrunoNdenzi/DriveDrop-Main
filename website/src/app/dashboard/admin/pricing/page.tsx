@@ -2,7 +2,12 @@
 
 import { useEffect, useState } from 'react'
 import { useAuth } from '@/hooks/useAuth'
-import { getSupabaseBrowserClient } from '@/lib/supabase-client'
+import {
+  createPricingConfig,
+  getActivePricingConfig,
+  updatePricingConfig,
+  type PricingConfig,
+} from '@/lib/api/pricing'
 import { 
   DollarSign, 
   TrendingUp, 
@@ -17,29 +22,6 @@ import {
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 
-interface PricingConfig {
-  id: string
-  min_quote: number
-  accident_min_quote: number
-  min_miles: number
-  base_fuel_price: number
-  current_fuel_price: number
-  fuel_adjustment_per_dollar: number
-  surge_multiplier: number
-  surge_enabled: boolean
-  expedited_multiplier: number
-  flexible_multiplier: number
-  standard_multiplier: number
-  short_distance_max: number
-  mid_distance_max: number
-  expedited_service_enabled: boolean
-  flexible_service_enabled: boolean
-  bulk_discount_enabled: boolean
-  is_active: boolean
-  created_at: string
-  updated_at: string
-}
-
 export default function AdminPricingPage() {
   const { profile, loading: authLoading } = useAuth()
   const [loading, setLoading] = useState(true)
@@ -49,6 +31,7 @@ export default function AdminPricingPage() {
   const [changeReason, setChangeReason] = useState('')
   const [expandedSections, setExpandedSections] = useState({
     minimums: true,
+    economics: true,
     fuel: true,
     surge: false,
     delivery: false,
@@ -65,55 +48,7 @@ export default function AdminPricingPage() {
   const loadConfig = async () => {
     try {
       setLoading(true)
-      
-      const supabase = getSupabaseBrowserClient()
-      
-      // Fetch pricing config directly from Supabase
-      const { data, error } = await supabase
-        .from('pricing_config')
-        .select('*')
-        .eq('is_active', true)
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .maybeSingle()
-
-      if (error) {
-        throw error
-      }
-
-      if (!data) {
-        // No active config found, create default
-        const defaultConfig = {
-          min_quote: 150.00,
-          accident_min_quote: 80.00,
-          min_miles: 100,
-          base_fuel_price: 3.70,
-          current_fuel_price: 3.70,
-          fuel_adjustment_per_dollar: 5.00,
-          surge_multiplier: 1.00,
-          surge_enabled: false,
-          expedited_multiplier: 1.25,
-          standard_multiplier: 1.00,
-          flexible_multiplier: 0.95,
-          short_distance_max: 500,
-          mid_distance_max: 1500,
-          bulk_discount_enabled: true,
-          expedited_service_enabled: true,
-          flexible_service_enabled: true,
-          is_active: true
-        }
-        
-        const { data: newConfig, error: createError } = await supabase
-          .from('pricing_config')
-          .insert([defaultConfig])
-          .select()
-          .single()
-        
-        if (createError) throw createError
-        setConfig(newConfig as PricingConfig)
-      } else {
-        setConfig(data as PricingConfig)
-      }
+      setConfig(await getActivePricingConfig())
       setEditedConfig({})
     } catch (error: any) {
       console.error('Failed to load pricing config:', error)
@@ -128,12 +63,7 @@ export default function AdminPricingPage() {
   }
 
   const updateField = (field: keyof PricingConfig, value: any) => {
-    console.log('updateField called:', field, value, 'current editedConfig:', editedConfig)
-    setEditedConfig(prev => {
-      const updated = { ...prev, [field]: value }
-      console.log('Updated editedConfig:', updated)
-      return updated
-    })
+    setEditedConfig(prev => ({ ...prev, [field]: value }))
   }
 
   const getValue = (field: keyof PricingConfig): any => {
@@ -141,9 +71,7 @@ export default function AdminPricingPage() {
   }
 
   const hasChanges = () => {
-    const changes = Object.keys(editedConfig).length > 0
-    console.log('hasChanges:', changes, 'editedConfig:', editedConfig)
-    return changes
+    return Object.keys(editedConfig).length > 0
   }
 
   const handleSave = async () => {
@@ -159,37 +87,23 @@ export default function AdminPricingPage() {
 
     try {
       setSaving(true)
-      
-      const supabase = getSupabaseBrowserClient()
-      
+
       if (!config?.id) {
         throw new Error('No pricing config found')
       }
 
-      // Update the pricing config in Supabase
-      const { data, error } = await supabase
-        .from('pricing_config')
-        .update({
+      let savedConfig: PricingConfig
+      if (config.id === 'default') {
+        const { id: _id, created_at: _createdAt, updated_at: _updatedAt, ...configData } = {
+          ...config,
           ...editedConfig,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', config.id)
-        .select()
-        .single()
+        }
+        savedConfig = await createPricingConfig(configData)
+      } else {
+        savedConfig = await updatePricingConfig(config.id, editedConfig, changeReason)
+      }
 
-      if (error) throw error
-
-      // Record the change in history
-      await supabase
-        .from('pricing_config_history')
-        .insert([{
-          config_id: config.id,
-          change_reason: changeReason,
-          old_values: config,
-          new_values: { ...config, ...editedConfig }
-        }])
-
-      setConfig(data as PricingConfig)
+      setConfig(savedConfig)
       setEditedConfig({})
       setChangeReason('')
       alert('Pricing configuration updated successfully!')
@@ -299,6 +213,61 @@ export default function AdminPricingPage() {
               onChange={(v) => updateField('min_miles', parseFloat(v))}
               type="number"
               step="1"
+            />
+          </div>
+        </ConfigSection>
+
+        <ConfigSection
+          title="Economic Floor (Shadow)"
+          icon={<TrendingUp className="h-5 w-5" />}
+          expanded={expandedSections.economics}
+          onToggle={() => toggleSection('economics')}
+        >
+          <div className="mb-4 rounded-md border border-blue-200 bg-blue-50 p-3 text-xs text-blue-800">
+            Shadow mode records the estimated floor and gap for analysis. It does not change customer prices.
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <InputField
+              label="Target Contribution Margin (%)"
+              value={getValue('target_contribution_margin_percent')}
+              onChange={(v) => updateField('target_contribution_margin_percent', parseFloat(v))}
+              type="number"
+              step="0.01"
+            />
+            <InputField
+              label="Fallback Fuel Cost / Mile ($)"
+              value={getValue('fallback_fuel_cost_per_mile')}
+              onChange={(v) => updateField('fallback_fuel_cost_per_mile', parseFloat(v))}
+              type="number"
+              step="0.0001"
+            />
+            <InputField
+              label="Fallback Driver Cost / Mile ($)"
+              value={getValue('fallback_driver_cost_per_mile')}
+              onChange={(v) => updateField('fallback_driver_cost_per_mile', parseFloat(v))}
+              type="number"
+              step="0.0001"
+            />
+            <InputField
+              label="Fallback Insurance Cost / Mile ($)"
+              value={getValue('fallback_insurance_cost_per_mile')}
+              onChange={(v) => updateField('fallback_insurance_cost_per_mile', parseFloat(v))}
+              type="number"
+              step="0.0001"
+            />
+            <InputField
+              label="Fallback Maintenance Cost / Mile ($)"
+              value={getValue('fallback_maintenance_cost_per_mile')}
+              onChange={(v) => updateField('fallback_maintenance_cost_per_mile', parseFloat(v))}
+              type="number"
+              step="0.0001"
+            />
+            <InputField
+              label="Fallback Tolls Cost / Mile ($)"
+              value={getValue('fallback_tolls_cost_per_mile')}
+              onChange={(v) => updateField('fallback_tolls_cost_per_mile', parseFloat(v))}
+              type="number"
+              step="0.0001"
             />
           </div>
         </ConfigSection>

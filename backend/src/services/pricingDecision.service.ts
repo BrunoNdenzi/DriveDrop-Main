@@ -74,7 +74,8 @@ export interface EnhancedPricingRequest extends PricingInput {
   routeDestination?: string;
   
   // Feature Flags
-  enableIntelligence?: boolean;  // Default: false (Phase 2)
+  enableIntelligence?: boolean;  // Legacy flag; true maps to shadow mode
+  intelligenceMode?: 'off' | 'shadow' | 'recommend';
   logToHistory?: boolean;        // Default: true
   
   // Client Context
@@ -99,6 +100,17 @@ export interface PricingDecisionResult {
     surgeMultiplier: number;
     deliveryTypeMultiplier: number;
     deliveryType: string;
+    transportTypeMultiplier: number;
+    transportType: 'open' | 'enclosed';
+    operatingCostTotal: number;
+    profitMarginPercent: number;
+    profitAmount: number;
+    targetContributionMarginPercent: number;
+    economicFloor: number;
+    economicFloorGap: number;
+    economicFloorMode: 'shadow' | 'enforce';
+    economicFloorApplied: boolean;
+    costSource: 'configured_priors' | 'live_override' | 'fallback_priors';
     minimumApplied: boolean;
     rawBasePrice: number;
     bulkDiscountPercent: number;
@@ -154,7 +166,9 @@ export class PricingDecisionService {
     const quoteKey = this.buildQuoteKey(request, quoteId);
     
     // Set defaults
-    const enableIntelligence = request.enableIntelligence ?? false; // Phase 2: off by default
+    const intelligenceMode = request.intelligenceMode
+      ?? (request.enableIntelligence ? 'shadow' : 'off');
+    const enableIntelligence = intelligenceMode !== 'off';
     const logToHistory = request.logToHistory ?? true;
     const requestSource = request.requestSource ?? 'website';
     
@@ -164,6 +178,7 @@ export class PricingDecisionService {
       vehicleType: request.vehicleType,
       distanceMiles: request.distanceMiles,
       enableIntelligence,
+      intelligenceMode,
       requestSource,
     });
     
@@ -218,6 +233,17 @@ export class PricingDecisionService {
           surgeMultiplier: baselineResult.breakdown.surgeMultiplier,
           deliveryTypeMultiplier: baselineResult.breakdown.deliveryTypeMultiplier,
           deliveryType: baselineResult.breakdown.deliveryType,
+          transportTypeMultiplier: baselineResult.breakdown.transportTypeMultiplier,
+          transportType: baselineResult.breakdown.transportType,
+          operatingCostTotal: baselineResult.breakdown.operatingCostTotal,
+          profitMarginPercent: baselineResult.breakdown.profitMarginPercent,
+          profitAmount: baselineResult.breakdown.profitAmount,
+          targetContributionMarginPercent: baselineResult.breakdown.targetContributionMarginPercent,
+          economicFloor: baselineResult.breakdown.economicFloor,
+          economicFloorGap: baselineResult.breakdown.economicFloorGap,
+          economicFloorMode: baselineResult.breakdown.economicFloorMode,
+          economicFloorApplied: baselineResult.breakdown.economicFloorApplied,
+          costSource: baselineResult.breakdown.costSource,
           minimumApplied: baselineResult.breakdown.minimumApplied,
           rawBasePrice: baselineResult.breakdown.rawBasePrice,
           bulkDiscountPercent: baselineResult.breakdown.bulkDiscountPercent,
@@ -284,6 +310,17 @@ export class PricingDecisionService {
           surgeMultiplier: baselineResult.breakdown.surgeMultiplier,
           deliveryTypeMultiplier: baselineResult.breakdown.deliveryTypeMultiplier,
           deliveryType: baselineResult.breakdown.deliveryType,
+          transportTypeMultiplier: baselineResult.breakdown.transportTypeMultiplier,
+          transportType: baselineResult.breakdown.transportType,
+          operatingCostTotal: baselineResult.breakdown.operatingCostTotal,
+          profitMarginPercent: baselineResult.breakdown.profitMarginPercent,
+          profitAmount: baselineResult.breakdown.profitAmount,
+          targetContributionMarginPercent: baselineResult.breakdown.targetContributionMarginPercent,
+          economicFloor: baselineResult.breakdown.economicFloor,
+          economicFloorGap: baselineResult.breakdown.economicFloorGap,
+          economicFloorMode: baselineResult.breakdown.economicFloorMode,
+          economicFloorApplied: baselineResult.breakdown.economicFloorApplied,
+          costSource: baselineResult.breakdown.costSource,
           minimumApplied: baselineResult.breakdown.minimumApplied,
           rawBasePrice: baselineResult.breakdown.rawBasePrice,
           bulkDiscountPercent: baselineResult.breakdown.bulkDiscountPercent,
@@ -357,7 +394,7 @@ export class PricingDecisionService {
   private async makeFinalDecision(
     baselineResult: { total: number; breakdown: any },
     intelligenceOutput: PricingIntelligenceOutput | undefined,
-    _request: EnhancedPricingRequest
+    request: EnhancedPricingRequest
   ): Promise<{
     baselinePrice: number;
     intelligentPrice: number;
@@ -417,16 +454,19 @@ export class PricingDecisionService {
     
     const adjustment = adjustedPrice - baselinePrice;
     const adjustmentPercent = (adjustment / baselinePrice) * 100;
+    const intelligenceMode = request.intelligenceMode
+      ?? (request.enableIntelligence ? 'shadow' : 'off');
+    const isShadow = intelligenceMode === 'shadow';
     
     return {
       baselinePrice,
       intelligentPrice: adjustedPrice,
-      finalPrice: adjustedPrice,
+      finalPrice: isShadow ? baselinePrice : adjustedPrice,
       adjustment,
       adjustmentPercent,
-      appliedPolicies,
+      appliedPolicies: isShadow ? [...appliedPolicies, 'shadow_observation'] : appliedPolicies,
       policyViolations,
-      decisionMaker: appliedPolicies.length > 0 ? 'benji_intelligence' : 'baseline',
+      decisionMaker: isShadow || appliedPolicies.length === 0 ? 'baseline' : 'benji_intelligence',
     };
   }
   
@@ -644,9 +684,11 @@ export class PricingDecisionService {
   private async persistToQuoteHistory(
     request: EnhancedPricingRequest,
     result: PricingDecisionResult,
-    _intelligenceOutput: PricingIntelligenceOutput | undefined
+    intelligenceOutput: PricingIntelligenceOutput | undefined
   ): Promise<void> {
     try {
+      const intelligenceMode = request.intelligenceMode
+        ?? (request.enableIntelligence ? 'shadow' : 'off');
       const { error } = await supabaseAdmin
         .from('quote_history')
         .insert({
@@ -678,10 +720,79 @@ export class PricingDecisionService {
           fuel_adjustment_percent: result.breakdown.fuelAdjustmentPercent,
           bulk_discount_percent: result.breakdown.bulkDiscountPercent,
           minimum_applied: result.breakdown.minimumApplied,
+          estimated_operating_cost: result.breakdown.operatingCostTotal,
+          target_contribution_margin_percent: result.breakdown.targetContributionMarginPercent,
+          economic_floor: result.breakdown.economicFloor,
+          economic_floor_gap: result.breakdown.economicFloorGap,
+          economic_floor_mode: result.breakdown.economicFloorMode,
+          economic_floor_applied: result.breakdown.economicFloorApplied,
+          cost_source: result.breakdown.costSource,
           
           decision_maker: result.decisionMaker,
           benji_confidence_score: result.intelligence?.overallConfidence,
           benji_reasoning: result.intelligence?.summary,
+          intelligence_mode: intelligenceMode,
+          feature_snapshot: {
+            route: {
+              origin: request.routeOrigin || null,
+              destination: request.routeDestination || null,
+              distance_miles: request.distanceMiles,
+            },
+            vehicle: {
+              type: request.vehicleType,
+              count: request.vehicleCount || 1,
+              transport_type: request.transportType || 'open',
+              accident_recovery: Boolean(request.isAccidentRecovery),
+            },
+            timing: {
+              pickup_date: request.pickupDate || null,
+              delivery_date: request.deliveryDate || null,
+              delivery_type: result.breakdown.deliveryType,
+            },
+            baseline: {
+              price: result.decision.baselinePrice,
+              base_rate_per_mile: result.breakdown.baseRatePerMile,
+              distance_band: result.breakdown.distanceBand,
+              operating_cost_total: result.breakdown.operatingCostTotal,
+              economic_floor: result.breakdown.economicFloor,
+              economic_floor_gap: result.breakdown.economicFloorGap,
+              economic_floor_mode: result.breakdown.economicFloorMode,
+              cost_source: result.breakdown.costSource,
+            },
+          },
+          intelligence_snapshot: intelligenceOutput ? {
+            observation: intelligenceOutput.observation,
+            analysis: intelligenceOutput.analysis,
+            intelligence: intelligenceOutput.intelligence,
+            generated_at: intelligenceOutput.generatedAt.toISOString(),
+            processing_time_ms: intelligenceOutput.processingTimeMs,
+          } : null,
+          recommendation_snapshot: intelligenceOutput ? {
+            baseline_price: result.decision.baselinePrice,
+            recommended_price: result.decision.intelligentPrice,
+            customer_price: result.decision.finalPrice,
+            adjustment: result.decision.adjustment,
+            adjustment_percent: result.decision.adjustmentPercent,
+            applied_policies: result.decision.appliedPolicies,
+            policy_violations: result.decision.policyViolations,
+            mode: intelligenceMode,
+          } : null,
+          source_health_snapshot: intelligenceOutput ? Object.fromEntries(
+            Object.entries(intelligenceOutput.observation.liveEvidence).map(([source, evidence]) => [
+              source,
+              {
+                provider: evidence.provider,
+                status: evidence.status,
+                observed_at: evidence.observedAt,
+                fresh_until: evidence.freshUntil,
+                latency_ms: evidence.latencyMs,
+                error_code: evidence.errorCode || null,
+              },
+            ])
+          ) : null,
+          intelligence_generated_at: intelligenceOutput
+            ? intelligenceOutput.generatedAt.toISOString()
+            : null,
           
           was_booked: false,
           expires_at: result.expiresAt.toISOString(),
@@ -723,32 +834,85 @@ export class PricingDecisionService {
   /**
    * Mark a quote as booked (called when shipment is created)
    */
+  async markQuoteAsBookedForClient(
+    quoteId: string,
+    shipmentId: string,
+    clientId: string
+  ): Promise<boolean> {
+    const { data: shipment, error } = await supabaseAdmin
+      .from('shipments')
+      .select('id, client_id, estimated_price')
+      .eq('id', shipmentId)
+      .eq('client_id', clientId)
+      .maybeSingle();
+
+    if (error) {
+      logger.error('Failed to verify shipment ownership for quote booking', {
+        quoteId,
+        shipmentId,
+        clientId,
+        error: error.message,
+      });
+      return false;
+    }
+
+    if (!shipment) {
+      return false;
+    }
+
+    return this.markQuoteAsBooked(quoteId, shipment.id, clientId);
+  }
+
   async markQuoteAsBooked(
     quoteId: string,
     shipmentId: string,
-    bookedPrice: number
-  ): Promise<void> {
+    clientId: string
+  ): Promise<boolean> {
     try {
-      const { data: quote } = await supabaseAdmin
+      const { data: quote, error: quoteError } = await supabaseAdmin
         .from('quote_history')
-        .select('created_at')
+        .select('created_at, quoted_price, was_booked, shipment_id')
         .eq('id', quoteId)
-        .single();
+        .eq('user_id', clientId)
+        .maybeSingle();
+
+      if (quoteError || !quote) {
+        logger.warn('Owned quote not found while marking it as booked', {
+          quoteId,
+          shipmentId,
+          clientId,
+          error: quoteError?.message,
+        });
+        return false;
+      }
+
+      if (quote.was_booked) {
+        if (quote.shipment_id !== shipmentId) {
+          logger.warn('Booked quote cannot be linked to another shipment', {
+            quoteId,
+            existingShipmentId: quote.shipment_id,
+            shipmentId,
+          });
+        }
+        return quote.shipment_id === shipmentId;
+      }
       
-      const timeToBooking = quote
-        ? Date.now() - new Date(quote.created_at).getTime()
-        : 0;
+      const timeToBooking = Date.now() - new Date(quote.created_at).getTime();
       
-      const { error } = await supabaseAdmin
+      const { data: updatedQuote, error } = await supabaseAdmin
         .from('quote_history')
         .update({
           was_booked: true,
           booked_at: new Date().toISOString(),
           time_to_booking_ms: timeToBooking,
           shipment_id: shipmentId,
-          booking_price: bookedPrice,
+          booking_price: Number(quote.quoted_price),
         })
-        .eq('id', quoteId);
+        .eq('id', quoteId)
+        .eq('user_id', clientId)
+        .eq('was_booked', false)
+        .select('id')
+        .maybeSingle();
       
       if (error) {
         logger.error('❌ Failed to mark quote as booked', {
@@ -756,13 +920,17 @@ export class PricingDecisionService {
           shipmentId,
           error: error.message,
         });
+        return false;
       }
+
+      return Boolean(updatedQuote);
     } catch (error) {
       logger.error('❌ Error marking quote as booked', {
         quoteId,
         shipmentId,
         error: error instanceof Error ? error.message : String(error),
       });
+      return false;
     }
   }
 }

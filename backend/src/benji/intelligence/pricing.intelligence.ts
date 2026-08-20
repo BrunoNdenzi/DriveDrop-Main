@@ -26,6 +26,10 @@
 
 import { supabaseAdmin } from '@lib/supabase';
 import { logger } from '@utils/logger';
+import {
+  pricingLiveEvidenceService,
+  type PricingLiveEvidence,
+} from '@services/pricingLiveEvidence.service';
 import type { VehicleType } from '@services/pricing.service';
 
 // ============================================================================
@@ -96,6 +100,7 @@ export interface PricingObservation {
   
   // Operational Context
   currentDemand: 'low' | 'medium' | 'high';  // Based on active shipments
+  liveEvidence: PricingLiveEvidence;
   dataQuality: 'insufficient' | 'limited' | 'good' | 'excellent';
   sampleSize: number;
 }
@@ -264,10 +269,11 @@ export class BenjiPricingIntelligence {
     );
     
     // Query 1: Historical route performance
-    const historicalData = await this.getHistoricalRouteData(routeKey);
-    
-    // Query 2: Recent activity (last 7 days)
-    const recentActivity = await this.getRecentActivity(routeKey);
+    const [historicalData, recentActivity, liveEvidence] = await Promise.all([
+      this.getHistoricalRouteData(routeKey),
+      this.getRecentActivity(routeKey),
+      pricingLiveEvidenceService.collect(request.routeOrigin, request.routeDestination),
+    ]);
     
     // Query 3: Customer profile (if available)
     const customerProfile = request.userId
@@ -290,6 +296,7 @@ export class BenjiPricingIntelligence {
       historicalQuotes: historicalData,
       recentActivity,
       currentDemand,
+      liveEvidence,
       dataQuality,
       sampleSize: historicalData.count,
     };
@@ -434,15 +441,13 @@ export class BenjiPricingIntelligence {
     destination: string
   ): Promise<'low' | 'medium' | 'high'> {
     // Simple heuristic: Count pending/in-transit shipments
-    const { data, error } = await supabaseAdmin
+    const { count, error } = await supabaseAdmin
       .from('shipments')
       .select('id', { count: 'exact', head: true })
       .in('status', ['pending', 'accepted', 'in_transit'])
       .or(`pickup_address.ilike.%${origin}%,delivery_address.ilike.%${destination}%`);
     
-    if (error || !data) return 'medium';
-    
-    const count = (data as any).count || 0;
+    if (error || count === null) return 'medium';
     
     if (count < 5) return 'low';
     if (count < 15) return 'medium';
@@ -1001,6 +1006,24 @@ export class BenjiPricingIntelligence {
         historicalQuotes: { count: 0, avgPrice: 0, minPrice: 0, maxPrice: 0, conversionRate: 0 },
         recentActivity: { quotesGenerated: 0, quotesBooked: 0, avgTimeToBooking: 0 },
         currentDemand: 'medium',
+        liveEvidence: {
+          traffic: {
+            provider: 'google_maps', status: 'error', observedAt: new Date().toISOString(),
+            freshUntil: new Date().toISOString(), latencyMs: 0, errorCode: 'ANALYSIS_FAILED',
+          },
+          tolls: {
+            provider: 'here', status: 'error', observedAt: new Date().toISOString(),
+            freshUntil: new Date().toISOString(), latencyMs: 0, errorCode: 'ANALYSIS_FAILED',
+          },
+          weather: {
+            provider: 'openweather', status: 'error', observedAt: new Date().toISOString(),
+            freshUntil: new Date().toISOString(), latencyMs: 0, errorCode: 'ANALYSIS_FAILED',
+          },
+          fuel: {
+            provider: 'opis', status: 'unavailable', observedAt: new Date().toISOString(),
+            freshUntil: new Date().toISOString(), latencyMs: 0, errorCode: 'PROVIDER_NOT_ENABLED',
+          },
+        },
         dataQuality: 'insufficient',
         sampleSize: 0,
       },

@@ -21,9 +21,12 @@ import { logger } from '@utils/logger';
 import { pricingPerformanceService } from '@benji/intelligence/pricing-performance.service';
 import { pricingAnalyticsService } from '@benji/intelligence/pricing-analytics.service';
 import { pricingRecommendationsService } from '@benji/intelligence/pricing-recommendations.service';
-import { pricingFeedbackService } from '@benji/intelligence/pricing-feedback.service';
+import { authenticate, authorize } from '@middlewares/auth.middleware';
 
 const router = express.Router();
+
+router.use(authenticate);
+router.use(authorize(['admin']));
 
 /**
  * GET /api/v1/intelligence/performance
@@ -198,145 +201,6 @@ router.get('/recommendations', async (req: Request, res: Response): Promise<void
     res.status(500).json({
       success: false,
       error: 'Failed to retrieve recommendations',
-    });
-  }
-});
-
-/**
- * POST /api/v1/intelligence/feedback/quote-outcome
- * 
- * Record a quote outcome (booked or rejected)
- * Body:
- *   - quoteId: string (required)
- *   - wasBooked: boolean (required)
- *   - timeToBooking?: number (milliseconds, optional)
- *   - bookingPrice?: number (optional)
- *   - shipmentId?: string (optional)
- * 
- * Returns: Success confirmation
- */
-router.post('/feedback/quote-outcome', async (req: Request, res: Response): Promise<void> => {
-  try {
-    const { quoteId, wasBooked, timeToBooking, bookingPrice, shipmentId } = req.body;
-    
-    if (!quoteId || typeof wasBooked !== 'boolean') {
-      res.status(400).json({
-        error: 'quoteId (string) and wasBooked (boolean) are required',
-      });
-      return;
-    }
-    
-    await pricingFeedbackService.recordQuoteOutcome({
-      quoteId,
-      wasBooked,
-      timeToBooking,
-      bookingPrice,
-      shipmentId,
-    });
-    
-    res.json({
-      success: true,
-      message: 'Quote outcome recorded successfully',
-      recordedAt: new Date().toISOString(),
-    });
-  } catch (error) {
-    logger.error('Failed to record quote outcome', {
-      error: error instanceof Error ? error.message : String(error),
-    });
-    res.status(500).json({
-      success: false,
-      error: 'Failed to record quote outcome',
-    });
-  }
-});
-
-/**
- * POST /api/v1/intelligence/feedback/shipment-outcome
- * 
- * Record a shipment outcome (completed with actual costs)
- * Body:
- *   - shipmentId: string (required)
- *   - quoteId?: string (optional)
- *   - actualCost: number (required)
- *   - actualRevenue: number (required)
- *   - profitMargin: number (required)
- *   - completedAt: string (ISO date, required)
- * 
- * Returns: Success confirmation
- */
-router.post('/feedback/shipment-outcome', async (req: Request, res: Response): Promise<void> => {
-  try {
-    const { shipmentId, quoteId, actualCost, actualRevenue, profitMargin, completedAt } = req.body;
-    
-    if (!shipmentId || actualCost === undefined || actualRevenue === undefined || 
-        profitMargin === undefined || !completedAt) {
-      res.status(400).json({
-        error: 'shipmentId, actualCost, actualRevenue, profitMargin, and completedAt are required',
-      });
-      return;
-    }
-    
-    await pricingFeedbackService.recordShipmentOutcome({
-      shipmentId,
-      quoteId,
-      actualCost,
-      actualRevenue,
-      profitMargin,
-      completedAt: new Date(completedAt),
-    });
-    
-    res.json({
-      success: true,
-      message: 'Shipment outcome recorded successfully',
-      recordedAt: new Date().toISOString(),
-    });
-  } catch (error) {
-    logger.error('Failed to record shipment outcome', {
-      error: error instanceof Error ? error.message : String(error),
-    });
-    res.status(500).json({
-      success: false,
-      error: 'Failed to record shipment outcome',
-    });
-  }
-});
-
-/**
- * POST /api/v1/intelligence/feedback/intelligence-fallback
- * 
- * Record when intelligence fails and baseline is used
- * Body:
- *   - quoteId: string (required)
- *   - reason: string (required)
- *   - error?: string (optional)
- * 
- * Returns: Success confirmation
- */
-router.post('/feedback/intelligence-fallback', async (req: Request, res: Response): Promise<void> => {
-  try {
-    const { quoteId, reason, error } = req.body;
-    
-    if (!quoteId || !reason) {
-      res.status(400).json({
-        error: 'quoteId and reason are required',
-      });
-      return;
-    }
-    
-    await pricingFeedbackService.recordIntelligenceFallback(quoteId, reason, error);
-    
-    res.json({
-      success: true,
-      message: 'Intelligence fallback recorded successfully',
-      recordedAt: new Date().toISOString(),
-    });
-  } catch (error) {
-    logger.error('Failed to record intelligence fallback', {
-      error: error instanceof Error ? error.message : String(error),
-    });
-    res.status(500).json({
-      success: false,
-      error: 'Failed to record intelligence fallback',
     });
   }
 });

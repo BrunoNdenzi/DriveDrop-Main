@@ -92,7 +92,7 @@ export const pricingCalculateTool: ToolDefinition<PricingCalculateInput, Pricing
       vehicleCount:       input.vehicleCount ?? 1,
       routeOrigin:        input.pickupLocation,
       routeDestination:   input.deliveryLocation,
-      enableIntelligence: false,
+      intelligenceMode:   'shadow',
       logToHistory:       true,
       requestSource:      'benji',
     });

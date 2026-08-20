@@ -291,6 +291,7 @@ export const shipmentService = {
     pickup_date?: string;
     delivery_date?: string;
     status?: string;
+    quote_id?: string;
   }) {
     try {
       // Use supabaseAdmin to bypass RLS - backend service should have full access

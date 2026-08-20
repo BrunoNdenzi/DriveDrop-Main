@@ -99,6 +99,7 @@ function PaymentForm({ shipmentData, completionData, onPaymentComplete, onFinalS
           delivery_address: shipmentData.deliveryAddress,
           pickup_date: shipmentData.pickupDate ? new Date(shipmentData.pickupDate).toISOString() : null,
           estimated_price: shipmentData.estimatedPrice,
+          quote_id: shipmentData.quoteId || null,
           status: 'pending',
           vehicle_type: shipmentData.vehicleType,
           vehicle_make: shipmentData.vehicleMake,

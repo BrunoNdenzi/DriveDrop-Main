@@ -148,7 +148,8 @@ export const createShipment = asyncHandler(async (req: Request, res: Response) =
   }
 
   let finalEstimatedPrice = estimated_price;
-  if (!finalEstimatedPrice && vehicle_type && distance_miles) {
+  let resolvedQuoteId = quote_id;
+  if (!resolvedQuoteId && vehicle_type && distance_miles) {
     try {
       const allowedVehicleTypes = ['sedan','suv','pickup','luxury','motorcycle','heavy'] as const;
       const vt = typeof vehicle_type === 'string' && (allowedVehicleTypes as readonly string[]).includes(vehicle_type)
@@ -162,12 +163,15 @@ export const createShipment = asyncHandler(async (req: Request, res: Response) =
         distanceMiles: Number(distance_miles),
         isAccidentRecovery: Boolean(is_accident_recovery),
         vehicleCount: vehicle_count ? Number(vehicle_count) : 1,
-        enableIntelligence: false,
+        routeOrigin: pickup_address,
+        routeDestination: delivery_address,
+        intelligenceMode: 'shadow',
         logToHistory: true,
         requestSource: 'admin',
         ...(req.user?.id && { userId: req.user.id }),
       });
       finalEstimatedPrice = result.total;
+      resolvedQuoteId = result.quoteId;
     } catch {
       // Fallback: leave undefined, don't block creation
     }
@@ -190,16 +194,8 @@ export const createShipment = asyncHandler(async (req: Request, res: Response) =
     pickup_date,
     delivery_date,
     status: status || 'pending',
+    quote_id: resolvedQuoteId,
   });
-
-  // Mark the linked quote as booked now that the shipment exists
-  if (quote_id && (shipment as Record<string, unknown>)?.['id']) {
-    await pricingDecisionService.markQuoteAsBooked(
-      quote_id,
-      (shipment as Record<string, unknown>)['id'] as string,
-      finalEstimatedPrice ?? 0
-    );
-  }
 
   res.status(201).json(successResponse(shipment));
 });

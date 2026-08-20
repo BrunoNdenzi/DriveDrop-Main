@@ -26,6 +26,13 @@ export interface PricingConfig {
   bulk_discount_enabled: boolean;
   expedited_service_enabled: boolean;
   flexible_service_enabled: boolean;
+  economic_floor_mode: 'shadow' | 'enforce';
+  target_contribution_margin_percent: number;
+  fallback_fuel_cost_per_mile: number;
+  fallback_driver_cost_per_mile: number;
+  fallback_insurance_cost_per_mile: number;
+  fallback_maintenance_cost_per_mile: number;
+  fallback_tolls_cost_per_mile: number;
   is_active: boolean;
   created_at: string;
   created_by?: string;
@@ -62,6 +69,13 @@ export interface UpdatePricingConfigInput {
   bulk_discount_enabled?: boolean;
   expedited_service_enabled?: boolean;
   flexible_service_enabled?: boolean;
+  economic_floor_mode?: 'shadow' | 'enforce';
+  target_contribution_margin_percent?: number;
+  fallback_fuel_cost_per_mile?: number;
+  fallback_driver_cost_per_mile?: number;
+  fallback_insurance_cost_per_mile?: number;
+  fallback_maintenance_cost_per_mile?: number;
+  fallback_tolls_cost_per_mile?: number;
   notes?: string;
 }
 
@@ -137,6 +151,13 @@ class PricingConfigService {
       bulk_discount_enabled: true,
       expedited_service_enabled: true,
       flexible_service_enabled: true,
+      economic_floor_mode: 'shadow',
+      target_contribution_margin_percent: 30,
+      fallback_fuel_cost_per_mile: 0.525,
+      fallback_driver_cost_per_mile: 0.625,
+      fallback_insurance_cost_per_mile: 0.15,
+      fallback_maintenance_cost_per_mile: 0.275,
+      fallback_tolls_cost_per_mile: 0.10,
       is_active: true,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
@@ -393,6 +414,24 @@ class PricingConfigService {
     // Validate distance thresholds
     if (updates.short_distance_max !== undefined && updates.short_distance_max < 0) {
       throw createError('Distance thresholds must be positive', 400, 'INVALID_INPUT');
+    }
+
+    if (
+      updates.target_contribution_margin_percent !== undefined &&
+      (updates.target_contribution_margin_percent < 0 || updates.target_contribution_margin_percent >= 100)
+    ) {
+      throw createError('Target contribution margin must be between 0 and 100', 400, 'INVALID_INPUT');
+    }
+
+    const fallbackCosts = [
+      updates.fallback_fuel_cost_per_mile,
+      updates.fallback_driver_cost_per_mile,
+      updates.fallback_insurance_cost_per_mile,
+      updates.fallback_maintenance_cost_per_mile,
+      updates.fallback_tolls_cost_per_mile,
+    ];
+    if (fallbackCosts.some(cost => cost !== undefined && cost < 0)) {
+      throw createError('Fallback per-mile costs must be positive', 400, 'INVALID_INPUT');
     }
   }
 

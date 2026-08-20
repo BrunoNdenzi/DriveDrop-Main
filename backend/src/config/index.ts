@@ -63,6 +63,16 @@ const config = {
     matrixBaseUrl: process.env['HERE_MATRIX_BASE_URL'] || 'https://matrix.router.hereapi.com/v8',
   },
 
+  openWeather: {
+    apiKey: process.env['OPENWEATHER_API_KEY'] || '',
+    baseUrl: process.env['OPENWEATHER_BASE_URL'] || 'https://api.openweathermap.org/data/2.5',
+  },
+
+  opis: {
+    enabled: process.env['OPIS_ENABLED'] === 'true',
+    product: process.env['OPIS_PRODUCT'] || '',
+  },
+
   // Logging Configuration
   logging: {
     level: process.env['LOG_LEVEL'] || 'info',

@@ -2,9 +2,11 @@ import { NextRequest, NextResponse } from 'next/server'
 import { sendEmail } from '@/lib/email'
 import { pricingService } from '@/services/pricingService'
 
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://drivedrop-main-production.up.railway.app/api/v1'
+
 export async function POST(request: NextRequest) {
   try {
-    const { name, email, pickupLocation, deliveryLocation, vehicleType, vehicleYear, vehicleModel, pickupCoords, deliveryCoords, preCalculatedQuote } = await request.json()
+    const { name, email, pickupLocation, deliveryLocation, vehicleType, vehicleYear, vehicleModel, pickupCoords, deliveryCoords } = await request.json()
 
     if (!name || !email || !pickupLocation || !deliveryLocation || !vehicleType) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
@@ -15,28 +17,47 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid email address' }, { status: 400 })
     }
 
-    // Use pre-calculated quote if provided, otherwise calculate from coords
     let quoteTotal: number | null = null
     let distanceMiles: number | null = null
 
-    if (preCalculatedQuote?.total) {
-      quoteTotal = preCalculatedQuote.total
-      distanceMiles = preCalculatedQuote.distance || null
-    } else if (pickupCoords && deliveryCoords) {
+    if (pickupCoords && deliveryCoords) {
       try {
         const distance = pricingService.calculateDistance(
           pickupCoords.lat, pickupCoords.lng,
           deliveryCoords.lat, deliveryCoords.lng
         )
         distanceMiles = Math.round(distance)
-        const result = pricingService.calculateQuote({
-          vehicleType,
-          distanceMiles,
-          isAccidentRecovery: false,
-          vehicleCount: 1,
-          fuelPricePerGallon: 3.70,
+
+        const vehicleTypeMap: Record<string, string> = {
+          sedan: 'sedan',
+          suv: 'suv',
+          truck: 'pickup',
+          pickup: 'pickup',
+          coupe: 'sedan',
+          hatchback: 'sedan',
+          van: 'suv',
+          crossover: 'suv',
+          motorcycle: 'motorcycle',
+        }
+        const response = await fetch(`${API_BASE_URL}/pricing/calculate`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            vehicle_type: vehicleTypeMap[String(vehicleType).toLowerCase()] || 'sedan',
+            distance_miles: distanceMiles,
+            route_origin: pickupLocation,
+            route_destination: deliveryLocation,
+            is_accident_recovery: false,
+            vehicle_count: 1,
+          }),
         })
-        quoteTotal = result.total
+
+        if (!response.ok) {
+          throw new Error('Backend pricing request failed')
+        }
+
+        const body = await response.json()
+        quoteTotal = Number(body?.data?.total) || null
       } catch {
         // Quote calculation failed — still send the email without a price
       }

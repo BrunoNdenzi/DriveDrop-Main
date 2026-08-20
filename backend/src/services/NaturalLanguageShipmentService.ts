@@ -442,7 +442,7 @@ export class NaturalLanguageShipmentService {
             vehicleCount: 1,
             routeOrigin: parsedData.pickup.location,
             routeDestination: parsedData.delivery.location,
-            enableIntelligence: false,
+            intelligenceMode: 'shadow',
             logToHistory: true,
             requestSource: 'benji',
           });

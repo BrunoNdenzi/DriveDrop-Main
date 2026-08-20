@@ -14,6 +14,7 @@ export interface PricingInput {
   pickupDate?: string | undefined; // ISO date string for delivery type calculation
   deliveryDate?: string | undefined; // ISO date string for delivery type calculation
   fuelPricePerGallon?: number | undefined; // current fuel price per gallon (default 3.70)
+  transportType?: 'open' | 'enclosed' | undefined;
 }
 
 // Pricing constants
@@ -40,9 +41,17 @@ interface PricingBreakdown {
   operatingCostTotal: number;
   profitMarginPercent: number;
   profitAmount: number;
+  targetContributionMarginPercent: number;
+  economicFloor: number;
+  economicFloorGap: number;
+  economicFloorMode: 'shadow' | 'enforce';
+  economicFloorApplied: boolean;
+  costSource: 'configured_priors' | 'live_override' | 'fallback_priors';
   surgeMultiplier: number;
   deliveryTypeMultiplier: number; // 1.25 for expedited, 0.95 for flexible, 1.0 for standard
   deliveryType: 'expedited' | 'flexible' | 'standard';
+  transportTypeMultiplier: number;
+  transportType: 'open' | 'enclosed';
   fuelPricePerGallon: number; // Current fuel price per gallon
   fuelAdjustmentPercent: number; // Percentage adjustment based on fuel price deviation from base
   minimumApplied: boolean; // true if MIN_QUOTE or ACCIDENT_MIN_QUOTE was applied
@@ -68,6 +77,37 @@ const COST_COMPONENT_DEFAULTS = {
   maintenance: 0.275, // 0.20–0.35
   tolls: 0.10,      // 0.05–0.15
 };
+
+function applyEconomicFloor(
+  preFloorPrice: number,
+  operatingCostTotal: number,
+  targetContributionMarginPercent: number,
+  mode: 'shadow' | 'enforce'
+): {
+  total: number;
+  economicFloor: number;
+  economicFloorGap: number;
+  economicFloorApplied: boolean;
+  contributionAmount: number;
+  contributionMarginPercent: number;
+} {
+  const targetMarginRate = targetContributionMarginPercent / 100;
+  const economicFloor = operatingCostTotal / (1 - targetMarginRate);
+  const economicFloorGap = Math.max(0, economicFloor - preFloorPrice);
+  const economicFloorApplied = mode === 'enforce' && economicFloorGap > 0;
+  const total = economicFloorApplied ? economicFloor : preFloorPrice;
+  const contributionAmount = total - operatingCostTotal;
+  const contributionMarginPercent = total > 0 ? (contributionAmount / total) * 100 : 0;
+
+  return {
+    total: parseFloat(total.toFixed(2)),
+    economicFloor: parseFloat(economicFloor.toFixed(2)),
+    economicFloorGap: parseFloat(economicFloorGap.toFixed(2)),
+    economicFloorApplied,
+    contributionAmount: parseFloat(contributionAmount.toFixed(2)),
+    contributionMarginPercent: parseFloat(contributionMarginPercent.toFixed(2)),
+  };
+}
 
 // Bulk discount tiers
 function getBulkDiscountPercent(count: number | undefined): number {
@@ -138,6 +178,7 @@ export async function calculateQuoteWithDynamicConfig(input: PricingInput): Prom
       pickupDate,
       deliveryDate,
       fuelPricePerGallon: inputFuelPrice,
+      transportType = 'open',
     } = input;
 
     // Use config values with input overrides
@@ -173,18 +214,14 @@ export async function calculateQuoteWithDynamicConfig(input: PricingInput): Prom
 
     // Cost components (allow dynamic override for fuel)
     const costComponentsPerMile = {
-      fuel: dynamicFuelCostPerMile ?? COST_COMPONENT_DEFAULTS.fuel,
-      driver: COST_COMPONENT_DEFAULTS.driver,
-      insurance: COST_COMPONENT_DEFAULTS.insurance,
-      maintenance: COST_COMPONENT_DEFAULTS.maintenance,
-      tolls: COST_COMPONENT_DEFAULTS.tolls,
+      fuel: dynamicFuelCostPerMile ?? config.fallback_fuel_cost_per_mile ?? COST_COMPONENT_DEFAULTS.fuel,
+      driver: config.fallback_driver_cost_per_mile ?? COST_COMPONENT_DEFAULTS.driver,
+      insurance: config.fallback_insurance_cost_per_mile ?? COST_COMPONENT_DEFAULTS.insurance,
+      maintenance: config.fallback_maintenance_cost_per_mile ?? COST_COMPONENT_DEFAULTS.maintenance,
+      tolls: config.fallback_tolls_cost_per_mile ?? COST_COMPONENT_DEFAULTS.tolls,
     };
     const operatingCostPerMile = Object.values(costComponentsPerMile).reduce((a, b) => a + b, 0);
     const operatingCostTotal = operatingCostPerMile * distanceMiles;
-
-    // Profit margin – choose 30% midpoint of 25–35 range; could be dynamic later
-    const profitMarginPercent = 30;
-    const profitAmount = (operatingCostTotal * profitMarginPercent) / 100;
 
     const accidentRecoveryFee: number | undefined = isAccidentRecovery ? baseRates.accident * distanceMiles : undefined;
 
@@ -213,7 +250,19 @@ export async function calculateQuoteWithDynamicConfig(input: PricingInput): Prom
       }
     }
 
-    const total = Math.max(0, parseFloat(subtotal.toFixed(2)));
+    const transportTypeMultiplier = transportType === 'enclosed' ? 1.30 : 1;
+    subtotal *= transportTypeMultiplier;
+
+    const economicFloorMode = config.economic_floor_mode ?? 'shadow';
+    const targetContributionMarginPercent = config.target_contribution_margin_percent ?? 30;
+    const floorResult = applyEconomicFloor(
+      Math.max(0, subtotal),
+      operatingCostTotal,
+      targetContributionMarginPercent,
+      economicFloorMode
+    );
+    const costSource = dynamicFuelCostPerMile === undefined ? 'configured_priors' : 'live_override';
+    const total = floorResult.total;
 
     const breakdown: PricingBreakdown = {
       baseRatePerMile,
@@ -225,11 +274,19 @@ export async function calculateQuoteWithDynamicConfig(input: PricingInput): Prom
       costComponentsPerMile,
       operatingCostPerMile: parseFloat(operatingCostPerMile.toFixed(3)),
       operatingCostTotal: parseFloat(operatingCostTotal.toFixed(2)),
-      profitMarginPercent,
-      profitAmount: parseFloat(profitAmount.toFixed(2)),
+      profitMarginPercent: floorResult.contributionMarginPercent,
+      profitAmount: floorResult.contributionAmount,
+      targetContributionMarginPercent,
+      economicFloor: floorResult.economicFloor,
+      economicFloorGap: floorResult.economicFloorGap,
+      economicFloorMode,
+      economicFloorApplied: floorResult.economicFloorApplied,
+      costSource,
       surgeMultiplier,
       deliveryTypeMultiplier: deliveryTypeInfo.multiplier,
       deliveryType: deliveryTypeInfo.type,
+      transportTypeMultiplier,
+      transportType,
       fuelPricePerGallon: parseFloat(fuelPricePerGallon.toFixed(2)),
       fuelAdjustmentPercent: parseFloat(fuelAdjustmentPercent.toFixed(2)),
       minimumApplied,
@@ -314,6 +371,7 @@ export function calculateQuote(input: PricingInput): { total: number; breakdown:
     pickupDate,
     deliveryDate,
     fuelPricePerGallon = BASE_FUEL_PRICE, // Default to $3.70/gallon
+    transportType = 'open',
   } = input;
 
   // Determine delivery type and multiplier
@@ -338,10 +396,6 @@ export function calculateQuote(input: PricingInput): { total: number; breakdown:
   };
   const operatingCostPerMile = Object.values(costComponentsPerMile).reduce((a, b) => a + b, 0);
   const operatingCostTotal = operatingCostPerMile * distanceMiles;
-
-  // Profit margin – choose 30% midpoint of 25–35 range; could be dynamic later
-  const profitMarginPercent = 30;
-  const profitAmount = (operatingCostTotal * profitMarginPercent) / 100;
 
   const accidentRecoveryFee: number | undefined = isAccidentRecovery ? baseRates.accident * distanceMiles : undefined;
 
@@ -373,7 +427,18 @@ export function calculateQuote(input: PricingInput): { total: number; breakdown:
     }
   }
 
-  const total = Math.max(0, parseFloat(subtotal.toFixed(2)));
+  const transportTypeMultiplier = transportType === 'enclosed' ? 1.30 : 1;
+  subtotal *= transportTypeMultiplier;
+
+  const targetContributionMarginPercent = 30;
+  const economicFloorMode = 'shadow' as const;
+  const floorResult = applyEconomicFloor(
+    Math.max(0, subtotal),
+    operatingCostTotal,
+    targetContributionMarginPercent,
+    economicFloorMode
+  );
+  const total = floorResult.total;
 
   const breakdown: PricingBreakdown = {
     baseRatePerMile,
@@ -385,11 +450,19 @@ export function calculateQuote(input: PricingInput): { total: number; breakdown:
     costComponentsPerMile,
     operatingCostPerMile: parseFloat(operatingCostPerMile.toFixed(3)),
     operatingCostTotal: parseFloat(operatingCostTotal.toFixed(2)),
-    profitMarginPercent,
-    profitAmount: parseFloat(profitAmount.toFixed(2)),
+    profitMarginPercent: floorResult.contributionMarginPercent,
+    profitAmount: floorResult.contributionAmount,
+    targetContributionMarginPercent,
+    economicFloor: floorResult.economicFloor,
+    economicFloorGap: floorResult.economicFloorGap,
+    economicFloorMode,
+    economicFloorApplied: floorResult.economicFloorApplied,
+    costSource: 'fallback_priors',
     surgeMultiplier,
     deliveryTypeMultiplier: deliveryTypeInfo.multiplier,
     deliveryType: deliveryTypeInfo.type,
+    transportTypeMultiplier,
+    transportType,
     fuelPricePerGallon: parseFloat(fuelPricePerGallon.toFixed(2)),
     fuelAdjustmentPercent: parseFloat(fuelAdjustmentPercent.toFixed(2)),
     minimumApplied,
