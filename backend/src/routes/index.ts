@@ -65,6 +65,7 @@ router.get('/', (_req, res) => {
   res.json({
     message: 'Welcome to DriveDrop API',
     version: '1.0.0',
+    deploymentCommit: process.env['RAILWAY_GIT_COMMIT_SHA']?.slice(0, 7) || 'local',
     documentation: '/api/v1/docs', // Future Swagger documentation endpoint
     services: {
       authentication: '/api/v1/auth',
