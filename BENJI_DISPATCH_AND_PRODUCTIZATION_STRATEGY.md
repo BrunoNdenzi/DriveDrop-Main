@@ -4,6 +4,8 @@
 **Date:** August 18, 2026
 **Scope:** Dispatch lifecycle, route optimization, operations intelligence, multi-tenancy, APIs, licensing, and go-to-market
 
+**Cross-cutting gaps:** Record adjacent incomplete or unsafe foundations in `PRODUCT_READINESS_GAP_REGISTER.md` and apply its triage rule before expanding this strategy's scope.
+
 ## Executive Summary
 
 Benji can become both DriveDrop's operating system and a family of products sold to other transportation companies. The correct approach is not to split the codebase into unrelated products. Build one tenant-aware intelligence platform with independently licensed capabilities:

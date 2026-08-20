@@ -100,6 +100,20 @@ export interface PricingObservation {
   
   // Operational Context
   currentDemand: 'low' | 'medium' | 'high';  // Based on active shipments
+  internalMarket: {
+    scope: 'network_wide';
+    observedAt: string;
+    verifiedDriverCount: number | null;
+    pendingUnassignedLoadCount: number | null;
+    activeOfferCount: number | null;
+    medianSuggestedCarrierPayout: number | null;
+    recentBidCount: number | null;
+    acceptedBidCount: number | null;
+    medianRecentBidCarrierPayout: number | null;
+    medianAcceptedCarrierPayout: number | null;
+    status: 'available' | 'partial' | 'unavailable';
+    unavailableSources: string[];
+  };
   liveEvidence: PricingLiveEvidence;
   dataQuality: 'insufficient' | 'limited' | 'good' | 'excellent';
   sampleSize: number;
@@ -269,10 +283,11 @@ export class BenjiPricingIntelligence {
     );
     
     // Query 1: Historical route performance
-    const [historicalData, recentActivity, liveEvidence] = await Promise.all([
+    const [historicalData, recentActivity, liveEvidence, internalMarket] = await Promise.all([
       this.getHistoricalRouteData(routeKey),
       this.getRecentActivity(routeKey),
       pricingLiveEvidenceService.collect(request.routeOrigin, request.routeDestination),
+      this.getInternalMarketEvidence(),
     ]);
     
     // Query 3: Customer profile (if available)
@@ -296,6 +311,7 @@ export class BenjiPricingIntelligence {
       historicalQuotes: historicalData,
       recentActivity,
       currentDemand,
+      internalMarket,
       liveEvidence,
       dataQuality,
       sampleSize: historicalData.count,
@@ -306,6 +322,83 @@ export class BenjiPricingIntelligence {
     }
     
     return observation;
+  }
+
+  private async getInternalMarketEvidence(): Promise<PricingObservation['internalMarket']> {
+    const observedAt = new Date().toISOString();
+    const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+    const unavailableSources: string[] = [];
+
+    const [driversResult, loadsResult, offersResult, bidsResult] = await Promise.all([
+      supabaseAdmin
+        .from('profiles')
+        .select('*', { count: 'exact', head: true })
+        .eq('role', 'driver')
+        .eq('is_verified', true),
+      supabaseAdmin
+        .from('shipments')
+        .select('*', { count: 'exact', head: true })
+        .is('driver_id', null)
+        .eq('status', 'pending'),
+      supabaseAdmin
+        .from('load_board')
+        .select('suggested_carrier_payout')
+        .eq('load_status', 'available')
+        .eq('bidding_enabled', true)
+        .or(`expires_at.is.null,expires_at.gte.${observedAt}`),
+      supabaseAdmin
+        .from('load_board_bids')
+        .select('carrier_payout, bid_status')
+        .neq('bid_status', 'withdrawn')
+        .gte('created_at', since),
+    ]);
+
+    if (driversResult.error) unavailableSources.push('verified_drivers');
+    if (loadsResult.error) unavailableSources.push('pending_loads');
+    if (offersResult.error) unavailableSources.push('load_board_offers');
+    if (bidsResult.error) unavailableSources.push('carrier_bids');
+
+    const suggestedPayouts = (offersResult.data || [])
+      .map(row => Number(row.suggested_carrier_payout))
+      .filter(Number.isFinite);
+    const recentBids = bidsResult.data || [];
+    const bidPayouts = recentBids
+      .map(row => Number(row.carrier_payout))
+      .filter(Number.isFinite);
+    const acceptedBidPayouts = recentBids
+      .filter(row => row.bid_status === 'accepted')
+      .map(row => Number(row.carrier_payout))
+      .filter(Number.isFinite);
+
+    return {
+      scope: 'network_wide',
+      observedAt,
+      verifiedDriverCount: driversResult.error ? null : driversResult.count,
+      pendingUnassignedLoadCount: loadsResult.error ? null : loadsResult.count,
+      activeOfferCount: offersResult.error ? null : (offersResult.data || []).length,
+      medianSuggestedCarrierPayout: this.median(suggestedPayouts),
+      recentBidCount: bidsResult.error ? null : recentBids.length,
+      acceptedBidCount: bidsResult.error
+        ? null
+        : recentBids.filter(row => row.bid_status === 'accepted').length,
+      medianRecentBidCarrierPayout: this.median(bidPayouts),
+      medianAcceptedCarrierPayout: this.median(acceptedBidPayouts),
+      status: unavailableSources.length === 0
+        ? 'available'
+        : unavailableSources.length === 4 ? 'unavailable' : 'partial',
+      unavailableSources,
+    };
+  }
+
+  private median(values: number[]): number | null {
+    if (values.length === 0) return null;
+    const sorted = [...values].sort((left, right) => left - right);
+    const middle = Math.floor(sorted.length / 2);
+    const middleValue = sorted[middle];
+    if (middleValue === undefined) return null;
+    if (sorted.length % 2 === 1) return middleValue;
+    const lowerValue = sorted[middle - 1];
+    return lowerValue === undefined ? middleValue : (lowerValue + middleValue) / 2;
   }
   
   /**
@@ -1006,6 +1099,20 @@ export class BenjiPricingIntelligence {
         historicalQuotes: { count: 0, avgPrice: 0, minPrice: 0, maxPrice: 0, conversionRate: 0 },
         recentActivity: { quotesGenerated: 0, quotesBooked: 0, avgTimeToBooking: 0 },
         currentDemand: 'medium',
+        internalMarket: {
+          scope: 'network_wide',
+          observedAt: new Date().toISOString(),
+          verifiedDriverCount: null,
+          pendingUnassignedLoadCount: null,
+          activeOfferCount: null,
+          medianSuggestedCarrierPayout: null,
+          recentBidCount: null,
+          acceptedBidCount: null,
+          medianRecentBidCarrierPayout: null,
+          medianAcceptedCarrierPayout: null,
+          status: 'unavailable',
+          unavailableSources: ['analysis_failed'],
+        },
         liveEvidence: {
           traffic: {
             provider: 'google_maps', status: 'error', observedAt: new Date().toISOString(),

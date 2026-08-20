@@ -4,6 +4,8 @@
 **Date:** August 18, 2026
 **Scope:** Benji pricing, live-data intelligence, governance, feedback, and training
 
+**Cross-cutting gaps:** Record adjacent incomplete or unsafe foundations in `PRODUCT_READINESS_GAP_REGISTER.md` and apply its triage rule before expanding this strategy's scope.
+
 ## Executive Summary
 
 DriveDrop's intended architecture is for Benji Pricing Intelligence to be the primary pricing coordinator, with administrators governing limits and approving exceptional decisions. The current runtime does not yet implement that operating model.
