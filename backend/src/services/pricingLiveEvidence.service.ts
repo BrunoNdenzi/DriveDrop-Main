@@ -92,6 +92,11 @@ function providerCode(prefix: string, value: unknown): string {
   return `${prefix}_${normalized || 'UNKNOWN'}`;
 }
 
+function parseGoogleDuration(value: unknown): number {
+  const match = /^([0-9]+(?:\.[0-9]+)?)s$/.exec(String(value || ''));
+  return match?.[1] ? Number(match[1]) : Number.NaN;
+}
+
 class PricingLiveEvidenceService {
   async collect(origin: string, destination: string): Promise<PricingLiveEvidence> {
     let originCoordinates: Coordinates;
@@ -137,40 +142,50 @@ class PricingLiveEvidenceService {
 
     const startedAt = Date.now();
     try {
-      const url = new URL('https://maps.googleapis.com/maps/api/distancematrix/json');
-      url.searchParams.set('origins', `${origin.latitude},${origin.longitude}`);
-      url.searchParams.set('destinations', `${destination.latitude},${destination.longitude}`);
-      url.searchParams.set('departure_time', 'now');
-      url.searchParams.set('traffic_model', 'best_guess');
-      url.searchParams.set('mode', 'driving');
-      url.searchParams.set('units', 'imperial');
-      url.searchParams.set('key', config.googleMaps.apiKey);
-
-      const response = await fetch(url, { signal: AbortSignal.timeout(TIMEOUT_MS) });
+      const response = await fetch('https://routes.googleapis.com/directions/v2:computeRoutes', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Goog-Api-Key': config.googleMaps.apiKey,
+          'X-Goog-FieldMask': 'routes.duration,routes.staticDuration,routes.distanceMeters',
+        },
+        body: JSON.stringify({
+          origin: {
+            location: {
+              latLng: { latitude: origin.latitude, longitude: origin.longitude },
+            },
+          },
+          destination: {
+            location: {
+              latLng: { latitude: destination.latitude, longitude: destination.longitude },
+            },
+          },
+          travelMode: 'DRIVE',
+          routingPreference: 'TRAFFIC_AWARE',
+          computeAlternativeRoutes: false,
+          languageCode: 'en-US',
+          units: 'IMPERIAL',
+        }),
+        signal: AbortSignal.timeout(TIMEOUT_MS),
+      });
       const body = asRecord(await response.json());
+      const providerError = asRecord(body?.['error']);
+      if (providerError?.['status']) {
+        throw new Error(providerCode('ROUTES', providerError['status']));
+      }
       if (!response.ok) {
         throw new Error(providerCode('HTTP', response.status));
       }
-      if (body?.['status'] !== 'OK') {
-        throw new Error(providerCode('API', body?.['status']));
-      }
-      const rows = Array.isArray(body?.['rows']) ? body['rows'] : [];
-      const firstRow = asRecord(rows[0]);
-      const elements = Array.isArray(firstRow?.['elements']) ? firstRow['elements'] : [];
-      const element = asRecord(elements[0]);
-      if (element?.['status'] !== 'OK') {
-        throw new Error(providerCode('ELEMENT', element?.['status']));
-      }
-      const duration = asRecord(element?.['duration']);
-      const durationInTraffic = asRecord(element?.['duration_in_traffic']);
-      const normalSeconds = Number(duration?.['value']);
-      const trafficSeconds = Number(durationInTraffic?.['value']);
+      const routes = Array.isArray(body?.['routes']) ? body['routes'] : [];
+      const route = asRecord(routes[0]);
+      const normalSeconds = parseGoogleDuration(route?.['staticDuration']);
+      const trafficSeconds = parseGoogleDuration(route?.['duration']);
 
       if (!Number.isFinite(normalSeconds)) {
-        throw new Error('DURATION_MISSING');
+        throw new Error('STATIC_DURATION_MISSING');
       }
       if (!Number.isFinite(trafficSeconds)) {
-        throw new Error('DURATION_IN_TRAFFIC_MISSING');
+        throw new Error('TRAFFIC_DURATION_MISSING');
       }
 
       const observedAt = new Date();
