@@ -36,6 +36,15 @@ import type { VehicleType } from '@services/pricing.service';
 // TYPE DEFINITIONS
 // ============================================================================
 
+interface LoadBoardOfferRow {
+  suggested_carrier_payout: number | string | null;
+}
+
+interface CarrierBidRow {
+  carrier_payout: number | string | null;
+  bid_status: string | null;
+}
+
 /**
  * Input to operational intelligence analysis
  * Mirrors pricing request but focuses on intelligence aspects
@@ -358,10 +367,11 @@ export class BenjiPricingIntelligence {
     if (offersResult.error) unavailableSources.push('load_board_offers');
     if (bidsResult.error) unavailableSources.push('carrier_bids');
 
-    const suggestedPayouts = (offersResult.data || [])
+    const offers = (offersResult.data || []) as LoadBoardOfferRow[];
+    const recentBids = (bidsResult.data || []) as CarrierBidRow[];
+    const suggestedPayouts = offers
       .map(row => Number(row.suggested_carrier_payout))
       .filter(Number.isFinite);
-    const recentBids = bidsResult.data || [];
     const bidPayouts = recentBids
       .map(row => Number(row.carrier_payout))
       .filter(Number.isFinite);
@@ -375,7 +385,7 @@ export class BenjiPricingIntelligence {
       observedAt,
       verifiedDriverCount: driversResult.error ? null : driversResult.count,
       pendingUnassignedLoadCount: loadsResult.error ? null : loadsResult.count,
-      activeOfferCount: offersResult.error ? null : (offersResult.data || []).length,
+      activeOfferCount: offersResult.error ? null : offers.length,
       medianSuggestedCarrierPayout: this.median(suggestedPayouts),
       recentBidCount: bidsResult.error ? null : recentBids.length,
       acceptedBidCount: bidsResult.error
