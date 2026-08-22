@@ -138,6 +138,20 @@ Do not log speculation as fact. Mark uncertain findings `discovered` until evide
 - **Blocks:** Dispatch Copilot external pilot and trusted dispatch training data.
 - **Resolution criteria:** Atomic command handlers, transition matrix, conflict tests, idempotency, and complete event audit.
 
+### GAP-007: Dashboard Data Flashes False Empty States During Auth Hydration
+
+- **Status:** confirmed
+- **Severity:** P2
+- **Area:** Website dashboards, authentication hydration, data loading
+- **Evidence:** Production testing showed `/dashboard/client/shipments` initially rendering zero counters and "No shipments yet" before populated shipment data appeared. Similar early `setLoading(false)` patterns exist in client dashboard, client/driver/broker messages, driver dashboard, and driver jobs pages.
+- **Current behavior:** Some pages treat an initially absent optimistic profile as an unauthenticated terminal state, render empty data, then fetch after profile hydration without consistently restoring a loading state.
+- **Intended behavior:** Auth-dependent pages retain a loading or stable cached state until authentication hydration and their first authoritative query settle; empty states render only after a completed query returns no data.
+- **Impact:** Users briefly see incorrect operational counts and may conclude shipments, jobs, or messages are missing.
+- **Temporary handling:** The client shipment list now gates its first fetch on auth loading and restores query loading; test other listed surfaces individually during lifecycle validation.
+- **Dependencies:** Shared auth/data-loading pattern or query abstraction, loading-state regression tests.
+- **Blocks:** General website readiness.
+- **Resolution criteria:** No false empty/count flashes on direct navigation or reload across all authenticated dashboards, verified under cold and delayed profile hydration.
+
 ## Review Gates
 
 ### Before Pricing Intelligence Recommendation Mode

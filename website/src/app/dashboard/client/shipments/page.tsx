@@ -124,7 +124,7 @@ const STATUS_CONFIG = {
 }
 
 export default function MyShipmentsPage() {
-  const { profile } = useAuth()
+  const { profile, loading: authLoading } = useAuth()
   const [shipments, setShipments] = useState<Shipment[]>([])
   const [filteredShipments, setFilteredShipments] = useState<Shipment[]>([])
   const [loading, setLoading] = useState(true)
@@ -135,18 +135,21 @@ export default function MyShipmentsPage() {
 
   useEffect(() => {
     fetchShipments()
-  }, [profile?.id])
+  }, [profile?.id, authLoading])
 
   useEffect(() => {
     filterShipments()
   }, [shipments, searchQuery, tabFilter])
 
   const fetchShipments = async () => {
+    if (authLoading) return
+
     if (!profile?.id) {
       setLoading(false)
       return
     }
 
+    setLoading(true)
     try {
       const { data, error } = await supabase
         .from('shipments')
