@@ -466,7 +466,9 @@ export default function JobDetailPage() {
               <div className="flex items-center justify-between">
                 <span>Est. per Mile</span>
                 <span className="font-semibold text-gray-900">
-                  ${(driverEarnings / job.distance).toFixed(2)}
+                  {job.distance > 0
+                    ? `$${(job.driver_offer_amount / job.distance).toFixed(2)}`
+                    : 'Unavailable'}
                 </span>
               </div>
             </div>
