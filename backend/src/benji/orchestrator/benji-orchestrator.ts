@@ -443,7 +443,7 @@ export class BenjiOrchestrator {
       // gate='confirm': HALT execution — no tools fire until user confirms (5.1-2)
       if (simulation.executionGate === 'confirm') {
         const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
-        await this._persistPendingConfirmation(traceId, request.userId, plan, simulation, expiresAt);
+        await this._persistPendingConfirmation(traceId, request, plan, simulation, expiresAt);
         // Trace written as AWAIT_CONFIRMATION — resume() will re-finalize to COMPLETE/BLOCKED
         await finalizeTrace(TraceOutcome.AWAITING_CONFIRMATION, 'AWAIT_CONFIRMATION', finalIntent);
 
@@ -508,17 +508,30 @@ export class BenjiOrchestrator {
 
   private async _persistPendingConfirmation(
     traceId:    string,
-    userId:     string,
+    request:    OrchestratorRequest,
     plan:       BenjiPlan,
     simulation: SimulationResult,
     expiresAt:  string,
   ): Promise<void> {
     // Dynamic import avoids circular dependency at module load
     const { confirmationStore } = await import('@benji/confirmation/confirmation.store');
+    const resumablePlan: BenjiPlan = {
+      ...plan,
+      steps: plan.steps.map(step => step.action === 'tool:shipment.parse'
+        ? {
+            ...step,
+            input: {
+              user_id: request.userId,
+              input_text: request.message,
+              input_method: 'text',
+            },
+          }
+        : step),
+    };
     await confirmationStore.save({
       traceId,
-      userId,
-      plan,
+      userId: request.userId,
+      plan: resumablePlan,
       simulationResult: simulation,
       expiresAt,
     });

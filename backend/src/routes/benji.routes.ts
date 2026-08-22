@@ -259,6 +259,14 @@ router.post(
           });
           break;
 
+        case 'CLARIFICATION_LOOP':
+          res.status(200).json({
+            state:                'CLARIFICATION_REQUIRED',
+            traceId:              result.traceId,
+            clarificationRequest: result.clarificationRequest,
+          });
+          break;
+
         default:
           res.status(500).json({
             state:   'INTERNAL_ERROR',

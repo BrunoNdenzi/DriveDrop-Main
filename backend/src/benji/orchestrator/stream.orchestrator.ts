@@ -332,10 +332,23 @@ export class StreamingOrchestrator {
       if (simulation.executionGate === 'confirm') {
         const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
         const { confirmationStore } = await import('@benji/confirmation/confirmation.store');
+        const resumablePlan: BenjiPlan = {
+          ...plan,
+          steps: plan.steps.map(step => step.action === 'tool:shipment.parse'
+            ? {
+                ...step,
+                input: {
+                  user_id: request.userId,
+                  input_text: request.message,
+                  input_method: 'text',
+                },
+              }
+            : step),
+        };
         await confirmationStore.save({
           traceId,
           userId:           request.userId,
-          plan,
+          plan:             resumablePlan,
           simulationResult: simulation,
           expiresAt,
         });
