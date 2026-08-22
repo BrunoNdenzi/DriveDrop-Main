@@ -145,7 +145,6 @@ export default function MyShipmentsPage() {
     if (authLoading) return
 
     if (!profile?.id) {
-      setLoading(false)
       return
     }
 

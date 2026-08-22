@@ -49,6 +49,26 @@ function _roleToUserType(role: string): OrchestratorRequest['userType'] {
   }
 }
 
+function _extractCreatedShipment(data: unknown): Record<string, unknown> | undefined {
+  if (!data || typeof data !== 'object') return undefined;
+
+  for (const step of Object.values(data as Record<string, unknown>)) {
+    if (!step || typeof step !== 'object') continue;
+    const result = step as Record<string, unknown>;
+    const action = result['toolName'] ?? result['_stepAction'];
+    const output = result['data'];
+    if (
+      action === 'tool:shipment.create' &&
+      result['success'] === true &&
+      output && typeof output === 'object'
+    ) {
+      return output as Record<string, unknown>;
+    }
+  }
+
+  return undefined;
+}
+
 // ─── SSE stream token auth middleware ─────────────────────────────────────────
 
 /**
@@ -226,11 +246,13 @@ router.post(
 
       switch (result.state) {
         case 'COMPLETE':
+          const shipmentCreated = _extractCreatedShipment(result.data);
           res.status(200).json({
             state:     'COMPLETE',
             traceId:   result.traceId,
             response:  result.response,
             data:      result.data,
+            ...(shipmentCreated ? { shipmentCreated } : {}),
           });
           break;
 
@@ -330,11 +352,13 @@ router.post(
 
       switch (result.state) {
         case 'COMPLETE':
+          const shipmentCreated = _extractCreatedShipment(result.data);
           res.status(200).json({
             state:    'COMPLETE',
             traceId:  result.traceId,
             response: result.response,
             data:     result.data,
+            ...(shipmentCreated ? { shipmentCreated } : {}),
           });
           break;
 
