@@ -43,8 +43,9 @@ router.put('/direct-driver-offers/:shipmentId', asyncHandler(async (req: Request
   if (!['approve', 'decline'].includes(action)) {
     throw createError('action must be approve or decline', 400, 'INVALID_ACTION');
   }
-  if (typeof notes !== 'string' || notes.trim().length < 3) {
-    throw createError('Review notes are required', 400, 'MISSING_REVIEW_NOTES');
+  const reviewNotes = typeof notes === 'string' ? notes.trim() : '';
+  if (action === 'decline' && reviewNotes.length < 3) {
+    throw createError('Decline reason is required', 400, 'MISSING_REVIEW_NOTES');
   }
 
   const result = action === 'approve'
@@ -52,9 +53,9 @@ router.put('/direct-driver-offers/:shipmentId', asyncHandler(async (req: Request
       shipmentId,
       Number(driver_offer_amount),
       req.user.id,
-      notes.trim()
+      reviewNotes || 'Approved within direct-launch-v1 financial guardrails'
     )
-    : await directDriverOfferService.decline(shipmentId, req.user.id, notes.trim());
+    : await directDriverOfferService.decline(shipmentId, req.user.id, reviewNotes);
 
   res.status(200).json(successResponse(result));
 }));

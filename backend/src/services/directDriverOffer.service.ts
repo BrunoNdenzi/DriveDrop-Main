@@ -180,6 +180,7 @@ export class DirectDriverOfferService {
       `)
       .is('driver_id', null)
       .in('status', ['pending', 'open'])
+      .in('driver_offer_status', ['pending_review', 'declined'])
       .or('assignment_type.eq.direct,assignment_type.is.null')
       .order('created_at', { ascending: true });
 

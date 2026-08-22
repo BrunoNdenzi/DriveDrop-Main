@@ -67,8 +67,8 @@ export default function AdminDriverOffersPage() {
 
   const submitReview = async (shipment: DirectDriverOfferReview, action: 'approve' | 'decline') => {
     const draft = drafts[shipment.id] || { amount: '', notes: '' }
-    if (draft.notes.trim().length < 3) {
-      toast('Add review notes before submitting', 'error')
+    if (action === 'decline' && draft.notes.trim().length < 3) {
+      toast('Add a decline reason before submitting', 'error')
       return
     }
 
@@ -199,7 +199,7 @@ export default function AdminDriverOffersPage() {
                   </label>
 
                   <label className="block">
-                    <span className="text-xs font-medium text-gray-700">Review notes</span>
+                    <span className="text-xs font-medium text-gray-700">Review notes (optional for approval)</span>
                     <input
                       type="text"
                       value={draft.notes}

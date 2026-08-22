@@ -61,7 +61,7 @@ export async function reviewDirectDriverOffer(
   input: {
     action: 'approve' | 'decline'
     driver_offer_amount?: number
-    notes: string
+    notes?: string
   }
 ): Promise<Record<string, unknown>> {
   const response = await fetch(`${API_BASE_URL}/admin/direct-driver-offers/${shipmentId}`, {
