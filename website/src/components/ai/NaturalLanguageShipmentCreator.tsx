@@ -24,7 +24,7 @@ export default function NaturalLanguageShipmentCreator({
   const [prompt, setPrompt] = useState('')
   const [isProcessing, setIsProcessing] = useState(false)
   const [result, setResult] = useState<BenjiChatResponse | null>(null)
-  const [pendingConfirmation, setPendingConfirmation] = useState<{ traceId: string; riskScore: number; planSummary: string[]; message: string } | null>(null)
+  const [pendingConfirmation, setPendingConfirmation] = useState<{ traceId: string; riskScore: number; planSummary: string[]; message?: string } | null>(null)
   // Phase 9.3 — clarification loop
   const [pendingClarification, setPendingClarification] = useState<{ traceId: string; question: string } | null>(null)
   const [isConfirming, setIsConfirming] = useState(false)
