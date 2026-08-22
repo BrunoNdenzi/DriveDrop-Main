@@ -36,7 +36,8 @@ interface JobDetails {
   delivery_state: string
   delivery_zip: string
   delivery_notes: string
-  estimated_price: number
+  driver_offer_amount: number
+  driver_offer_status: string
   distance: number
   status: string
   created_at: string
@@ -90,6 +91,7 @@ export default function JobDetailPage() {
         .eq('id', params.id)
         .is('driver_id', null)
         .eq('status', 'pending')
+        .eq('driver_offer_status', 'approved')
         .single()
 
       if (error) throw error
@@ -185,8 +187,6 @@ export default function JobDetailPage() {
     )
   }
 
-  const driverEarnings = job.estimated_price * 0.90 // 90% to driver
-
   return (
     <div className="space-y-4">
       {/* Header */}
@@ -212,10 +212,10 @@ export default function JobDetailPage() {
           <div className="bg-white border rounded-md p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-gray-500 mb-1">Your Earnings (90%)</p>
-                <p className="text-lg font-bold text-gray-900">${driverEarnings.toFixed(2)}</p>
+                <p className="text-gray-500 mb-1">All-in driver offer</p>
+                <p className="text-lg font-bold text-gray-900">${job.driver_offer_amount.toFixed(2)}</p>
                 <p className="text-gray-500 text-sm mt-2">
-                  Total: ${job.estimated_price.toFixed(2)} • {job.distance} miles
+                  {job.distance} miles
                 </p>
               </div>
               <DollarSign className="h-10 w-10 text-gray-300" />
@@ -454,15 +454,9 @@ export default function JobDetailPage() {
             
             <div className="space-y-3 text-sm text-gray-600">
               <div className="flex items-center justify-between">
-                <span>Total Payment</span>
-                <span className="font-semibold text-gray-900">
-                  ${job.estimated_price.toFixed(2)}
-                </span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span>Your Earnings (90%)</span>
+                <span>Your all-in offer</span>
                 <span className="font-semibold text-green-600">
-                  ${driverEarnings.toFixed(2)}
+                  ${job.driver_offer_amount.toFixed(2)}
                 </span>
               </div>
               <div className="flex items-center justify-between">

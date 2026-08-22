@@ -7,6 +7,7 @@ import { authenticate, authorize } from '@middlewares/auth.middleware';
 import { asyncHandler, createError } from '@utils/error';
 import { successResponse } from '@utils/response';
 import { pricingConfigService } from '@services/pricingConfig.service';
+import { directDriverOfferService } from '@services/directDriverOffer.service';
 import { supabaseAdmin } from '@lib/supabase';
 import { emailService } from '@services/email.service';
 
@@ -15,6 +16,48 @@ const router = Router();
 // All admin routes require authentication and admin role
 router.use(authenticate);
 router.use(authorize(['admin']));
+
+/**
+ * GET /api/v1/admin/direct-driver-offers/review
+ * List unassigned direct shipments and their safe driver-offer ceiling.
+ */
+router.get('/direct-driver-offers/review', asyncHandler(async (_req: Request, res: Response) => {
+  const shipments = await directDriverOfferService.getReviewQueue();
+  res.status(200).json(successResponse(shipments));
+}));
+
+/**
+ * PUT /api/v1/admin/direct-driver-offers/:shipmentId
+ * Approve or decline the all-in offer shown to direct drivers.
+ */
+router.put('/direct-driver-offers/:shipmentId', asyncHandler(async (req: Request, res: Response) => {
+  const { shipmentId } = req.params;
+  const { action, driver_offer_amount, notes } = req.body;
+
+  if (!shipmentId) {
+    throw createError('Shipment ID is required', 400, 'MISSING_ID');
+  }
+  if (!req.user?.id) {
+    throw createError('User ID not found', 401, 'UNAUTHORIZED');
+  }
+  if (!['approve', 'decline'].includes(action)) {
+    throw createError('action must be approve or decline', 400, 'INVALID_ACTION');
+  }
+  if (typeof notes !== 'string' || notes.trim().length < 3) {
+    throw createError('Review notes are required', 400, 'MISSING_REVIEW_NOTES');
+  }
+
+  const result = action === 'approve'
+    ? await directDriverOfferService.approve(
+      shipmentId,
+      Number(driver_offer_amount),
+      req.user.id,
+      notes.trim()
+    )
+    : await directDriverOfferService.decline(shipmentId, req.user.id, notes.trim());
+
+  res.status(200).json(successResponse(result));
+}));
 
 /**
  * GET /api/v1/admin/pricing/config

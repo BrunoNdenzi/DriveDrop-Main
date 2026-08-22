@@ -32,7 +32,8 @@ import {
   TrendingUp,
   FolderOpen,
   Trash2,
-  FlaskConical
+  FlaskConical,
+  BadgeDollarSign
 } from 'lucide-react'
 import AdminNotificationBell from '@/components/AdminNotificationBell'
 import { Button } from '@/components/ui/button'
@@ -47,6 +48,7 @@ const navItems = [
   { href: '/dashboard/admin/driver-applications', label: 'Driver Applications', icon: UserCheck },
   { href: '/dashboard/admin/documents', label: 'Driver Documents', icon: FolderOpen },
   { href: '/dashboard/admin/pricing', label: 'Pricing', icon: DollarSign },
+  { href: '/dashboard/admin/driver-offers', label: 'Driver Offers', icon: BadgeDollarSign },
   { href: '/dashboard/admin/reports', label: 'Reports', icon: BarChart3 },
   // Commercial Expansion
   { href: '/dashboard/admin/commercial', label: 'Commercial Accounts', icon: Building2 },

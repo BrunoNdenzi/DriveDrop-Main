@@ -3,7 +3,6 @@ import { haversineDistance, calculateRouteFit, type GeoPoint } from '@benji/core
 import { ROUTE_FIT_STRATEGY } from '@benji/core/constants/route';
 import {
   RECOMMENDATION_WEIGHTS,
-  DRIVER_EARNINGS_SPLIT,
   BEST_MATCH_THRESHOLD,
   GOOD_MATCH_THRESHOLD,
   CONSIDER_THRESHOLD,
@@ -59,6 +58,9 @@ export class BenjiLoadRecommendationService {
         .select('*')
         .is('driver_id', null)
         .in('status', ['pending'])
+        .or('assignment_type.eq.direct,assignment_type.is.null')
+        .eq('driver_offer_status', 'approved')
+        .not('driver_offer_amount', 'is', null)
         .order('created_at', { ascending: false })
         .limit(100)
 
@@ -172,10 +174,10 @@ export class BenjiLoadRecommendationService {
     }
 
     // 3. EARNINGS SCORE (25% weight)
-    const estimatedEarnings = (load.estimated_price || 0) * DRIVER_EARNINGS_SPLIT
+    const estimatedEarnings = Number(load.driver_offer_amount || 0)
     const distanceKm = load.estimated_distance_km || load.distance || 100
     const distanceMiles = distanceKm * 0.621371
-    const pricePerMile = distanceMiles > 0 ? (load.estimated_price || 0) / distanceMiles : 0
+    const pricePerMile = distanceMiles > 0 ? estimatedEarnings / distanceMiles : 0
 
     if (pricePerMile > 2.5) {
       scores.earnings = 100

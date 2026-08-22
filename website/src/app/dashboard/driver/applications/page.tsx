@@ -26,7 +26,7 @@ interface Application {
     title: string
     pickup_address: string
     delivery_address: string
-    estimated_price: number
+    driver_offer_amount: number | null
     status: string
     vehicle_make: string | null
     vehicle_model: string | null
@@ -60,7 +60,7 @@ export default function DriverApplicationsPage() {
             title,
             pickup_address,
             delivery_address,
-            estimated_price,
+            driver_offer_amount,
             status,
             vehicle_make,
             vehicle_model,
@@ -214,12 +214,11 @@ export default function DriverApplicationsPage() {
                   </div>
                 </div>
                 <div className="text-right ml-4">
-                  <p className="text-sm text-gray-600">Your Earnings (90%)</p>
+                  <p className="text-sm text-gray-600">All-in driver offer</p>
                   <p className="text-lg font-bold text-green-600">
-                    ${(app.shipment.estimated_price * 0.9).toFixed(2)}
-                  </p>
-                  <p className="text-sm text-gray-600 mt-1">
-                    Total: ${app.shipment.estimated_price.toFixed(2)}
+                    {app.shipment.driver_offer_amount === null
+                      ? 'Pending review'
+                      : `$${app.shipment.driver_offer_amount.toFixed(2)}`}
                   </p>
                 </div>
               </div>

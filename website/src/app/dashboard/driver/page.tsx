@@ -24,7 +24,7 @@ interface Job {
   id: string
   pickup_address: string
   delivery_address: string
-  estimated_price: number
+  driver_offer_amount: number
   distance: number
   status: string
   created_at: string
@@ -70,16 +70,18 @@ export default function DriverDashboardPage() {
         // Fetch available jobs (limit to 10, will filter after)
         supabase
           .from('shipments')
-          .select('id, pickup_address, delivery_address, estimated_price, distance, status, created_at, title')
+          .select('id, pickup_address, delivery_address, driver_offer_amount, distance, status, created_at, title')
           .is('driver_id', null)
           .eq('status', 'pending')
+          .eq('driver_offer_status', 'approved')
+          .not('driver_offer_amount', 'is', null)
           .order('created_at', { ascending: false })
           .limit(10),
         
         // Fetch active deliveries
         supabase
           .from('shipments')
-          .select('id, pickup_address, delivery_address, estimated_price, distance, status, created_at, title')
+          .select('id, pickup_address, delivery_address, driver_offer_amount, distance, status, created_at, title')
           .eq('driver_id', profile.id)
           .in('status', ['assigned', 'accepted', 'driver_en_route', 'driver_arrived', 'pickup_verification_pending', 'pickup_verified', 'picked_up', 'in_transit', 'in_progress'])
           .order('created_at', { ascending: false }),
@@ -283,7 +285,7 @@ export default function DriverDashboardPage() {
                   </div>
                   <div className="text-right ml-3">
                     <p className="text-sm font-bold text-green-600">
-                      ${delivery.estimated_price?.toFixed(2) || '0.00'}
+                      ${delivery.driver_offer_amount?.toFixed(2) || '0.00'}
                     </p>
                     <p className="text-[10px] text-gray-400">
                       {delivery.distance || 0} mi
@@ -364,12 +366,12 @@ export default function DriverDashboardPage() {
                     </div>
                   </div>
                   <div className="text-right ml-3">
-                    <p className="text-[10px] text-gray-400">Earnings (90%)</p>
+                    <p className="text-[10px] text-gray-400">All-in offer</p>
                     <p className="text-sm font-bold text-green-600">
-                      ${((job.estimated_price || 0) * 0.9).toFixed(2)}
+                      ${job.driver_offer_amount.toFixed(2)}
                     </p>
                     <p className="text-[10px] text-gray-400">
-                      ${job.estimated_price?.toFixed(2) || '0.00'} • {job.distance || 0} mi
+                      {job.distance || 0} mi
                     </p>
                   </div>
                 </div>

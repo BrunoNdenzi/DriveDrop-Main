@@ -32,9 +32,6 @@ export const RECOMMENDATION_WEIGHTS = {
 
 // ─── Shared thresholds ────────────────────────────────────────────────────────
 
-/** Driver keeps 80% of the shipment price (platform fee = 20%). Immutable. */
-export const DRIVER_EARNINGS_SPLIT = 0.80;
-
 /** Minimum confidence score (0–100) required for a match to be considered in batch dispatch */
 export const MIN_MATCH_CONFIDENCE = 60;
 

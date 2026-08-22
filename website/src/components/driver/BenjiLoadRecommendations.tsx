@@ -199,7 +199,7 @@ export default function BenjiLoadRecommendations() {
               <div className="text-sm text-gray-600">{rec.load.delivery_address}</div>
               <div className="text-xs text-gray-600 mt-1">
                 📏 {(rec.load.estimated_distance_km * 0.621371).toFixed(0)} miles · 
-                ${(rec.load.estimated_price / (rec.load.estimated_distance_km * 0.621371)).toFixed(2)}/mi
+                ${(rec.estimated_earnings / (rec.load.estimated_distance_km * 0.621371)).toFixed(2)}/mi
               </div>
             </div>
           </div>

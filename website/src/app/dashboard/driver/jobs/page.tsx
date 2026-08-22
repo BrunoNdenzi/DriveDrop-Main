@@ -28,7 +28,8 @@ interface Job {
   title: string
   pickup_address: string
   delivery_address: string
-  estimated_price: number
+  driver_offer_amount: number
+  driver_offer_status: string
   distance: number
   status: string
   created_at: string
@@ -110,6 +111,8 @@ export default function DriverJobsPage() {
         .select('*')
         .is('driver_id', null)
         .eq('status', 'pending')
+        .eq('driver_offer_status', 'approved')
+        .not('driver_offer_amount', 'is', null)
         .order('created_at', { ascending: false })
 
       if (error) throw error
@@ -156,11 +159,11 @@ export default function DriverJobsPage() {
     // Price filter
     if (filterPrice !== 'all') {
       if (filterPrice === 'low') {
-        filtered = filtered.filter(job => job.estimated_price < 500)
+        filtered = filtered.filter(job => job.driver_offer_amount < 500)
       } else if (filterPrice === 'medium') {
-        filtered = filtered.filter(job => job.estimated_price >= 500 && job.estimated_price < 1000)
+        filtered = filtered.filter(job => job.driver_offer_amount >= 500 && job.driver_offer_amount < 1000)
       } else if (filterPrice === 'high') {
-        filtered = filtered.filter(job => job.estimated_price >= 1000)
+        filtered = filtered.filter(job => job.driver_offer_amount >= 1000)
       }
     }
 
@@ -528,12 +531,9 @@ export default function DriverJobsPage() {
                   {/* Price & Action */}
                   <div className="lg:w-48 flex flex-col items-end gap-2">
                     <div className="text-right">
-                      <p className="text-[10px] text-gray-400">Earnings (90%)</p>
+                      <p className="text-[10px] text-gray-400">All-in driver offer</p>
                       <p className="text-lg font-bold text-amber-600">
-                        ${(job.estimated_price * 0.9).toFixed(2)}
-                      </p>
-                      <p className="text-[10px] text-gray-400">
-                        Total: ${job.estimated_price.toFixed(2)}
+                        ${job.driver_offer_amount.toFixed(2)}
                       </p>
                     </div>
 

@@ -24,7 +24,7 @@ interface CompletedShipment {
   delivery_address: string
   pickup_city: string
   delivery_city: string
-  estimated_price: number
+  driver_offer_amount: number | null
   distance: number
   status: string
   vehicle_make: string
@@ -113,7 +113,10 @@ export default function CompletedShipmentsPage() {
     }
   }
 
-  const totalEarnings = shipments.reduce((sum, s) => sum + (s.estimated_price * 0.9), 0)
+  const totalEarnings = shipments.reduce(
+    (sum, shipment) => sum + (shipment.driver_offer_amount || 0),
+    0
+  )
   const totalDeliveries = shipments.length
   const totalMiles = shipments.reduce((sum, s) => sum + s.distance, 0)
 
@@ -266,12 +269,11 @@ export default function CompletedShipmentsPage() {
 
                 {/* Earnings */}
                 <div className="text-right ml-4">
-                  <p className="text-sm text-gray-600">Earnings (90%)</p>
+                  <p className="text-sm text-gray-600">Accepted all-in offer</p>
                   <p className="text-lg font-bold text-green-600">
-                    ${(shipment.estimated_price * 0.9).toFixed(2)}
-                  </p>
-                  <p className="text-xs text-gray-500 mt-1">
-                    Total: ${shipment.estimated_price.toFixed(2)}
+                    {shipment.driver_offer_amount === null
+                      ? 'Not recorded'
+                      : `$${shipment.driver_offer_amount.toFixed(2)}`}
                   </p>
                 </div>
               </div>

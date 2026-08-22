@@ -49,7 +49,7 @@ interface Shipment {
   pickup_address: string
   delivery_address: string
   status: string
-  estimated_price: number | null
+  driver_offer_amount: number | null
   distance: number | null
   created_at: string
 }
@@ -221,7 +221,7 @@ export default function DriverNavigationPage() {
         setLoadingShipments(true)
         const { data, error } = await supabase
           .from('shipments')
-          .select('id, title, pickup_address, delivery_address, status, estimated_price, distance, created_at')
+          .select('id, title, pickup_address, delivery_address, status, driver_offer_amount, distance, created_at')
           .eq('driver_id', authUser.id)
           .in('status', ['accepted', 'assigned', 'picked_up', 'in_transit', 'in_progress', 'driver_en_route', 'driver_arrived', 'pickup_verification_pending', 'pickup_verified'])
           .order('created_at', { ascending: false })
@@ -335,7 +335,7 @@ export default function DriverNavigationPage() {
         <p style="font-size:12px;color:#555;margin:0 0 6px;">${type === 'pickup' ? shipment.pickup_address : shipment.delivery_address}</p>
         <div style="display:flex;gap:12px;font-size:11px;color:#777;">
           ${shipment.distance ? `<span>📏 ${shipment.distance} mi</span>` : ''}
-          ${shipment.estimated_price ? `<span>💰 $${shipment.estimated_price.toFixed(0)}</span>` : ''}
+          ${shipment.driver_offer_amount ? `<span>💰 $${shipment.driver_offer_amount.toFixed(0)}</span>` : ''}
         </div>
         <button onclick="window.__ddNavigateTo='${shipment.id}'"
           style="background:#F59E0B;color:white;border:none;padding:6px 14px;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;width:100%;margin-top:8px;">
@@ -641,7 +641,7 @@ export default function DriverNavigationPage() {
             const totalDurSec = allRouteInfos.reduce((sum, r) => sum + r.durationSeconds, 0)
             const totalEarnings = allRouteInfos.reduce((sum, r) => {
               const s = shipments.find(x => x.id === r.shipmentId)
-              return sum + (s?.estimated_price || 0)
+              return sum + (s?.driver_offer_amount || 0)
             }, 0)
             const AVG_MPG = 6.5 // avg truck mpg
             const DIESEL_PER_GAL = 3.85 // avg diesel $/gal
@@ -701,7 +701,7 @@ export default function DriverNavigationPage() {
                     const s = shipments.find(x => x.id === info.shipmentId); if (!s) return null
                     const color = ROUTE_COLORS[idx % ROUTE_COLORS.length]; const hasDanger = info.warnings.some(w => w.startsWith('⛔'))
                     const routeFuelCost = (info.distanceMeters / 1609.34 / 6.5) * 3.85
-                    const routeEarnings = s.estimated_price || 0
+                    const routeEarnings = s.driver_offer_amount || 0
                     const routeProfit = routeEarnings - routeFuelCost
                     const costPerMi = info.distanceMeters > 0 ? (routeProfit / (info.distanceMeters / 1609.34)) : 0
                     return (
@@ -865,7 +865,7 @@ export default function DriverNavigationPage() {
                           <div className="flex items-center gap-1.5 text-[11px] text-gray-500"><MapPin className="h-3 w-3 text-green-400 shrink-0" /><span className="truncate">{s.delivery_address}</span></div>
                         </div>
                         <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-3 text-[11px] text-gray-400">{s.distance && <span>{s.distance} mi</span>}{s.estimated_price && <span className="text-green-600 font-medium">${s.estimated_price.toFixed(0)}</span>}</div>
+                          <div className="flex items-center gap-3 text-[11px] text-gray-400">{s.distance && <span>{s.distance} mi</span>}{s.driver_offer_amount && <span className="text-green-600 font-medium">${s.driver_offer_amount.toFixed(0)}</span>}</div>
                           <button onClick={e => { e.stopPropagation(); navigateToShipment(s) }} className="flex items-center gap-1 text-[11px] font-semibold text-amber-600 hover:text-amber-700 bg-amber-50 px-2.5 py-1 rounded-md"><Navigation className="h-3 w-3" />Navigate</button>
                         </div>
                       </div>
@@ -919,7 +919,7 @@ export default function DriverNavigationPage() {
                 <div className="flex items-center gap-3 text-[11px] text-gray-400">
                   {shipments.length > 0 && (
                     <span className="text-green-600 font-medium">
-                      ${shipments.reduce((sum, s) => sum + (s.estimated_price || 0), 0).toLocaleString('en-US', { minimumFractionDigits: 0 })} total
+                      ${shipments.reduce((sum, s) => sum + (s.driver_offer_amount || 0), 0).toLocaleString('en-US', { minimumFractionDigits: 0 })} total
                     </span>
                   )}
                   {truckSafeMode && <span className="flex items-center gap-1 text-amber-600 font-medium"><Shield className="h-3 w-3" />Safe</span>}

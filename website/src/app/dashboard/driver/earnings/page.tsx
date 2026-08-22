@@ -20,6 +20,7 @@ import { Button } from '@/components/ui/button'
 interface Payment {
   id: string
   amount: number
+  driver_payout: number | null
   status: string
   created_at: string
   shipment_id: string
@@ -118,9 +119,8 @@ export default function DriverEarningsPage() {
       const completedPayments = paymentsData?.filter(p => p.status === 'completed') || []
       const pendingPayments = paymentsData?.filter(p => p.status === 'pending') || []
 
-      // Driver gets 80% of payment amount
-      const totalEarnings = completedPayments.reduce((sum, p) => sum + (p.amount * 0.8), 0)
-      const pendingEarnings = pendingPayments.reduce((sum, p) => sum + (p.amount * 0.8), 0)
+      const totalEarnings = completedPayments.reduce((sum, p) => sum + (p.driver_payout || 0), 0)
+      const pendingEarnings = pendingPayments.reduce((sum, p) => sum + (p.driver_payout || 0), 0)
 
       // This week earnings
       const oneWeekAgo = new Date()
@@ -128,7 +128,7 @@ export default function DriverEarningsPage() {
       const thisWeekPayments = completedPayments.filter(
         p => new Date(p.created_at) >= oneWeekAgo
       )
-      const thisWeekEarnings = thisWeekPayments.reduce((sum, p) => sum + (p.amount * 0.8), 0)
+      const thisWeekEarnings = thisWeekPayments.reduce((sum, p) => sum + (p.driver_payout || 0), 0)
 
       // This month earnings
       const oneMonthAgo = new Date()
@@ -136,7 +136,7 @@ export default function DriverEarningsPage() {
       const thisMonthPayments = completedPayments.filter(
         p => new Date(p.created_at) >= oneMonthAgo
       )
-      const thisMonthEarnings = thisMonthPayments.reduce((sum, p) => sum + (p.amount * 0.8), 0)
+      const thisMonthEarnings = thisMonthPayments.reduce((sum, p) => sum + (p.driver_payout || 0), 0)
 
       const averageEarningPerDelivery = completedPayments.length > 0
         ? totalEarnings / completedPayments.length
@@ -383,7 +383,7 @@ export default function DriverEarningsPage() {
           ) : (
             <div className="divide-y divide-gray-100">
               {filteredPayments.map((payment) => {
-                const driverEarning = payment.amount * 0.8
+                const driverEarning = payment.driver_payout
                 const shipment = payment.shipment
 
                 return (
@@ -416,10 +416,10 @@ export default function DriverEarningsPage() {
 
                       <div className="text-right ml-3">
                         <p className="text-sm font-bold text-amber-600">
-                          ${driverEarning.toFixed(2)}
+                          {driverEarning === null ? 'Not recorded' : `$${driverEarning.toFixed(2)}`}
                         </p>
                         <p className="text-[10px] text-gray-400">
-                          Total: ${payment.amount.toFixed(2)} (80%)
+                          Approved payout
                         </p>
                       </div>
                     </div>

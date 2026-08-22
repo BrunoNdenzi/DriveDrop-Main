@@ -21,7 +21,7 @@ interface ActiveDelivery {
   title: string
   pickup_address: string
   delivery_address: string
-  estimated_price: number
+  driver_offer_amount: number | null
   distance: number
   status: string
   pickup_date: string
@@ -304,9 +304,11 @@ export default function DriverActiveDeliveriesPage() {
                       </div>
                       <div className="text-right">
                         <p className="text-lg font-bold text-amber-500">
-                          ${(delivery.estimated_price * 0.8).toFixed(2)}
+                          {delivery.driver_offer_amount === null
+                            ? 'Pending review'
+                            : `$${delivery.driver_offer_amount.toFixed(2)}`}
                         </p>
-                        <p className="text-xs text-gray-500">Your earnings</p>
+                        <p className="text-xs text-gray-500">Accepted all-in offer</p>
                       </div>
                     </div>
                   </div>

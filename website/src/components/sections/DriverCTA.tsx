@@ -19,7 +19,7 @@ export default function DriverCTA() {
               <DollarSign className="h-6 w-6 flex-shrink-0" />
               <div>
                 <h3 className="font-semibold">Competitive Pay</h3>
-                <p className="text-sm opacity-80">Earn up to 90% of your trip</p>
+                <p className="text-sm opacity-80">Review clear all-in offers before applying</p>
               </div>
             </div>
             <div className="flex items-start space-x-3">

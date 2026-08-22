@@ -465,9 +465,11 @@ export default function DeliveryCompletePage({ params }: { params: { id: string 
                 </div>
                 <div className="mt-3 pt-3 border-t border-green-200">
                   <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium text-gray-700">Your Earnings (80% of total)</span>
+                    <span className="text-sm font-medium text-gray-700">Approved all-in offer</span>
                     <span className="text-sm font-semibold text-green-600">
-                      ${shipment.payment[0].driver_payout.toFixed(2)}
+                      {shipment.payment[0].driver_payout == null
+                        ? 'Pending processing'
+                        : `$${shipment.payment[0].driver_payout.toFixed(2)}`}
                     </span>
                   </div>
                 </div>

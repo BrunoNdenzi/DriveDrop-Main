@@ -34,7 +34,7 @@ interface Shipment {
   pickup_address: string
   delivery_address: string
   pickup_date: string
-  estimated_price: number
+  driver_offer_amount: number | null
   distance: number
   status: string
   vehicle_type: string
@@ -773,9 +773,13 @@ export default function DriverShipmentDetailPage() {
             <div className="bg-amber-500 text-white rounded-md p-4">
               <div className="flex items-center gap-2 mb-2">
                 <DollarSign className="h-5 w-5" />
-                <h3 className="font-semibold">Your Earnings</h3>
+                <h3 className="font-semibold">Accepted All-in Offer</h3>
               </div>
-              <p className="text-lg font-bold">${shipment.estimated_price.toFixed(2)}</p>
+              <p className="text-lg font-bold">
+                {shipment.driver_offer_amount === null
+                  ? 'Contact operations'
+                  : `$${shipment.driver_offer_amount.toFixed(2)}`}
+              </p>
               <p className="text-amber-100 text-sm mt-1">Payment on delivery</p>
             </div>
 

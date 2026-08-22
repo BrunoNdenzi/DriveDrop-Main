@@ -692,16 +692,13 @@ export const stripeService = {
               });
 
               // Send driver payout notification
-              if (driver && driver.email) {
-                const platformFee = totalPrice * 0.20;
-                const driverEarnings = totalPrice * 0.80;
+              const driverEarnings = Number(shipment.driver_offer_amount);
+              if (driver && driver.email && Number.isFinite(driverEarnings) && driverEarnings > 0) {
 
                 await emailService.sendDriverPayoutNotification({
                   firstName: driver.first_name,
                   email: driver.email,
                   shipmentId: shipment.id,
-                  totalPrice,
-                  platformFee,
                   driverEarnings,
                   payoutMethod: 'Stripe Connect',
                   expectedPayoutDays: '2-5 business days',

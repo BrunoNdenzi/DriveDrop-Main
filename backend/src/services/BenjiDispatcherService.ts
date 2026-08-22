@@ -3,7 +3,6 @@ import { haversineDistance, calculateRouteFit, type GeoPoint } from '@benji/core
 import { ROUTE_FIT_STRATEGY } from '@benji/core/constants/route';
 import {
   DISPATCH_WEIGHTS,
-  DRIVER_EARNINGS_SPLIT,
   MIN_MATCH_CONFIDENCE,
 } from '@benji/core/constants/scoring';
 
@@ -15,6 +14,7 @@ interface Load {
   pickup_location: { coordinates: [number, number] }
   delivery_location: { coordinates: [number, number] }
   estimated_price: number
+  driver_offer_amount: number
   estimated_distance_km: number
   created_at: string
   vehicle_make?: string
@@ -67,6 +67,9 @@ export class BenjiDispatcherService {
         .select('*')
         .is('driver_id', null)
         .in('status', ['pending'])
+        .or('assignment_type.eq.direct,assignment_type.is.null')
+        .eq('driver_offer_status', 'approved')
+        .not('driver_offer_amount', 'is', null)
         .order('created_at', { ascending: true })
 
       if (loadsError) {
@@ -220,7 +223,7 @@ export class BenjiDispatcherService {
     // 3. EARNINGS SCORE (20% weight) - Is price fair/above market?
     const estimatedDistance = load.estimated_distance_km || load.distance || 100 // Default to 100km if missing
     const distanceInMiles = estimatedDistance * 0.621371
-    const pricePerMile = distanceInMiles > 0 ? (load.estimated_price || 0) / distanceInMiles : 0
+    const pricePerMile = distanceInMiles > 0 ? load.driver_offer_amount / distanceInMiles : 0
     
     if (pricePerMile > 2.5) {
       scores.earnings = 100
@@ -280,7 +283,7 @@ export class BenjiDispatcherService {
       score: Math.round(totalScore),
       confidence: Math.round(confidence),
       reasons,
-      estimated_earnings: load.estimated_price * DRIVER_EARNINGS_SPLIT,
+      estimated_earnings: load.driver_offer_amount,
       route_fit: routeFit,
       distance_to_pickup: distanceToPickup
     }
@@ -295,7 +298,7 @@ export class BenjiDispatcherService {
         score: 0,
         confidence: 0,
         reasons: ['Error calculating match'],
-        estimated_earnings: (load.estimated_price ?? 0) * DRIVER_EARNINGS_SPLIT,
+        estimated_earnings: load.driver_offer_amount ?? 0,
         route_fit: 0,
         distance_to_pickup: 0
       }

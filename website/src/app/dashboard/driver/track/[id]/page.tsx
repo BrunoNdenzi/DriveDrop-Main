@@ -44,7 +44,6 @@ interface Shipment {
   delivery_lng: number
   pickup_date: string
   delivery_date: string
-  estimated_price: number
   total_price: number
   distance: number
   status: string

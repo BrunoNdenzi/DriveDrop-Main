@@ -113,9 +113,7 @@ interface DriverPayoutData {
   firstName: string;
   email: string;
   shipmentId: string;
-  totalPrice: number;
-  platformFee: number; // 20%
-  driverEarnings: number; // 80%
+  driverEarnings: number;
   payoutMethod: string;
   expectedPayoutDays: string;
   deliveredDate: string;
@@ -1191,7 +1189,7 @@ class EmailService {
         </head>
         <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
           <div style="background: linear-gradient(135deg, #28a745 0%, #218838 100%); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
-            <h1 style="color: white; margin: 0; font-size: 28px;">💰 Payout Confirmed!</h1>
+            <h1 style="color: white; margin: 0; font-size: 28px;">Payout Details</h1>
           </div>
           
           <div style="background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px;">
@@ -1199,7 +1197,7 @@ class EmailService {
             
             <p style="font-size: 16px; margin-bottom: 20px;">
               Congratulations on completing shipment <strong>#${data.shipmentId}</strong>! 
-              Your earnings are being processed and will be sent to your account.
+              Your approved all-in offer is ready for payout processing.
             </p>
 
             <!-- Earnings Breakdown -->
@@ -1207,16 +1205,8 @@ class EmailService {
               <h2 style="margin: 0 0 15px 0; color: #28a745; font-size: 18px;">💵 Your Earnings</h2>
               
               <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
-                <tr style="border-bottom: 1px solid #eee;">
-                  <td style="padding: 12px 0; color: #666;">Total Shipment Value</td>
-                  <td style="padding: 12px 0; text-align: right; font-size: 16px;">$${data.totalPrice.toFixed(2)}</td>
-                </tr>
-                <tr style="border-bottom: 1px solid #eee;">
-                  <td style="padding: 12px 0; color: #666;">Platform Fee (20%)</td>
-                  <td style="padding: 12px 0; text-align: right; color: #999;">-$${data.platformFee.toFixed(2)}</td>
-                </tr>
                 <tr style="border-bottom: 3px solid #28a745; background: #f0fff4;">
-                  <td style="padding: 15px 0; font-weight: bold; font-size: 16px; color: #28a745;">Your Net Payout (80%)</td>
+                  <td style="padding: 15px 0; font-weight: bold; font-size: 16px; color: #28a745;">Approved All-In Payout</td>
                   <td style="padding: 15px 0; text-align: right; font-weight: bold; font-size: 24px; color: #28a745;">$${data.driverEarnings.toFixed(2)}</td>
                 </tr>
               </table>
@@ -1268,7 +1258,7 @@ class EmailService {
     `;
 
     const textContent = `
-      PAYOUT CONFIRMED
+      PAYOUT DETAILS
       
       Hi ${data.firstName},
       
@@ -1276,10 +1266,7 @@ class EmailService {
       
       YOUR EARNINGS
       ━━━━━━━━━━━━━━━━━━━━━
-      Total Shipment Value: $${data.totalPrice.toFixed(2)}
-      Platform Fee (20%): -$${data.platformFee.toFixed(2)}
-      
-      YOUR NET PAYOUT (80%): $${data.driverEarnings.toFixed(2)}
+      APPROVED ALL-IN PAYOUT: $${data.driverEarnings.toFixed(2)}
       
       PAYOUT DETAILS
       ━━━━━━━━━━━━━━━━━━━━━
@@ -1299,7 +1286,7 @@ class EmailService {
 
     return this.sendEmail({
       to: data.email,
-      subject: `💰 Payout Confirmed - $${data.driverEarnings.toFixed(2)} | DriveDrop`,
+      subject: `Payout Details - $${data.driverEarnings.toFixed(2)} | DriveDrop`,
       htmlContent,
       textContent,
     });

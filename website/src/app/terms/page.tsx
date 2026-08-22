@@ -279,9 +279,9 @@ export default function TermsOfServicePage() {
             </ul>
             <h3 className="text-xl font-semibold mb-3">10.3 Earnings</h3>
             <ul className="list-disc pl-6 space-y-2">
-              <li><strong>Drivers receive 80%</strong> of the total shipment fee upon confirmed delivery.</li>
+              <li>Each shipment displays an <strong>all-in dollar offer</strong> before a driver applies or accepts assignment.</li>
+              <li>The accepted offer includes the driver's labor and operating costs unless DriveDrop agrees otherwise in writing.</li>
               <li>Earnings are paid out according to DriveDrop's payout schedule. See your driver dashboard for current payout timing.</li>
-              <li>DriveDrop retains a 20% platform fee to cover operations, insurance, payment processing, and support.</li>
             </ul>
           </section>
 
