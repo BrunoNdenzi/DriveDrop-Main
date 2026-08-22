@@ -108,10 +108,11 @@ interface BulkUploadStatus {
 
 /** Response shape from POST /api/v1/benji/chat and POST /api/v1/benji/chat/confirm */
 interface BenjiChatResponse {
-  success: boolean
+  success?: boolean
   traceId?: string
   state?: 'COMPLETE' | 'BLOCKED' | 'AWAIT_CONFIRMATION' | 'CLARIFICATION_REQUIRED'
   response?: string
+  data?: Record<string, BenjiStepResult>
   /** Present when state === 'CLARIFICATION_REQUIRED'. A natural-language follow-up question. */
   clarificationRequest?: string
   /** Present when state === 'AWAIT_CONFIRMATION' */
@@ -119,7 +120,7 @@ interface BenjiChatResponse {
     traceId: string
     riskScore: number
     planSummary: string[]
-    message: string
+    message?: string
   }
   /** Present when a shipment was created (tool:shipment.create output) */
   shipmentCreated?: {
@@ -131,6 +132,35 @@ interface BenjiChatResponse {
     deliveryAddress: string
   }
   error?: string
+}
+
+interface BenjiStepResult {
+  success?: boolean
+  toolName?: string
+  data?: Record<string, unknown>
+}
+
+function normalizeBenjiChatResponse(data: BenjiChatResponse): BenjiChatResponse {
+  if (data.state !== 'COMPLETE' || data.shipmentCreated) return data
+
+  const creationStep = Object.values(data.data ?? {}).find(
+    step => step.toolName === 'tool:shipment.create' && step.success,
+  )
+  const shipment = creationStep?.data
+  if (typeof shipment?.shipment_id !== 'string') return data
+
+  return {
+    ...data,
+    success: true,
+    shipmentCreated: {
+      shipment_id: shipment.shipment_id,
+      estimatedPrice: Number(shipment.estimatedPrice ?? 0),
+      distanceMiles: Number(shipment.distanceMiles ?? 0),
+      vehicle: String(shipment.vehicle ?? ''),
+      pickupAddress: String(shipment.pickupAddress ?? ''),
+      deliveryAddress: String(shipment.deliveryAddress ?? ''),
+    },
+  }
 }
 
 /** Metrics returned by GET /api/v1/benji/metrics */
@@ -602,7 +632,7 @@ class AIService {
       throw new Error((data as any).error ?? 'Benji chat request failed')
     }
 
-    return data
+    return normalizeBenjiChatResponse(data)
   }
 
   /**
@@ -625,7 +655,7 @@ class AIService {
       throw new Error((data as any).error ?? 'Benji confirm request failed')
     }
 
-    return data
+    return normalizeBenjiChatResponse(data)
   }
 
   /**

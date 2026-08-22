@@ -317,7 +317,7 @@ export class SimulationEngine {
     const waves               = _estimateWaveCount(plan.steps);
     const costUsd             = plan.steps.reduce((sum, s) => sum + (ESTIMATED_COST_USD[s.action] ?? 0), 0);
     const latencyMs           = _computeCriticalPath(plan.steps, ESTIMATED_LATENCY_MS);
-    const gate                = this._determineExecutionGate(score, sideEffects);
+    const gate                = this._determineExecutionGate(plan, score, sideEffects);
 
     return {
       planId:             plan.planId,
@@ -446,6 +446,7 @@ export class SimulationEngine {
   }
 
   private _determineExecutionGate(
+    plan:        BenjiPlan,
     riskScore:   number,
     sideEffects: string[],
   ): SimulationGate {
@@ -458,6 +459,7 @@ export class SimulationEngine {
     }
 
     if (riskScore > 0.85) return 'block';
+    if (plan.steps.some(step => step.action === 'tool:shipment.create')) return 'confirm';
     if (riskScore > 0.70) return 'confirm';
     return 'proceed';
   }

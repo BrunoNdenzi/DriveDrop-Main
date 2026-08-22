@@ -616,7 +616,9 @@ export default function NaturalLanguageShipmentCreator({
             <AlertCircle className="h-5 w-5 text-amber-600 flex-shrink-0" />
             <span className="font-medium text-amber-900">Benji needs your approval</span>
           </div>
-          <p className="text-sm text-amber-700 mb-3">{pendingConfirmation.message}</p>
+          <p className="text-sm text-amber-700 mb-3">
+            {pendingConfirmation.message ?? 'Review and confirm before Benji creates this shipment.'}
+          </p>
           <div className="flex gap-2">
             <Button onClick={handleConfirm} disabled={isConfirming} size="sm" className="bg-green-600 hover:bg-green-700 text-white">
               {isConfirming ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : null}
