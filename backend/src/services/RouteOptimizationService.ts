@@ -77,7 +77,7 @@ export interface RouteSavings {
   distanceSaved: number; // miles vs naive order
   timeSaved: number; // minutes
   fuelCostSaved: number; // USD
-  emptyMilesSaved: number; // deadhead miles eliminated
+  emptyMilesSaved: number; // delivery-to-pickup transition miles reduced
   percentImprovement: number;
 }
 
@@ -407,6 +407,7 @@ class RouteOptimizationService {
       deliveryWindow?: { earliest: string; latest: string };
       priority?: 'high' | 'medium' | 'low';
       estimatedPayout?: number;
+      status?: string;
       pickup_lat?: number;
       pickup_lng?: number;
       delivery_lat?: number;
@@ -438,18 +439,20 @@ class RouteOptimizationService {
     let totalEstimatedEarnings = 0;
 
     for (const shipment of shipments) {
-      stops.push({
-        id: `pickup-${shipment.id}`,
-        address: shipment.pickupAddress,
-        type: 'pickup',
-        shipmentId: shipment.id,
-        vehicleInfo: shipment.vehicleInfo,
-        timeWindow: shipment.pickupWindow,
-        estimatedDuration: 20, // 20 min for pickup inspection
-        priority: shipment.priority || 'medium',
-        latitude: shipment.pickup_lat,
-        longitude: shipment.pickup_lng,
-      });
+      if (shipment.status === undefined || shipment.status === 'accepted' || shipment.status === 'assigned') {
+        stops.push({
+          id: `pickup-${shipment.id}`,
+          address: shipment.pickupAddress,
+          type: 'pickup',
+          shipmentId: shipment.id,
+          vehicleInfo: shipment.vehicleInfo,
+          timeWindow: shipment.pickupWindow,
+          estimatedDuration: 20, // 20 min for pickup inspection
+          priority: shipment.priority || 'medium',
+          latitude: shipment.pickup_lat,
+          longitude: shipment.pickup_lng,
+        });
+      }
       stops.push({
         id: `delivery-${shipment.id}`,
         address: shipment.deliveryAddress,
@@ -478,8 +481,7 @@ class RouteOptimizationService {
       optimizedRoute.legs
     );
 
-    // Weather insight placeholder
-    const weatherForecast = this.getWeatherInsight(driverLocation);
+    const weatherForecast = 'Live weather is not connected. Check the National Weather Service and state DOT alerts before departure.';
 
     // Build Benji daily summary
     const benjiDailySummary = this.buildDailySummary(
@@ -892,38 +894,6 @@ class RouteOptimizationService {
       });
     }
 
-    // Seasonal insights
-    const month = departureTime.getMonth();
-    if (month >= 11 || month <= 2) {
-      insights.push({
-        type: 'weather',
-        title: 'Winter Driving Alert',
-        description: 'Mountain passes on I-40 west of Asheville and I-26 near Saluda may have ice. Check NCDOT for conditions. Allow extra time and reduce speed in elevated areas.',
-        severity: 'warning',
-      });
-    } else if (month >= 5 && month <= 8) {
-      insights.push({
-        type: 'weather',
-        title: 'Summer Storm Season',
-        description: 'Afternoon thunderstorms common in the Carolinas, especially along the I-85 corridor. Keep an eye on the sky between 2-6 PM.',
-        severity: 'info',
-      });
-    }
-
-    // SC fuel tip
-    const hasSCStops = stops.some(s => 
-      s.address.toLowerCase().includes(' sc') || 
-      s.address.toLowerCase().includes('south carolina')
-    );
-    if (hasSCStops) {
-      insights.push({
-        type: 'tip',
-        title: 'Cheaper Fuel in SC',
-        description: `South Carolina gas prices are typically $0.20-0.30/gal cheaper than NC. Fill up when you cross the state line to save $5-15 per tank.`,
-        severity: 'info',
-      });
-    }
-
     return insights;
   }
 
@@ -1013,7 +983,7 @@ class RouteOptimizationService {
     // Empty miles tip
     if (savings.emptyMilesSaved > 10) {
       tips.push(
-        `🚛 Reduced deadhead (empty) miles by ${savings.emptyMilesSaved} miles by grouping pickups strategically.`
+        `🚛 Reduced delivery-to-pickup repositioning by ${savings.emptyMilesSaved} miles.`
       );
     }
 
@@ -1036,14 +1006,6 @@ class RouteOptimizationService {
     if (vehicleType === 'car_hauler_loaded' || vehicleType === 'enclosed_loaded') {
       tips.push(
         `🔧 Loaded hauler tip: Maintain 60-65 mph on I-85/I-40 for optimal fuel economy. Higher speeds drop MPG significantly with a loaded trailer.`
-      );
-    }
-
-    // SC fuel tip
-    const hasSC = insights.some(i => i.title.includes('SC') || i.description.includes('South Carolina'));
-    if (hasSC) {
-      tips.push(
-        `⛽ Your route passes through SC — fill up there! Fuel is typically $0.20-0.30/gal cheaper than NC.`
       );
     }
 
@@ -1210,7 +1172,7 @@ class RouteOptimizationService {
     order: number[], 
     matrix: number[][]
   ): number {
-    // Count transitions between pickup→pickup (good) vs delivery→pickup (deadhead)
+    // Compare only delivery-to-pickup repositioning transitions.
     let emptyMiles = 0;
     for (let i = 0; i < order.length - 1; i++) {
       const curIdx = order[i]!;
@@ -1287,19 +1249,6 @@ class RouteOptimizationService {
     }
 
     return null;
-  }
-
-  /** Get weather insight for a location */
-  private getWeatherInsight(_location: string): string {
-    const month = new Date().getMonth();
-    if (month >= 11 || month <= 2) {
-      return 'Winter conditions — watch for ice on mountain passes (I-40 west, I-26 Saluda Grade). Check NCDOT 511 for road conditions.';
-    } else if (month >= 5 && month <= 8) {
-      return 'Summer heat advisory possible — monitor tire pressure on loaded trailers. Afternoon thunderstorms likely 2-6 PM.';
-    } else if (month >= 3 && month <= 4) {
-      return 'Spring weather — occasional rain showers. Good driving conditions overall.';
-    }
-    return 'Fall weather — excellent driving conditions. Watch for reduced visibility in morning fog near rivers and lowlands.';
   }
 
   /** Generate FMCSA-compliant break schedule */

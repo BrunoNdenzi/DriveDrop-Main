@@ -68,6 +68,10 @@ interface RouteSegment {
 
 interface DriverMapNavigationProps {
   stops: NavStop[]
+  plannedDistance?: number
+  plannedDurationMinutes?: number
+  plannedEndTime?: string
+  departureTime?: string
   driverLocation?: { lat: number; lng: number }
   onStopReached?: (stopIndex: number) => void
   onNavigationComplete?: () => void
@@ -115,6 +119,10 @@ const MARKER_LABELS: Record<string, string> = {
 
 export default function DriverMapNavigation({
   stops,
+  plannedDistance,
+  plannedDurationMinutes,
+  plannedEndTime,
+  departureTime,
   driverLocation,
   onStopReached,
   onNavigationComplete,
@@ -260,7 +268,9 @@ export default function DriverMapNavigation({
         optimizeWaypoints: false, // Already optimized by our engine
         travelMode: google.maps.TravelMode.DRIVING,
         drivingOptions: {
-          departureTime: new Date(),
+          departureTime: departureTime && new Date(departureTime).getTime() > Date.now()
+            ? new Date(departureTime)
+            : new Date(),
           trafficModel: google.maps.TrafficModel.BEST_GUESS,
         },
       })
@@ -293,12 +303,12 @@ export default function DriverMapNavigation({
         }
       })
 
-      setTotalDistance(`${(totalDist / 1609.34).toFixed(1)} mi`)
-      setTotalDuration(formatDuration(totalDur))
+      setTotalDistance(plannedDistance !== undefined ? `${plannedDistance.toFixed(1)} mi` : `${(totalDist / 1609.34).toFixed(1)} mi`)
+      setTotalDuration(plannedDurationMinutes !== undefined ? formatDuration(plannedDurationMinutes * 60) : formatDuration(totalDur))
       setLegSummaries(summaries)
 
       // Compute ETA
-      const eta = new Date(Date.now() + totalDur * 1000)
+      const eta = plannedEndTime ? new Date(plannedEndTime) : new Date(Date.now() + totalDur * 1000)
       setNavState(prev => ({
         ...prev,
         totalDistanceRemaining: `${(totalDist / 1609.34).toFixed(1)} mi`,
@@ -307,7 +317,13 @@ export default function DriverMapNavigation({
       }))
 
       // Place custom markers
-      placeMarkers(validStops)
+      const resolvedStops = validStops.map((stop, index) => {
+        const location = index === 0 ? legs[0]?.start_location : legs[index - 1]?.end_location
+        return location
+          ? { ...stop, lat: location.lat(), lng: location.lng() }
+          : stop
+      })
+      placeMarkers(resolvedStops)
       setRouteLoaded(true)
 
       // Set first navigation instruction
@@ -326,7 +342,7 @@ export default function DriverMapNavigation({
       placeMarkers(validStops)
       drawFallbackPolyline(validStops)
     }
-  }, [stops])
+  }, [stops, departureTime, plannedDistance, plannedDurationMinutes, plannedEndTime])
 
   useEffect(() => {
     if (mapReady && stops.length >= 2) {

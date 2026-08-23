@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { supabaseAdmin } from '../src/lib/supabase';
 import { googleMapsService } from '../src/services/google-maps.service';
+import { pricingLiveEvidenceService } from '../src/services/pricingLiveEvidence.service';
 import { executeV3Tool } from '../src/benji-v3/tools';
 import { getToolsForRole } from '../src/benji-v3/benji.service';
 
@@ -15,7 +16,7 @@ const shipments = [
     vehicle_model: 'Camry',
     pickup_address: 'Pickup A',
     delivery_address: 'Delivery A',
-    estimated_price: 500,
+    driver_offer_amount: 97.35,
   },
   {
     id: 'shipment-b',
@@ -26,7 +27,7 @@ const shipments = [
     vehicle_model: 'Accord',
     pickup_address: 'Pickup B',
     delivery_address: 'Delivery B',
-    estimated_price: 600,
+    driver_offer_amount: 120,
   },
 ];
 
@@ -61,6 +62,7 @@ function pointIndex(point: { lat: number; lng: number }): number {
 
 let queriedDriver = '';
 let queriedStatuses: string[] = [];
+let queriedShipmentIds: string[] = [];
 
 const query = {
   select: () => query,
@@ -70,9 +72,15 @@ const query = {
   },
   in: (column: string, values: string[]) => {
     if (column === 'status') queriedStatuses = values;
+    if (column === 'id') queriedShipmentIds = values;
     return query;
   },
-  order: async () => ({ data: shipments, error: null }),
+  order: async () => ({
+    data: queriedShipmentIds.length > 0
+      ? shipments.filter(shipment => queriedShipmentIds.includes(shipment.id))
+      : shipments,
+    error: null,
+  }),
 };
 
 (supabaseAdmin as unknown as { from: (table: string) => typeof query }).from = table => {
@@ -121,6 +129,51 @@ googleMapsService.getDirections = async (origin, destination) => {
   };
 };
 
+pricingLiveEvidenceService.collect = async () => ({
+  traffic: {
+    provider: 'google_maps',
+    status: 'available',
+    observedAt: '2026-08-23T12:00:00.000Z',
+    freshUntil: '2026-08-23T12:15:00.000Z',
+    latencyMs: 10,
+    evidence: {
+      normalDurationSeconds: 600,
+      trafficDurationSeconds: 720,
+      delaySeconds: 120,
+      delayPercent: 20,
+    },
+  },
+  tolls: {
+    provider: 'here',
+    status: 'available',
+    observedAt: '2026-08-23T12:00:00.000Z',
+    freshUntil: '2026-08-23T13:00:00.000Z',
+    latencyMs: 10,
+    evidence: { currency: 'USD', estimatedAmount: 0, tollCount: 0 },
+  },
+  weather: {
+    provider: 'openweather',
+    status: 'available',
+    observedAt: '2026-08-23T12:00:00.000Z',
+    freshUntil: '2026-08-23T12:30:00.000Z',
+    latencyMs: 10,
+    evidence: {
+      condition: 'Clear',
+      temperatureFahrenheit: 82,
+      windSpeedMph: 6,
+      precipitationOneHourInches: 0,
+    },
+  },
+  fuel: {
+    provider: 'opis',
+    status: 'unavailable',
+    observedAt: '2026-08-23T12:00:00.000Z',
+    freshUntil: '2026-08-23T13:00:00.000Z',
+    latencyMs: 0,
+    errorCode: 'PROVIDER_NOT_ENABLED',
+  },
+});
+
 function toolNames(role: 'client' | 'driver'): string[] {
   return getToolsForRole(role).flatMap(tool => {
     const definition = tool as { function?: { name: string } };
@@ -164,10 +217,29 @@ async function main(): Promise<void> {
   assert.deepEqual(queriedStatuses, ['accepted', 'assigned']);
   assert.match(result.summary, /optimized route covers 2 shipments/i);
   assert.match(result.summary, /Total: .* miles .* hours/i);
+  assert.match(result.summary, /\$217\.35 accepted payout/i);
+  assert.match(result.summary, /next-leg traffic delay: 2 minutes/i);
+  assert.match(result.summary, /next-leg midpoint weather: clear/i);
+  assert.doesNotMatch(result.summary, /assigned revenue/i);
   assert.ok(!result.summary.includes('**'), 'SMS summary should not contain markdown bold');
 
-  const data = result.data as { route: { stops: Array<{ type: string; shipmentId?: string | undefined }> } };
+  const data = result.data as {
+    route: { stops: Array<{ type: string; shipmentId?: string | undefined }> };
+    repositioningMilesReduced: number;
+  };
   assertSafeSequence(data.route.stops);
+  assert.equal(typeof data.repositioningMilesReduced, 'number');
+
+  const selectedResult = await executeV3Tool(
+    'plan_route',
+    JSON.stringify({ current_location: 'Charlotte, NC', vehicle_slots: 1, shipment_ids: ['shipment-a'] }),
+    driverId,
+    'driver'
+  );
+  assert.equal(selectedResult.success, true, selectedResult.errorMessage);
+  assert.deepEqual(queriedShipmentIds, ['shipment-a']);
+  assert.match(selectedResult.summary, /optimized route covers 1 shipment\./i);
+  assert.match(selectedResult.summary, /\$97\.35 accepted payout/i);
 
   console.log('Benji plan_route role, query, real optimizer, summary, precedence, and capacity checks passed.');
 }

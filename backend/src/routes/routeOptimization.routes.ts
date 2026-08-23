@@ -9,41 +9,106 @@
  */
 import { Router, Request, Response } from 'express';
 import { authenticate } from '@middlewares/auth.middleware';
+import { supabaseAdmin } from '@lib/supabase';
 import { routeOptimizationService, RouteStop } from '../services/RouteOptimizationService';
+import { pricingLiveEvidenceService } from '../services/pricingLiveEvidence.service';
 
 const router = Router();
+
+const ROUTABLE_STATUSES = ['accepted', 'assigned', 'picked_up', 'in_transit'];
+
+interface RoutableShipment {
+  id: string;
+  pickup_address: string;
+  delivery_address: string;
+  title: string | null;
+  status: string;
+  driver_offer_amount: number | null;
+}
+
+async function loadAuthorizedShipments(shipmentIds: string[], userId: string, role: string) {
+  let query = supabaseAdmin
+    .from('shipments')
+    .select('id, pickup_address, delivery_address, title, status, driver_offer_amount')
+    .in('id', shipmentIds)
+    .in('status', ROUTABLE_STATUSES);
+
+  if (role !== 'admin') query = query.eq('driver_id', userId);
+
+  const { data, error } = await query;
+  if (error) throw new Error(`Unable to load assigned shipments: ${error.message}`);
+
+  const shipments = (data ?? []) as RoutableShipment[];
+  if (shipments.length !== shipmentIds.length) {
+    return null;
+  }
+
+  const byId = new Map(shipments.map(shipment => [shipment.id, shipment]));
+  return shipmentIds.map(id => byId.get(id)!);
+}
+
+function buildStops(driverLocation: string, shipments: RoutableShipment[]): RouteStop[] {
+  const stops: RouteStop[] = [{
+    id: 'driver-start',
+    address: driverLocation,
+    type: 'current_location',
+    estimatedDuration: 0,
+  }];
+
+  for (const shipment of shipments) {
+    if (shipment.status === 'accepted' || shipment.status === 'assigned') {
+      stops.push({
+        id: `pickup-${shipment.id}`,
+        address: shipment.pickup_address,
+        type: 'pickup',
+        shipmentId: shipment.id,
+        vehicleInfo: shipment.title ?? undefined,
+        estimatedDuration: 20,
+      });
+    }
+    stops.push({
+      id: `delivery-${shipment.id}`,
+      address: shipment.delivery_address,
+      type: 'delivery',
+      shipmentId: shipment.id,
+      vehicleInfo: shipment.title ?? undefined,
+      estimatedDuration: 15,
+    });
+  }
+
+  return stops;
+}
+
+async function loadRouteEvidence(driverLocation: string, stops: RouteStop[]) {
+  const destination = stops.find(stop => stop.type !== 'current_location')?.address;
+  if (!destination) return null;
+  return pricingLiveEvidenceService.collect(driverLocation, destination);
+}
 
 /**
  * POST /api/v1/route-optimization/optimize
  * Optimize a multi-stop route for minimum distance/time/fuel
  * 
  * Body: {
- *   stops: RouteStop[],
+ *   driverLocation: string,
+ *   shipmentIds: string[],
  *   options?: { vehicleType, departureTime, returnToOrigin, avoidHighways, prioritizeFuel, maxDetourMinutes }
  * }
  */
 router.post('/optimize', authenticate, async (req: Request, res: Response): Promise<void> => {
   try {
-    const { stops, options = {} } = req.body;
+    const { driverLocation, shipmentIds, options = {} } = req.body;
 
-    if (!stops || !Array.isArray(stops) || stops.length < 2) {
-      res.status(400).json({ 
-        error: 'At least 2 stops are required',
-        details: 'Provide an array of stops with at least id, address, and type fields'
-      });
+    if (!driverLocation || typeof driverLocation !== 'string') {
+      res.status(400).json({ error: 'Driver location address is required' });
       return;
     }
 
-    // Validate stops  
-    for (const stop of stops) {
-      if (!stop.id || !stop.address || !stop.type) {
-        res.status(400).json({ 
-          error: 'Each stop must have id, address, and type',
-          details: 'Type must be: pickup, delivery, fuel, rest, or current_location'
-        });
-        return;
-      }
+    if (!Array.isArray(shipmentIds) || shipmentIds.length === 0 || shipmentIds.some(id => typeof id !== 'string')) {
+      res.status(400).json({ error: 'At least one valid shipment ID is required' });
+      return;
     }
+    const uniqueShipmentIds = [...new Set(shipmentIds as string[])];
 
     // Only drivers and admins can optimize routes
     if (req.user?.role !== 'driver' && req.user?.role !== 'admin') {
@@ -51,17 +116,31 @@ router.post('/optimize', authenticate, async (req: Request, res: Response): Prom
       return;
     }
 
+    const shipments = await loadAuthorizedShipments(uniqueShipmentIds, req.user.id, req.user.role);
+    if (!shipments) {
+      res.status(403).json({ error: 'One or more shipments are unavailable or not assigned to this driver' });
+      return;
+    }
+
+    const stops = buildStops(driverLocation.trim(), shipments);
+    const totalAcceptedPayout = shipments.reduce(
+      (sum, shipment) => sum + Number(shipment.driver_offer_amount ?? 0),
+      0,
+    );
+
     console.log('Route optimization request:', {
       userId: req.user?.id,
+      shipmentCount: shipments.length,
       stopCount: stops.length,
       options,
     });
 
     const result = await routeOptimizationService.optimizeRoute(stops as RouteStop[], options);
+    const liveEvidence = await loadRouteEvidence(driverLocation.trim(), result.stops);
 
     res.status(200).json({
       success: true,
-      data: result,
+      data: { ...result, totalAcceptedPayout, liveEvidence },
       timestamp: new Date().toISOString(),
     });
   } catch (error: any) {
@@ -79,39 +158,45 @@ router.post('/optimize', authenticate, async (req: Request, res: Response): Prom
  * 
  * Body: {
  *   driverLocation: string,
- *   shipments: Array<{ id, pickupAddress, deliveryAddress, vehicleInfo?, pickupWindow?, deliveryWindow?, priority?, estimatedPayout? }>,
+ *   shipmentIds: string[],
  *   options?: { vehicleType, departureTime, maxHours, preferHighway }
  * }
  */
 router.post('/daily-plan', authenticate, async (req: Request, res: Response): Promise<void> => {
   try {
-    const { driverLocation, shipments, options = {} } = req.body;
+    const { driverLocation, shipmentIds, options = {} } = req.body;
 
     if (!driverLocation || typeof driverLocation !== 'string') {
       res.status(400).json({ error: 'Driver location address is required' });
       return;
     }
 
-    if (!shipments || !Array.isArray(shipments) || shipments.length === 0) {
-      res.status(400).json({ error: 'At least one shipment is required' });
+    if (!Array.isArray(shipmentIds) || shipmentIds.length === 0 || shipmentIds.some(id => typeof id !== 'string')) {
+      res.status(400).json({ error: 'At least one valid shipment ID is required' });
       return;
     }
-
-    // Validate shipments
-    for (const shipment of shipments) {
-      if (!shipment.id || !shipment.pickupAddress || !shipment.deliveryAddress) {
-        res.status(400).json({ 
-          error: 'Each shipment must have id, pickupAddress, and deliveryAddress' 
-        });
-        return;
-      }
-    }
+    const uniqueShipmentIds = [...new Set(shipmentIds as string[])];
 
     // Only drivers and admins
     if (req.user?.role !== 'driver' && req.user?.role !== 'admin') {
       res.status(403).json({ error: 'Driver or admin access required' });
       return;
     }
+
+    const shipments = await loadAuthorizedShipments(uniqueShipmentIds, req.user.id, req.user.role);
+    if (!shipments) {
+      res.status(403).json({ error: 'One or more shipments are unavailable or not assigned to this driver' });
+      return;
+    }
+
+    const planShipments = shipments.map(shipment => ({
+      id: shipment.id,
+      pickupAddress: shipment.pickup_address,
+      deliveryAddress: shipment.delivery_address,
+      vehicleInfo: shipment.title ?? undefined,
+      estimatedPayout: Number(shipment.driver_offer_amount ?? 0),
+      status: shipment.status,
+    }));
 
     console.log('Daily plan request:', {
       userId: req.user?.id,
@@ -120,12 +205,19 @@ router.post('/daily-plan', authenticate, async (req: Request, res: Response): Pr
     });
 
     const plan = await routeOptimizationService.generateDailyPlan(
-      driverLocation, shipments, options
+      driverLocation.trim(), planShipments, options
     );
+    const firstRoute = plan.routes[0];
+    const liveEvidence = firstRoute
+      ? await loadRouteEvidence(driverLocation.trim(), firstRoute.stops)
+      : null;
+    const routes = firstRoute
+      ? [{ ...firstRoute, liveEvidence }, ...plan.routes.slice(1)]
+      : plan.routes;
 
     res.status(200).json({
       success: true,
-      data: plan,
+      data: { ...plan, routes, totalAcceptedPayout: plan.totalEarnings },
       timestamp: new Date().toISOString(),
     });
   } catch (error: any) {
@@ -153,9 +245,8 @@ router.get('/fuel-prices', authenticate, async (_req: Request, res: Response): P
           GA: { state: 'Georgia', pricePerGallon: 3.15, currency: 'USD' },
           TN: { state: 'Tennessee', pricePerGallon: 3.10, currency: 'USD' },
         },
-        lastUpdated: new Date().toISOString(),
-        note: 'Estimates based on regional averages. Actual prices vary by station.',
-        tip: 'South Carolina consistently has the lowest fuel prices in the region. Fill up when crossing the state line!',
+        source: 'Static planning assumptions',
+        note: 'Not live station prices. Confirm current prices before making a fuel stop.',
       },
       timestamp: new Date().toISOString(),
     });
@@ -205,6 +296,7 @@ router.get('/traffic', authenticate, async (_req: Request, res: Response): Promi
       success: true,
       data: {
         currentTime: now.toISOString(),
+        source: 'Typical metro rush-hour schedule, not live traffic incidents',
         conditions,
         overallStatus: conditions.some(c => c.status === 'congested') ? 'some_congestion' : 'all_clear',
         tip: conditions.some(c => c.status === 'congested')

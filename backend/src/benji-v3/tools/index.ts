@@ -198,6 +198,11 @@ export const V3_TOOL_DEFINITIONS: OpenAI.Chat.Completions.ChatCompletionTool[] =
             type: 'string',
             description: 'Optional ISO departure date/time. Defaults to now.',
           },
+          shipment_ids: {
+            type: 'array',
+            items: { type: 'string' },
+            description: 'Optional shipment IDs selected in the route planner. Plan only these assigned shipments when provided.',
+          },
         },
         required: [],
       },
@@ -1150,7 +1155,7 @@ interface DriverRouteShipment {
   vehicle_model?: string | null;
   pickup_address: string;
   delivery_address: string;
-  estimated_price?: number | null;
+  driver_offer_amount?: number | null;
 }
 
 interface ShipmentCoordinates {
@@ -1183,6 +1188,9 @@ export async function execPlanRoute(
   const vehicleSlots = args['vehicle_slots'] === undefined
     ? undefined
     : Number(args['vehicle_slots']);
+  const shipmentIds = Array.isArray(args['shipment_ids'])
+    ? args['shipment_ids'].filter((id): id is string => typeof id === 'string')
+    : [];
 
   if (vehicleSlots !== undefined && (!Number.isInteger(vehicleSlots) || vehicleSlots < 1)) {
     return {
@@ -1195,12 +1203,16 @@ export async function execPlanRoute(
 
   try {
     const { supabaseAdmin } = await import('../../lib/supabase');
-    const { data, error } = await supabaseAdmin
+    let query = supabaseAdmin
       .from('shipments')
-      .select('id, status, title, vehicle_year, vehicle_make, vehicle_model, pickup_address, delivery_address, estimated_price')
+      .select('id, status, title, vehicle_year, vehicle_make, vehicle_model, pickup_address, delivery_address, driver_offer_amount')
       .eq('driver_id', userId)
       .in('status', ['accepted', 'assigned'])
       .order('created_at', { ascending: false });
+
+    if (shipmentIds.length > 0) query = query.in('id', shipmentIds);
+
+    const { data, error } = await query;
 
     if (error) {
       return {
@@ -1212,6 +1224,14 @@ export async function execPlanRoute(
     }
 
     const shipments = (data ?? []) as DriverRouteShipment[];
+    if (shipmentIds.length > 0 && shipments.length !== new Set(shipmentIds).size) {
+      return {
+        success: false,
+        data: null,
+        summary: '',
+        errorMessage: 'One or more selected shipments are unavailable or not assigned to you.',
+      };
+    }
     if (shipments.length === 0) {
       return {
         success: true,
@@ -1277,6 +1297,13 @@ export async function execPlanRoute(
       ...(departureTime ? { departureTime } : {}),
       ...(vehicleSlots !== undefined ? { vehicleSlots } : {}),
     });
+    const firstPlannedStop = route.stops.find(stop => stop.type !== 'current_location');
+    const liveEvidence = firstPlannedStop
+      ? await (await import('../../services/pricingLiveEvidence.service')).pricingLiveEvidenceService.collect(
+          stops[0]!.address,
+          firstPlannedStop.address,
+        )
+      : null;
 
     const sequence = route.stops
       .filter(stop => stop.type === 'pickup' || stop.type === 'delivery')
@@ -1285,20 +1312,32 @@ export async function execPlanRoute(
         const vehicle = stop.vehicleInfo ? ` — ${stop.vehicleInfo}` : '';
         return `${index + 1}. ${action}: ${stop.address}${vehicle}`;
       });
-    const totalRevenue = shipments.reduce(
-      (sum, shipment) => sum + (typeof shipment.estimated_price === 'number' ? shipment.estimated_price : 0),
+    const totalAcceptedPayout = shipments.reduce(
+      (sum, shipment) => sum + (typeof shipment.driver_offer_amount === 'number' ? shipment.driver_offer_amount : 0),
       0
     );
     const hours = Math.round((route.summary.totalDuration / 60) * 10) / 10;
     const originNote = assumedOrigin
       ? `Planning starts at your first pickup (${firstShipment.pickup_address}) because no current location was available.\n`
       : '';
+    const repositioningNote = route.savings.emptyMilesSaved > 0
+      ? `Delivery-to-pickup repositioning reduced by ${route.savings.emptyMilesSaved} miles versus the original order.\n`
+      : '';
+    const trafficNote = liveEvidence?.traffic.status === 'available' && liveEvidence.traffic.evidence
+      ? `Next-leg traffic delay: ${Math.round(liveEvidence.traffic.evidence.delaySeconds / 60)} minutes (Google Routes, observed ${liveEvidence.traffic.observedAt}).\n`
+      : '';
+    const weatherNote = liveEvidence?.weather.status === 'available' && liveEvidence.weather.evidence
+      ? `Next-leg midpoint weather: ${liveEvidence.weather.evidence.condition}, ${Math.round(liveEvidence.weather.evidence.temperatureFahrenheit)}°F, ${Math.round(liveEvidence.weather.evidence.windSpeedMph)} mph wind (OpenWeather, observed ${liveEvidence.weather.observedAt}).\n`
+      : '';
     const summary = formatForSms(
       `Your optimized route covers ${shipments.length} shipment${shipments.length === 1 ? '' : 's'}.\n` +
       originNote +
       `${sequence.join('\n')}\n` +
+      repositioningNote +
+      trafficNote +
+      weatherNote +
       `Total: ${route.summary.totalDistance} miles · about ${hours} hours · ` +
-      `$${totalRevenue.toFixed(2)} assigned revenue · $${route.summary.totalFuelCost.toFixed(2)} estimated fuel.`
+      `$${totalAcceptedPayout.toFixed(2)} accepted payout · $${route.summary.totalFuelCost.toFixed(2)} estimated fuel.`
     );
 
     return {
@@ -1307,7 +1346,9 @@ export async function execPlanRoute(
         route,
         shipmentCount: shipments.length,
         shipmentIds: shipments.map(shipment => shipment.id),
-        totalRevenue,
+        totalAcceptedPayout,
+        liveEvidence,
+        repositioningMilesReduced: route.savings.emptyMilesSaved,
         vehicleSlots: vehicleSlots ?? 8,
         originAssumed: assumedOrigin,
       },

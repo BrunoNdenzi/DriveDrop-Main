@@ -77,6 +77,26 @@ interface RouteSavings {
   percentImprovement: number
 }
 
+interface EvidenceSource<T> {
+  provider: 'google_maps' | 'here' | 'openweather' | 'opis'
+  status: 'available' | 'unavailable' | 'error'
+  observedAt: string
+  freshUntil: string
+  evidence?: T
+}
+
+interface RouteLiveEvidence {
+  traffic: EvidenceSource<{ delaySeconds: number; delayPercent: number }>
+  tolls: EvidenceSource<{ currency: string; estimatedAmount: number; tollCount: number }>
+  weather: EvidenceSource<{
+    condition: string
+    temperatureFahrenheit: number
+    windSpeedMph: number
+    precipitationOneHourInches: number
+  }>
+  fuel: EvidenceSource<Record<string, never>>
+}
+
 interface CarolinaInsight {
   type: 'corridor' | 'traffic' | 'weather' | 'construction' | 'tip'
   title: string
@@ -104,6 +124,8 @@ interface BreakRec {
 interface OptimizedRoute {
   stops: OptimizedStop[]
   summary: RouteSummary
+  totalAcceptedPayout: number
+  liveEvidence: RouteLiveEvidence | null
   savings: RouteSavings
   carolinaInsights: CarolinaInsight[]
   fuelStops: FuelStopRec[]
@@ -115,6 +137,7 @@ interface DailyPlan {
   driverLocation: string
   routes: OptimizedRoute[]
   totalEarnings: number
+  totalAcceptedPayout: number
   totalMiles: number
   totalHours: number
   breakSchedule: BreakRec[]
@@ -136,7 +159,7 @@ interface Shipment {
   delivery_address: string
   title: string
   status: string
-  estimated_price?: number
+  driver_offer_amount: number | null
 }
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -151,6 +174,7 @@ export default function RouteOptimizer({ driverId }: { driverId: string }) {
   const [selectedShipmentIds, setSelectedShipmentIds] = useState<Set<string>>(new Set())
   const [driverLocation, setDriverLocation] = useState('')
   const [vehicleType, setVehicleType] = useState('default')
+  const [vehicleSlots, setVehicleSlots] = useState(1)
   const [departureTime, setDepartureTime] = useState('')
   const [optimizedRoute, setOptimizedRoute] = useState<OptimizedRoute | null>(null)
   const [dailyPlan, setDailyPlan] = useState<DailyPlan | null>(null)
@@ -280,7 +304,7 @@ export default function RouteOptimizer({ driverId }: { driverId: string }) {
       try {
         const { data, error } = await supabase
           .from('shipments')
-          .select('id, pickup_address, delivery_address, title, status, estimated_price')
+          .select('id, pickup_address, delivery_address, title, status, driver_offer_amount')
           .in('status', ['accepted', 'assigned', 'picked_up', 'in_transit'])
           .eq('driver_id', driverId)
           .order('created_at', { ascending: false })
@@ -334,44 +358,15 @@ export default function RouteOptimizer({ driverId }: { driverId: string }) {
     try {
       const headers = await getHeaders()
 
-      // Build stops from SELECTED shipments only
-      const stops: RouteStop[] = [
-        {
-          id: 'driver-start',
-          address: driverLocation,
-          type: 'current_location',
-          estimatedDuration: 0,
-        },
-      ]
-
-      for (const shipment of selectedShipments) {
-        if (['accepted', 'assigned'].includes(shipment.status)) {
-          stops.push({
-            id: `pickup-${shipment.id}`,
-            address: shipment.pickup_address,
-            type: 'pickup',
-            shipmentId: shipment.id,
-            vehicleInfo: shipment.title,
-            estimatedDuration: 20,
-          })
-        }
-        stops.push({
-          id: `delivery-${shipment.id}`,
-          address: shipment.delivery_address,
-          type: 'delivery',
-          shipmentId: shipment.id,
-          vehicleInfo: shipment.title,
-          estimatedDuration: 15,
-        })
-      }
-
       const response = await fetch(`${API_BASE_URL}/route-optimization/optimize`, {
         method: 'POST',
         headers,
         body: JSON.stringify({
-          stops,
+          driverLocation: driverLocation.trim(),
+          shipmentIds: selectedShipments.map(shipment => shipment.id),
           options: {
             vehicleType,
+            vehicleSlots,
             departureTime: departureTime || undefined,
             prioritizeFuel: true,
           },
@@ -405,22 +400,15 @@ export default function RouteOptimizer({ driverId }: { driverId: string }) {
     try {
       const headers = await getHeaders()
 
-      const shipments = selectedShipments.map(s => ({
-        id: s.id,
-        pickupAddress: s.pickup_address,
-        deliveryAddress: s.delivery_address,
-        vehicleInfo: s.title,
-        estimatedPayout: s.estimated_price || 0,
-      }))
-
       const response = await fetch(`${API_BASE_URL}/route-optimization/daily-plan`, {
         method: 'POST',
         headers,
         body: JSON.stringify({
-          driverLocation,
-          shipments,
+          driverLocation: driverLocation.trim(),
+          shipmentIds: selectedShipments.map(shipment => shipment.id),
           options: {
             vehicleType,
+            vehicleSlots,
             departureTime: departureTime || undefined,
           },
         }),
@@ -431,7 +419,10 @@ export default function RouteOptimizer({ driverId }: { driverId: string }) {
 
       setDailyPlan(result.data)
       if (result.data.routes?.[0]) {
-        setOptimizedRoute(result.data.routes[0])
+        setOptimizedRoute({
+          ...result.data.routes[0],
+          totalAcceptedPayout: result.data.totalAcceptedPayout,
+        })
       }
       toast('Daily plan ready!', 'success')
     } catch (err: any) {
@@ -466,7 +457,7 @@ export default function RouteOptimizer({ driverId }: { driverId: string }) {
     try {
       const headers = await getHeaders()
       const message = driverLocation.trim()
-        ? `${q}\nCurrent driver location: ${driverLocation.trim()}`
+        ? `${q}\nCurrent driver location: ${driverLocation.trim()}\nTrailer capacity: ${vehicleSlots} vehicle${vehicleSlots === 1 ? '' : 's'}.\nUse only these selected shipment IDs: ${selectedShipments.map(shipment => shipment.id).join(', ')}`
         : q
       const response = await fetch(`${API_BASE_URL}/benji-v3/chat`, {
         method: 'POST',
@@ -571,7 +562,7 @@ export default function RouteOptimizer({ driverId }: { driverId: string }) {
       {/* ── Configuration Panel ───────────────────────────────────── */}
       <div className="bg-white rounded-lg border border-gray-200 p-5">
         <h3 className="text-sm font-semibold text-gray-900 mb-4">Route Configuration</h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
           {/* Driver Location */}
           <div>
             <label className="block text-xs font-medium text-gray-600 mb-1">Your Location</label>
@@ -617,6 +608,20 @@ export default function RouteOptimizer({ driverId }: { driverId: string }) {
               <option value="flatbed_loaded">Flatbed</option>
               <option value="pickup_with_trailer">Pickup + Trailer</option>
             </select>
+          </div>
+
+          {/* Trailer Capacity */}
+          <div>
+            <label className="block text-xs font-medium text-gray-600 mb-1">Trailer Capacity</label>
+            <input
+              type="number"
+              min={1}
+              max={12}
+              step={1}
+              value={vehicleSlots}
+              onChange={e => setVehicleSlots(Math.min(12, Math.max(1, Number(e.target.value) || 1)))}
+              className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none"
+            />
           </div>
 
           {/* Departure Time */}
@@ -766,9 +771,9 @@ export default function RouteOptimizer({ driverId }: { driverId: string }) {
                   </div>
 
                   {/* Price */}
-                  {shipment.estimated_price && (
+                  {shipment.driver_offer_amount !== null && shipment.driver_offer_amount > 0 && (
                     <span className={`text-sm font-semibold shrink-0 ${isSelected ? 'text-green-600' : 'text-gray-400'}`}>
-                      ${shipment.estimated_price.toFixed(0)}
+                      ${shipment.driver_offer_amount.toFixed(2)}
                     </span>
                   )}
                 </button>
@@ -793,8 +798,8 @@ export default function RouteOptimizer({ driverId }: { driverId: string }) {
           <div className="grid grid-cols-2 lg:grid-cols-6 gap-3">
             <SummaryCard
               icon={<DollarSign className="h-5 w-5 text-green-600" />}
-              label="Total Earnings"
-              value={`$${activeShipments.filter(s => selectedShipmentIds.has(s.id)).reduce((sum, s) => sum + (s.estimated_price || 0), 0).toFixed(2)}`}
+              label="Accepted Payout"
+              value={`$${optimizedRoute.totalAcceptedPayout.toFixed(2)}`}
               highlight
             />
             <SummaryCard
@@ -824,6 +829,8 @@ export default function RouteOptimizer({ driverId }: { driverId: string }) {
             />
           </div>
 
+          <RouteConditions evidence={optimizedRoute.liveEvidence} />
+
           {/* Optimized Shipments Count */}
           <div className="flex flex-wrap items-center gap-2 px-4 py-3 bg-amber-50 border border-amber-200 rounded-lg">
             <Package className="h-5 w-5 text-amber-600" />
@@ -832,13 +839,13 @@ export default function RouteOptimizer({ driverId }: { driverId: string }) {
             </span>
             <span
               className="inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-2 py-1 text-xs font-medium text-emerald-700"
-              title="Pickup-before-delivery order and trailer capacity are validated by the route optimizer"
+              title={`Pickup-before-delivery order and a ${vehicleSlots}-vehicle trailer limit are validated by the route optimizer`}
             >
               <CheckCircle className="h-3.5 w-3.5" />
-              Legal &amp; capacity-safe
+              Order + {vehicleSlots}-vehicle capacity validated
             </span>
             <span className="text-xs text-amber-600 sm:ml-auto">
-              Net Profit: ${(activeShipments.filter(s => selectedShipmentIds.has(s.id)).reduce((sum, s) => sum + (s.estimated_price || 0), 0) - optimizedRoute.summary.totalFuelCost).toFixed(2)}
+              Payout less estimated fuel: ${(optimizedRoute.totalAcceptedPayout - optimizedRoute.summary.totalFuelCost).toFixed(2)}
             </span>
           </div>
 
@@ -864,7 +871,7 @@ export default function RouteOptimizer({ driverId }: { driverId: string }) {
                   <p className="text-xl font-bold text-green-700">${optimizedRoute.savings.fuelCostSaved.toFixed(2)}</p>
                 </div>
                 <div className="bg-amber-50 rounded-lg p-4 border border-amber-200">
-                  <p className="text-xs text-amber-600 font-medium">Deadhead Miles Cut</p>
+                  <p className="text-xs text-amber-600 font-medium">Delivery-to-Pickup Miles Reduced</p>
                   <p className="text-xl font-bold text-amber-700">{optimizedRoute.savings.emptyMilesSaved} mi</p>
                 </div>
               </div>
@@ -879,17 +886,15 @@ export default function RouteOptimizer({ driverId }: { driverId: string }) {
             onToggle={() => toggleSection('costComparison')}
           >
             {(() => {
-              const totalEarnings = activeShipments
-                .filter(s => selectedShipmentIds.has(s.id))
-                .reduce((sum, s) => sum + (s.estimated_price || 0), 0)
+              const totalEarnings = optimizedRoute.totalAcceptedPayout
               const optimizedFuel = optimizedRoute.summary.totalFuelCost
               const unoptimizedFuel = optimizedFuel + optimizedRoute.savings.fuelCostSaved
               const optimizedDist = optimizedRoute.summary.totalDistance
               const unoptimizedDist = optimizedDist + optimizedRoute.savings.distanceSaved
               const optimizedTime = optimizedRoute.summary.totalDuration
               const unoptimizedTime = optimizedTime + optimizedRoute.savings.timeSaved
-              const optimizedProfit = totalEarnings - optimizedFuel
-              const unoptimizedProfit = totalEarnings - unoptimizedFuel
+              const optimizedContribution = totalEarnings - optimizedFuel
+              const unoptimizedContribution = totalEarnings - unoptimizedFuel
               return (
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                   {/* Unoptimized Column */}
@@ -898,12 +903,12 @@ export default function RouteOptimizer({ driverId }: { driverId: string }) {
                       <AlertTriangle className="h-4 w-4" /> Without Optimization
                     </h4>
                     <div className="space-y-2 text-sm">
-                      <div className="flex justify-between"><span className="text-red-600">Distance</span><span className="font-medium text-red-700">{unoptimizedDist} mi</span></div>
+                      <div className="flex justify-between"><span className="text-red-600">Distance</span><span className="font-medium text-red-700">{unoptimizedDist.toFixed(1)} mi</span></div>
                       <div className="flex justify-between"><span className="text-red-600">Time</span><span className="font-medium text-red-700">{Math.round(unoptimizedTime / 60 * 10) / 10} hrs</span></div>
                       <div className="flex justify-between"><span className="text-red-600">Fuel Cost</span><span className="font-medium text-red-700">${unoptimizedFuel.toFixed(2)}</span></div>
-                      <div className="flex justify-between"><span className="text-red-600">Earnings</span><span className="font-medium text-red-700">${totalEarnings.toFixed(2)}</span></div>
+                      <div className="flex justify-between"><span className="text-red-600">Accepted payout</span><span className="font-medium text-red-700">${totalEarnings.toFixed(2)}</span></div>
                       <hr className="border-red-200" />
-                      <div className="flex justify-between font-bold"><span className="text-red-700">Net Profit</span><span className="text-red-800">${unoptimizedProfit.toFixed(2)}</span></div>
+                      <div className="flex justify-between font-bold"><span className="text-red-700">Payout less fuel</span><span className="text-red-800">${unoptimizedContribution.toFixed(2)}</span></div>
                     </div>
                   </div>
                   {/* Optimized Column */}
@@ -912,12 +917,12 @@ export default function RouteOptimizer({ driverId }: { driverId: string }) {
                       <CheckCircle className="h-4 w-4" /> With Optimization
                     </h4>
                     <div className="space-y-2 text-sm">
-                      <div className="flex justify-between"><span className="text-emerald-600">Distance</span><span className="font-medium text-emerald-700">{optimizedDist} mi</span></div>
+                      <div className="flex justify-between"><span className="text-emerald-600">Distance</span><span className="font-medium text-emerald-700">{optimizedDist.toFixed(1)} mi</span></div>
                       <div className="flex justify-between"><span className="text-emerald-600">Time</span><span className="font-medium text-emerald-700">{Math.round(optimizedTime / 60 * 10) / 10} hrs</span></div>
                       <div className="flex justify-between"><span className="text-emerald-600">Fuel Cost</span><span className="font-medium text-emerald-700">${optimizedFuel.toFixed(2)}</span></div>
-                      <div className="flex justify-between"><span className="text-emerald-600">Earnings</span><span className="font-medium text-emerald-700">${totalEarnings.toFixed(2)}</span></div>
+                      <div className="flex justify-between"><span className="text-emerald-600">Accepted payout</span><span className="font-medium text-emerald-700">${totalEarnings.toFixed(2)}</span></div>
                       <hr className="border-emerald-200" />
-                      <div className="flex justify-between font-bold"><span className="text-emerald-700">Net Profit</span><span className="text-emerald-800">${optimizedProfit.toFixed(2)}</span></div>
+                      <div className="flex justify-between font-bold"><span className="text-emerald-700">Payout less fuel</span><span className="text-emerald-800">${optimizedContribution.toFixed(2)}</span></div>
                     </div>
                   </div>
                 </div>
@@ -1016,7 +1021,7 @@ export default function RouteOptimizer({ driverId }: { driverId: string }) {
                 </span>
               </div>
               <div className="flex items-center gap-2">
-                <span className="text-[10px] px-2 py-0.5 rounded-full bg-green-100 text-green-700 font-medium">LIVE</span>
+                <span className="text-[10px] px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 font-medium">PLANNED</span>
                 {mapExpanded ? <ChevronUp className="h-4 w-4 text-gray-400" /> : <ChevronDown className="h-4 w-4 text-gray-400" />}
               </div>
             </button>
@@ -1033,6 +1038,10 @@ export default function RouteOptimizer({ driverId }: { driverId: string }) {
                     order: s.order,
                     estimatedArrival: s.estimatedArrival,
                   }))}
+                  plannedDistance={optimizedRoute.summary.totalDistance}
+                  plannedDurationMinutes={optimizedRoute.summary.totalDuration}
+                  plannedEndTime={optimizedRoute.summary.estimatedEndTime}
+                  departureTime={optimizedRoute.summary.estimatedStartTime}
                   height="h-[500px]"
                   showOverlay={true}
                   carolinaInsights={optimizedRoute.carolinaInsights}
@@ -1134,12 +1143,12 @@ export default function RouteOptimizer({ driverId }: { driverId: string }) {
                 <p className="text-2xl font-bold">{dailyPlan.totalHours}</p>
               </div>
               <div>
-                <p className="text-xs text-amber-100">Est. Earnings</p>
+                <p className="text-xs text-amber-100">Accepted Payout</p>
                 <p className="text-2xl font-bold">${dailyPlan.totalEarnings.toFixed(2)}</p>
               </div>
               <div>
                 <p className="text-xs text-amber-100">Shipments</p>
-                <p className="text-2xl font-bold">{activeShipments.length}</p>
+                <p className="text-2xl font-bold">{selectedShipments.length}</p>
               </div>
             </div>
           </div>
@@ -1157,7 +1166,7 @@ export default function RouteOptimizer({ driverId }: { driverId: string }) {
             </div>
           </div>
 
-          {/* Weather */}
+          {/* External condition reminder */}
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 flex items-center gap-3">
             <Cloud className="h-5 w-5 text-blue-500 shrink-0" />
             <p className="text-sm text-blue-800">{dailyPlan.weatherForecast}</p>
@@ -1223,9 +1232,12 @@ export default function RouteOptimizer({ driverId }: { driverId: string }) {
         <div className="space-y-4">
           <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
             <div className="px-5 py-3 border-b border-gray-100 flex items-center justify-between">
-              <h3 className="text-sm font-semibold text-gray-900">Carolina Metro Traffic</h3>
+              <div>
+                <h3 className="text-sm font-semibold text-gray-900">Typical Carolina Metro Traffic</h3>
+                <p className="text-xs text-gray-500">Schedule-based guidance, not live incidents</p>
+              </div>
               <span className="text-xs text-gray-500">
-                Updated: {new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}
+                Evaluated: {new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}
               </span>
             </div>
             <div className="divide-y divide-gray-100">
@@ -1251,7 +1263,7 @@ export default function RouteOptimizer({ driverId }: { driverId: string }) {
                     ) : (
                       <span className="inline-flex items-center gap-1 text-xs font-medium text-emerald-600 bg-emerald-50 px-2 py-1 rounded-full border border-emerald-200">
                         <CheckCircle className="h-3 w-3" />
-                        Clear
+                        Outside typical rush
                       </span>
                     )}
                   </div>
@@ -1359,6 +1371,68 @@ export default function RouteOptimizer({ driverId }: { driverId: string }) {
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // Sub-components
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+function RouteConditions({ evidence }: { evidence: RouteLiveEvidence | null }) {
+  if (!evidence) return null
+
+  const observed = (source: EvidenceSource<unknown>) =>
+    `Observed ${new Date(source.observedAt).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}`
+  const unavailable = (source: EvidenceSource<unknown>) => source.status !== 'available' || !source.evidence
+
+  return (
+    <div className="bg-white rounded-lg border border-gray-200 p-4">
+      <div className="flex items-center justify-between mb-3 gap-3">
+        <h3 className="text-sm font-semibold text-gray-900">Next Leg Conditions</h3>
+        <span className="text-xs text-gray-500 text-right">Provider observations, verify before departure</span>
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+        <ConditionItem
+          icon={<Route className="h-4 w-4 text-blue-600" />}
+          label="Next-leg traffic delay"
+          value={unavailable(evidence.traffic)
+            ? 'Unavailable'
+            : `${Math.round(evidence.traffic.evidence!.delaySeconds / 60)} min (${Math.round(evidence.traffic.evidence!.delayPercent)}%)`}
+          source={`Google Routes · ${observed(evidence.traffic)}`}
+        />
+        <ConditionItem
+          icon={<DollarSign className="h-4 w-4 text-emerald-600" />}
+          label="Next-leg estimated tolls"
+          value={unavailable(evidence.tolls)
+            ? 'Unavailable'
+            : `$${evidence.tolls.evidence!.estimatedAmount.toFixed(2)} · ${evidence.tolls.evidence!.tollCount} toll${evidence.tolls.evidence!.tollCount === 1 ? '' : 's'}`}
+          source={`HERE · ${observed(evidence.tolls)}`}
+        />
+        <ConditionItem
+          icon={<Cloud className="h-4 w-4 text-sky-600" />}
+          label="Next-leg midpoint weather"
+          value={unavailable(evidence.weather)
+            ? 'Unavailable'
+            : `${evidence.weather.evidence!.condition} · ${Math.round(evidence.weather.evidence!.temperatureFahrenheit)}°F · ${Math.round(evidence.weather.evidence!.windSpeedMph)} mph wind`}
+          source={`OpenWeather · ${observed(evidence.weather)}`}
+        />
+        <ConditionItem
+          icon={<Fuel className="h-4 w-4 text-amber-600" />}
+          label="Fuel pricing"
+          value="Planning estimate"
+          source="Live station provider not connected"
+        />
+      </div>
+    </div>
+  )
+}
+
+function ConditionItem({ icon, label, value, source }: { icon: React.ReactNode; label: string; value: string; source: string }) {
+  return (
+    <div className="min-w-0 border-l-2 border-gray-200 pl-3">
+      <div className="flex items-center gap-1.5 text-xs font-medium text-gray-600">
+        {icon}
+        {label}
+      </div>
+      <p className="mt-1 text-sm font-semibold text-gray-900">{value}</p>
+      <p className="mt-0.5 text-[11px] text-gray-500">{source}</p>
+    </div>
+  )
+}
 
 function SummaryCard({
   icon,
