@@ -308,6 +308,8 @@ export default function RouteOptimizer({ driverId }: { driverId: string }) {
   // ── Load Active Shipments ──────────────────────────────────────────
 
   useEffect(() => {
+    if (!driverId) return
+
     const loadShipments = async () => {
       try {
         const { data, error } = await supabase
