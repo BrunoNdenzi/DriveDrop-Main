@@ -337,7 +337,7 @@ class RouteOptimizationService {
 
     // 11. Carolina-specific insights
     const carolinaInsights = this.generateCarolinaInsights(
-      optimizedStops, legs, departureTime
+      legs, departureTime
     );
 
     // 12. Fuel stop recommendations
@@ -850,7 +850,6 @@ class RouteOptimizationService {
 
   /** Generate Carolina-specific route insights */
   private generateCarolinaInsights(
-    stops: OptimizedStop[],
     legs: RouteLeg[],
     departureTime: Date
   ): CarolinaInsight[] {

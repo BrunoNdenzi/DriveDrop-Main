@@ -193,7 +193,7 @@ router.post('/daily-plan', authenticate, async (req: Request, res: Response): Pr
       id: shipment.id,
       pickupAddress: shipment.pickup_address,
       deliveryAddress: shipment.delivery_address,
-      vehicleInfo: shipment.title ?? undefined,
+      ...(shipment.title ? { vehicleInfo: shipment.title } : {}),
       estimatedPayout: Number(shipment.driver_offer_amount ?? 0),
       status: shipment.status,
     }));
