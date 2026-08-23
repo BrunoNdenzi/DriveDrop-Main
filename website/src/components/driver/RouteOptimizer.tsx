@@ -133,6 +133,8 @@ interface OptimizedRoute {
   stops: OptimizedStop[]
   summary: RouteSummary
   totalAcceptedPayout: number
+  payoutShipmentCount: number
+  missingPayoutCount: number
   liveEvidence: RouteLiveEvidence | null
   savings: RouteSavings
   carolinaInsights: CarolinaInsight[]
@@ -146,6 +148,8 @@ interface DailyPlan {
   routes: OptimizedRoute[]
   totalEarnings: number
   totalAcceptedPayout: number
+  payoutShipmentCount: number
+  missingPayoutCount: number
   totalMiles: number
   totalHours: number
   breakSchedule: BreakRec[]
@@ -432,6 +436,8 @@ export default function RouteOptimizer({ driverId }: { driverId: string }) {
         setOptimizedRoute({
           ...result.data.routes[0],
           totalAcceptedPayout: result.data.totalAcceptedPayout,
+          payoutShipmentCount: result.data.payoutShipmentCount,
+          missingPayoutCount: result.data.missingPayoutCount,
         })
       }
       toast('Daily plan ready!', 'success')
@@ -808,7 +814,7 @@ export default function RouteOptimizer({ driverId }: { driverId: string }) {
           <div className="grid grid-cols-2 lg:grid-cols-6 gap-3">
             <SummaryCard
               icon={<DollarSign className="h-5 w-5 text-green-600" />}
-              label="Accepted Payout"
+              label={optimizedRoute.missingPayoutCount > 0 ? 'Known Payout' : 'Accepted Payout'}
               value={`$${optimizedRoute.totalAcceptedPayout.toFixed(2)}`}
               highlight
             />
@@ -839,6 +845,18 @@ export default function RouteOptimizer({ driverId }: { driverId: string }) {
             />
           </div>
 
+          {optimizedRoute.missingPayoutCount > 0 && (
+            <div className="flex items-start gap-3 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-amber-900">
+              <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0" />
+              <div>
+                <p className="text-sm font-semibold">Route payout is incomplete</p>
+                <p className="text-xs">
+                  {optimizedRoute.missingPayoutCount} of {optimizedRoute.payoutShipmentCount + optimizedRoute.missingPayoutCount} selected shipments have no accepted driver payout. Profit is unavailable until every payout is set.
+                </p>
+              </div>
+            </div>
+          )}
+
           <RouteConditions evidence={optimizedRoute.liveEvidence} />
 
           {/* Optimized Shipments Count */}
@@ -855,7 +873,9 @@ export default function RouteOptimizer({ driverId }: { driverId: string }) {
               Order + {vehicleSlots}-vehicle capacity validated
             </span>
             <span className="text-xs text-amber-600 sm:ml-auto">
-              Payout less estimated fuel: ${(optimizedRoute.totalAcceptedPayout - optimizedRoute.summary.totalFuelCost).toFixed(2)}
+              {optimizedRoute.missingPayoutCount > 0
+                ? 'Payout less estimated fuel: Incomplete'
+                : `Payout less estimated fuel: $${(optimizedRoute.totalAcceptedPayout - optimizedRoute.summary.totalFuelCost).toFixed(2)}`}
             </span>
           </div>
 
@@ -905,6 +925,7 @@ export default function RouteOptimizer({ driverId }: { driverId: string }) {
               const unoptimizedTime = optimizedTime + optimizedRoute.savings.timeSaved
               const optimizedContribution = totalEarnings - optimizedFuel
               const unoptimizedContribution = totalEarnings - unoptimizedFuel
+              const payoutComplete = optimizedRoute.missingPayoutCount === 0
               return (
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                   {/* Unoptimized Column */}
@@ -916,9 +937,9 @@ export default function RouteOptimizer({ driverId }: { driverId: string }) {
                       <div className="flex justify-between"><span className="text-red-600">Distance</span><span className="font-medium text-red-700">{unoptimizedDist.toFixed(1)} mi</span></div>
                       <div className="flex justify-between"><span className="text-red-600">Time</span><span className="font-medium text-red-700">{Math.round(unoptimizedTime / 60 * 10) / 10} hrs</span></div>
                       <div className="flex justify-between"><span className="text-red-600">Fuel Cost</span><span className="font-medium text-red-700">${unoptimizedFuel.toFixed(2)}</span></div>
-                      <div className="flex justify-between"><span className="text-red-600">Accepted payout</span><span className="font-medium text-red-700">${totalEarnings.toFixed(2)}</span></div>
+                      <div className="flex justify-between"><span className="text-red-600">{payoutComplete ? 'Accepted payout' : 'Known payout'}</span><span className="font-medium text-red-700">${totalEarnings.toFixed(2)}</span></div>
                       <hr className="border-red-200" />
-                      <div className="flex justify-between font-bold"><span className="text-red-700">Payout less fuel</span><span className="text-red-800">${unoptimizedContribution.toFixed(2)}</span></div>
+                      <div className="flex justify-between font-bold"><span className="text-red-700">Payout less fuel</span><span className="text-red-800">{payoutComplete ? `$${unoptimizedContribution.toFixed(2)}` : 'Incomplete'}</span></div>
                     </div>
                   </div>
                   {/* Optimized Column */}
@@ -930,9 +951,9 @@ export default function RouteOptimizer({ driverId }: { driverId: string }) {
                       <div className="flex justify-between"><span className="text-emerald-600">Distance</span><span className="font-medium text-emerald-700">{optimizedDist.toFixed(1)} mi</span></div>
                       <div className="flex justify-between"><span className="text-emerald-600">Time</span><span className="font-medium text-emerald-700">{Math.round(optimizedTime / 60 * 10) / 10} hrs</span></div>
                       <div className="flex justify-between"><span className="text-emerald-600">Fuel Cost</span><span className="font-medium text-emerald-700">${optimizedFuel.toFixed(2)}</span></div>
-                      <div className="flex justify-between"><span className="text-emerald-600">Accepted payout</span><span className="font-medium text-emerald-700">${totalEarnings.toFixed(2)}</span></div>
+                      <div className="flex justify-between"><span className="text-emerald-600">{payoutComplete ? 'Accepted payout' : 'Known payout'}</span><span className="font-medium text-emerald-700">${totalEarnings.toFixed(2)}</span></div>
                       <hr className="border-emerald-200" />
-                      <div className="flex justify-between font-bold"><span className="text-emerald-700">Payout less fuel</span><span className="text-emerald-800">${optimizedContribution.toFixed(2)}</span></div>
+                      <div className="flex justify-between font-bold"><span className="text-emerald-700">Payout less fuel</span><span className="text-emerald-800">{payoutComplete ? `$${optimizedContribution.toFixed(2)}` : 'Incomplete'}</span></div>
                     </div>
                   </div>
                 </div>
@@ -1153,8 +1174,8 @@ export default function RouteOptimizer({ driverId }: { driverId: string }) {
                 <p className="text-2xl font-bold">{dailyPlan.totalHours}</p>
               </div>
               <div>
-                <p className="text-xs text-amber-100">Accepted Payout</p>
-                <p className="text-2xl font-bold">${dailyPlan.totalEarnings.toFixed(2)}</p>
+                <p className="text-xs text-amber-100">{dailyPlan.missingPayoutCount > 0 ? 'Known Payout' : 'Accepted Payout'}</p>
+                <p className="text-2xl font-bold">${dailyPlan.totalAcceptedPayout.toFixed(2)}</p>
               </div>
               <div>
                 <p className="text-xs text-amber-100">Shipments</p>

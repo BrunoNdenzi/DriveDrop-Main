@@ -79,6 +79,18 @@ function buildStops(driverLocation: string, shipments: RoutableShipment[]): Rout
   return stops;
 }
 
+function summarizePayouts(shipments: RoutableShipment[]) {
+  const payouts = shipments
+    .map(shipment => shipment.driver_offer_amount)
+    .filter((amount): amount is number => typeof amount === 'number' && amount > 0);
+
+  return {
+    totalAcceptedPayout: payouts.reduce((sum, amount) => sum + amount, 0),
+    payoutShipmentCount: payouts.length,
+    missingPayoutCount: shipments.length - payouts.length,
+  };
+}
+
 async function loadRouteEvidence(driverLocation: string, stops: RouteStop[]) {
   const destination = stops.find(stop => stop.type !== 'current_location')?.address;
   if (!destination) return null;
@@ -123,10 +135,7 @@ router.post('/optimize', authenticate, async (req: Request, res: Response): Prom
     }
 
     const stops = buildStops(driverLocation.trim(), shipments);
-    const totalAcceptedPayout = shipments.reduce(
-      (sum, shipment) => sum + Number(shipment.driver_offer_amount ?? 0),
-      0,
-    );
+    const payoutSummary = summarizePayouts(shipments);
 
     console.log('Route optimization request:', {
       userId: req.user?.id,
@@ -140,7 +149,7 @@ router.post('/optimize', authenticate, async (req: Request, res: Response): Prom
 
     res.status(200).json({
       success: true,
-      data: { ...result, totalAcceptedPayout, liveEvidence },
+      data: { ...result, ...payoutSummary, liveEvidence },
       timestamp: new Date().toISOString(),
     });
   } catch (error: any) {
@@ -214,10 +223,11 @@ router.post('/daily-plan', authenticate, async (req: Request, res: Response): Pr
     const routes = firstRoute
       ? [{ ...firstRoute, liveEvidence }, ...plan.routes.slice(1)]
       : plan.routes;
+    const payoutSummary = summarizePayouts(shipments);
 
     res.status(200).json({
       success: true,
-      data: { ...plan, routes, totalAcceptedPayout: plan.totalEarnings },
+      data: { ...plan, routes, ...payoutSummary },
       timestamp: new Date().toISOString(),
     });
   } catch (error: any) {

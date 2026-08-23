@@ -1316,6 +1316,10 @@ export async function execPlanRoute(
       (sum, shipment) => sum + (typeof shipment.driver_offer_amount === 'number' ? shipment.driver_offer_amount : 0),
       0
     );
+    const payoutShipmentCount = shipments.filter(
+      shipment => typeof shipment.driver_offer_amount === 'number' && shipment.driver_offer_amount > 0
+    ).length;
+    const missingPayoutCount = shipments.length - payoutShipmentCount;
     const hours = Math.round((route.summary.totalDuration / 60) * 10) / 10;
     const originNote = assumedOrigin
       ? `Planning starts at your first pickup (${firstShipment.pickup_address}) because no current location was available.\n`
@@ -1337,7 +1341,10 @@ export async function execPlanRoute(
       trafficNote +
       weatherNote +
       `Total: ${route.summary.totalDistance} miles · about ${hours} hours · ` +
-      `$${totalAcceptedPayout.toFixed(2)} accepted payout · $${route.summary.totalFuelCost.toFixed(2)} estimated fuel.`
+      (missingPayoutCount > 0
+        ? `$${totalAcceptedPayout.toFixed(2)} known payout (${missingPayoutCount} missing) · profit unavailable · `
+        : `$${totalAcceptedPayout.toFixed(2)} accepted payout · `) +
+      `$${route.summary.totalFuelCost.toFixed(2)} estimated fuel.`
     );
 
     return {
@@ -1347,6 +1354,8 @@ export async function execPlanRoute(
         shipmentCount: shipments.length,
         shipmentIds: shipments.map(shipment => shipment.id),
         totalAcceptedPayout,
+        payoutShipmentCount,
+        missingPayoutCount,
         liveEvidence,
         repositioningMilesReduced: route.savings.emptyMilesSaved,
         vehicleSlots: vehicleSlots ?? 8,
