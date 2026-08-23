@@ -4,7 +4,7 @@ import { googleMapsService } from './google-maps.service';
 export type PricingEvidenceStatus = 'available' | 'unavailable' | 'error';
 
 export interface PricingEvidenceSource<T> {
-  provider: 'google_maps' | 'here' | 'openweather' | 'opis';
+  provider: 'google_maps' | 'here' | 'openweather' | 'opis' | 'eia';
   status: PricingEvidenceStatus;
   observedAt: string;
   freshUntil: string;
@@ -31,7 +31,17 @@ export interface PricingLiveEvidence {
     windSpeedMph: number;
     precipitationOneHourInches: number;
   }>;
-  fuel: PricingEvidenceSource<Record<string, never>>;
+  fuel: PricingEvidenceSource<{
+    pricePerGallon: number;
+    currency: 'USD';
+    fuelType: 'diesel';
+    geographicLevel: 'station' | 'national';
+    stationName?: string;
+    stationAddress?: string;
+    stationLatitude?: number;
+    stationLongitude?: number;
+    publishedPeriod?: string;
+  }>;
 }
 
 interface Coordinates {
@@ -114,21 +124,22 @@ class PricingLiveEvidenceService {
         traffic: unavailable('google_maps', 'GEOCODING_UNAVAILABLE', 5),
         tolls: unavailable('here', 'GEOCODING_UNAVAILABLE', 5),
         weather: unavailable('openweather', 'GEOCODING_UNAVAILABLE', 5),
-        fuel: this.getFuelAvailability(),
+        fuel: await this.getFuelFallback(),
       };
     }
 
-    const [traffic, tolls, weather] = await Promise.all([
+    const [traffic, tolls, weather, fuel] = await Promise.all([
       this.getTraffic(originCoordinates, destinationCoordinates),
       this.getTolls(originCoordinates, destinationCoordinates),
       this.getWeather(originCoordinates, destinationCoordinates),
+      this.getFuel(originCoordinates),
     ]);
 
     return {
       traffic,
       tolls,
       weather,
-      fuel: this.getFuelAvailability(),
+      fuel,
     };
   }
 
@@ -320,12 +331,142 @@ class PricingLiveEvidenceService {
     }
   }
 
-  private getFuelAvailability(): PricingLiveEvidence['fuel'] {
-    return unavailable(
-      'opis',
-      config.opis.enabled ? 'PRODUCT_CONTRACT_NOT_CONFIGURED' : 'PROVIDER_NOT_ENABLED',
-      60
-    );
+  private async getFuel(origin: Coordinates): Promise<PricingLiveEvidence['fuel']> {
+    const stationPrice = await this.getGoogleDieselPrice(origin);
+    if (stationPrice.status === 'available') return stationPrice;
+    return this.getFuelFallback(stationPrice.errorCode);
+  }
+
+  private async getGoogleDieselPrice(origin: Coordinates): Promise<PricingLiveEvidence['fuel']> {
+    if (!config.googleMaps.apiKey) {
+      return unavailable('google_maps', 'PROVIDER_NOT_CONFIGURED', 15);
+    }
+
+    const startedAt = Date.now();
+    try {
+      const response = await fetch('https://places.googleapis.com/v1/places:searchText', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Goog-Api-Key': config.googleMaps.apiKey,
+          'X-Goog-FieldMask': 'places.displayName,places.formattedAddress,places.location,places.fuelOptions',
+        },
+        body: JSON.stringify({
+          textQuery: 'diesel fuel station',
+          pageSize: 10,
+          locationBias: {
+            circle: {
+              center: origin,
+              radius: 25_000,
+            },
+          },
+        }),
+        signal: AbortSignal.timeout(TIMEOUT_MS),
+      });
+      const body = asRecord(await response.json());
+      const providerError = asRecord(body?.['error']);
+      if (providerError?.['status']) {
+        throw new Error(providerCode('PLACES', providerError['status']));
+      }
+      if (!response.ok) {
+        throw new Error(providerCode('HTTP', response.status));
+      }
+
+      const places = Array.isArray(body?.['places']) ? body['places'] : [];
+      for (const placeValue of places) {
+        const place = asRecord(placeValue);
+        const fuelOptions = asRecord(place?.['fuelOptions']);
+        const fuelPrices = Array.isArray(fuelOptions?.['fuelPrices']) ? fuelOptions['fuelPrices'] : [];
+        for (const fuelPriceValue of fuelPrices) {
+          const fuelPrice = asRecord(fuelPriceValue);
+          if (String(fuelPrice?.['type']).toUpperCase() !== 'DIESEL') continue;
+          const money = asRecord(fuelPrice?.['price']);
+          const units = Number(money?.['units']);
+          const nanos = Number(money?.['nanos'] ?? 0);
+          const pricePerGallon = units + nanos / 1_000_000_000;
+          if (!Number.isFinite(pricePerGallon) || pricePerGallon <= 0) continue;
+
+          const displayName = asRecord(place?.['displayName']);
+          const location = asRecord(place?.['location']);
+          const providerObservedAt = new Date(String(fuelPrice?.['updateTime'] || ''));
+          const observedAt = Number.isNaN(providerObservedAt.getTime()) ? new Date() : providerObservedAt;
+          return {
+            provider: 'google_maps',
+            status: 'available',
+            observedAt: observedAt.toISOString(),
+            freshUntil: expiresAt(observedAt, 60),
+            latencyMs: Date.now() - startedAt,
+            evidence: {
+              pricePerGallon,
+              currency: 'USD',
+              fuelType: 'diesel',
+              geographicLevel: 'station',
+              stationName: String(displayName?.['text'] || 'Fuel station'),
+              stationAddress: String(place?.['formattedAddress'] || ''),
+              stationLatitude: Number(location?.['latitude']),
+              stationLongitude: Number(location?.['longitude']),
+            },
+          };
+        }
+      }
+      return unavailable('google_maps', 'DIESEL_PRICE_NOT_AVAILABLE', 15);
+    } catch (error) {
+      const errorCode = error instanceof Error
+        ? providerCode('FUEL', error.message)
+        : 'FUEL_REQUEST_FAILED';
+      return failed('google_maps', startedAt, errorCode, 15);
+    }
+  }
+
+  private async getFuelFallback(primaryErrorCode?: string): Promise<PricingLiveEvidence['fuel']> {
+    if (!config.eia.apiKey) {
+      return unavailable('eia', primaryErrorCode || 'PROVIDER_NOT_CONFIGURED', 60);
+    }
+
+    const startedAt = Date.now();
+    try {
+      const url = new URL(`${config.eia.baseUrl}/petroleum/pri/gnd/data/`);
+      url.searchParams.set('api_key', config.eia.apiKey);
+      url.searchParams.set('frequency', 'weekly');
+      url.searchParams.set('data[0]', 'value');
+      url.searchParams.set('facets[series][]', 'EMD_EPD2D_PTE_NUS_DPG');
+      url.searchParams.set('sort[0][column]', 'period');
+      url.searchParams.set('sort[0][direction]', 'desc');
+      url.searchParams.set('offset', '0');
+      url.searchParams.set('length', '1');
+
+      const response = await fetch(url, { signal: AbortSignal.timeout(TIMEOUT_MS) });
+      const body = asRecord(await response.json());
+      const responseBody = asRecord(body?.['response']);
+      const rows = Array.isArray(responseBody?.['data']) ? responseBody['data'] : [];
+      const row = asRecord(rows[0]);
+      const pricePerGallon = Number(row?.['value']);
+      const publishedPeriod = String(row?.['period'] || '');
+      if (!response.ok || !Number.isFinite(pricePerGallon) || pricePerGallon <= 0 || !publishedPeriod) {
+        throw new Error('EIA_RESPONSE_INVALID');
+      }
+
+      const observedAt = new Date(`${publishedPeriod}T00:00:00.000Z`);
+      return {
+        provider: 'eia',
+        status: 'available',
+        observedAt: observedAt.toISOString(),
+        freshUntil: expiresAt(observedAt, 8 * 24 * 60),
+        latencyMs: Date.now() - startedAt,
+        evidence: {
+          pricePerGallon,
+          currency: 'USD',
+          fuelType: 'diesel',
+          geographicLevel: 'national',
+          publishedPeriod,
+        },
+      };
+    } catch (error) {
+      const errorCode = error instanceof Error
+        ? providerCode('EIA', error.message)
+        : 'EIA_REQUEST_FAILED';
+      return failed('eia', startedAt, errorCode, 60);
+    }
   }
 }
 

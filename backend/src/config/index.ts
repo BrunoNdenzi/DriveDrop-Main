@@ -56,6 +56,11 @@ const config = {
     apiKey: process.env['GOOGLE_MAPS_API_KEY'] || '',
   },
 
+  eia: {
+    apiKey: process.env['EIA_API_KEY'] || '',
+    baseUrl: process.env['EIA_API_BASE_URL'] || 'https://api.eia.gov/v2',
+  },
+
   // HERE commercial truck routing (server-side only)
   here: {
     apiKey: process.env['HERE_API_KEY'] || '',

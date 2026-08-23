@@ -78,7 +78,7 @@ interface RouteSavings {
 }
 
 interface EvidenceSource<T> {
-  provider: 'google_maps' | 'here' | 'openweather' | 'opis'
+  provider: 'google_maps' | 'here' | 'openweather' | 'opis' | 'eia'
   status: 'available' | 'unavailable' | 'error'
   observedAt: string
   freshUntil: string
@@ -94,7 +94,15 @@ interface RouteLiveEvidence {
     windSpeedMph: number
     precipitationOneHourInches: number
   }>
-  fuel: EvidenceSource<Record<string, never>>
+  fuel: EvidenceSource<{
+    pricePerGallon: number
+    currency: 'USD'
+    fuelType: 'diesel'
+    geographicLevel: 'station' | 'national'
+    stationName?: string
+    stationAddress?: string
+    publishedPeriod?: string
+  }>
 }
 
 interface CarolinaInsight {
@@ -1378,6 +1386,11 @@ function RouteConditions({ evidence }: { evidence: RouteLiveEvidence | null }) {
   const observed = (source: EvidenceSource<unknown>) =>
     `Observed ${new Date(source.observedAt).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}`
   const unavailable = (source: EvidenceSource<unknown>) => source.status !== 'available' || !source.evidence
+  const fuelSource = unavailable(evidence.fuel)
+    ? 'Google Places and EIA unavailable'
+    : evidence.fuel.evidence!.geographicLevel === 'station'
+      ? `Google Places · ${evidence.fuel.evidence!.stationName || 'Nearby station'} · ${observed(evidence.fuel)}`
+      : `EIA U.S. weekly benchmark · Week of ${evidence.fuel.evidence!.publishedPeriod}`
 
   return (
     <div className="bg-white rounded-lg border border-gray-200 p-4">
@@ -1412,9 +1425,11 @@ function RouteConditions({ evidence }: { evidence: RouteLiveEvidence | null }) {
         />
         <ConditionItem
           icon={<Fuel className="h-4 w-4 text-amber-600" />}
-          label="Fuel pricing"
-          value="Planning estimate"
-          source="Live station provider not connected"
+          label="Diesel price"
+          value={unavailable(evidence.fuel)
+            ? 'Planning estimate only'
+            : `$${evidence.fuel.evidence!.pricePerGallon.toFixed(3)}/gal`}
+          source={fuelSource}
         />
       </div>
     </div>
