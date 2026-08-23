@@ -9,6 +9,14 @@ export async function POST(request: Request) {
     const { email, password, role, redirectTo } = await request.json()
 
     const cookieStore = await cookies()
+    const pendingCookies: Array<{ name: string; value: string; options: CookieOptions }> = []
+    const jsonResponse = (body: unknown, init?: ResponseInit) => {
+      const response = NextResponse.json(body, init)
+      pendingCookies.forEach(({ name, value, options }) => {
+        response.cookies.set(name, value, options)
+      })
+      return response
+    }
     
     const supabase = createServerClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -19,9 +27,11 @@ export async function POST(request: Request) {
             return cookieStore.get(name)?.value
           },
           set(name: string, value: string, options: CookieOptions) {
+            pendingCookies.push({ name, value, options })
             cookieStore.set({ name, value, ...options })
           },
           remove(name: string, options: CookieOptions) {
+            pendingCookies.push({ name, value: '', options })
             cookieStore.set({ name, value: '', ...options })
           },
         },
@@ -35,14 +45,14 @@ export async function POST(request: Request) {
     })
 
     if (signInError) {
-      return NextResponse.json(
+      return jsonResponse(
         { error: signInError.message },
         { status: 400 }
       )
     }
 
     if (!authData.user) {
-      return NextResponse.json(
+      return jsonResponse(
         { error: 'Login failed' },
         { status: 400 }
       )
@@ -56,7 +66,7 @@ export async function POST(request: Request) {
       .single()
 
     if (profileError) {
-      return NextResponse.json(
+      return jsonResponse(
         { error: 'Profile not found' },
         { status: 404 }
       )
@@ -66,7 +76,7 @@ export async function POST(request: Request) {
     if (profile.role !== role) {
       // Sign out if wrong role
       await supabase.auth.signOut()
-      return NextResponse.json(
+      return jsonResponse(
         { error: `This account is registered as a ${profile.role}, not ${role}` },
         { status: 403 }
       )
@@ -76,7 +86,7 @@ export async function POST(request: Request) {
     const forcePasswordChange = authData.user.user_metadata?.force_password_change === true
     
     if (forcePasswordChange) {
-      return NextResponse.json({
+      return jsonResponse({
         success: true,
         requiresPasswordChange: true,
         redirectTo: '/change-password?required=true',
@@ -89,7 +99,7 @@ export async function POST(request: Request) {
     }
 
     // Return success with redirect path
-    return NextResponse.json({
+    return jsonResponse({
       success: true,
       redirectTo: redirectTo || `/dashboard/${profile.role}`,
       user: {
