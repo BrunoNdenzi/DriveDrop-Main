@@ -216,8 +216,8 @@ export default function NaturalLanguageShipmentCreator({
     setIsConfirming(true)
     try {
       const response = await aiService.benjiConfirm(pendingConfirmation.traceId, true)
-      setPendingConfirmation(null)
       if (response.success && response.shipmentCreated) {
+        setPendingConfirmation(null)
         setResult(response)
         if (onShipmentCreated) {
           onShipmentCreated(response.shipmentCreated)
@@ -229,7 +229,7 @@ export default function NaturalLanguageShipmentCreator({
         setError(response.error ?? 'Shipment creation failed after confirmation')
       }
     } catch (err: any) {
-      setError(err.message || 'Confirmation failed')
+      setError(`${err.message || 'Confirmation failed'}. Retry confirmation to safely check the same request.`)
     } finally {
       setIsConfirming(false)
     }

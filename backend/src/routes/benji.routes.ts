@@ -350,6 +350,34 @@ router.post(
 
       const result = await resumeOrchestrator.resume(traceId.trim(), userId, stubRequest);
 
+      if (result.state === 'BLOCKED' && result.error?.startsWith('Confirmation not found')) {
+        const { data: existingShipment, error: lookupError } = await supabaseAdmin
+          .from('shipments')
+          .select('id, estimated_price, distance, vehicle_year, vehicle_make, vehicle_model, pickup_address, delivery_address')
+          .eq('client_id', userId)
+          .eq('benji_idempotency_key', traceId.trim())
+          .maybeSingle();
+
+        if (!lookupError && existingShipment) {
+          res.status(200).json({
+            success: true,
+            state:   'COMPLETE',
+            traceId: traceId.trim(),
+            shipmentCreated: {
+              shipment_id:     existingShipment.id,
+              estimatedPrice:  existingShipment.estimated_price ?? 0,
+              distanceMiles:   existingShipment.distance ?? 0,
+              vehicle:         [existingShipment.vehicle_year, existingShipment.vehicle_make, existingShipment.vehicle_model]
+                .filter(Boolean)
+                .join(' '),
+              pickupAddress:   existingShipment.pickup_address ?? '',
+              deliveryAddress: existingShipment.delivery_address ?? '',
+            },
+          });
+          return;
+        }
+      }
+
       switch (result.state) {
         case 'COMPLETE':
           const shipmentCreated = _extractCreatedShipment(result.data);

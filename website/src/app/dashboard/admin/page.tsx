@@ -32,7 +32,8 @@ interface SystemStats {
   totalRevenue: number
   brokerRevenue: number
   brokerShipments: number
-  pendingApplications: number
+  pendingDriverApplications: number
+  pendingJobApplications: number
 }
 
 interface RecentActivity {
@@ -55,13 +56,16 @@ export default function AdminDashboardPage() {
     totalRevenue: 0,
     brokerRevenue: 0,
     brokerShipments: 0,
-    pendingApplications: 0,
+    pendingDriverApplications: 0,
+    pendingJobApplications: 0,
   })
   const [recentActivity, setRecentActivity] = useState<RecentActivity[]>([])
   const [loading, setLoading] = useState(true)
   const supabase = getSupabaseBrowserClient()
 
   useEffect(() => {
+    if (profile?.role !== 'admin') return
+
     const fetchData = async () => {
       try {
         // Use Promise.all to fetch data in parallel for faster loading
@@ -70,6 +74,7 @@ export default function AdminDashboardPage() {
           driversResult,
           brokersResult,
           shipmentsResult,
+          driverApplicationsResult,
           jobApplicationsResult,
           brokerShipmentsResult
         ] = await Promise.all([
@@ -90,11 +95,28 @@ export default function AdminDashboardPage() {
             .select('status, estimated_price'),
           supabase
             .from('driver_applications')
-            .select('*'),
+            .select('*', { count: 'exact', head: true })
+            .eq('status', 'pending'),
+          supabase
+            .from('job_applications')
+            .select('*', { count: 'exact', head: true })
+            .eq('status', 'pending'),
           supabase
             .from('broker_shipments')
             .select('status, total_price, broker_fee')
         ])
+
+        const queryError = [
+          clientsResult,
+          driversResult,
+          brokersResult,
+          shipmentsResult,
+          driverApplicationsResult,
+          jobApplicationsResult,
+          brokerShipmentsResult,
+        ].find(result => result.error)?.error
+
+        if (queryError) throw queryError
 
         const totalClients = clientsResult.count || 0
         const totalDrivers = driversResult.count || 0
@@ -110,8 +132,8 @@ export default function AdminDashboardPage() {
         const completedShipments = shipments.filter(s => s.status === 'delivered').length
         const totalRevenue = shipments.reduce((sum, s) => sum + (s.estimated_price || 0), 0)
 
-        const allApplications = jobApplicationsResult.data || []
-        const pendingApplications = allApplications.filter((app: any) => app.status === 'pending').length
+        const pendingDriverApplications = driverApplicationsResult.count || 0
+        const pendingJobApplications = jobApplicationsResult.count || 0
 
         const brokerShips = brokerShipmentsResult.data || []
         const brokerShipments = brokerShips.length
@@ -128,7 +150,8 @@ export default function AdminDashboardPage() {
           totalRevenue,
           brokerRevenue,
           brokerShipments,
-          pendingApplications,
+          pendingDriverApplications,
+          pendingJobApplications,
         })
 
         // Fetch recent activity from database
@@ -201,7 +224,7 @@ export default function AdminDashboardPage() {
     }
 
     fetchData()
-  }, [])
+  }, [profile?.role])
 
   if (loading) {
     return (
@@ -226,15 +249,15 @@ export default function AdminDashboardPage() {
         <Link href="/dashboard/admin/driver-applications">
           <Button size="sm" className="h-8 text-xs bg-purple-500 hover:bg-purple-600 text-white">
             Review Applications
-            {stats.pendingApplications > 0 && (
-              <span className="ml-1.5 bg-white/20 px-1.5 py-0.5 rounded text-[10px]">{stats.pendingApplications}</span>
+            {stats.pendingDriverApplications > 0 && (
+              <span className="ml-1.5 bg-white/20 px-1.5 py-0.5 rounded text-[10px]">{stats.pendingDriverApplications}</span>
             )}
           </Button>
         </Link>
       </div>
 
       {/* Key Metrics Grid */}
-      <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
+      <div className="grid grid-cols-2 lg:grid-cols-6 gap-3">
         <div className="bg-white rounded-md p-4 border border-gray-200">
           <div className="flex items-center gap-2 mb-2">
             <div className="p-1.5 bg-purple-50 rounded-md">
@@ -294,11 +317,22 @@ export default function AdminDashboardPage() {
             <div className="p-1.5 bg-amber-50 rounded-md">
               <UserCheck className="h-4 w-4 text-amber-600" />
             </div>
-            <p className="text-xs text-gray-500">Applications</p>
+            <p className="text-xs text-gray-500">Driver Onboarding</p>
           </div>
-          <h3 className="text-xl font-bold text-gray-900">{stats.pendingApplications}</h3>
+          <h3 className="text-xl font-bold text-gray-900">{stats.pendingDriverApplications}</h3>
           <p className="text-[10px] text-gray-400 mt-1">Pending review</p>
         </div>
+
+        <Link href="/dashboard/admin/assignments" className="bg-white rounded-md p-4 border border-gray-200">
+          <div className="flex items-center gap-2 mb-2">
+            <div className="p-1.5 bg-blue-50 rounded-md">
+              <Truck className="h-4 w-4 text-blue-600" />
+            </div>
+            <p className="text-xs text-gray-500">Job Applications</p>
+          </div>
+          <h3 className="text-xl font-bold text-gray-900">{stats.pendingJobApplications}</h3>
+          <p className="text-[10px] text-gray-400 mt-1">Awaiting assignment</p>
+        </Link>
       </div>
 
       {/* Action Cards */}
@@ -312,15 +346,15 @@ export default function AdminDashboardPage() {
             <div className="p-1.5 bg-purple-50 rounded-md">
               <UserCheck className="h-4 w-4 text-purple-600" />
             </div>
-            {stats.pendingApplications > 0 && (
+            {stats.pendingDriverApplications > 0 && (
               <span className="bg-purple-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded">
-                {stats.pendingApplications}
+                {stats.pendingDriverApplications}
               </span>
             )}
           </div>
           <h3 className="text-xs font-semibold text-gray-900">Review Applications</h3>
           <p className="text-[10px] text-gray-500">
-            {stats.pendingApplications} waiting
+            {stats.pendingDriverApplications} waiting
           </p>
         </Link>
 
@@ -494,12 +528,12 @@ export default function AdminDashboardPage() {
       </div>
 
       {/* Alert */}
-      {stats.pendingApplications > 0 && (
+      {stats.pendingDriverApplications > 0 && (
         <div className="bg-amber-50 border border-amber-200 rounded-md p-3 flex items-center gap-3">
           <AlertCircle className="h-4 w-4 text-amber-600 flex-shrink-0" />
           <div className="flex-1">
             <p className="text-xs font-medium text-gray-900">
-              {stats.pendingApplications} driver application{stats.pendingApplications !== 1 ? 's' : ''} pending review
+              {stats.pendingDriverApplications} driver application{stats.pendingDriverApplications !== 1 ? 's' : ''} pending review
             </p>
           </div>
           <Link href="/dashboard/admin/driver-applications">

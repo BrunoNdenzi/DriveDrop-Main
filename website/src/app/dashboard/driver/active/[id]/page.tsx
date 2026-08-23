@@ -776,7 +776,7 @@ export default function DriverShipmentDetailPage() {
                 <h3 className="font-semibold">Accepted All-in Offer</h3>
               </div>
               <p className="text-lg font-bold">
-                {shipment.driver_offer_amount === null
+                {shipment.driver_offer_amount === null || shipment.driver_offer_amount <= 0
                   ? 'Contact operations'
                   : `$${shipment.driver_offer_amount.toFixed(2)}`}
               </p>

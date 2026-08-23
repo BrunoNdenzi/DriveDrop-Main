@@ -24,7 +24,7 @@ interface Job {
   id: string
   pickup_address: string
   delivery_address: string
-  driver_offer_amount: number
+  driver_offer_amount: number | null
   distance: number
   status: string
   created_at: string
@@ -285,7 +285,9 @@ export default function DriverDashboardPage() {
                   </div>
                   <div className="text-right ml-3">
                     <p className="text-sm font-bold text-green-600">
-                      ${delivery.driver_offer_amount?.toFixed(2) || '0.00'}
+                      {delivery.driver_offer_amount !== null && delivery.driver_offer_amount > 0
+                        ? `$${delivery.driver_offer_amount.toFixed(2)}`
+                        : 'Offer unavailable'}
                     </p>
                     <p className="text-[10px] text-gray-400">
                       {delivery.distance || 0} mi

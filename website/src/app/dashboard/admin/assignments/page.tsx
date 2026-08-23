@@ -174,9 +174,24 @@ export default function AdminAssignmentsPage() {
     }
   }
 
+  const ensureApprovedOffer = async (shipmentId: string) => {
+    const { data, error } = await supabase
+      .from('shipments')
+      .select('driver_offer_amount, driver_offer_status')
+      .eq('id', shipmentId)
+      .single()
+
+    if (error) throw error
+    if (data.driver_offer_status !== 'approved' || !data.driver_offer_amount || data.driver_offer_amount <= 0) {
+      throw new Error('Approve a positive driver offer before assigning this shipment')
+    }
+  }
+
   const handleApproveApplication = async (applicationId: string, shipmentId: string, driverId: string) => {
     setProcessingAction(applicationId)
     try {
+      await ensureApprovedOffer(shipmentId)
+
       // 1. Update application status
       const { error: appError } = await supabase
         .from('job_applications')
@@ -209,7 +224,7 @@ export default function AdminAssignmentsPage() {
       fetchData() // Refresh
     } catch (error) {
       console.error('Error approving application:', error)
-      toast('Failed to approve application', 'error')
+      toast(error instanceof Error ? error.message : 'Failed to approve application', 'error')
     } finally {
       setProcessingAction(null)
     }
@@ -238,6 +253,8 @@ export default function AdminAssignmentsPage() {
   const handleDirectAssign = async (shipmentId: string, driverId: string) => {
     setProcessingAction(shipmentId)
     try {
+      await ensureApprovedOffer(shipmentId)
+
       // Assign driver directly
       const { error } = await supabase
         .from('shipments')
@@ -255,7 +272,7 @@ export default function AdminAssignmentsPage() {
       fetchData()
     } catch (error) {
       console.error('Error assigning driver:', error)
-      toast('Failed to assign driver', 'error')
+      toast(error instanceof Error ? error.message : 'Failed to assign driver', 'error')
     } finally {
       setProcessingAction(null)
     }

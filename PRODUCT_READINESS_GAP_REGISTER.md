@@ -112,7 +112,7 @@ Do not log speculation as fact. Mark uncertain findings `discovered` until evide
 
 ### GAP-005: Route Intelligence Contains Estimated Data Presented Near Live Workflows
 
-- **Status:** confirmed
+- **Status:** planned
 - **Severity:** P1
 - **Area:** Route optimization
 - **Evidence:** `BENJI_DISPATCH_AND_PRODUCTIZATION_STRATEGY.md` documents hardcoded regional fuel prices, seasonal weather text, rule-based traffic warnings, and options that are accepted but not fully applied.
@@ -121,8 +121,14 @@ Do not log speculation as fact. Mark uncertain findings `discovered` until evide
 - **Impact:** Operators may over-trust route feasibility, traffic, weather, savings, or option behavior.
 - **Temporary handling:** Keep live provider evidence observational and avoid claims of live route conditions until route outputs consume and label those sources correctly.
 - **Dependencies:** Pricing live-evidence source contracts, route service consolidation, option conformance tests.
-- **Blocks:** Route Intelligence external API release.
-- **Resolution criteria:** Contract tests for every request option, source/freshness metadata, failure semantics, and measured route outcomes.
+- **Blocks:** DriveDrop production launch and Route Intelligence external API release.
+- **Resolution criteria:**
+  - Inventory every route calculation, optimization, navigation, ETA, traffic, weather, fuel, and multi-stop code path and identify its owning service and data source.
+  - Contract tests prove every accepted request option changes computation as documented or is rejected explicitly.
+  - Route responses expose source, freshness, assumptions, fallback state, and failure semantics without presenting estimates as live facts.
+  - Compare optimized routes, ETAs, mileage, and stop ordering against provider baselines and representative real shipment scenarios.
+  - Website dispatch and driver route surfaces consume one canonical route contract and pass desktop workflow tests.
+  - Measured route outcomes meet documented acceptance thresholds before the launch gate is cleared.
 
 ### GAP-006: Assignment And Shipment Status Ownership Is Fragmented
 

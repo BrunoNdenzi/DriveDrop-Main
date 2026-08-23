@@ -304,11 +304,15 @@ export default function DriverActiveDeliveriesPage() {
                       </div>
                       <div className="text-right">
                         <p className="text-lg font-bold text-amber-500">
-                          {delivery.driver_offer_amount === null
-                            ? 'Pending review'
+                          {delivery.driver_offer_amount === null || delivery.driver_offer_amount <= 0
+                            ? 'Offer unavailable'
                             : `$${delivery.driver_offer_amount.toFixed(2)}`}
                         </p>
-                        <p className="text-xs text-gray-500">Accepted all-in offer</p>
+                        <p className="text-xs text-gray-500">
+                          {delivery.driver_offer_amount !== null && delivery.driver_offer_amount > 0
+                            ? 'Accepted all-in offer'
+                            : 'Contact operations'}
+                        </p>
                       </div>
                     </div>
                   </div>

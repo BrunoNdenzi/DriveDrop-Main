@@ -198,6 +198,9 @@ export class NaturalLanguageShipmentService {
       });
 
       const parsed = JSON.parse(content) as ParsedShipmentData;
+      if (parsed.vehicle) {
+        parsed.vehicle.type = this.mapVehicleTypeToPricing(parsed.vehicle);
+      }
       console.log('Parsed data:', JSON.stringify(parsed, null, 2));
       
       // Calculate confidence and identify missing fields
@@ -265,6 +268,12 @@ export class NaturalLanguageShipmentService {
         break;
       }
     }
+
+    parsedData.vehicle!.type = this.mapVehicleTypeToPricing({
+      ...parsedData.vehicle,
+      type: ['sedan', 'suv', 'pickup', 'luxury', 'motorcycle', 'golfcart', 'heavy']
+        .find(type => new RegExp(`\\b${type}\\b`).test(text)),
+    });
 
     // Extract VIN (17 characters)
     const vinMatch = input.input_text.match(/\b[A-HJ-NPR-Z0-9]{17}\b/);
@@ -387,6 +396,7 @@ export class NaturalLanguageShipmentService {
       transport_type?: 'open' | 'enclosed';
       terms_accepted?: boolean;
       payment_status?: string;
+      benji_idempotency_key?: string;
     },
   ): Promise<{
     success: boolean;
@@ -415,6 +425,23 @@ export class NaturalLanguageShipmentService {
           success: false,
           error: 'Missing delivery location',
         };
+      }
+
+      if (extra?.benji_idempotency_key) {
+        const { data: existingShipment, error: lookupError } = await supabase
+          .from('shipments')
+          .select('*')
+          .eq('benji_idempotency_key', extra.benji_idempotency_key)
+          .maybeSingle();
+
+        if (lookupError) throw lookupError;
+        if (existingShipment) {
+          return {
+            success: true,
+            shipment_id: existingShipment.id,
+            shipment: existingShipment,
+          };
+        }
       }
 
       // Calculate distance and price — skip if pre-computed values are provided
@@ -474,6 +501,7 @@ export class NaturalLanguageShipmentService {
           is_operable: extra?.is_operable !== undefined ? extra.is_operable : true,
           terms_accepted: extra?.terms_accepted ?? false,
           payment_status: extra?.payment_status ?? 'pending',
+          benji_idempotency_key: extra?.benji_idempotency_key ?? null,
           status: 'pending',
           estimated_price: estimatedPrice,
           distance: distanceMiles,
@@ -481,6 +509,21 @@ export class NaturalLanguageShipmentService {
         })
         .select()
         .single();
+
+      if (error?.code === '23505' && extra?.benji_idempotency_key) {
+        const { data: existingShipment, error: lookupError } = await supabase
+          .from('shipments')
+          .select('*')
+          .eq('benji_idempotency_key', extra.benji_idempotency_key)
+          .single();
+
+        if (lookupError) throw lookupError;
+        return {
+          success: true,
+          shipment_id: existingShipment.id,
+          shipment: existingShipment,
+        };
+      }
 
       if (error) {
         throw error;
@@ -532,6 +575,15 @@ export class NaturalLanguageShipmentService {
   private mapVehicleTypeToPricing(vehicle: any): VehicleType {
     const make = vehicle?.make?.toLowerCase() || '';
     const model = vehicle?.model?.toLowerCase() || '';
+    const explicitType = vehicle?.type?.toLowerCase().replace(/\s+/g, '') || '';
+
+    if (['accord', 'civic', 'camry', 'corolla', 'altima'].some(passengerModel => model.includes(passengerModel))) {
+      return 'sedan';
+    }
+
+    if (['sedan', 'suv', 'pickup', 'luxury', 'motorcycle', 'golfcart', 'heavy'].includes(explicitType)) {
+      return explicitType as VehicleType;
+    }
     
     // Luxury brands
     if (['bmw', 'mercedes', 'audi', 'lexus', 'porsche', 'tesla', 'jaguar', 'maserati', 'bentley', 'rolls royce'].some(brand => make.includes(brand))) {
@@ -539,7 +591,8 @@ export class NaturalLanguageShipmentService {
     }
     
     // Motorcycles
-    if (['motorcycle', 'bike', 'harley', 'yamaha', 'honda', 'kawasaki', 'suzuki', 'ducati'].some(type => make.includes(type) || model.includes(type))) {
+    if (['motorcycle', 'motorbike', 'bike'].some(type => model.includes(type)) ||
+        ['harley', 'yamaha', 'kawasaki', 'ducati'].some(brand => make.includes(brand))) {
       return 'motorcycle';
     }
     

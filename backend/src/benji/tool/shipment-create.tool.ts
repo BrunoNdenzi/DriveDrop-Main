@@ -71,12 +71,13 @@ export const shipmentCreateTool: ToolDefinition<ShipmentCreateInput, ShipmentCre
   namespaceAccess: { read: ['user.history'], write: ['user.history'] },
   validate:    isShipmentCreateInput,
 
-  execute: async (input: ShipmentCreateInput, _ctx: ToolContext): Promise<ShipmentCreateOutput> => {
+  execute: async (input: ShipmentCreateInput, ctx: ToolContext): Promise<ShipmentCreateOutput> => {
     const result = await _nlService.createShipment(
       input.userId,
       input.parsedData,
       input.estimatedPrice,
       input.distanceMiles,
+      { benji_idempotency_key: ctx.traceId },
     );
 
     if (!result.success || !result.shipment_id) {
