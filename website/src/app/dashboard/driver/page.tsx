@@ -370,7 +370,9 @@ export default function DriverDashboardPage() {
                   <div className="text-right ml-3">
                     <p className="text-[10px] text-gray-400">All-in offer</p>
                     <p className="text-sm font-bold text-green-600">
-                      ${job.driver_offer_amount.toFixed(2)}
+                      {job.driver_offer_amount === null
+                        ? 'Offer unavailable'
+                        : `$${job.driver_offer_amount.toFixed(2)}`}
                     </p>
                     <p className="text-[10px] text-gray-400">
                       {job.distance || 0} mi
