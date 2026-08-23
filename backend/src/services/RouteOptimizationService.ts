@@ -347,7 +347,7 @@ class RouteOptimizationService {
 
     // 13. Benji tips
     const benjiTips = this.generateBenjiTips(
-      optimizedStops, savings, carolinaInsights, departureTime, vehicleType
+      optimizedStops, savings, departureTime, vehicleType
     );
 
     // 14. Total duration
@@ -959,7 +959,6 @@ class RouteOptimizationService {
   private generateBenjiTips(
     stops: OptimizedStop[],
     savings: RouteSavings,
-    insights: CarolinaInsight[],
     departureTime: Date,
     vehicleType: string
   ): string[] {
