@@ -10,13 +10,13 @@ export default function FCRADisclosurePage() {
         
         <div className="prose prose-lg max-w-none">
           <p className="text-muted-foreground mb-6">
-            <strong>Last Updated:</strong> October 27, 2025
+            <strong>Last Updated:</strong> August 25, 2026
           </p>
 
           <section className="mb-8">
             <h2 className="text-2xl font-bold mb-4">Fair Credit Reporting Act (FCRA) Disclosure</h2>
             <p className="mb-4">
-              DriveDrop, Inc. ("Company") may obtain information about you from a consumer reporting agency 
+              Calkons Groups LLC, doing business as DriveDrop ("Company"), may obtain information about you from a consumer reporting agency
               for employment purposes. This information may be obtained for evaluating you for initial 
               employment, promotion, reassignment, or retention as a driver.
             </p>
@@ -45,17 +45,13 @@ export default function FCRADisclosurePage() {
           <section className="mb-8">
             <h2 className="text-2xl font-bold mb-4">Background Check Provider</h2>
             <p className="mb-4">
-              Background checks will be conducted by:
+              The Company has not designated a consumer reporting agency in this public disclosure.
             </p>
-            <div className="p-4 bg-muted rounded-lg">
-              <p><strong>[Background Check Provider Name]</strong></p>
-              <p>[Provider Address]</p>
-              <p>[City, State ZIP]</p>
-              <p>Phone: [Phone Number]</p>
-              <p>Website: [Website URL]</p>
-            </div>
-            <p className="mt-4 text-sm text-muted-foreground">
-              Note: The Company will notify you of the specific provider before conducting the background check.
+            <p>
+              Before requesting any consumer report, the Company will provide the applicant with the selected
+              agency&apos;s legal name, address, telephone number, and website in a separate written notice. No
+              consumer report may be requested until that information and all required disclosures and
+              authorizations have been provided.
             </p>
           </section>
 

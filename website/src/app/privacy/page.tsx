@@ -10,13 +10,13 @@ export default function PrivacyPolicyPage() {
         
         <div className="prose prose-lg max-w-none">
           <p className="text-muted-foreground mb-6">
-            <strong>Last Updated:</strong> July 7, 2026
+            <strong>Last Updated:</strong> August 25, 2026
           </p>
 
           <section className="mb-8">
             <h2 className="text-2xl font-bold mb-4">1. Information We Collect</h2>
             <p className="mb-4">
-              DriveDrop ("we," "us," or "our") collects the following categories of information to provide and
+              Calkons Groups LLC, doing business as DriveDrop ("DriveDrop," "we," "us," or "our"), collects the following categories of information to provide and
               improve our vehicle shipping marketplace:
             </p>
             <ul className="list-disc pl-6 space-y-2">
@@ -229,7 +229,7 @@ export default function PrivacyPolicyPage() {
             <ul className="list-none space-y-2">
               <li><strong>Email:</strong>{' '}<a href="mailto:privacy@drivedrop.us.com" className="text-primary underline">privacy@drivedrop.us.com</a></li>
               <li><strong>Phone:</strong>{' '}<a href="tel:+17042662317" className="text-primary underline">+1 (704) 266-2317</a></li>
-              <li><strong>Mail:</strong> DriveDrop, Inc. — Privacy Team, Charlotte, North Carolina, USA</li>
+              <li><strong>Mail:</strong> Calkons Groups LLC d/b/a DriveDrop — Privacy Team, Charlotte, North Carolina, USA</li>
             </ul>
           </section>
 

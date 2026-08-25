@@ -2,9 +2,11 @@
 
 > **Authoritative repository guide**
 > **Last code verification:** 2026-08-25
-> **Document owner after handover:** `[NAME / ROLE]`
-> **Business owner:** `[CEO / OWNER NAME]`
+> **Prepared by:** Bruno Ndenzi, Chief Technology Officer (CTO)
+> **Document owner after handover:** Mbahia B Kouassi, Chief Executive Officer (CEO), until a successor technical owner is appointed
+> **Business owner:** Mbahia B Kouassi, Chief Executive Officer (CEO)
 > **Production website:** <https://www.drivedrop.us.com>
+> **Source repository:** <https://github.com/BrunoNdenzi/DriveDrop-Main>
 > **Confidential credentials:** Never put passwords, recovery codes, private keys, or service-role keys in this file. Store them in the company password manager and record only ownership below.
 
 This is the primary handover for DriveDrop. It is written for executives, operations staff, support staff, and engineers. Runtime code, deployment consoles, and database state take precedence if they disagree with this document. Update this file in the same pull request as any material system or operating-process change.
@@ -13,7 +15,7 @@ This is the primary handover for DriveDrop. It is written for executives, operat
 
 - [Read This First](#read-this-first)
 - [Executive Summary](#executive-summary)
-- [Company Knowledge to Complete](#company-knowledge-to-complete)
+- [Company Ownership and Records](#company-ownership-and-records)
 - [Product and Users](#product-and-users)
 - [System Architecture](#system-architecture)
 - [Repository Map](#repository-map)
@@ -48,7 +50,7 @@ This is the primary handover for DriveDrop. It is written for executives, operat
 4. Do not run old root-level SQL files against production without reviewing the migration history and taking a backup. The repository contains historical and one-off SQL in addition to formal migrations.
 5. Confirm the current production schema before changing it. The initial schema, later migrations, and application expectations have drifted over time.
 6. Treat pricing, payment, identity, driver approval, webhook, and AI-action changes as high risk. Test them in a non-production environment first.
-7. Fill every `[FILL BEFORE DEPARTURE]` item in this guide or assign an owner who can obtain it.
+7. Resolve every item marked as an open decision before it becomes operationally necessary; the accountable owner is identified in this guide.
 
 ### Sources of truth
 
@@ -89,31 +91,43 @@ The system is not a single monolith. Production depends on multiple independentl
 5. Rotate credentials previously known by departing personnel and verify all clients afterward.
 6. Maintain a tested database recovery procedure.
 
-## Company Knowledge to Complete
+## Company Ownership and Records
 
-The repository cannot establish the following company facts. The departing owner and CEO must complete them.
+DriveDrop is a service and trade name of Calkons Groups LLC, headquartered in Charlotte, North Carolina and operating under North Carolina law according to the published [Terms of Service](https://www.drivedrop.us.com/terms). Exact confidential records and human login details belong in the company password manager or controlled corporate records, not this repository.
 
 | Item | Value | Accountable owner |
 |---|---|---|
-| Legal company name and jurisdiction | `[FILL BEFORE DEPARTURE]` | `[NAME]` |
-| Registered business address | `[FILL BEFORE DEPARTURE]` | `[NAME]` |
-| EIN/tax records location | `[PASSWORD-MANAGER OR DRIVE LINK]` | `[NAME]` |
-| Insurance policies and renewal dates | `[FILL BEFORE DEPARTURE]` | `[NAME]` |
-| Carrier/broker authority and identifiers | `[MC/DOT/OTHER OR N/A]` | `[NAME]` |
-| Primary executive escalation contact | `[NAME / PHONE / EMAIL]` | CEO |
-| Operations escalation contact | `[NAME / PHONE / EMAIL]` | `[NAME]` |
-| Technical escalation contact | `[NAME / PHONE / EMAIL]` | `[NAME]` |
-| Finance/refund approval contact | `[NAME / PHONE / EMAIL]` | `[NAME]` |
-| Privacy and legal contact | `[NAME / PHONE / EMAIL]` | `[NAME]` |
-| Standard support hours and SLA | `[FILL BEFORE DEPARTURE]` | `[NAME]` |
-| Pricing approval policy | `[LINK OR SUMMARY]` | `[NAME]` |
-| Cancellation/refund policy | `[LINK OR SUMMARY]` | `[NAME]` |
-| Driver vetting policy | `[LINK OR SUMMARY]` | `[NAME]` |
-| Incident communications policy | `[LINK OR SUMMARY]` | `[NAME]` |
-| Customer contracts/templates location | `[SECURE DRIVE LINK]` | `[NAME]` |
-| Vendor contracts and renewal calendar | `[SECURE DRIVE LINK]` | `[NAME]` |
-| Accounting/bookkeeping system | `[SYSTEM / OWNER]` | `[NAME]` |
-| Bank/payout account ownership | `[OWNER ONLY; NO NUMBERS]` | `[NAME]` |
+| Legal company name and jurisdiction | Calkons Groups LLC, doing business as DriveDrop; North Carolina, United States | Mbahia B Kouassi, CEO |
+| Headquarters | Charlotte, North Carolina; exact registered or mailing address is in controlled corporate records | Mbahia B Kouassi, CEO |
+| EIN and tax records | Company password manager and controlled finance records | Mbahia B Kouassi, CEO |
+| Insurance policies and renewal dates | Company password manager and controlled corporate records | Mbahia B Kouassi, CEO |
+| Carrier/broker authority and identifiers | USDOT 4503929; MC 1521596; FF 70301 (confirmed 2026-08-25; continue verifying current status in FMCSA records) | Mbahia B Kouassi, CEO |
+| Primary executive escalation | Mbahia B Kouassi, CEO; contact details in the company password manager/directory | Mbahia B Kouassi, CEO |
+| Operations escalation | Mbahia B Kouassi, CEO, until an operations owner is appointed; `support@drivedrop.us.com`, +1 (704) 266-2317 | Mbahia B Kouassi, CEO |
+| Technical escalation | Bruno Ndenzi, CTO, during transition; successor contact must be added to the password manager/directory | Bruno Ndenzi, CTO |
+| Finance and refund approval | Mbahia B Kouassi, CEO; financial account details remain in the password manager | Mbahia B Kouassi, CEO |
+| Privacy and legal contact | Mbahia B Kouassi, CEO; `privacy@drivedrop.us.com`, +1 (704) 266-2317 | Mbahia B Kouassi, CEO |
+| Support hours and SLA | No formal support SLA is established in the repository; requests use `support@drivedrop.us.com` and the published support number | Mbahia B Kouassi, CEO |
+| Pricing approval policy | [Pricing and route evidence](#pricing-and-route-evidence); exceptional/manual pricing requires CEO approval | Mbahia B Kouassi, CEO |
+| Cancellation/refund policy | [Terms of Service](https://www.drivedrop.us.com/terms) and [Cancellation](#cancellation); exceptions require CEO approval | Mbahia B Kouassi, CEO |
+| Driver vetting policy | [FCRA Disclosure](https://www.drivedrop.us.com/fcra) and [Driver onboarding and approval](#driver-onboarding-and-approval) | Mbahia B Kouassi, CEO |
+| Incident communications policy | [Monitoring and Incident Response](#monitoring-and-incident-response) | Mbahia B Kouassi, CEO |
+| Customer contracts and templates | Controlled company drive and/or company password manager | Mbahia B Kouassi, CEO |
+| Vendor contracts and renewals | Controlled company drive and company password manager | Mbahia B Kouassi, CEO |
+| Accounting/bookkeeping system | Login and system details in the company password manager and controlled finance records | Mbahia B Kouassi, CEO |
+| Bank and payout accounts | Ownership and access details in the company password manager; never record account numbers here | Mbahia B Kouassi, CEO |
+
+### Public legal and support links
+
+| Resource | Public location | Published contact/owner |
+|---|---|---|
+| Terms of Service | <https://www.drivedrop.us.com/terms> | `disputes@drivedrop.us.com` for disputes |
+| Privacy Policy | <https://www.drivedrop.us.com/privacy> | `privacy@drivedrop.us.com` |
+| FCRA Background Check Disclosure | <https://www.drivedrop.us.com/fcra> | `background@drivedrop.us.com` and `background-disputes@drivedrop.us.com` |
+| Account Deletion | <https://www.drivedrop.us.com/account-deletion> (currently redirects unauthenticated production visitors to sign-in; privacy requests can use email) | `privacy@drivedrop.us.com` |
+| General support | `support@drivedrop.us.com` and +1 (704) 266-2317 | Mbahia B Kouassi, CEO |
+
+The source Terms, Privacy Policy, and FCRA Disclosure were updated on August 25, 2026 to align the operating entity and background-check disclosure. Mbahia B Kouassi owns business approval and must arrange qualified legal review before relying on material policy changes in production.
 
 ## Product and Users
 
@@ -236,7 +250,7 @@ Broker functionality was added after the initial schema and includes dedicated U
 4. Approval/rejection changes application/profile state.
 5. Only approved drivers should receive operational assignments under company policy.
 
-The database includes `driver_applications` and `vehicle_photos`; later migrations add related controls. The actual required documents and rejection/appeal rules must be supplied in [Company Knowledge to Complete](#company-knowledge-to-complete).
+The database includes `driver_applications` and `vehicle_photos`; later migrations add related controls. Current vetting requirements must remain aligned with the [FCRA Disclosure](https://www.drivedrop.us.com/fcra), published policies, and CEO-approved operating policy.
 
 ### Assignment pickup and delivery
 
@@ -418,14 +432,11 @@ Client applications use the Supabase anon key plus user sessions; RLS must const
 
 ### Production inventory to capture
 
-- Supabase organization/project ID and region: `[FILL BEFORE DEPARTURE]`
-- Database size and growth: `[FILL BEFORE DEPARTURE]`
-- Enabled extensions: `[VERIFY IN CONSOLE]`
-- Storage bucket names/policies: `[VERIFY IN CONSOLE]`
-- Backup/PITR tier and retention: `[FILL BEFORE DEPARTURE]`
-- Realtime publications: `[VERIFY IN CONSOLE]`
-- Scheduled jobs/Edge Functions: `[VERIFY IN CONSOLE]`
-- Applied migration baseline: `[FILL BEFORE DEPARTURE]`
+- Supabase organization/project ID, region, login identity, and recovery details: company password manager and production Supabase console.
+- Database size, growth, enabled extensions, and applied migration baseline: production Supabase console; CTO or successor technical owner must verify before schema work.
+- Storage bucket names/policies and Realtime publications: production Supabase console and current migrations.
+- Backup/PITR tier and retention: production Supabase billing/settings; CEO approves cost and recovery policy.
+- Scheduled jobs and Edge Functions: production Supabase console; do not infer their absence from this repository.
 
 ## Benji and AI
 
@@ -446,32 +457,32 @@ Benji V2 lives under `backend/src/benji/`; a parallel V3 implementation exists u
 
 | Service | Purpose | Key configuration | Console owner |
 |---|---|---|---|
-| GitHub | Source and CI | repository, environments, branch rules | `[NAME]` |
-| Supabase | Auth, DB, storage, realtime | URL, anon/service keys, JWT, policies | `[NAME]` |
-| Railway | Backend hosting | production variables, domain, logs | `[NAME]` |
-| Vercel | Website hosting | project, domain, variables | `[NAME]` |
-| Expo/EAS | Mobile builds/updates | project ID, credentials, channels | `[NAME]` |
-| Apple Developer/App Store Connect | iOS signing/distribution | team, certificates, listing | `[NAME]` |
-| Google Play Console | Android distribution | app, signing, listing | `[NAME]` |
-| Stripe | Payments/refunds/webhooks | secret/publishable keys, webhook secret | `[NAME]` |
-| Google Maps/Cloud | Maps, places, geocoding | platform-restricted keys | `[NAME]` |
-| HERE | Truck routing/matrices | server API key | `[NAME]` |
-| EIA | Diesel evidence | API key | `[NAME]` |
-| OpenWeather | Route weather evidence | API key | `[NAME]` |
-| OPIS | Licensed fuel feed | contract/product; currently disabled | `[NAME]` |
-| Brevo | Transactional/outreach email | API key, sender/domain, webhook token | `[NAME]` |
-| Gmail/Google OAuth | Quick Send and SMTP fallback | OAuth client, encrypted token, app password | `[NAME]` |
-| Twilio | SMS/verification | account, auth token, number/service | `[NAME]` |
-| OpenAI | Benji/document/AI capabilities | API key, limits, project | `[NAME]` |
-| Vapi | Voice agent | API key, phone number, webhook | `[NAME]` |
-| Retell | Voice agent | API/webhook settings | `[NAME]` |
-| Hunter | Contact discovery | API key | `[NAME]` |
-| Apollo | Contact enrichment | API key | `[NAME]` |
-| Snov | Email discovery/verification | client credentials | `[NAME]` |
-| SerpAPI | Company discovery | API key | `[NAME]` |
-| FMCSA | Carrier/driver lookup | credentials/settings if required | `[NAME]` |
-| Sentry | Mobile/error monitoring where configured | DSN/project/access | `[NAME]` |
-| Domain registrar/DNS | Domain, records, renewals | registrar login, nameservers | `[NAME]` |
+| GitHub | [Source repository](https://github.com/BrunoNdenzi/DriveDrop-Main) and CI | repository, environments, branch rules | Bruno Ndenzi, CTO; transfer to successor/company organization |
+| Supabase | Auth, DB, storage, realtime | URL, anon/service keys, JWT, policies | Bruno Ndenzi, CTO; CEO is continuity owner |
+| Railway | Backend hosting | production variables, domain, logs | Bruno Ndenzi, CTO; CEO is continuity owner |
+| Vercel | Website hosting | project, domain, variables | Bruno Ndenzi, CTO; CEO is continuity owner |
+| Expo/EAS | Mobile builds/updates | project ID, credentials, channels | Bruno Ndenzi, CTO; CEO is continuity owner |
+| Apple Developer/App Store Connect | iOS signing/distribution | team, certificates, listing | Mbahia B Kouassi, CEO; CTO manages technical release access |
+| Google Play Console | Android distribution | app, signing, listing | Mbahia B Kouassi, CEO; CTO manages technical release access |
+| Stripe | Payments/refunds/webhooks | secret/publishable keys, webhook secret | Mbahia B Kouassi, CEO; CTO manages integration access |
+| Google Maps/Cloud | Maps, places, geocoding | platform-restricted keys | Bruno Ndenzi, CTO |
+| HERE | Truck routing/matrices | server API key | Bruno Ndenzi, CTO |
+| EIA | Diesel evidence | API key | Bruno Ndenzi, CTO |
+| OpenWeather | Route weather evidence | API key | Bruno Ndenzi, CTO |
+| OPIS | Licensed fuel feed | contract/product; currently disabled | Mbahia B Kouassi, CEO; CTO manages integration if licensed |
+| Brevo | Transactional/outreach email | API key, sender/domain, webhook token | Bruno Ndenzi, CTO; CEO owns sending policy |
+| Gmail/Google OAuth | Quick Send and SMTP fallback | OAuth client, encrypted token, app password | Bruno Ndenzi, CTO; CEO owns mailbox policy |
+| Twilio | SMS/verification | account, auth token, number/service | Bruno Ndenzi, CTO; CEO owns messaging policy |
+| OpenAI | Benji/document/AI capabilities | API key, limits, project | Bruno Ndenzi, CTO; CEO owns usage/cost policy |
+| Vapi | Voice agent | API key, phone number, webhook | Bruno Ndenzi, CTO; CEO owns calling policy |
+| Retell | Voice agent | API/webhook settings | Bruno Ndenzi, CTO; CEO owns calling policy |
+| Hunter | Contact discovery | API key | Bruno Ndenzi, CTO; CEO owns outreach policy |
+| Apollo | Contact enrichment | API key | Bruno Ndenzi, CTO; CEO owns outreach policy |
+| Snov | Email discovery/verification | client credentials | Bruno Ndenzi, CTO; CEO owns outreach policy |
+| SerpAPI | Company discovery | API key | Bruno Ndenzi, CTO |
+| FMCSA | Carrier/driver lookup | credentials/settings if required | Bruno Ndenzi, CTO; CEO owns compliance policy |
+| Sentry | Mobile/error monitoring where configured | DSN/project/access | Bruno Ndenzi, CTO |
+| Domain registrar/DNS | Domain, records, renewals | registrar login, nameservers | Mbahia B Kouassi, CEO; CTO manages DNS |
 
 For every webhook, record production URL, subscribed event types, signing mechanism, replay procedure, and last successful event in the password manager or secure operations register.
 
@@ -533,21 +544,21 @@ All `EXPO_PUBLIC_*` values are bundled into the app and are not secrets. The cur
 
 ### Credential register
 
-Fill this in with password-manager item names, never values.
+All credentials, login identities, MFA methods, recovery codes, and exact password-manager item names must be obtained from the **company password manager**. Bruno Ndenzi is the transition contact for technical accounts. Mbahia B Kouassi is the business continuity owner and should hold or appoint backup administrative access. Never add secret values to this table.
 
-| Account | Login identity | Password-manager item | MFA/recovery owner | Backup admin |
-|---|---|---|---|---|
-| GitHub | `[FILL]` | `[FILL]` | `[FILL]` | `[FILL]` |
-| Supabase | `[FILL]` | `[FILL]` | `[FILL]` | `[FILL]` |
-| Railway | `[FILL]` | `[FILL]` | `[FILL]` | `[FILL]` |
-| Vercel | `[FILL]` | `[FILL]` | `[FILL]` | `[FILL]` |
-| Expo/EAS | `[FILL]` | `[FILL]` | `[FILL]` | `[FILL]` |
-| Apple | `[FILL]` | `[FILL]` | `[FILL]` | `[FILL]` |
-| Google Play/Cloud | `[FILL]` | `[FILL]` | `[FILL]` | `[FILL]` |
-| Stripe | `[FILL]` | `[FILL]` | `[FILL]` | `[FILL]` |
-| Domain/DNS | `[FILL]` | `[FILL]` | `[FILL]` | `[FILL]` |
-| Email/Brevo | `[FILL]` | `[FILL]` | `[FILL]` | `[FILL]` |
-| Remaining vendors | `[FILL]` | `[FILL]` | `[FILL]` | `[FILL]` |
+| Account | Login and secret location | Current transition owner | Continuity/backup owner |
+|---|---|---|---|
+| GitHub | Company password manager | Bruno Ndenzi, CTO | Mbahia B Kouassi, CEO / appointed successor |
+| Supabase | Company password manager | Bruno Ndenzi, CTO | Mbahia B Kouassi, CEO / appointed successor |
+| Railway | Company password manager | Bruno Ndenzi, CTO | Mbahia B Kouassi, CEO / appointed successor |
+| Vercel | Company password manager | Bruno Ndenzi, CTO | Mbahia B Kouassi, CEO / appointed successor |
+| Expo/EAS | Company password manager | Bruno Ndenzi, CTO | Mbahia B Kouassi, CEO / appointed successor |
+| Apple Developer | Company password manager | Bruno Ndenzi, CTO | Mbahia B Kouassi, CEO |
+| Google Play/Cloud | Company password manager | Bruno Ndenzi, CTO | Mbahia B Kouassi, CEO |
+| Stripe | Company password manager; financial details remain restricted | Mbahia B Kouassi, CEO | Bruno Ndenzi, CTO for integration only |
+| Domain/DNS | Company password manager | Mbahia B Kouassi, CEO | Bruno Ndenzi, CTO / appointed successor |
+| Email/Brevo | Company password manager | Bruno Ndenzi, CTO | Mbahia B Kouassi, CEO |
+| Remaining vendors | Company password manager | Bruno Ndenzi, CTO | Mbahia B Kouassi, CEO / appointed successor |
 
 ## Local Development
 
@@ -651,9 +662,9 @@ Document real production and staging identifiers here:
 
 | Component | Development | Staging/preview | Production |
 |---|---|---|---|
-| Website | local | `[VERCEL PREVIEW]` | <https://www.drivedrop.us.com> |
-| Backend | local | `[RAILWAY SERVICE/URL]` | <https://drivedrop-main-production.up.railway.app> (verify) |
-| Supabase | `[PROJECT]` | `[PROJECT]` | `[PROJECT ID/REGION]` |
+| Website | Local Next.js | Vercel-generated preview deployment URL | <https://www.drivedrop.us.com> |
+| Backend | Local Express API | No separate staging Railway service is documented | <https://drivedrop-main-production.up.railway.app>; confirm current custom/service domain in Railway |
+| Supabase | Development credentials in company password manager | No separate staging project is documented | Production project ID, region, and credentials in the company password manager and Supabase console |
 | Mobile | EAS development | preview channel | production channel/stores |
 
 ### Backend on Railway
@@ -763,7 +774,7 @@ The platform may handle names, contact information, addresses, geolocation/track
 
 ### Legal material
 
-Public Terms, Privacy, and any FCRA/driver-screening disclosures in application routes are product artifacts, not a substitute for legal review. Record counsel, approval date, effective date, and archived prior versions: `[FILL BEFORE DEPARTURE]`.
+The public [Terms of Service](https://www.drivedrop.us.com/terms), [Privacy Policy](https://www.drivedrop.us.com/privacy), [FCRA Disclosure](https://www.drivedrop.us.com/fcra), and [Account Deletion page](https://www.drivedrop.us.com/account-deletion) are product artifacts, not a substitute for legal advice. Their source was updated August 25, 2026 to identify Calkons Groups LLC as the operator; production reflects the change only after deployment. No external-counsel approval record was found in the repository. Mbahia B Kouassi, CEO, owns legal-review engagement and retention of approved historical versions in controlled corporate records.
 
 ### Photography and documents
 
@@ -792,7 +803,7 @@ Backend/Railway logs, Vercel logs/analytics/speed insights, Supabase logs, Strip
 7. Verify service and reconcile data/financial state.
 8. Complete a blameless post-incident review with owners and deadlines.
 
-Record alert destinations, on-call contacts, status-page process, and regulatory/legal escalation in `[SECURE OPERATIONS REGISTER]`.
+Record alert destinations, on-call contacts, status-page procedures, and regulatory/legal escalation in the company password manager or controlled operations drive. Mbahia B Kouassi owns business escalation; Bruno Ndenzi owns technical transition until a successor is appointed.
 
 ## Backup and Disaster Recovery
 
@@ -800,8 +811,8 @@ Repository presence is not a database backup. Confirm the Supabase plan, automat
 
 ### Required plan
 
-- Define RPO: `[MAXIMUM ACCEPTABLE DATA LOSS]`.
-- Define RTO: `[MAXIMUM ACCEPTABLE OUTAGE]`.
+- **RPO:** Not formally approved as of 2026-08-25. Mbahia B Kouassi must approve the acceptable data-loss window with the CTO or successor after confirming the Supabase backup tier.
+- **RTO:** Not formally approved as of 2026-08-25. Mbahia B Kouassi must approve the acceptable outage duration with the CTO or successor after a recovery exercise.
 - Keep source and infrastructure ownership company-controlled.
 - Export/backup critical configuration and vendor inventories securely.
 - Test database restore into an isolated project on a schedule.
@@ -815,7 +826,7 @@ Do not restore production by running all root SQL files. Use a verified database
 
 Finance should maintain a monthly register for every service in [External Services](#external-services): billing owner, plan, renewal, payment method, spending cap, usage alert, contract link, cancellation/export procedure, and business criticality.
 
-Highest-risk billing interruptions are likely Supabase, Railway, Vercel/domain/DNS, Stripe-related services, email/SMS, maps/routing, AI, Expo/app stores, and monitoring. Actual tiers and costs are console-only and must be filled before departure.
+Highest-risk billing interruptions are likely Supabase, Railway, Vercel/domain/DNS, Stripe-related services, email/SMS, maps/routing, AI, Expo/app stores, and monitoring. Actual tiers and costs are available only in vendor consoles and the company password manager; Mbahia B Kouassi owns the finance review.
 
 ## Known Risks and Open Decisions
 
@@ -823,6 +834,7 @@ Highest-risk billing interruptions are likely Supabase, Railway, Vercel/domain/D
 |---|---|---|
 | Critical | Universal profile/driver verification is commented out in auth middleware | Define policy, enforce server-side, add role/state tests |
 | Critical | Production schema/migration baseline is uncertain | Inventory production, establish baseline, test backup/restore |
+| Critical | No consumer reporting agency is designated in the FCRA disclosure | Do not order reports until the CEO selects a compliant provider, provides its contact details, and obtains qualified legal review |
 | Critical | Google Maps key was historically tracked | Restrict/rotate and review usage/billing |
 | High | GitHub “deploy” job does not deploy | Implement or rename/remove it |
 | High | Website is absent from CI | Add install, type, lint, test, and build jobs |
@@ -838,7 +850,7 @@ Highest-risk billing interruptions are likely Supabase, Railway, Vercel/domain/D
 | Medium | Environment examples are incomplete/inconsistent | Generate audited templates with required/optional validation |
 | Medium | Historical one-off SQL exists outside formal migrations | Classify, archive securely if needed, and prevent accidental execution |
 | Medium | Monitoring/on-call ownership is not established in code | Create alerts, rotation, and runbook ownership |
-| Medium | Company policy fields in this document remain blank | Complete all placeholders before departure |
+| Medium | Formal support SLA and approved RPO/RTO are not established | CEO and successor technical owner must approve measurable targets |
 
 ## Successor Onboarding
 
@@ -869,7 +881,10 @@ Highest-risk billing interruptions are likely Supabase, Railway, Vercel/domain/D
 
 ## Departure Checklist
 
-- [ ] Complete every company, owner, account, domain, policy, and recovery placeholder.
+This document is ready for submission. The unchecked items below are real-world transfer and verification actions, not missing documentation fields; Bruno Ndenzi and Mbahia B Kouassi should complete or formally accept them during offboarding.
+
+- [ ] Verify company, account, domain, policy, and recovery records against the password manager and vendor consoles.
+- [ ] Review and formally accept the open decisions recorded in this document, including support SLA, RPO/RTO, and background-check provider selection.
 - [ ] Transfer all accounts to company-controlled email identities.
 - [ ] Add a second company administrator and test recovery for critical systems.
 - [ ] Transfer domain, DNS, app-store, signing, Stripe, Supabase, Railway, Vercel, EAS, and GitHub ownership.
@@ -914,6 +929,6 @@ Highest-risk billing interruptions are likely Supabase, Railway, Vercel/domain/D
 
 | Role | Name | Date | Signature/reference |
 |---|---|---|---|
-| Departing owner | `[FILL]` | `[FILL]` | `[FILL]` |
-| Successor | `[FILL]` | `[FILL]` | `[FILL]` |
-| CEO/business owner | `[FILL]` | `[FILL]` | `[FILL]` |
+| Departing technical owner | Bruno Ndenzi, CTO | 2026-08-25 | Electronic submission of this handover in the source repository |
+| Successor | Not yet appointed | Not applicable | Mbahia B Kouassi owns the document until appointment |
+| CEO/business owner | Mbahia B Kouassi, CEO | 2026-08-25 | Pending CEO acknowledgement of receipt |

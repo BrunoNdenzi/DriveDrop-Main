@@ -10,7 +10,7 @@ export default function TermsOfServicePage() {
 
         <div className="prose prose-lg max-w-none">
           <p className="text-muted-foreground mb-6">
-            <strong>Last Updated:</strong> July 7, 2026 &nbsp;|&nbsp; <strong>Effective:</strong> July 7, 2026
+            <strong>Last Updated:</strong> August 25, 2026 &nbsp;|&nbsp; <strong>Effective:</strong> August 25, 2026
           </p>
 
           {/* ─── 1. Acceptance ─────────────────────────────────────────── */}
@@ -23,8 +23,8 @@ export default function TermsOfServicePage() {
               incorporated herein by reference. If you do not agree to these Terms, do not use our Services.
             </p>
             <p>
-              These Terms constitute a legally binding agreement between you and DriveDrop, Inc.
-              ("DriveDrop," "we," "us," or "our"), a company headquartered in Charlotte, North Carolina.
+              These Terms constitute a legally binding agreement between you and Calkons Groups LLC,
+              doing business as DriveDrop ("DriveDrop," "we," "us," or "our"), headquartered in Charlotte, North Carolina.
               We may update these Terms at any time; material changes will be communicated by email or
               in-app notification. Continued use after the effective date of revised Terms constitutes
               acceptance.
@@ -314,7 +314,7 @@ export default function TermsOfServicePage() {
             <div className="bg-amber-50 border border-amber-200 rounded-md p-4 mt-4">
               <p className="text-sm font-semibold text-amber-800">
                 SMS consent is <strong>not</strong> shared with third parties for marketing or promotional purposes.
-                You will only receive messages from DriveDrop, Inc.
+                You will only receive messages from Calkons Groups LLC, doing business as DriveDrop.
               </p>
             </div>
           </section>
@@ -456,7 +456,7 @@ export default function TermsOfServicePage() {
             <h2 className="text-2xl font-bold mb-4">17. Intellectual Property</h2>
             <p>
               All content, trademarks, logos, software, and other intellectual property displayed on or
-              through the DriveDrop platform are owned by DriveDrop, Inc. or its licensors and are
+              through the DriveDrop platform are owned by Calkons Groups LLC, doing business as DriveDrop, or its licensors and are
               protected by applicable copyright, trademark, and other intellectual property laws. You
               may not use, reproduce, distribute, or create derivative works without DriveDrop's prior
               written consent.
@@ -543,7 +543,7 @@ export default function TermsOfServicePage() {
               <li><strong>Dispute resolution:</strong>{' '}<a href="mailto:disputes@drivedrop.us.com" className="text-primary underline">disputes@drivedrop.us.com</a></li>
               <li><strong>General support:</strong>{' '}<a href="mailto:support@drivedrop.us.com" className="text-primary underline">support@drivedrop.us.com</a></li>
               <li><strong>Phone:</strong>{' '}<a href="tel:+17042662317" className="text-primary underline">+1 (704) 266-2317</a></li>
-              <li><strong>Mail:</strong> DriveDrop, Inc. — Legal Department, Charlotte, North Carolina, USA</li>
+              <li><strong>Mail:</strong> Calkons Groups LLC d/b/a DriveDrop — Legal Department, Charlotte, North Carolina, USA</li>
             </ul>
           </section>
 
