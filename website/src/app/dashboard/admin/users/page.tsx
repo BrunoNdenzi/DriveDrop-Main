@@ -20,7 +20,7 @@ import {
   EyeOff,
   X,
   Loader2
-} from 'lucide-react'
+} from '@/components/icons/streamline-lucide'
 import { Button } from '@/components/ui/button'
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://drivedrop-main-production.up.railway.app/api/v1'

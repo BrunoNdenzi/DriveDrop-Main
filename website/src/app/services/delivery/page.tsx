@@ -9,7 +9,7 @@ import {
   Package, Phone, ArrowRight, CheckCircle,
   ArrowLeft, MapPin, XCircle, Sofa, Box, Building2,
   ShoppingBag, Wrench, ScrollText, Paperclip
-} from 'lucide-react'
+} from '@/components/icons/streamline-lucide'
 
 // ── WHAT WE CARRY ────────────────────────────────────────
 const CAN_CARRY = [
@@ -155,7 +155,7 @@ function QuoteForm() {
       <button
         type="submit"
         disabled={status === 'sending'}
-        className="w-full bg-blue-600 hover:bg-blue-500 disabled:opacity-60 text-white font-bold py-4 rounded-xl transition-all duration-200 flex items-center justify-center gap-2"
+        className="flex w-full items-center justify-center gap-2 bg-[#008c82] py-4 font-bold text-white transition-colors hover:bg-[#00766e] disabled:opacity-60"
       >
         {status === 'sending' ? 'Sending...' : (
           <>Book Delivery <ArrowRight className="h-4 w-4" /></>
@@ -188,27 +188,7 @@ export default function DeliveryPage() {
             unoptimized
             priority
           />
-          <div className="absolute inset-0 bg-slate-950/80" />
-          <div className="absolute inset-0 bg-gradient-to-r from-slate-950/90 via-slate-950/60 to-transparent" />
-        </div>
-
-        {/* Blue glow */}
-        <div className="pointer-events-none absolute top-0 left-1/3 w-[600px] h-[500px] rounded-full bg-blue-500/8 blur-[140px]" />
-
-        {/* Grid */}
-        <div
-          className="pointer-events-none absolute inset-0"
-          style={{
-            backgroundImage: 'linear-gradient(rgba(255,255,255,0.025) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.025) 1px, transparent 1px)',
-            backgroundSize: '60px 60px',
-          }}
-        />
-
-        {/* Background word */}
-        <div className="pointer-events-none absolute inset-0 flex items-end overflow-hidden select-none pb-4">
-          <span className="text-[22vw] font-black text-white/[0.02] leading-none tracking-tighter whitespace-nowrap pl-4" aria-hidden>
-            DELIVERY
-          </span>
+          <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(10,32,34,.94)_0%,rgba(10,32,34,.74)_48%,rgba(10,32,34,.22)_100%)]" />
         </div>
 
         <div className="container relative z-10 pb-16 lg:pb-24">
@@ -220,12 +200,12 @@ export default function DeliveryPage() {
           <div className="grid lg:grid-cols-5 gap-12 items-center">
             {/* Left 3/5 */}
             <div className="lg:col-span-3">
-              <div className="inline-flex items-center gap-2 rounded-full border border-blue-500/20 bg-blue-500/10 px-4 py-1.5 mb-6">
+              <div className="mb-6 inline-flex items-center gap-2 border border-white/25 bg-[#173436]/70 px-4 py-2">
                 <MapPin className="h-3.5 w-3.5 text-blue-400" />
                 <span className="text-xs font-bold text-blue-400 tracking-widest uppercase">Charlotte Metro · Same-City</span>
               </div>
 
-              <h1 className="text-5xl lg:text-6xl font-black text-white leading-[0.92] tracking-tight mb-5">
+              <h1 className="mb-5 text-5xl font-semibold leading-[.98] text-white lg:text-6xl">
                 If it fits<br />
                 <span className="text-blue-400">in a van</span>,<br />
                 we deliver it.
@@ -238,14 +218,14 @@ export default function DeliveryPage() {
               <div className="flex flex-col sm:flex-row gap-3">
                 <a
                   href="tel:+17042662317"
-                  className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-500 text-white font-bold px-7 py-4 rounded-xl transition-all hover:scale-[1.02] text-sm"
+                  className="inline-flex items-center gap-2 bg-[#008c82] px-7 py-4 text-sm font-bold text-white hover:bg-[#00756d]"
                 >
                   <Phone className="h-4 w-4" />
                   +1 (704) 266-2317
                 </a>
                 <a
                   href="#quote"
-                  className="inline-flex items-center gap-2 border border-white/20 hover:border-white/40 text-white font-semibold px-6 py-4 rounded-xl transition-all text-sm hover:bg-white/5"
+                  className="inline-flex items-center gap-2 border border-white/40 px-6 py-4 text-sm font-semibold text-white hover:bg-white/10"
                 >
                   Book a delivery
                   <ArrowRight className="h-4 w-4" />
@@ -255,17 +235,17 @@ export default function DeliveryPage() {
 
             {/* Right 2/5 — stat cards */}
             <div className="lg:col-span-2 space-y-3">
-              <div className="rounded-2xl bg-blue-950/30 border border-blue-500/20 p-5">
+              <div className="border border-white/20 bg-[#173436]/70 p-5">
                 <MapPin className="h-6 w-6 text-blue-400 mb-2" />
                 <p className="text-2xl font-black text-white">Charlotte, NC</p>
                 <p className="text-white/40 text-sm mt-0.5">and surrounding areas</p>
               </div>
-              <div className="rounded-2xl bg-white/5 border border-white/10 p-5">
+              <div className="border border-white/20 bg-[#173436]/70 p-5">
                 <ScrollText className="h-6 w-6 text-amber-400 mb-2" />
                 <p className="text-lg font-black text-white">Freight Forwarder</p>
                 <p className="text-white/40 text-sm mt-0.5">Licensed for commercial moves</p>
               </div>
-              <div className="rounded-2xl bg-white/5 border border-white/10 p-5">
+              <div className="border border-white/20 bg-[#173436]/70 p-5">
                 <p className="text-xl font-black text-white">Quoted per load</p>
                 <p className="text-white/40 text-sm mt-0.5">Call for a rate — no long-term contract</p>
               </div>

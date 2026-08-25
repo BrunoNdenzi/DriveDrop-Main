@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { getSupabaseBrowserClient } from '@/lib/supabase-client'
-import { Trash2, CheckCircle, XCircle, Clock, RefreshCw, User } from 'lucide-react'
+import { Trash2, CheckCircle, XCircle, Clock, RefreshCw, User } from '@/components/icons/streamline-lucide'
 import { Button } from '@/components/ui/button'
 
 interface DeletionRequest {

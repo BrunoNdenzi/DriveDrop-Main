@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { Bell, Check, CheckCheck, X, Package, CreditCard, Truck, MessageCircle, AlertCircle } from 'lucide-react'
+import { Bell, Check, CheckCheck, X, Package, CreditCard, Truck, MessageCircle, AlertCircle } from '@/components/icons/streamline-lucide'
 import { useNotifications, type Notification } from '@/hooks/useNotifications'
 import { formatDistanceToNow } from 'date-fns'
 

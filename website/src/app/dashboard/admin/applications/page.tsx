@@ -13,7 +13,7 @@ import {
   FileText,
   AlertCircle,
   Download
-} from 'lucide-react'
+} from '@/components/icons/streamline-lucide'
 import { Button } from '@/components/ui/button'
 
 interface DriverApplication {

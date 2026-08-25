@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { CheckCircle2, Loader2, Phone } from 'lucide-react'
+import { CheckCircle2, Loader2, Phone } from '@/components/icons/streamline-lucide'
 import { getSupabaseBrowserClient } from '@/lib/supabase-client'
 import { toast } from '@/components/ui/toast'
 

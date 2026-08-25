@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { Truck, Mail, Phone, MapPin } from 'lucide-react'
+import { Truck, Mail, Phone, MapPin } from '@/components/icons/streamline-lucide'
 
 export default function Footer() {
   return (

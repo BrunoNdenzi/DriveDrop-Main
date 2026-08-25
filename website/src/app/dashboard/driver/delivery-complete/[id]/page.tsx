@@ -16,7 +16,7 @@ import {
   DollarSign,
   FileCheck,
   MessageCircle
-} from 'lucide-react'
+} from '@/components/icons/streamline-lucide'
 
 interface DeliveryPhoto {
   id: string

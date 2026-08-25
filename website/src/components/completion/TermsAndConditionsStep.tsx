@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Check, AlertCircle, FileText, Shield, DollarSign, Truck } from 'lucide-react'
+import { Check, AlertCircle, FileText, Shield, DollarSign, Truck } from '@/components/icons/streamline-lucide'
 
 interface TermsAndConditionsStepProps {
   shipmentData: any

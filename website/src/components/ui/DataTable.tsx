@@ -72,13 +72,13 @@ export function DataTable<T extends Record<string, any>>({
   return (
     <div
       className={cn(
-        "w-full overflow-auto rounded border border-border bg-card",
+        "w-full overflow-auto border border-[#c7d4d2] bg-card",
         className
       )}
     >
       <table className="w-full text-sm border-collapse">
         <thead>
-          <tr className="border-b border-border bg-muted/50">
+          <tr className="border-b border-[#d7e1df] bg-[#f4f7f6]">
             {showIndex && (
               <th className="w-10 px-3 py-2 text-center text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                 #
@@ -89,7 +89,7 @@ export function DataTable<T extends Record<string, any>>({
                 key={col.key}
                 style={col.width ? { width: col.width } : undefined}
                 className={cn(
-                  "px-3 py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider",
+                  "px-3 py-2.5 text-[10px] font-bold uppercase tracking-[0.1em] text-[#657977]",
                   alignClass(col.align),
                   col.sortable && "cursor-pointer select-none hover:text-foreground"
                 )}
@@ -122,10 +122,9 @@ export function DataTable<T extends Record<string, any>>({
               <tr
                 key={keyExtractor(item, index)}
                 className={cn(
-                  "border-b border-border transition-colors",
-                  index % 2 === 0 ? "bg-card" : "bg-muted/20",
-                  onRowClick && "cursor-pointer hover:bg-muted/40",
-                  isRowHighlighted?.(item) && "bg-blue-50 dark:bg-blue-950/20"
+                  "border-b border-[#e0e8e6] bg-card transition-colors",
+                  onRowClick && "cursor-pointer hover:bg-[#f7faf9]",
+                  isRowHighlighted?.(item) && "bg-[#edf7f5]"
                 )}
                 onClick={onRowClick ? () => onRowClick(item, index) : undefined}
               >

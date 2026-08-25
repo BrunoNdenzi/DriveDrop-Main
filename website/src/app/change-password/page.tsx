@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Lock, Eye, EyeOff, CheckCircle, XCircle } from 'lucide-react'
+import { Lock, Eye, EyeOff, CheckCircle, XCircle } from '@/components/icons/streamline-lucide'
 import { getSupabaseBrowserClient } from '@/lib/supabase-client'
 import Header from '@/components/layout/Header'
 import Footer from '@/components/layout/Footer'
@@ -102,13 +102,13 @@ function ChangePasswordForm() {
   return (
     <>
       <Header />
-      <main className="min-h-screen pt-20 pb-16 bg-[hsl(var(--surface-field))]">
+      <main className="min-h-screen bg-[#f2f6f5] pb-16 pt-24 text-[#193638]">
         <div className="max-w-md mx-auto px-4 py-10">
-          <div className="bg-white border border-border rounded-md shadow-sm p-6">
+          <div className="border border-[#c7d4d2] bg-white p-6 shadow-none sm:p-8">
             {/* Header */}
             <div className="text-center mb-6">
-              <div className="inline-flex items-center justify-center w-12 h-12 bg-blue-500 rounded-md mb-3">
-                <Lock className="h-6 w-6 text-white" />
+              <div className="mb-3 inline-flex h-12 w-12 items-center justify-center bg-[#e7f3f1] text-[#008c82]">
+                <Lock className="h-6 w-6" />
               </div>
               <h1 className="text-2xl font-bold tracking-tight">
                 {required ? 'Password Change Required' : 'Change Password'}
@@ -205,7 +205,7 @@ function ChangePasswordForm() {
                 {/* Submit Button */}
                 <Button
                   type="submit"
-                  className="w-full"
+                  className="h-11 w-full rounded-none bg-[#008c82] hover:bg-[#00756d]"
                   disabled={loading || !allRequirementsMet || !passwordsMatch}
                 >
                   {loading ? 'Changing Password...' : 'Change Password'}
@@ -237,7 +237,7 @@ export default function ChangePasswordPage() {
   return (
     <Suspense fallback={
       <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+        <div className="h-10 w-10 animate-spin rounded-full border-2 border-[#b8cdca] border-t-[#008c82]"></div>
       </div>
     }>
       <ChangePasswordForm />

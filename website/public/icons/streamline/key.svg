@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" id="Car-Key--Streamline-Ultimate" height="24" width="24">
+  <desc>
+    Car Key Streamline Icon: https://streamlinehq.com
+  </desc>
+  <g>
+    <g>
+      <path d="M5.25 3.75a3 3 0 1 0 6 0 3 3 0 1 0 -6 0" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"></path>
+      <path d="m11.25 3.75 7.5 0 0 2.25" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"></path>
+      <path d="m15.75 3.75 0 1.5" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"></path>
+    </g>
+    <g>
+      <path d="M17.58 9.75H6.42A1.49 1.49 0 0 0 5 10.89l-1.25 2.86h16.5L19 10.89a1.49 1.49 0 0 0 -1.42 -1.14Z" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"></path>
+      <path d="M21 20.25H3a0.76 0.76 0 0 1 -0.75 -0.75v-4.25a1.5 1.5 0 0 1 1.5 -1.5h16.5a1.5 1.5 0 0 1 1.5 1.5v4.25a0.76 0.76 0 0 1 -0.75 0.75Z" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"></path>
+      <path d="m2.25 17.25 3 0" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"></path>
+      <path d="m18.75 17.25 3 0" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"></path>
+      <path d="M9.75 17.25h4.5v3h-4.5Z" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"></path>
+      <path d="M16.75 23.25h2a1.5 1.5 0 0 0 1.5 -1.5v-1.5h-5v1.5a1.5 1.5 0 0 0 1.5 1.5Z" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"></path>
+      <path d="M5.25 23.25h2a1.5 1.5 0 0 0 1.5 -1.5v-1.5h-5v1.5a1.5 1.5 0 0 0 1.5 1.5Z" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"></path>
+    </g>
+  </g>
+</svg>

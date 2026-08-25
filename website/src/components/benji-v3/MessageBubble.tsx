@@ -1,6 +1,6 @@
 'use client'
 
-import { Bot } from 'lucide-react'
+import { Bot } from '@/components/icons/streamline-lucide'
 import type { V3Message } from './hooks/useBenjiSession'
 
 interface MessageBubbleProps {

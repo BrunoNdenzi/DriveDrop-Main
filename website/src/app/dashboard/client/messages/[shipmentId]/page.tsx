@@ -10,7 +10,7 @@ import {
   Info,
   User,
   Package,
-} from 'lucide-react'
+} from '@/components/icons/streamline-lucide'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 

@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useRef, useCallback } from 'react'
-import { Upload, FileText, CheckCircle, AlertCircle, Loader2, Camera, X, Sparkles } from 'lucide-react'
+import { Upload, FileText, CheckCircle, AlertCircle, Loader2, Camera, X, Sparkles } from '@/components/icons/streamline-lucide'
 import { Button } from '@/components/ui/button'
 import { aiService, DocumentExtractionResponse } from '@/services/aiService'
 import { cn } from '@/lib/utils'

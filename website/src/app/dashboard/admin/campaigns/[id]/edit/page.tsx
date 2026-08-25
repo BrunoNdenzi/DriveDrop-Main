@@ -6,7 +6,7 @@ import { Campaign } from '@/types/campaigns'
 import { getCampaign } from '@/lib/api/campaigns'
 import CampaignForm from '@/components/admin/campaigns/CampaignForm'
 import Link from 'next/link'
-import { ChevronLeft, Loader2 } from 'lucide-react'
+import { ChevronLeft, Loader2 } from '@/components/icons/streamline-lucide'
 
 export default function EditCampaignPage() {
   const params = useParams()

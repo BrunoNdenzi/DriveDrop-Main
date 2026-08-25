@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { ArrowRight, ParkingSquare, X } from 'lucide-react'
+import { ArrowRight, ParkingSquare, X } from '@/components/icons/streamline-lucide'
 
 const DISMISSED_KEY = 'parking-interest-floater-dismissed'
 
@@ -22,7 +22,7 @@ export default function ParkingInterestFloater() {
 
   return (
     <aside
-      className="fixed bottom-4 left-4 z-40 w-[calc(100vw-2rem)] max-w-sm animate-slide-up overflow-hidden rounded-md border border-teal-700/30 bg-slate-950 text-white shadow-2xl shadow-slate-950/30 sm:bottom-6 sm:left-6"
+      className="fixed bottom-6 left-6 z-40 hidden w-[calc(100vw-3rem)] max-w-sm animate-slide-up overflow-hidden rounded-md border border-teal-700/30 bg-slate-950 text-white shadow-2xl shadow-slate-950/30 sm:block"
       aria-label="Charlotte commercial parking survey"
     >
       <button

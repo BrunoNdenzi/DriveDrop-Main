@@ -18,7 +18,7 @@ import {
   Calendar,
   BarChart3,
   Building2
-} from 'lucide-react'
+} from '@/components/icons/streamline-lucide'
 import { Button } from '@/components/ui/button'
 
 interface SystemStats {

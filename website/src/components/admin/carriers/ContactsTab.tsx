@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { listCarriers, createContact, updateCarrier } from '@/lib/api/carriers'
 import type { CarrierContact } from '@/types/campaigns'
 import { toast } from '@/components/ui/toast'
-import { Loader2, Plus, Search, RefreshCw, ExternalLink } from 'lucide-react'
+import { Loader2, Plus, Search, RefreshCw, ExternalLink } from '@/components/icons/streamline-lucide'
 
 type ContactType = 'broker' | 'dealership' | 'shipper'
 

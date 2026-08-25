@@ -27,7 +27,7 @@ import {
   Zap,
   Target,
   X,
-} from 'lucide-react'
+} from '@/components/icons/streamline-lucide'
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // Types

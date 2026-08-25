@@ -46,22 +46,19 @@ export function MetricStrip({ metrics, className }: MetricStripProps) {
   return (
     <div
       className={cn(
-        "flex flex-wrap items-stretch border-b border-border bg-card",
+        "grid grid-cols-2 items-stretch border border-[#c7d4d2] bg-card md:grid-cols-4",
         className
       )}
     >
       {metrics.map((metric, index) => (
         <React.Fragment key={metric.label}>
-          {index > 0 && (
-            <div className="w-px self-stretch bg-border my-2" />
-          )}
-          <div className="flex-1 min-w-[120px] flex flex-col items-center justify-center px-4 py-3">
-            <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+          <div className={cn("min-w-0 border-[#d7e1df] px-4 py-4", index > 0 && "border-l", index > 1 && "border-t md:border-t-0")}>
+            <span className="text-[10px] font-bold uppercase tracking-[0.1em] text-[#718482]">
               {metric.label}
             </span>
             <span
               className={cn(
-                "text-lg font-semibold tabular-nums",
+                "mt-1 block text-xl font-semibold tabular-nums",
                 valueColorMap[metric.variant || "default"]
               )}
             >

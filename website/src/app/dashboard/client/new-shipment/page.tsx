@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { ArrowLeft, Package, Sparkles, FileText } from 'lucide-react'
+import { ArrowLeft, Package, Sparkles, FileText } from '@/components/icons/streamline-lucide'
 import Link from 'next/link'
 import ShipmentForm from '@/components/shipment/ShipmentForm'
 import { Button } from '@/components/ui/button'

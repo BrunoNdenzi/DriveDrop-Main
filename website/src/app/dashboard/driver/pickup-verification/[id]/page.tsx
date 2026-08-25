@@ -16,7 +16,7 @@ import {
   ChevronLeft,
   Info,
   Loader2
-} from 'lucide-react'
+} from '@/components/icons/streamline-lucide'
 
 interface PhotoRequirement {
   id: string

@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import { getCarrierStats, type CarrierStats } from '@/lib/api/carriers'
-import { Loader2, RefreshCw, Mail, CheckCircle, Users } from 'lucide-react'
+import { Loader2, RefreshCw, Mail, CheckCircle, Users } from '@/components/icons/streamline-lucide'
 
 export default function EnrichmentStats() {
   const [stats, setStats] = useState<CarrierStats | null>(null)

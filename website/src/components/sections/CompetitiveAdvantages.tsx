@@ -1,6 +1,6 @@
 'use client'
 
-import { Sparkles, Brain, Network, Zap, Shield, TrendingUp } from 'lucide-react'
+import { Sparkles, Brain, Network, Zap, Shield, TrendingUp } from '@/components/icons/streamline-lucide'
 
 const advantages = [
   {

@@ -7,7 +7,7 @@ import { useRouter } from 'next/navigation'
 import Header from '@/components/layout/Header'
 import Footer from '@/components/layout/Footer'
 import { Button } from '@/components/ui/button'
-import { Trash2, AlertTriangle, Loader2 } from 'lucide-react'
+import { Trash2, AlertTriangle, Loader2 } from '@/components/icons/streamline-lucide'
 
 export default function AccountDeletionPage() {
   const { profile, loading: authLoading } = useAuth()

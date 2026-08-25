@@ -1,7 +1,7 @@
 'use client'
 
 import { CampaignStats as Stats } from '@/types/campaigns'
-import { Users, Send, CheckCircle, Eye, MousePointer, XCircle, TrendingUp, BarChart3 } from 'lucide-react'
+import { Users, Send, CheckCircle, Eye, MousePointer, XCircle, TrendingUp, BarChart3 } from '@/components/icons/streamline-lucide'
 
 interface CampaignStatsProps {
   stats: Stats

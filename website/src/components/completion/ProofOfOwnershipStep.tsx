@@ -2,7 +2,7 @@
 
 import { useState, useCallback } from 'react'
 import { useDropzone } from 'react-dropzone'
-import { FileText, Upload, X, Check, AlertCircle, File } from 'lucide-react'
+import { FileText, Upload, X, Check, AlertCircle, File } from '@/components/icons/streamline-lucide'
 import { Button } from '@/components/ui/button'
 
 interface ProofOfOwnershipStepProps {

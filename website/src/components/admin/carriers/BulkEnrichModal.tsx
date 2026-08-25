@@ -3,7 +3,7 @@
 import { useRef, useState } from 'react'
 import { bulkEnrichCarriers } from '@/lib/api/carriers'
 import { toast } from '@/components/ui/toast'
-import { Loader2, Upload, X, FileText, CheckCircle } from 'lucide-react'
+import { Loader2, Upload, X, FileText, CheckCircle } from '@/components/icons/streamline-lucide'
 
 interface BulkEnrichModalProps {
   onClose: () => void

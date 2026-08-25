@@ -15,7 +15,7 @@ import {
   DollarSign,
   ArrowRight,
   Calendar
-} from 'lucide-react'
+} from '@/components/icons/streamline-lucide'
 import { Button } from '@/components/ui/button'
 
 interface Shipment {

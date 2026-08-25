@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Check, X, AlertCircle, Info } from 'lucide-react'
+import { Check, X, AlertCircle, Info } from '@/components/icons/streamline-lucide'
 
 type ToastType = 'success' | 'error' | 'warning' | 'info'
 

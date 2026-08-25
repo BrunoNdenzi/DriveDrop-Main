@@ -1,6 +1,6 @@
 'use client';
 
-import { User } from 'lucide-react';
+import { User } from '@/components/icons/streamline-lucide';
 
 export default function ProfilePage() {
   return (

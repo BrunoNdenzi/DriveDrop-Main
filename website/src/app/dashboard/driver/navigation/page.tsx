@@ -37,7 +37,7 @@ import {
   Fuel,
   TrendingUp,
   BrickWall,
-} from 'lucide-react'
+} from '@/components/icons/streamline-lucide'
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // Types

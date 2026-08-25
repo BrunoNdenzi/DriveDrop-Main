@@ -5,7 +5,7 @@
  * Shows avatar, name, online indicator, minimize/close controls.
  */
 
-import { Bot, Minus, X, RefreshCw } from 'lucide-react'
+import { Bot, Minus, X, RefreshCw } from '@/components/icons/streamline-lucide'
 
 interface BenjiHeaderProps {
   onMinimize:   () => void

@@ -1,213 +1,57 @@
 'use client'
 
-import { useAuth } from '@/hooks/useAuth'
-import { useRouter, usePathname } from 'next/navigation'
 import Link from 'next/link'
-import Image from 'next/image'
-import { useState } from 'react'
+import { usePathname } from 'next/navigation'
+import { Car, CreditCard, MessageSquare, Package, Plus, Settings, User } from '@/components/icons/streamline-lucide'
+
 import NotificationBell from '@/components/NotificationBell'
-import { 
-  Package, 
-  Plus, 
-  MapPin, 
-  CreditCard, 
-  User, 
-  LogOut,
-  Menu,
-  X,
-  Bell,
-  ChevronDown,
-  Car,
-  MessageSquare,
-  Settings,
-} from 'lucide-react'
-import { Button } from '@/components/ui/button'
 import { BenjiAssistant } from '@/components/benji-v3/BenjiAssistant'
+import { OperationalDashboardShell } from '@/components/dashboard/OperationalDashboardShell'
+import { useAuth } from '@/hooks/useAuth'
 
 const navItems = [
-  { href: '/dashboard/client', label: 'Dashboard', icon: Package },
-  { href: '/dashboard/client/shipments', label: 'My Shipments', icon: Package },
-  { href: '/dashboard/client/new-shipment', label: 'New Shipment', icon: Plus },
-  { href: '/dashboard/client/vehicles', label: 'My Vehicles', icon: Car },
+  { href: '/dashboard/client', label: 'Overview', icon: Package },
+  { href: '/dashboard/client/shipments', label: 'My shipments', icon: Package },
+  { href: '/dashboard/client/new-shipment', label: 'New shipment', icon: Plus },
+  { href: '/dashboard/client/vehicles', label: 'My vehicles', icon: Car },
   { href: '/dashboard/client/messages', label: 'Messages', icon: MessageSquare },
   { href: '/dashboard/client/payments', label: 'Payments', icon: CreditCard },
   { href: '/dashboard/client/profile', label: 'Profile', icon: User },
   { href: '/dashboard/client/settings', label: 'Settings', icon: Settings },
 ]
 
-export default function ClientDashboardLayout({
-  children,
-}: {
-  children: React.ReactNode
-}) {
+export default function ClientDashboardLayout({ children }: { children: React.ReactNode }) {
   const { user, profile, loading, signOut } = useAuth()
-  const router = useRouter()
   const pathname = usePathname()
-  const [sidebarOpen, setSidebarOpen] = useState(false)
-  const [userMenuOpen, setUserMenuOpen] = useState(false)
 
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-[hsl(var(--surface-field))]">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
-      </div>
-    )
-  }
+  if (loading) return <WorkspaceLoader />
 
   const userName = profile?.first_name && profile?.last_name
     ? `${profile.first_name} ${profile.last_name}`
-    : profile?.email?.split('@')[0] || 'User'
+    : profile?.email?.split('@')[0] || 'Shipper'
 
   return (
-    <div className="min-h-screen bg-[hsl(var(--surface-field))]">
-      {/* Header */}
-      <header className="bg-white border-b border-gray-200 sticky top-0 z-40">
-        <div className="px-2 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            {/* Logo & Mobile Menu */}
-            <div className="flex items-center gap-2 sm:gap-4 min-w-0">
-              <button
-                onClick={() => setSidebarOpen(!sidebarOpen)}
-                className="lg:hidden p-2 rounded-lg hover:bg-gray-100 transition-colors"
-              >
-                {sidebarOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
-              </button>
-              
-              <Link href="/" className="flex items-center">
-                <Image
-                  src="/logo-primary.png"
-                  alt="DriveDrop"
-                  width={120}
-                  height={30}
-                  priority
-                  className="h-7 sm:h-8 w-auto max-w-[112px] sm:max-w-none"
-                />
-              </Link>
-            </div>
-
-            {/* Right Side Actions */}
-            <div className="flex items-center gap-1 sm:gap-4">
-              {/* Notifications */}
-              <NotificationBell />
-
-              {/* User Menu */}
-              <div className="relative">
-                <button
-                  onClick={() => setUserMenuOpen(!userMenuOpen)}
-                  className="flex items-center gap-2 p-2 rounded-lg hover:bg-gray-100 transition-colors"
-                >
-                  <div className="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center">
-                    <span className="text-white font-semibold text-sm">
-                      {userName.charAt(0).toUpperCase()}
-                    </span>
-                  </div>
-                  <span className="hidden md:block text-sm font-medium text-gray-700">
-                    {userName}
-                  </span>
-                  <ChevronDown className="hidden md:block h-4 w-4 text-gray-500" />
-                </button>
-
-                {/* Dropdown Menu */}
-                {userMenuOpen && (
-                  <div className="absolute right-0 mt-2 w-56 bg-white rounded-md shadow-md border border-gray-200 py-2">
-                    <div className="px-4 py-3 border-b border-gray-100">
-                      <p className="text-sm font-medium text-gray-900">{userName}</p>
-                      <p className="text-xs text-gray-500 truncate">{profile?.email}</p>
-                    </div>
-                    <Link
-                      href="/dashboard/client/profile"
-                      className="flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
-                    >
-                      <User className="h-4 w-4" />
-                      Profile Settings
-                    </Link>
-                    <button
-                      onClick={signOut}
-                      className="flex items-center gap-3 px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors w-full"
-                    >
-                      <LogOut className="h-4 w-4" />
-                      Sign Out
-                    </button>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
-      </header>
-
-      <div className="flex">
-        {/* Sidebar */}
-        <aside
-          className={`
-            fixed lg:sticky top-16 left-0 h-[calc(100vh-4rem)] 
-            w-[min(18rem,85vw)] lg:w-64 bg-white border-r border-gray-200
-            transition-transform duration-300 ease-in-out z-30
-            ${sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
-          `}
-        >
-          <nav className="p-4 space-y-1">
-            {navItems.map((item) => {
-              const Icon = item.icon
-              const isActive = pathname === item.href
-              
-              return (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  onClick={() => setSidebarOpen(false)}
-                  className={`
-                    flex items-center gap-3 px-4 py-3 rounded-md transition-all
-                    ${isActive 
-                      ? 'bg-blue-500 text-white' 
-                      : 'text-gray-700 hover:bg-gray-50'
-                    }
-                  `}
-                >
-                  <Icon className="h-5 w-5" />
-                  <span className="font-medium">{item.label}</span>
-                </Link>
-              )
-            })}
-          </nav>
-
-          {/* Quick Action Card */}
-          <div className="p-4">
-            <div className="bg-slate-50 rounded-md p-4 border border-border">
-              <h3 className="font-semibold text-gray-900 mb-2 text-sm">Need Help?</h3>
-              <p className="text-sm text-gray-600 mb-3">
-                Contact our support team
-              </p>
-              <Button
-                variant="outline"
-                size="sm"
-                className="w-full border-blue-500 text-blue-500 hover:bg-blue-500 hover:text-white"
-                onClick={() => window.location.href = '/contact'}
-              >
-                Contact Support
-              </Button>
-            </div>
-          </div>
-        </aside>
-
-        {/* Mobile Overlay */}
-        {sidebarOpen && (
-          <div
-            className="fixed inset-0 bg-black/20 z-20 lg:hidden"
-            onClick={() => setSidebarOpen(false)}
-          />
-        )}
-
-        {/* Main Content */}
-        <main className="flex-1 min-w-0 p-3 sm:p-6 lg:p-8">
-          <div className="max-w-7xl mx-auto">
-            {children}
-          </div>
-        </main>
-      </div>
-
-      {/* Benji V3 — global floating assistant */}
+    <>
+      <OperationalDashboardShell
+        navItems={navItems}
+        pathname={pathname}
+        roleLabel="Shipper"
+        userName={userName}
+        email={profile?.email}
+        profileHref="/dashboard/client/profile"
+        onSignOut={signOut}
+        notification={<NotificationBell />}
+        avatarClassName="bg-[#5cd6ca] text-[#173436]"
+        sidebarHeader={<><p className="text-xs font-bold uppercase tracking-[0.14em] text-[#8fb5b1]">Transport account</p><p className="mt-2 text-sm font-semibold">Plan and track every move</p></>}
+        sidebarFooter={<Link href="/contact" className="block border border-white/20 px-3 py-2 text-center text-xs font-semibold text-[#d5e2e0] hover:bg-white/10">Contact support</Link>}
+      >
+        {children}
+      </OperationalDashboardShell>
       <BenjiAssistant userType="client" userId={user?.id} />
-    </div>
+    </>
   )
+}
+
+function WorkspaceLoader() {
+  return <div className="flex min-h-screen items-center justify-center bg-[#f2f6f5]"><div className="h-10 w-10 animate-spin rounded-full border-2 border-[#b8cdca] border-t-[#008c82]" /></div>
 }

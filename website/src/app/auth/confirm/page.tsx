@@ -2,10 +2,9 @@
 
 import { useEffect, useState, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { CheckCircle, Loader2 } from 'lucide-react'
+import { CheckCircle, Loader2 } from '@/components/icons/streamline-lucide'
 import { supabase } from '@/lib/supabase'
-import Header from '@/components/layout/Header'
-import Footer from '@/components/layout/Footer'
+import { AccessPageShell } from '@/components/auth/AccessPageShell'
 
 function AuthConfirmContent() {
   const router = useRouter()
@@ -34,19 +33,15 @@ function AuthConfirmContent() {
   }, [searchParams, router])
 
   return (
-    <>
-      <Header />
-      <main className="min-h-screen pt-20 pb-16 relative overflow-hidden flex items-center justify-center">
-        <div className="absolute inset-0 gradient-mesh opacity-40" />
-        <div className="container relative z-10">
-          <div className="max-w-md mx-auto text-center space-y-6 glass rounded-3xl p-12 animate-slide-up">
+    <AccessPageShell eyebrow="Identity verification" title="Confirming your account." description="DriveDrop is securely validating your email and preparing your workspace.">
+          <div className="border border-[#c7d4d2] bg-white p-8 text-center sm:p-12">
             {status === 'loading' && (
               <>
-                <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-gradient-to-br from-primary to-accent shadow-xl">
-                  <Loader2 className="w-10 h-10 text-white animate-spin" />
+                <div className="mx-auto grid h-16 w-16 place-items-center bg-[#e7f3f1] text-[#008c82]">
+                  <Loader2 className="h-8 w-8 animate-spin" />
                 </div>
                 <div className="space-y-2">
-                  <h1 className="text-3xl font-bold">Verifying...</h1>
+                  <h1 className="text-2xl font-semibold text-[#193638]">Verifying your email</h1>
                   <p className="text-muted-foreground">
                     Please wait while we verify your email address
                   </p>
@@ -56,11 +51,11 @@ function AuthConfirmContent() {
 
             {status === 'success' && (
               <>
-                <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-gradient-to-br from-primary to-accent shadow-xl">
-                  <CheckCircle className="w-10 h-10 text-white" />
+                <div className="mx-auto grid h-16 w-16 place-items-center bg-[#eaf7f3] text-[#176c59]">
+                  <CheckCircle className="h-8 w-8" />
                 </div>
                 <div className="space-y-2">
-                  <h1 className="text-3xl font-bold">Email Verified!</h1>
+                  <h1 className="text-2xl font-semibold text-[#193638]">Email verified</h1>
                   <p className="text-muted-foreground">
                     Your email has been successfully verified
                   </p>
@@ -73,11 +68,11 @@ function AuthConfirmContent() {
 
             {status === 'error' && (
               <>
-                <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-destructive/10 border border-destructive/20">
-                  <CheckCircle className="w-10 h-10 text-destructive" />
+                <div className="mx-auto grid h-16 w-16 place-items-center border border-[#e5b8b4] bg-[#fff4f3] text-[#9f2f27]">
+                  <CheckCircle className="h-8 w-8" />
                 </div>
                 <div className="space-y-2">
-                  <h1 className="text-3xl font-bold">Verification Failed</h1>
+                  <h1 className="text-2xl font-semibold text-[#193638]">Verification failed</h1>
                   <p className="text-muted-foreground">
                     There was an error verifying your email
                   </p>
@@ -88,23 +83,14 @@ function AuthConfirmContent() {
               </>
             )}
           </div>
-        </div>
-      </main>
-      <Footer />
-    </>
+    </AccessPageShell>
   )
 }
 
 export default function AuthConfirmPage() {
   return (
     <Suspense fallback={
-      <>
-        <Header />
-        <main className="min-h-screen pt-20 pb-16 flex items-center justify-center">
-          <Loader2 className="w-8 h-8 text-primary animate-spin" />
-        </main>
-        <Footer />
-      </>
+      <div className="flex min-h-screen items-center justify-center bg-[#f2f6f5]"><Loader2 className="h-8 w-8 animate-spin text-[#008c82]" /></div>
     }>
       <AuthConfirmContent />
     </Suspense>

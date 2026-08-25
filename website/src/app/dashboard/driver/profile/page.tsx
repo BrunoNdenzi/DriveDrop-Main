@@ -25,7 +25,7 @@ import {
   Trash2,
   Star,
   CheckCircle2
-} from 'lucide-react'
+} from '@/components/icons/streamline-lucide'
 
 interface Vehicle {
   id: string

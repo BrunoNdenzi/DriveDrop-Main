@@ -18,7 +18,7 @@ import {
   getYear,
   getMonth,
 } from 'date-fns'
-import { ChevronLeft, ChevronRight, Calendar } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Calendar } from '@/components/icons/streamline-lucide'
 import { cn } from '@/lib/utils'
 
 interface DatePickerProps {

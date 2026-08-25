@@ -8,7 +8,7 @@ import Footer from '@/components/layout/Footer'
 import {
   Layers, Ruler, Phone, Truck, AlertTriangle,
   ArrowRight, Banknote, Smartphone, ChevronDown, ArrowLeft, MapPin, CheckCircle, Paperclip
-} from 'lucide-react'
+} from '@/components/icons/streamline-lucide'
 
 const BASE = 'https://raw.githubusercontent.com/BrunoNdenzi/FB-MarkP/main/Tiles/'
 const encode = (f: string) => BASE + encodeURIComponent(f)
@@ -274,25 +274,7 @@ export default function TilesPage() {
       <ServicesHeader />
 
       {/* ── HERO ─────────────────────────────────────────── */}
-      <section className="relative overflow-hidden bg-slate-950 pt-[68px]">
-
-        {/* Diagonal amber stripe */}
-        <div
-          className="pointer-events-none absolute inset-y-0 right-0 w-1/2 hidden lg:block"
-          style={{
-            background: 'linear-gradient(135deg, transparent 0%, rgba(245,158,11,0.05) 50%, rgba(245,158,11,0.12) 100%)',
-          }}
-        />
-
-        {/* Grid */}
-        <div
-          className="pointer-events-none absolute inset-0"
-          style={{
-            backgroundImage: 'linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px)',
-            backgroundSize: '60px 60px',
-          }}
-        />
-
+      <section className="relative overflow-hidden bg-[#102829] pt-[68px]">
         <div className="container relative z-10 pb-16 lg:pb-24">
           <Link href="/services" className="inline-flex items-center gap-1.5 text-xs text-white/40 hover:text-white/70 mb-8 mt-8 transition-colors">
             <ArrowLeft className="h-3.5 w-3.5" />
@@ -319,7 +301,7 @@ export default function TilesPage() {
               <div className="flex flex-col sm:flex-row gap-3">
                 <a
                   href="tel:+17042662317"
-                  className="inline-flex items-center gap-2 bg-amber-500 hover:bg-amber-400 text-black font-bold px-7 py-4 rounded-xl transition-all hover:scale-[1.02] text-sm"
+                  className="inline-flex items-center gap-2 bg-[#f3a712] px-7 py-4 text-sm font-bold text-[#102829] transition-colors hover:bg-[#ffc14a]"
                 >
                   <Phone className="h-4 w-4" />
                   +1 (704) 266-2317
@@ -336,7 +318,7 @@ export default function TilesPage() {
 
             {/* Product hero image */}
             <div className="relative">
-              <div className="rounded-2xl overflow-hidden aspect-[4/3] border border-amber-500/20 shadow-2xl">
+              <div className="relative aspect-[4/3] overflow-hidden border border-[#f3a712]/25">
                 <Image
                   src={TILE_IMAGES[0]}
                   alt="Taj Mahal 24×48 Polished Porcelain Tile"
@@ -386,12 +368,12 @@ export default function TilesPage() {
           <p className="text-amber-400 text-xs font-bold tracking-widest uppercase mb-6">Product gallery</p>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
             {TILE_IMAGES.map((src, i) => (
-              <div key={i} className={`relative overflow-hidden rounded-xl ${i === 0 ? 'col-span-2 row-span-2 aspect-square' : 'aspect-square'}`}>
+              <div key={i} className={`relative overflow-hidden ${i === 0 ? 'col-span-2 row-span-2 aspect-square' : 'aspect-square'}`}>
                 <Image
                   src={src}
                   alt={`Taj Mahal porcelain tile ${i + 1}`}
                   fill
-                  className="object-cover hover:scale-105 transition-transform duration-500"
+                  className="object-cover"
                   unoptimized
                 />
               </div>

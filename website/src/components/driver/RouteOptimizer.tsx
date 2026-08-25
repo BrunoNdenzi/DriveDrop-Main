@@ -32,7 +32,7 @@ import {
   Square,
   CheckSquare,
   MousePointerClick,
-} from 'lucide-react'
+} from '@/components/icons/streamline-lucide'
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api/v1'
 

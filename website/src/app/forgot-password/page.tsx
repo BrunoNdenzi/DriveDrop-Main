@@ -6,10 +6,9 @@ import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Mail, ArrowLeft, ArrowRight, AlertCircle, CheckCircle } from 'lucide-react'
+import { Mail, ArrowLeft, ArrowRight, AlertCircle, CheckCircle } from '@/components/icons/streamline-lucide'
 import { supabase } from '@/lib/supabase'
-import Header from '@/components/layout/Header'
-import Footer from '@/components/layout/Footer'
+import { AccessPageShell } from '@/components/auth/AccessPageShell'
 
 function ForgotPasswordContent() {
   const searchParams = useSearchParams()
@@ -50,55 +49,21 @@ function ForgotPasswordContent() {
 
   if (success) {
     return (
-      <>
-        <Header />
-        <main className="min-h-screen pt-20 pb-16 bg-background flex items-center justify-center">
-          <div className="container">
-            <div className="max-w-md mx-auto text-center space-y-6 bg-white border border-border rounded-md p-10">
-              <div className="inline-flex items-center justify-center w-14 h-14 rounded-md bg-emerald-50 border border-emerald-200">
-                <CheckCircle className="w-7 h-7 text-emerald-600" />
-              </div>
-              <div className="space-y-2">
-                <h1 className="text-2xl font-bold tracking-tight">Check Your Email</h1>
-                <p className="text-muted-foreground">
-                  We've sent a password reset link to <strong>{email}</strong>
-                </p>
-                <p className="text-sm text-muted-foreground pt-4">
-                  Click the link in the email to reset your password. The link will expire in 1 hour.
-                </p>
-              </div>
-              <div className="pt-6 space-y-3">
-                <Button asChild className="w-full bg-primary hover:bg-primary/90 text-white">
-                  <Link href="/login">
-                    <ArrowLeft className="w-4 h-4 mr-2" />
-                    Back to Login
-                  </Link>
-                </Button>
-                <Button
-                  onClick={() => {
-                    setSuccess(false)
-                    setEmail('')
-                  }}
-                  variant="outline"
-                  className="w-full"
-                >
-                  Send Another Link
-                </Button>
-              </div>
-            </div>
-          </div>
-        </main>
-        <Footer />
-      </>
+      <AccessPageShell eyebrow="Recovery email sent" title="Check your inbox." description="Use the secure link in your email to choose a new DriveDrop password.">
+        <div className="border border-[#c7d4d2] bg-white p-6 text-center sm:p-8">
+          <div className="mx-auto grid h-14 w-14 place-items-center bg-[#eaf7f3] text-[#176c59]"><CheckCircle className="h-7 w-7" /></div>
+          <h3 className="mt-5 text-xl font-semibold text-[#193638]">Reset link sent</h3>
+          <p className="mt-2 text-sm leading-6 text-[#667b79]">We sent a password reset link to <strong className="text-[#304b4c]">{email}</strong>. It expires in one hour.</p>
+          <Link href="/login" className="mt-7 flex h-11 w-full items-center justify-center gap-2 bg-[#008c82] text-sm font-bold text-white hover:bg-[#00756d]"><ArrowLeft className="h-4 w-4" />Back to login</Link>
+          <button type="button" onClick={() => { setSuccess(false); setEmail('') }} className="mt-4 text-sm font-semibold text-[#007b72] hover:underline">Send another link</button>
+        </div>
+      </AccessPageShell>
     )
   }
 
   return (
-    <>
-      <Header />
-      <main className="min-h-screen pt-20 pb-16 bg-[hsl(var(--surface-field))]">
-        <div className="container">
-          <div className="max-w-md mx-auto">
+    <AccessPageShell eyebrow="Account recovery" title="Reset your password." description="We will send a time-limited recovery link to the email address on your account.">
+          <div className="max-w-md">
             {/* Back Button */}
             <Link
               href="/login"
@@ -122,7 +87,7 @@ function ForgotPasswordContent() {
             </div>
 
             {/* Reset Card */}
-            <div className="bg-white border border-border rounded-md p-6 shadow-sm">
+            <div className="border border-[#c7d4d2] bg-white p-6">
               {error && (
                 <div className="flex items-center gap-2 p-3 mb-4 rounded-md bg-destructive/10 border border-destructive/20 text-destructive">
                   <AlertCircle className="w-5 h-5 flex-shrink-0" />
@@ -155,7 +120,7 @@ function ForgotPasswordContent() {
                 <Button
                   type="submit"
                   disabled={loading}
-                  className="w-full h-10 rounded-md font-semibold bg-blue-500 hover:bg-blue-600 text-white"
+                  className="h-11 w-full rounded-none bg-[#008c82] font-semibold text-white hover:bg-[#00756d]"
                 >
                   {loading ? (
                     <div className="flex items-center gap-2">
@@ -183,7 +148,7 @@ function ForgotPasswordContent() {
             </div>
 
             {/* Help Text */}
-            <div className="mt-6 text-center space-y-2">
+            <div className="mt-6 text-center">
               <p className="text-sm text-muted-foreground">
                 Still having trouble? Contact our support team at{' '}
                 <a href="mailto:support@drivedrop.us.com" className="text-primary hover:underline">
@@ -192,10 +157,7 @@ function ForgotPasswordContent() {
               </p>
             </div>
           </div>
-        </div>
-      </main>
-      <Footer />
-    </>
+    </AccessPageShell>
   )
 }
 

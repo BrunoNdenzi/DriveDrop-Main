@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
-import { ArrowLeft, Bell, Mail, CheckCircle, Loader2 } from 'lucide-react'
+import { ArrowLeft, Bell, Mail, CheckCircle, Loader2 } from '@/components/icons/streamline-lucide'
 import { Button } from '@/components/ui/button'
 import { useAuth } from '@/hooks/useAuth'
 import { getSupabaseBrowserClient } from '@/lib/supabase-client'

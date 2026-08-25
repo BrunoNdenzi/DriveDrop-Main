@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { enrichCarrier } from '@/lib/api/carriers'
 import { CarrierContact } from '@/types/campaigns'
 import { toast } from '@/components/ui/toast'
-import { Loader2, Search } from 'lucide-react'
+import { Loader2, Search } from '@/components/icons/streamline-lucide'
 
 interface EnrichmentFormProps {
   onSuccess?: (carrier: CarrierContact) => void

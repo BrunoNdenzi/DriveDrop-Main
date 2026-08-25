@@ -6,9 +6,8 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { User, Mail, Lock, Phone, ArrowRight, AlertCircle, CheckCircle, Truck, Eye, EyeOff } from 'lucide-react'
-import Header from '@/components/layout/Header'
-import Footer from '@/components/layout/Footer'
+import { User, Mail, Lock, Phone, ArrowRight, AlertCircle, CheckCircle, Truck, Eye, EyeOff } from '@/components/icons/streamline-lucide'
+import { AccessPageShell } from '@/components/auth/AccessPageShell'
 import { trackSignupCompleted } from '@/lib/analytics'
 
 function SignUpPageContent() {
@@ -162,12 +161,8 @@ function SignUpPageContent() {
 
   if (otpStep && !success) {
     return (
-      <>
-        <Header />
-        <main className="min-h-screen pt-20 pb-16 bg-[hsl(var(--surface-field))] flex items-center justify-center">
-          <div className="container">
-            <div className="max-w-md mx-auto">
-              <div className="bg-white border border-border rounded-md p-6 shadow-sm">
+      <AccessPageShell eyebrow="Phone verification" title="Confirm your number." description="Enter the one-time code sent to your phone to protect shipment and account updates.">
+              <div className="max-w-md border border-[#c7d4d2] bg-white p-6">
                 <div className="text-center mb-6">
                   <div className="inline-flex items-center justify-center w-12 h-12 rounded-md bg-blue-500 mb-4">
                     <Phone className="w-6 h-6 text-white" />
@@ -203,7 +198,7 @@ function SignUpPageContent() {
                   <Button
                     type="submit"
                     disabled={otpLoading || otpCode.length !== 6}
-                    className="w-full h-10 bg-blue-500 hover:bg-blue-600 text-white"
+                    className="h-11 w-full rounded-none bg-[#008c82] text-white hover:bg-[#00756d]"
                   >
                     {otpLoading ? 'Verifying...' : 'Verify Phone Number'}
                   </Button>
@@ -216,21 +211,14 @@ function SignUpPageContent() {
                   </button>
                 </form>
               </div>
-            </div>
-          </div>
-        </main>
-        <Footer />
-      </>
+      </AccessPageShell>
     )
   }
 
   if (success) {
     return (
-      <>
-        <Header />
-        <main className="min-h-screen pt-20 pb-16 bg-background flex items-center justify-center">
-          <div className="container">
-            <div className="max-w-md mx-auto text-center space-y-6 bg-white border border-border rounded-md p-10">
+      <AccessPageShell eyebrow="Account created" title="Check your email." description="Verify your email address to activate your DriveDrop workspace.">
+            <div className="max-w-md space-y-6 border border-[#c7d4d2] bg-white p-8 text-center sm:p-10">
               <div className="inline-flex items-center justify-center w-14 h-14 rounded-md bg-emerald-50 border border-emerald-200">
                 <CheckCircle className="w-7 h-7 text-emerald-600" />
               </div>
@@ -244,24 +232,18 @@ function SignUpPageContent() {
                 </p>
               </div>
               <div className="pt-4">
-                <Button onClick={() => router.push('/login')} className="w-full">
+                <Button onClick={() => router.push('/login')} className="h-11 w-full rounded-none bg-[#008c82] hover:bg-[#00756d]">
                   Go to Login
                 </Button>
               </div>
             </div>
-          </div>
-        </main>
-        <Footer />
-      </>
+      </AccessPageShell>
     )
   }
 
   return (
-    <>
-      <Header />
-      <main className="min-h-screen pt-20 pb-16 bg-[hsl(var(--surface-field))]">
-        <div className="container">
-          <div className="max-w-md mx-auto">
+    <AccessPageShell eyebrow="Create an account" title="Join the DriveDrop network." description="Set up secure access for vehicle shipping, live tracking, and coordinated delivery.">
+          <div className="max-w-lg">
             {/* Header */}
             <div className="text-center space-y-3 mb-6">
               <div className="inline-flex items-center justify-center w-12 h-12 rounded-md bg-blue-500">
@@ -278,7 +260,7 @@ function SignUpPageContent() {
             </div>
 
             {/* Signup Card */}
-            <div className="bg-white border border-border rounded-md p-6 shadow-sm">
+            <div className="border border-[#c7d4d2] bg-white p-6 sm:p-7">
               {error && (
                 <div className="flex items-center gap-2 p-3 mb-4 rounded-md bg-destructive/10 border border-destructive/20 text-destructive">
                   <AlertCircle className="w-5 h-5 flex-shrink-0" />
@@ -432,7 +414,7 @@ function SignUpPageContent() {
                 <Button
                   type="submit"
                   disabled={loading}
-                  className="w-full h-10 rounded-md font-semibold bg-blue-500 hover:bg-blue-600 text-white"
+                  className="h-11 w-full rounded-none bg-[#008c82] font-semibold text-white hover:bg-[#00756d]"
                 >
                   {loading ? (
                     <div className="flex items-center gap-2">
@@ -461,11 +443,11 @@ function SignUpPageContent() {
 
             {/* Driver & Broker Application Links */}
             <div className="mt-6 space-y-3">
-              <div className="text-center bg-white border border-amber-200 rounded-md p-5 bg-amber-50/50">
+              <div className="border border-[#e4c984] bg-[#fff8e8] p-5 text-center">
                 <p className="text-sm text-muted-foreground mb-3">
                   Want to become a driver and earn money?
                 </p>
-                <Button asChild size="sm" className="bg-amber-500 hover:bg-amber-600 text-white">
+                <Button asChild size="sm" className="rounded-none bg-[#f3a712] text-[#173436] hover:bg-[#dc940d]">
                   <Link href="/drivers/register">
                     <Truck className="w-4 h-4 mr-2" />
                     Apply as a Driver
@@ -473,11 +455,11 @@ function SignUpPageContent() {
                 </Button>
               </div>
               
-              <div className="text-center bg-white border border-teal-200 rounded-md p-5 bg-teal-50/50">
+              <div className="border border-[#b7d8d3] bg-[#edf7f5] p-5 text-center">
                 <p className="text-sm text-muted-foreground mb-3">
                   Are you a licensed auto transport broker?
                 </p>
-                <Button asChild size="sm" className="bg-teal-500 hover:bg-teal-600 text-white">
+                <Button asChild size="sm" className="rounded-none bg-[#008c82] text-white hover:bg-[#00756d]">
                   <Link href="/auth/broker-signup">
                     <User className="w-4 h-4 mr-2" />
                     Register as a Broker
@@ -486,10 +468,7 @@ function SignUpPageContent() {
               </div>
             </div>
           </div>
-        </div>
-      </main>
-      <Footer />
-    </>
+    </AccessPageShell>
   )
 }
 

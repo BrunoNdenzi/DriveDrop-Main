@@ -17,7 +17,7 @@ import {
   Phone,
   Mail,
   Sparkles
-} from 'lucide-react'
+} from '@/components/icons/streamline-lucide'
 import { Button } from '@/components/ui/button'
 import BenjiDispatcher from '@/components/admin/BenjiDispatcher'
 

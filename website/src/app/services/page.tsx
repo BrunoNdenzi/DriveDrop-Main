@@ -4,7 +4,7 @@ import Footer from '@/components/layout/Footer'
 import {
   ArrowRight, Phone, Layers, TreePine, Package,
   MapPin, Truck, Wrench, ShieldCheck, Clock, Briefcase, ScrollText
-} from 'lucide-react'
+} from '@/components/icons/streamline-lucide'
 
 const services = [
   {
@@ -22,7 +22,7 @@ const services = [
     ],
     cta: 'Tile pricing',
     href: '/services/tiles',
-    accent: '#f59e0b',
+    accent: '#f3a712',
   },
   {
     id: 'tree-removal',
@@ -80,28 +80,16 @@ export default function ServicesPage() {
       <ServicesHeader />
 
       {/* ── HERO ────────────────────────────────────────────────── */}
-      <section className="relative overflow-hidden bg-slate-950 pt-[68px]">
-        {/* Grid texture */}
-        <div
-          className="pointer-events-none absolute inset-0"
-          style={{
-            backgroundImage:
-              'linear-gradient(rgba(255,255,255,0.025) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.025) 1px, transparent 1px)',
-            backgroundSize: '64px 64px',
-          }}
-        />
-        {/* Amber glow */}
-        <div className="pointer-events-none absolute -top-40 -left-20 w-[480px] h-[480px] rounded-full bg-amber-500/10 blur-[130px]" />
-
+      <section className="relative overflow-hidden bg-[#102829] pt-[68px]">
         <div className="container relative z-10 py-20 lg:py-24">
-          <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-1.5 mb-8">
-            <MapPin className="h-3.5 w-3.5 text-amber-400" />
+          <div className="mb-8 inline-flex items-center gap-2 border border-white/15 bg-white/5 px-3 py-1.5">
+            <MapPin className="h-3.5 w-3.5 text-[#f3a712]" />
             <span className="text-xs font-semibold text-white/60 tracking-[3px] uppercase">Charlotte, NC</span>
           </div>
 
           <h1 className="text-6xl md:text-8xl font-black text-white leading-[0.9] tracking-tight mb-6">
             One team.<br />
-            <span className="text-amber-400">Every project.</span>
+            <span className="text-[#f3a712]">Every project.</span>
           </h1>
 
           <p className="text-white/40 text-base md:text-lg max-w-md leading-relaxed mb-10">
@@ -110,7 +98,7 @@ export default function ServicesPage() {
 
           <a
             href="tel:+17042662317"
-            className="inline-flex items-center gap-2.5 bg-amber-500 hover:bg-amber-400 text-black font-bold px-6 py-3.5 rounded-xl text-sm transition-all hover:scale-[1.02] active:scale-[0.98]"
+            className="inline-flex items-center gap-2.5 bg-[#f3a712] px-6 py-3.5 text-sm font-bold text-[#102829] transition-colors hover:bg-[#ffc14a]"
           >
             <Phone className="h-4 w-4" />
             +1 (704) 266-2317
@@ -129,11 +117,11 @@ export default function ServicesPage() {
                 <Link
                   key={svc.id}
                   href={svc.href}
-                  className="group flex items-center gap-5 py-8 md:py-9 -mx-4 px-4 rounded-xl transition-all duration-200 hover:bg-muted/40"
+                  className="group -mx-4 flex items-center gap-5 px-4 py-8 transition-colors duration-200 hover:bg-[#f4f7f6] md:py-9"
                 >
                   {/* Service icon */}
                   <div
-                    className={`shrink-0 rounded-2xl flex items-center justify-center transition-transform duration-200 group-hover:scale-105 ${
+                    className={`flex shrink-0 items-center justify-center border transition-colors duration-200 ${
                       svc.featured ? 'w-[62px] h-[62px]' : 'w-[56px] h-[56px]'
                     }`}
                     style={{

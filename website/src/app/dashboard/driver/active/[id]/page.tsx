@@ -23,7 +23,7 @@ import {
   AlertTriangle,
   Eye,
   ExternalLink
-} from 'lucide-react'
+} from '@/components/icons/streamline-lucide'
 import { Button } from '@/components/ui/button'
 import { toast } from '@/components/ui/toast'
 

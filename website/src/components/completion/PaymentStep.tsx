@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { loadStripe } from '@stripe/stripe-js'
 import { Elements, PaymentElement, useStripe, useElements } from '@stripe/react-stripe-js'
-import { CreditCard, Lock, Check, AlertCircle, Loader2 } from 'lucide-react'
+import { CreditCard, Lock, Check, AlertCircle, Loader2 } from '@/components/icons/streamline-lucide'
 import { Button } from '@/components/ui/button'
 import { useAuth } from '@/hooks/useAuth'
 import { getSupabaseBrowserClient } from '@/lib/supabase-client'

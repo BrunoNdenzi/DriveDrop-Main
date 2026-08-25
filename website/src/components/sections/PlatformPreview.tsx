@@ -1,6 +1,6 @@
 'use client'
 
-import { Monitor, Smartphone } from 'lucide-react'
+import { Monitor, Smartphone } from '@/components/icons/streamline-lucide'
 
 export default function PlatformPreview() {
   return (

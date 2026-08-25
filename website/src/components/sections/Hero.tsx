@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import Image from 'next/image'
-import { ArrowRight, Truck, Shield, Clock, MapPin, Star, Zap } from 'lucide-react'
+import { ArrowRight, Truck, Shield, Clock, MapPin, Star, Zap } from '@/components/icons/streamline-lucide'
 import { Button } from '@/components/ui/button'
 
 export default function Hero() {

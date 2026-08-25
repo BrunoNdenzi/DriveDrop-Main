@@ -13,7 +13,7 @@ import {
 } from '@stripe/react-stripe-js'
 import {
   ShieldCheck, Lock, CheckCircle, Layers, TreePine, Package, Truck, ArrowLeft
-} from 'lucide-react'
+} from '@/components/icons/streamline-lucide'
 import { trackServicePaymentSuccess, trackPaymentInitiated } from '@/lib/analytics'
 
 const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!)

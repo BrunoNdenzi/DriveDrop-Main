@@ -4,7 +4,7 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
-import { Package, Truck, Users, ArrowRight, Sparkles } from 'lucide-react'
+import { Package, Truck, Users, ArrowRight, Sparkles } from '@/components/icons/streamline-lucide'
 
 interface SignUpRoleModalProps {
   open: boolean

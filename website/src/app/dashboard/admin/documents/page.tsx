@@ -5,7 +5,7 @@ import { useAuth } from '@/hooks/useAuth'
 import {
   CheckCircle2, XCircle, Clock, Eye, FileText,
   ChevronDown, ChevronUp, Search, RefreshCw
-} from 'lucide-react'
+} from '@/components/icons/streamline-lucide'
 
 type DocStatus = 'pending' | 'approved' | 'rejected'
 

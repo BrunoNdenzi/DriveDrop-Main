@@ -19,7 +19,7 @@ import {
   Calendar,
   CheckCircle,
   Sparkles
-} from 'lucide-react'
+} from '@/components/icons/streamline-lucide'
 import { Button } from '@/components/ui/button'
 import BenjiLoadRecommendations from '@/components/driver/BenjiLoadRecommendations'
 

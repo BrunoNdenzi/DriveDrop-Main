@@ -10,7 +10,7 @@ import {
   ArrowLeft, MapPin, Package, ScrollText,
   Building2, Users, ShieldCheck, Briefcase,
   Globe, Route, FileText, Clock, Paperclip
-} from 'lucide-react'
+} from '@/components/icons/streamline-lucide'
 
 // ── LEAD FORM ─────────────────────────────────────────────
 function QuoteForm() {
@@ -161,7 +161,7 @@ function QuoteForm() {
       <button
         type="submit"
         disabled={status === 'sending'}
-        className="w-full bg-teal-500 hover:bg-teal-400 disabled:opacity-60 text-black font-bold py-4 rounded-xl transition-all hover:scale-[1.02] flex items-center justify-center gap-2 text-sm"
+        className="flex w-full items-center justify-center gap-2 bg-[#008c82] py-4 text-sm font-bold text-white transition-colors hover:bg-[#00766e] disabled:opacity-60"
       >
         {status === 'sending' ? 'Sending…' : (
           <>
@@ -193,21 +193,8 @@ export default function FreightPage() {
             unoptimized
             priority
           />
-          <div className="absolute inset-0 bg-slate-950/80" />
-          <div className="absolute inset-0 bg-gradient-to-r from-slate-950/90 via-slate-950/60 to-transparent" />
+          <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(10,32,34,.94)_0%,rgba(10,32,34,.74)_48%,rgba(10,32,34,.22)_100%)]" />
         </div>
-
-        {/* Teal glow */}
-        <div className="pointer-events-none absolute top-0 right-0 w-[600px] h-[500px] rounded-full bg-teal-500/8 blur-[140px]" />
-
-        {/* Texture grid */}
-        <div
-          className="pointer-events-none absolute inset-0"
-          style={{
-            backgroundImage: 'linear-gradient(rgba(255,255,255,0.025) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.025) 1px, transparent 1px)',
-            backgroundSize: '60px 60px',
-          }}
-        />
 
         <div className="container relative z-10">
           <Link href="/services" className="inline-flex items-center gap-1.5 text-xs text-white/40 hover:text-white/70 mb-8 mt-8 transition-colors">
@@ -217,12 +204,12 @@ export default function FreightPage() {
 
           <div className="max-w-3xl pb-16 lg:pb-24">
             {/* FF License badge */}
-            <div className="inline-flex items-center gap-2 rounded-full border border-teal-500/20 bg-teal-500/10 px-4 py-1.5 mb-6">
+            <div className="mb-6 inline-flex items-center gap-2 border border-white/25 bg-[#173436]/70 px-4 py-2">
               <ScrollText className="h-3.5 w-3.5 text-teal-400" />
               <span className="text-xs font-bold text-teal-400 tracking-widest uppercase">FMCSA Freight Forwarder · Charlotte, NC</span>
             </div>
 
-            <h1 className="text-5xl lg:text-7xl font-black text-white leading-[0.92] tracking-tight mb-6">
+            <h1 className="mb-6 text-5xl font-semibold leading-[.98] text-white lg:text-7xl">
               Freight coordinated.<br />
               <span className="text-teal-400">Licensed and local.</span><br />
               <span className="text-white/30 text-4xl lg:text-5xl">Charlotte, NC</span>
@@ -235,14 +222,14 @@ export default function FreightPage() {
             <div className="flex flex-col sm:flex-row gap-3">
               <a
                 href="tel:+17045247921"
-                className="inline-flex items-center gap-2 bg-teal-500 hover:bg-teal-400 text-black font-bold px-7 py-4 rounded-xl transition-all hover:scale-[1.02] text-sm"
+                className="inline-flex items-center gap-2 bg-[#5cd6ca] px-7 py-4 text-sm font-bold text-[#173436] hover:bg-[#70ded3]"
               >
                 <Phone className="h-4 w-4" />
                 +1 (704) 524-7921
               </a>
               <a
                 href="#quote"
-                className="inline-flex items-center gap-2 border border-white/20 hover:border-white/40 text-white font-semibold px-6 py-4 rounded-xl transition-all text-sm hover:bg-white/5"
+                className="inline-flex items-center gap-2 border border-white/40 px-6 py-4 text-sm font-semibold text-white hover:bg-white/10"
               >
                 Get a quote
                 <ArrowRight className="h-4 w-4" />

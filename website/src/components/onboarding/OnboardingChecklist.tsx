@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { CheckCircle2, Circle, X } from 'lucide-react';
+import { CheckCircle2, Circle, X } from '@/components/icons/streamline-lucide';
 import { OnboardingProgress } from '@/types/onboarding';
 
 interface OnboardingChecklistProps {

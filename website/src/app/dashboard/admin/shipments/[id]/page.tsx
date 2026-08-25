@@ -21,7 +21,7 @@ import {
   Mail,
   FileText,
   Navigation
-} from 'lucide-react'
+} from '@/components/icons/streamline-lucide'
 import Link from 'next/link'
 
 interface Shipment {

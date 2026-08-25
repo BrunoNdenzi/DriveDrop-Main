@@ -13,7 +13,7 @@ import {
   ChevronRight,
   Truck,
   Search,
-} from 'lucide-react';
+} from '@/components/icons/streamline-lucide';
 import { Button } from '@/components/ui/button';
 
 interface BrokerConversation {

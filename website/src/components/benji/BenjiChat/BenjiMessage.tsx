@@ -1,7 +1,7 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { User, Bot, Clock, FileText, Image as ImageIcon, ExternalLink } from 'lucide-react';
+import { User, Bot, Clock, FileText, Image as ImageIcon, ExternalLink } from '@/components/icons/streamline-lucide';
 import { format } from 'date-fns';
 import type { ChatAttachment } from './BenjiChat';
 

@@ -12,7 +12,7 @@ import {
   MessageCircle,
   ChevronLeft,
   User
-} from 'lucide-react';
+} from '@/components/icons/streamline-lucide';
 
 interface Shipment {
   id: string;

@@ -2,7 +2,7 @@
 
 import CampaignForm from '@/components/admin/campaigns/CampaignForm'
 import Link from 'next/link'
-import { ChevronLeft } from 'lucide-react'
+import { ChevronLeft } from '@/components/icons/streamline-lucide'
 
 export default function NewCampaignPage() {
   return (

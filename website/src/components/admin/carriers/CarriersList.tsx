@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { CarrierContact } from '@/types/campaigns'
 import { listCarriers, verifyCarrierEmail } from '@/lib/api/carriers'
 import { toast } from '@/components/ui/toast'
-import { Loader2, Search, CheckCircle, Clock, RefreshCw } from 'lucide-react'
+import { Loader2, Search, CheckCircle, Clock, RefreshCw } from '@/components/icons/streamline-lucide'
 
 const VERIFICATION_COLORS: Record<string, string> = {
   verified:   'bg-green-100 text-green-700',

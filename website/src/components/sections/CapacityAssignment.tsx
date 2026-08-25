@@ -1,6 +1,6 @@
 'use client'
 
-import { Truck, Users, Package, TrendingUp } from 'lucide-react'
+import { Truck, Users, Package, TrendingUp } from '@/components/icons/streamline-lucide'
 
 interface CapacityMetric {
   label: string

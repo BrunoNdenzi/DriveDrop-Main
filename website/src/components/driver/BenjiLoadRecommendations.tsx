@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Sparkles, MapPin, DollarSign, TrendingUp, Clock, Star, Navigation, Zap, CheckCircle, Loader2 } from 'lucide-react'
+import { Sparkles, MapPin, DollarSign, TrendingUp, Clock, Star, Navigation, Zap, CheckCircle, Loader2 } from '@/components/icons/streamline-lucide'
 import { Button } from '@/components/ui/button'
 import toast from 'react-hot-toast'
 import { useAuth } from '@/hooks/useAuth'

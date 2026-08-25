@@ -16,7 +16,7 @@ import {
   Download,
   Trash2,
   RefreshCw,
-} from 'lucide-react';
+} from '@/components/icons/streamline-lucide';
 import { Button } from '@/components/ui/button';
 
 interface BrokerDocument {

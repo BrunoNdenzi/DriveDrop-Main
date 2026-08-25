@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
-import { DollarSign, MapPin, Clock } from 'lucide-react'
+import { DollarSign, MapPin, Clock } from '@/components/icons/streamline-lucide'
 
 export default function DriverCTA() {
   return (

@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import { Check, ChevronsUpDown, Search, X, Plus } from 'lucide-react'
+import { Check, ChevronsUpDown, Search, X, Plus } from '@/components/icons/streamline-lucide'
 import { cn } from '@/lib/utils'
 import { getVehicleMakes, getModelsForMake, searchVehicleMakes, searchVehicleModels } from '@/data/vehicleData'
 

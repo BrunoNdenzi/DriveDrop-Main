@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { ChevronDown, ChevronUp, CheckCircle, MapPin, Car, Calendar, FileText, DollarSign, Info } from 'lucide-react'
+import { ChevronDown, ChevronUp, CheckCircle, MapPin, Car, Calendar, FileText, DollarSign, Info } from '@/components/icons/streamline-lucide'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { HelpCircle, X, PlayCircle, BookOpen, Mail } from 'lucide-react';
+import { HelpCircle, X, PlayCircle, BookOpen, Mail } from '@/components/icons/streamline-lucide';
 import { createTour } from '@/lib/tour-config';
 import { 
   clientDashboardTour, 

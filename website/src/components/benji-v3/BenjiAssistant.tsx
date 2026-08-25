@@ -18,7 +18,7 @@
 
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Bot, Send, Sparkles, ImagePlus, Paperclip } from 'lucide-react'
+import { Bot, Send, Sparkles, ImagePlus, Paperclip } from '@/components/icons/streamline-lucide'
 import { BenjiHeader }    from './BenjiHeader'
 import { MessageBubble }  from './MessageBubble'
 import { TypingIndicator } from './TypingIndicator'

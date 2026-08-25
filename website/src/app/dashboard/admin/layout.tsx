@@ -1,293 +1,78 @@
 'use client'
 
-import { useAuth } from '@/hooks/useAuth'
-import { useRouter, usePathname } from 'next/navigation'
 import Link from 'next/link'
-import Image from 'next/image'
-import { useState, useEffect } from 'react'
-import { 
-  LayoutDashboard,
-  Users, 
-  Package, 
-  UserCheck,
-  DollarSign,
-  BarChart3,
-  Settings,
-  User, 
-  LogOut,
-  Menu,
-  X,
-  Bell,
-  ChevronDown,
-  Shield,
-  ClipboardCheck,
-  MapIcon,
-  Building2,
-  Plug,
-  FileText,
-  Bot,
-  Target,
-  Mail,
-  Send,
-  TrendingUp,
-  FolderOpen,
-  Trash2,
-  FlaskConical,
-  BadgeDollarSign
-} from 'lucide-react'
+import { usePathname } from 'next/navigation'
+import {
+  BadgeDollarSign, BarChart3, Bot, Building2, ClipboardCheck, DollarSign, FileText, FlaskConical,
+  FolderOpen, LayoutDashboard, Mail, MapIcon, Package, Plug, Send, Settings, Shield, Target,
+  Trash2, TrendingUp, UserCheck, Users, Bell,
+} from '@/components/icons/streamline-lucide'
+
 import AdminNotificationBell from '@/components/AdminNotificationBell'
-import { Button } from '@/components/ui/button'
 import { BenjiAssistant } from '@/components/benji-v3/BenjiAssistant'
+import { OperationalDashboardShell } from '@/components/dashboard/OperationalDashboardShell'
+import { useAuth } from '@/hooks/useAuth'
 
 const navItems = [
   { href: '/dashboard/admin', label: 'Overview', icon: LayoutDashboard },
   { href: '/dashboard/admin/users', label: 'Users', icon: Users },
   { href: '/dashboard/admin/shipments', label: 'Shipments', icon: Package },
-  { href: '/dashboard/admin/map', label: 'Live Map', icon: MapIcon },
-  { href: '/dashboard/admin/assignments', label: 'Job Assignments', icon: ClipboardCheck },
-  { href: '/dashboard/admin/driver-applications', label: 'Driver Applications', icon: UserCheck },
-  { href: '/dashboard/admin/documents', label: 'Driver Documents', icon: FolderOpen },
+  { href: '/dashboard/admin/map', label: 'Live map', icon: MapIcon },
+  { href: '/dashboard/admin/assignments', label: 'Job assignments', icon: ClipboardCheck },
+  { href: '/dashboard/admin/driver-applications', label: 'Driver applications', icon: UserCheck },
+  { href: '/dashboard/admin/documents', label: 'Driver documents', icon: FolderOpen },
   { href: '/dashboard/admin/pricing', label: 'Pricing', icon: DollarSign },
-  { href: '/dashboard/admin/driver-offers', label: 'Driver Offers', icon: BadgeDollarSign },
+  { href: '/dashboard/admin/driver-offers', label: 'Driver offers', icon: BadgeDollarSign },
   { href: '/dashboard/admin/reports', label: 'Reports', icon: BarChart3 },
-  // Commercial Expansion
-  { href: '/dashboard/admin/commercial', label: 'Commercial Accounts', icon: Building2 },
-  { href: '/dashboard/admin/brokers', label: 'Broker Management', icon: Shield },
+  { href: '/dashboard/admin/commercial', label: 'Commercial accounts', icon: Building2 },
+  { href: '/dashboard/admin/brokers', label: 'Broker management', icon: Shield },
   { href: '/dashboard/admin/integrations', label: 'Integrations', icon: Plug },
-  { href: '/dashboard/admin/bol', label: 'BOL Management', icon: FileText },
-  { href: '/dashboard/admin/ai-review', label: 'AI Review Queue', icon: Bot },
-  { href: '/dashboard/admin/benji-qa', label: 'Benji QA Console', icon: FlaskConical },
-  { href: '/dashboard/admin/leads', label: 'Lead Acquisition', icon: Target },
-  // Email Campaign System
-  { href: '/dashboard/admin/campaigns', label: 'Email Campaigns', icon: Mail },
-  { href: '/dashboard/admin/quick-send', label: 'Quick Send', icon: Send },
+  { href: '/dashboard/admin/bol', label: 'BOL management', icon: FileText },
+  { href: '/dashboard/admin/ai-review', label: 'AI review queue', icon: Bot },
+  { href: '/dashboard/admin/benji-qa', label: 'Benji QA console', icon: FlaskConical },
+  { href: '/dashboard/admin/leads', label: 'Lead acquisition', icon: Target },
+  { href: '/dashboard/admin/campaigns', label: 'Email campaigns', icon: Mail },
+  { href: '/dashboard/admin/quick-send', label: 'Quick send', icon: Send },
   { href: '/dashboard/admin/carriers', label: 'Contacts', icon: Users },
-  { href: '/dashboard/admin/campaign-analytics', label: 'Campaign Analytics', icon: TrendingUp },
+  { href: '/dashboard/admin/campaign-analytics', label: 'Campaign analytics', icon: TrendingUp },
   { href: '/dashboard/admin/settings', label: 'Settings', icon: Settings },
-  { href: '/dashboard/admin/account-deletions', label: 'Deletion Requests', icon: Trash2 },
+  { href: '/dashboard/admin/account-deletions', label: 'Deletion requests', icon: Trash2 },
   { href: '/dashboard/admin/notifications', label: 'Notifications', icon: Bell },
 ]
 
-export default function AdminDashboardLayout({
-  children,
-}: {
-  children: React.ReactNode
-}) {
+export default function AdminDashboardLayout({ children }: { children: React.ReactNode }) {
   const { user, profile, loading, signOut } = useAuth()
-  const router = useRouter()
   const pathname = usePathname()
-  const [sidebarOpen, setSidebarOpen] = useState(false)
-  const [userMenuOpen, setUserMenuOpen] = useState(false)
 
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-[hsl(var(--surface-field))]">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
-      </div>
-    )
-  }
+  if (loading) return <WorkspaceLoader />
 
   const userName = profile?.first_name && profile?.last_name
     ? `${profile.first_name} ${profile.last_name}`
     : profile?.email?.split('@')[0] || 'Admin'
 
   return (
-    <div className="min-h-screen bg-[hsl(var(--surface-field))]">
-      {/* Header */}
-      <header className="bg-white border-b border-gray-200 sticky top-0 z-40">
-        <div className="px-2 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            {/* Logo & Mobile Menu */}
-            <div className="flex items-center gap-2 sm:gap-4 min-w-0">
-              <button
-                onClick={() => setSidebarOpen(!sidebarOpen)}
-                className="lg:hidden p-2 rounded-lg hover:bg-gray-100 transition-colors"
-              >
-                {sidebarOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
-              </button>
-              
-              <Link href="/" className="flex items-center gap-3">
-                <Image
-                  src="/logo-primary.png"
-                  alt="DriveDrop"
-                  width={120}
-                  height={30}
-                  priority
-                  className="h-8 w-auto"
-                />
-                <span className="hidden md:flex items-center gap-2 px-3 py-1 bg-purple-50 border border-purple-200 rounded-md">
-                  <Shield className="h-3 w-3 text-purple-600" />
-                  <span className="text-xs font-semibold text-purple-600">Admin</span>
-                </span>
-              </Link>
-            </div>
-
-            {/* Right Side Actions */}
-            <div className="flex items-center gap-1 sm:gap-4">
-              {/* Notifications */}
-              <AdminNotificationBell />
-
-              {/* User Menu */}
-              <div className="relative">
-                <button
-                  onClick={() => setUserMenuOpen(!userMenuOpen)}
-                  className="flex items-center gap-2 p-2 rounded-lg hover:bg-gray-100 transition-colors"
-                >
-                  <div className="w-8 h-8 rounded-full bg-purple-500 flex items-center justify-center">
-                    <span className="text-white font-semibold text-sm">
-                      {userName.charAt(0).toUpperCase()}
-                    </span>
-                  </div>
-                  <span className="hidden md:block text-sm font-medium text-gray-700">
-                    {userName}
-                  </span>
-                  <ChevronDown className="hidden md:block h-4 w-4 text-gray-500" />
-                </button>
-
-                {/* Dropdown Menu */}
-                {userMenuOpen && (
-                  <div className="absolute right-0 mt-2 w-56 bg-white rounded-md shadow-md border border-gray-200 py-2">
-                    <div className="px-4 py-3 border-b border-gray-100">
-                      <p className="text-sm font-medium text-gray-900">{userName}</p>
-                      <p className="text-xs text-gray-500 truncate">{profile?.email}</p>
-                      <div className="flex items-center gap-2 mt-2">
-                        <Shield className="h-3 w-3 text-purple-600" />
-                        <span className="text-xs text-purple-600 font-medium">Administrator</span>
-                      </div>
-                    </div>
-                    <Link
-                      href="/dashboard/admin/settings"
-                      className="flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
-                    >
-                      <Settings className="h-4 w-4" />
-                      System Settings
-                    </Link>
-                    <Link
-                      href="/dashboard/admin/profile"
-                      className="flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
-                    >
-                      <User className="h-4 w-4" />
-                      Profile Settings
-                    </Link>
-                    <button
-                      onClick={signOut}
-                      className="flex items-center gap-3 px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors w-full"
-                    >
-                      <LogOut className="h-4 w-4" />
-                      Sign Out
-                    </button>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
-      </header>
-
-      <div className="flex">
-        {/* Sidebar */}
-        <aside
-          className={`
-            fixed lg:sticky top-16 left-0 h-[calc(100vh-4rem)] 
-            w-[min(18rem,85vw)] lg:w-64 bg-white border-r border-gray-200
-            transition-transform duration-300 ease-in-out z-30
-            ${sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
-          `}
-        >
-          <nav className="p-4 space-y-1">
-            {navItems.map((item) => {
-              const Icon = item.icon
-              const isActive = pathname === item.href
-              
-              return (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  onClick={() => setSidebarOpen(false)}
-                  className={`
-                    flex items-center gap-3 px-4 py-3 rounded-md transition-all
-                    ${isActive 
-                      ? 'bg-purple-500 text-white' 
-                      : 'text-gray-700 hover:bg-gray-50'
-                    }
-                  `}
-                >
-                  <Icon className="h-5 w-5" />
-                  <span className="font-medium">{item.label}</span>
-                </Link>
-              )
-            })}
-          </nav>
-
-          {/* System Status Widget */}
-          <div className="p-4">
-            <div className="bg-slate-50 rounded-md p-4 border border-border">
-              <div className="flex items-center gap-2 mb-2">
-                <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                <h3 className="font-semibold text-gray-900 text-sm">System Status</h3>
-              </div>
-              <p className="text-xs text-gray-600 mb-2">All systems operational</p>
-              <div className="space-y-1">
-                <div className="flex items-center justify-between text-xs">
-                  <span className="text-gray-600">API</span>
-                  <span className="text-green-600 font-medium">Online</span>
-                </div>
-                <div className="flex items-center justify-between text-xs">
-                  <span className="text-gray-600">Database</span>
-                  <span className="text-green-600 font-medium">Online</span>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Quick Actions */}
-          <div className="p-4">
-            <div className="bg-slate-50 rounded-md p-4 border border-border">
-              <h3 className="font-semibold text-gray-900 mb-3 text-sm">Quick Actions</h3>
-              <div className="space-y-2">
-                <Link href="/dashboard/admin/driver-applications">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="w-full justify-start border-primary/30 text-xs"
-                  >
-                    <UserCheck className="h-3 w-3 mr-2" />
-                    Review Applications
-                  </Button>
-                </Link>
-                <Link href="/dashboard/admin/users">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="w-full justify-start border-primary/30 text-xs"
-                  >
-                    <Users className="h-3 w-3 mr-2" />
-                    Manage Users
-                  </Button>
-                </Link>
-              </div>
-            </div>
-          </div>
-        </aside>
-
-        {/* Mobile Overlay */}
-        {sidebarOpen && (
-          <div
-            className="fixed inset-0 bg-black/20 z-20 lg:hidden"
-            onClick={() => setSidebarOpen(false)}
-          />
-        )}
-
-        {/* Main Content */}
-        <main className="flex-1 min-w-0 p-3 sm:p-6 lg:p-8">
-          <div className="max-w-7xl mx-auto">
-            {children}
-          </div>
-        </main>
-      </div>
-
-      {/* Benji V3 — global floating assistant */}
+    <>
+      <OperationalDashboardShell
+        navItems={navItems}
+        pathname={pathname}
+        roleLabel="Admin"
+        userName={userName}
+        email={profile?.email}
+        profileHref="/dashboard/admin/profile"
+        onSignOut={signOut}
+        notification={<AdminNotificationBell />}
+        avatarClassName="bg-[#f3a712] text-[#173436]"
+        headerStatus={<div className="hidden items-center gap-2 border border-[#cbd8d6] bg-[#f4f7f6] px-3 py-2 md:flex"><span className="h-2 w-2 bg-[#12a36d]" /><span className="text-xs font-bold text-[#405958]">Systems operational</span></div>}
+        sidebarHeader={<><p className="text-xs font-bold uppercase tracking-[0.14em] text-[#8fb5b1]">Control center</p><p className="mt-2 text-sm font-semibold">Platform operations</p></>}
+        sidebarFooter={<div><p className="text-[10px] font-bold uppercase tracking-[0.12em] text-[#8fb5b1]">Quick actions</p><div className="mt-2 grid gap-2"><Link href="/dashboard/admin/driver-applications" className="border border-white/20 px-3 py-2 text-xs font-semibold text-[#d5e2e0] hover:bg-white/10">Review applications</Link><Link href="/dashboard/admin/users" className="border border-white/20 px-3 py-2 text-xs font-semibold text-[#d5e2e0] hover:bg-white/10">Manage users</Link></div></div>}
+      >
+        {children}
+      </OperationalDashboardShell>
       <BenjiAssistant userType="admin" userId={user?.id} />
-    </div>
+    </>
   )
+}
+
+function WorkspaceLoader() {
+  return <div className="flex min-h-screen items-center justify-center bg-[#f2f6f5]"><div className="h-10 w-10 animate-spin rounded-full border-2 border-[#b8cdca] border-t-[#008c82]" /></div>
 }

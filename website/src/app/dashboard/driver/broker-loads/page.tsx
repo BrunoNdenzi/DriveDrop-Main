@@ -16,7 +16,7 @@ import {
   Building2,
   CheckCircle,
   AlertCircle,
-} from 'lucide-react';
+} from '@/components/icons/streamline-lucide';
 import { Button } from '@/components/ui/button';
 import { toast } from '@/components/ui/toast';
 

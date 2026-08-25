@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Send, Bot, Sparkles, Minimize2, Maximize2, Paperclip, FileText, Image as ImageIcon, XCircle } from 'lucide-react';
+import { X, Send, Bot, Sparkles, Minimize2, Maximize2, Paperclip, FileText, Image as ImageIcon, XCircle } from '@/components/icons/streamline-lucide';
 import { BenjiMessage, BenjiMessageProps } from './BenjiMessage';
 import { BenjiTypingIndicator } from './BenjiTypingIndicator';
 import { aiService } from '@/services/aiService';

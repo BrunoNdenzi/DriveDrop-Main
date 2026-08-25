@@ -1,6 +1,6 @@
 'use client'
 
-import { Package, MapPin, Truck, CheckCircle, Clock, AlertCircle } from 'lucide-react'
+import { Package, MapPin, Truck, CheckCircle, Clock, AlertCircle } from '@/components/icons/streamline-lucide'
 
 interface LifecycleStage {
   id: string

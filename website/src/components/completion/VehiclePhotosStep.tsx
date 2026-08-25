@@ -2,7 +2,7 @@
 
 import { useState, useCallback } from 'react'
 import { useDropzone } from 'react-dropzone'
-import { Camera, Upload, X, Check, AlertCircle } from 'lucide-react'
+import { Camera, Upload, X, Check, AlertCircle } from '@/components/icons/streamline-lucide'
 import Image from 'next/image'
 import { Button } from '@/components/ui/button'
 

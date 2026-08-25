@@ -21,7 +21,7 @@ import {
   ChevronRight,
   AlertCircle,
   Locate
-} from 'lucide-react';
+} from '@/components/icons/streamline-lucide';
 import { Button } from '@/components/ui/button';
 
 export const dynamic = 'force-dynamic';

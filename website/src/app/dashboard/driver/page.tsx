@@ -17,7 +17,7 @@ import {
   AlertCircle,
   ArrowRight,
   Star
-} from 'lucide-react'
+} from '@/components/icons/streamline-lucide'
 import { Button } from '@/components/ui/button'
 
 interface Job {

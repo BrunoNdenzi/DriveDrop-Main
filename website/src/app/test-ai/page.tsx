@@ -7,7 +7,7 @@ import { AIDocumentUpload, NaturalLanguageShipmentCreator } from '@/components/a
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Tabs } from '@/components/ui/tabs'
-import { AlertCircle } from 'lucide-react'
+import { AlertCircle } from '@/components/icons/streamline-lucide'
 
 export default function AITestPage() {
   const router = useRouter()

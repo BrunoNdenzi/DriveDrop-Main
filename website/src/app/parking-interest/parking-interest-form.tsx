@@ -1,7 +1,7 @@
 'use client'
 
 import { FormEvent, useState } from 'react'
-import { Check, Loader2, Send } from 'lucide-react'
+import { Check, Loader2, Send } from '@/components/icons/streamline-lucide'
 
 const vehicleOptions = [
   'Tractor',

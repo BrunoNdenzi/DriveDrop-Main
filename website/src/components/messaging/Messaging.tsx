@@ -3,7 +3,7 @@
 import { useAuth } from '@/hooks/useAuth'
 import { useEffect, useState, useRef } from 'react'
 import { getSupabaseBrowserClient } from '@/lib/supabase-client'
-import { Send, Loader2, Check, CheckCheck } from 'lucide-react'
+import { Send, Loader2, Check, CheckCheck } from '@/components/icons/streamline-lucide'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 

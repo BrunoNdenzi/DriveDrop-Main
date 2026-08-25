@@ -17,7 +17,7 @@ import {
   CheckCircle,
   AlertCircle,
   Clock
-} from 'lucide-react'
+} from '@/components/icons/streamline-lucide'
 import { Button } from '@/components/ui/button'
 
 interface Shipment {

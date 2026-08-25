@@ -5,7 +5,7 @@ import { useSearchParams } from 'next/navigation'
 import {
   AlertCircle, CheckCircle2, ChevronDown, ChevronUp, Copy, FileText,
   Link2, Loader2, Mail, Sparkles, Upload, Users, Wand2, X, Send, Unlink,
-} from 'lucide-react'
+} from '@/components/icons/streamline-lucide'
 import toast from 'react-hot-toast'
 import {
   createQuickSendBatch,

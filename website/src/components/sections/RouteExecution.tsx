@@ -1,6 +1,6 @@
 'use client'
 
-import { MapPin, Navigation, Truck } from 'lucide-react'
+import { MapPin, Navigation, Truck } from '@/components/icons/streamline-lucide'
 
 interface RoutePoint {
   id: string

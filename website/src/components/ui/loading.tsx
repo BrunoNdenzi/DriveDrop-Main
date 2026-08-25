@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { usePathname, useSearchParams } from 'next/navigation'
-import { Loader2 } from 'lucide-react'
+import { Loader2 } from '@/components/icons/streamline-lucide'
 
 /**
  * Global loading bar for smooth page transitions

@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { ArrowLeft, Check, Camera, FileText, Shield, CreditCard } from 'lucide-react'
+import { ArrowLeft, Check, Camera, FileText, Shield, CreditCard } from '@/components/icons/streamline-lucide'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import VehiclePhotosStep from '@/components/completion/VehiclePhotosStep'

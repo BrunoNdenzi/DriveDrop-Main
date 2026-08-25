@@ -2,7 +2,7 @@
 
 import { LeaderboardEntry } from '@/types/campaigns'
 import Link from 'next/link'
-import { Trophy } from 'lucide-react'
+import { Trophy } from '@/components/icons/streamline-lucide'
 
 interface LeaderboardTableProps {
   entries: LeaderboardEntry[]

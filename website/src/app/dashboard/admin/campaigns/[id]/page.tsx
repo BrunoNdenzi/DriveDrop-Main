@@ -12,7 +12,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import {
   ChevronLeft, Edit, Play, Pause, Trash2, Send, Loader2
-} from 'lucide-react'
+} from '@/components/icons/streamline-lucide'
 
 const STATUS_COLORS: Record<string, string> = {
   draft:      'bg-gray-100 text-gray-600',

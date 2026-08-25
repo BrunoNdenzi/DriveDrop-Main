@@ -23,7 +23,7 @@ import {
   Globe,
   Clock,
   ArrowRightLeft,
-} from 'lucide-react';
+} from '@/components/icons/streamline-lucide';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { useAuth } from '@/hooks/useAuth';

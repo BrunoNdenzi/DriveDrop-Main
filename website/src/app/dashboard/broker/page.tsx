@@ -26,7 +26,7 @@ import {
   MapPin,
   CheckCircle,
   Clock
-} from 'lucide-react';
+} from '@/components/icons/streamline-lucide';
 import { Button } from '@/components/ui/button';
 
 function BrokerDashboardContent() {

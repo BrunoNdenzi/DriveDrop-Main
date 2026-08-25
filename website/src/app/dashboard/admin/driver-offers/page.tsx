@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Check, MapPin, RefreshCw, ShieldAlert, Truck, X } from 'lucide-react'
+import { Check, MapPin, RefreshCw, ShieldAlert, Truck, X } from '@/components/icons/streamline-lucide'
 import { useAuth } from '@/hooks/useAuth'
 import { Button } from '@/components/ui/button'
 import { toast } from '@/components/ui/toast'

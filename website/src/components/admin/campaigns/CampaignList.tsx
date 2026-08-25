@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { Eye, Play, Pause, Trash2, MoreVertical } from 'lucide-react'
+import { Eye, Play, Pause, Trash2, MoreVertical } from '@/components/icons/streamline-lucide'
 import type { Campaign } from '@/types/campaigns'
 import { startCampaign, pauseCampaign, deleteCampaign } from '@/lib/api/campaigns'
 import { toast } from '@/components/ui/toast'

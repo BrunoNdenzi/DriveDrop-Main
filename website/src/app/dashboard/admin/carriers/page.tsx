@@ -6,7 +6,7 @@ import EnrichmentForm from '@/components/admin/carriers/EnrichmentForm'
 import BulkEnrichModal from '@/components/admin/carriers/BulkEnrichModal'
 import ContactsTab from '@/components/admin/carriers/ContactsTab'
 import EnrichmentStats from '@/components/admin/carriers/EnrichmentStats'
-import { Upload, Truck, Building2, Store, Package } from 'lucide-react'
+import { Upload, Truck, Building2, Store, Package } from '@/components/icons/streamline-lucide'
 
 type Tab = 'carriers' | 'brokers' | 'dealerships' | 'shippers'
 

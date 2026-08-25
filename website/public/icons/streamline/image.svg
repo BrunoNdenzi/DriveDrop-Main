@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" id="Picture-Landscape--Streamline-Ultimate" height="24" width="24">
+  <desc>
+    Picture Landscape Streamline Icon: https://streamlinehq.com
+  </desc>
+  <defs></defs>
+  <title>picture-landscape</title>
+  <path d="M2.25 0.75h19.5s1.5 0 1.5 1.5v19.5s0 1.5 -1.5 1.5H2.25s-1.5 0 -1.5 -1.5V2.25s0 -1.5 1.5 -1.5" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"></path>
+  <path d="m5.25 17.25 3.462 -4.616a1.5 1.5 0 0 1 2.261 -0.161L12 13.5l3.3 -4.4a1.5 1.5 0 0 1 2.4 0l2.67 3.56" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"></path>
+  <path d="M4.5 6.375a1.875 1.875 0 1 0 3.75 0 1.875 1.875 0 1 0 -3.75 0" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"></path>
+  <path d="m0.75 17.25 22.5 0" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"></path>
+</svg>

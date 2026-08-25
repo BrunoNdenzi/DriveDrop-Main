@@ -2,7 +2,7 @@
 
 import { useState, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Camera, Upload, X, Check, Loader2, FileText, Sparkles } from 'lucide-react';
+import { Camera, Upload, X, Check, Loader2, FileText, Sparkles } from '@/components/icons/streamline-lucide';
 import { useDropzone } from 'react-dropzone';
 import { aiService } from '@/services/aiService';
 import toast from 'react-hot-toast';

@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useRef, useEffect } from 'react'
-import { Sparkles, Send, Loader2, CheckCircle, AlertCircle, ArrowRight, Mic, MicOff, X, Camera } from 'lucide-react'
+import { Sparkles, Send, Loader2, CheckCircle, AlertCircle, ArrowRight, Mic, MicOff, X, Camera } from '@/components/icons/streamline-lucide'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { aiService, BenjiChatResponse } from '@/services/aiService'

@@ -6,7 +6,7 @@ import {
   Bell, Check, CheckCheck, X,
   Package, CreditCard, UserCheck, Mail,
   AlertTriangle, Trash2, ShieldAlert, MessageCircle,
-} from 'lucide-react'
+} from '@/components/icons/streamline-lucide'
 import { useAdminNotifications, type AdminNotification } from '@/hooks/useAdminNotifications'
 import { formatDistanceToNow } from 'date-fns'
 

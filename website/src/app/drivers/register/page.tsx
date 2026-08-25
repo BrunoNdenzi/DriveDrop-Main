@@ -18,7 +18,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { CheckCircle, Shield, Loader2 } from 'lucide-react'
+import { CheckCircle, Shield, Loader2 } from '@/components/icons/streamline-lucide'
 import Header from '@/components/layout/Header'
 import Footer from '@/components/layout/Footer'
 import { GooglePlacesAutocomplete } from '@/components/GooglePlacesAutocomplete'
@@ -266,13 +266,13 @@ export default function DriverRegistrationPage() {
 
   if (submitted) {
     return (
-      <main className="min-h-screen bg-[hsl(var(--surface-field))]">
+      <main className="min-h-screen bg-[#f2f6f5]">
         <Header />
         <div className="container pt-20 py-12">
-          <Card className="max-w-2xl mx-auto text-center">
+          <Card className="mx-auto max-w-2xl rounded-none border-[#c7d4d2] text-center shadow-none">
             <CardContent className="pt-12 pb-12">
-              <div className="inline-flex items-center justify-center w-16 h-16 rounded-md bg-emerald-500 mx-auto mb-6">
-                <CheckCircle className="h-8 w-8 text-white" />
+              <div className="mx-auto mb-6 inline-flex h-16 w-16 items-center justify-center bg-[#eaf7f3] text-[#176c59]">
+                <CheckCircle className="h-8 w-8" />
               </div>
               <h2 className="text-3xl font-bold mb-4">Application Submitted!</h2>
               <p className="text-lg text-muted-foreground mb-8">
@@ -292,13 +292,13 @@ export default function DriverRegistrationPage() {
   }
 
   return (
-    <main className="min-h-screen bg-[hsl(var(--surface-field))]">
+    <main className="min-h-screen bg-[#f2f6f5] text-[#193638]">
       <Header />
       
       {/* DOT Confirmation Modal */}
       {showDotConfirmation && pendingDotResult && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <Card className="max-w-lg w-full">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#10292b]/70 p-4">
+          <Card className="w-full max-w-lg rounded-none border-[#c7d4d2]">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <CheckCircle className="h-6 w-6 text-green-500" />
@@ -307,7 +307,7 @@ export default function DriverRegistrationPage() {
               <CardDescription>Please confirm this is your company</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="bg-muted p-4 rounded-lg space-y-2">
+              <div className="space-y-2 border border-[#d7e1df] bg-[#f4f7f6] p-4">
                 <div className="flex justify-between">
                   <span className="text-sm font-semibold">DOT Number:</span>
                   <span className="text-sm">#{pendingDotResult.dotNumber}</span>
@@ -336,7 +336,7 @@ export default function DriverRegistrationPage() {
                 )}
               </div>
 
-              <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+              <div className="border border-[#e4c984] bg-[#fff8e8] p-4">
                 <p className="text-sm font-semibold text-amber-900">⚠️ Important: Verify this information</p>
                 <p className="text-xs text-amber-700 mt-1">
                   Make sure this is YOUR company. If any details are incorrect, click "No, re-enter" to fix your DOT number.
@@ -413,22 +413,23 @@ export default function DriverRegistrationPage() {
         </div>
       )}
       
-      <section className="border-b border-border bg-white pt-20 py-8">
+      <section className="border-b border-[#cbd8d6] bg-[#173436] pb-10 pt-28 text-white">
         <div className="container">
           <div className="max-w-4xl mx-auto">
-            <h1 className="text-2xl font-bold tracking-tight mb-2">Driver Registration</h1>
-            <p className="text-sm text-muted-foreground">Quick verification process - takes 3 minutes</p>
+            <p className="text-xs font-bold uppercase tracking-[0.14em] text-[#8fb5b1]">Carrier onboarding</p>
+            <h1 className="mt-2 text-3xl font-semibold tracking-tight sm:text-4xl">Build your verified driver profile.</h1>
+            <p className="mt-3 max-w-2xl text-sm leading-6 text-[#b8cecb]">License, authority, insurance, and agreements stay connected in one reviewable application.</p>
           </div>
         </div>
       </section>
 
-      <section className="py-12">
+      <section className="py-10 sm:py-14">
         <div className="container">
           <div className="max-w-3xl mx-auto">
-            <div className="mb-8">
+            <div className="mb-8 border border-[#c7d4d2] bg-white p-5">
               <div className="flex justify-between mb-2">
-                <span className="text-sm font-medium">Step {currentStep} of {totalSteps}</span>
-                <span className="text-sm text-muted-foreground">{Math.round(progress)}%</span>
+                <span className="text-sm font-semibold text-[#263f40]">Step {currentStep} of {totalSteps}</span>
+                <span className="text-sm tabular-nums text-[#607675]">{Math.round(progress)}%</span>
               </div>
               <Progress value={progress} />
             </div>

@@ -25,7 +25,7 @@ import {
   ExternalLink,
   Copy,
   CheckCheck,
-} from 'lucide-react'
+} from '@/components/icons/streamline-lucide'
 import { Button } from '@/components/ui/button'
 import Messaging from '@/components/messaging/Messaging'
 

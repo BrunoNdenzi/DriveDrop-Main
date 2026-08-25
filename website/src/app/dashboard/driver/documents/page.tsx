@@ -17,7 +17,7 @@ import {
   Download,
   Eye,
   Shield
-} from 'lucide-react'
+} from '@/components/icons/streamline-lucide'
 
 interface Document {
   id: string

@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { CampaignRecipient } from '@/types/campaigns'
 import { getCampaignRecipients } from '@/lib/api/campaigns'
-import { ChevronLeft, ChevronRight, Loader2 } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Loader2 } from '@/components/icons/streamline-lucide'
 
 const STATUS_COLORS: Record<string, string> = {
   pending:   'bg-gray-100 text-gray-600',

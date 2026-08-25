@@ -8,7 +8,7 @@ import {
   Search, Upload, Download, Filter, RefreshCw, Plus, Trash2, Mail, Phone,
   Building2, MapPin, Users, TrendingUp, Target, FileText, Globe, ChevronDown,
   CheckCircle, Clock, AlertTriangle, XCircle, ExternalLink, Database
-} from 'lucide-react'
+} from '@/components/icons/streamline-lucide'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || ''
 

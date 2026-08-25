@@ -1,43 +1,44 @@
 'use client'
 
-import { useAuth } from '@/hooks/useAuth'
-import { useRouter, usePathname } from 'next/navigation'
-import Link from 'next/link'
 import Image from 'next/image'
+import Link from 'next/link'
+import { usePathname, useRouter } from 'next/navigation'
 import { useState } from 'react'
-import { 
-  Package, 
-  Truck, 
-  DollarSign, 
-  User, 
-  LogOut,
-  Menu,
-  X,
-  Bell,
-  ChevronDown,
-  FileText,
-  TrendingUp,
-  ClipboardList,
+import {
+  Building2,
   CheckCircle,
+  ChevronDown,
+  ClipboardList,
+  DollarSign,
+  FileText,
+  Handshake,
+  LogOut,
+  Mail,
+  Map,
+  Menu,
   MessageSquare,
   Navigation,
-  Map,
-  Handshake,
-  Building2
-} from 'lucide-react'
-import { Button } from '@/components/ui/button'
+  Package,
+  Phone,
+  TrendingUp,
+  Truck,
+  User,
+  X,
+} from '@/components/icons/streamline-lucide'
+
 import NotificationBell from '@/components/NotificationBell'
 import { BenjiAssistant } from '@/components/benji-v3/BenjiAssistant'
+import { useAuth } from '@/hooks/useAuth'
 
 const navItems = [
-  { href: '/dashboard/driver', label: 'Dashboard', icon: TrendingUp },
-  { href: '/dashboard/driver/jobs', label: 'Available Jobs', icon: Package },
-  { href: '/dashboard/driver/broker-loads', label: 'Broker Loads', icon: Building2 },
-  { href: '/dashboard/driver/active', label: 'Active Deliveries', icon: Truck },
-  { href: '/dashboard/driver/navigation', label: 'Navigation', icon: Map },
-  { href: '/dashboard/driver/route-planner', label: 'Route Planner', icon: Navigation },
-  { href: '/dashboard/driver/applications', label: 'My Applications', icon: ClipboardList },
-  { href: '/dashboard/driver/invitations', label: 'Broker Invitations', icon: Handshake },
+  { href: '/dashboard/driver', label: 'Overview', icon: TrendingUp },
+  { href: '/dashboard/driver/jobs', label: 'Available jobs', icon: Package },
+  { href: '/dashboard/driver/broker-loads', label: 'Broker loads', icon: Building2 },
+  { href: '/dashboard/driver/active', label: 'Active deliveries', icon: Truck },
+  { href: '/dashboard/driver/navigation', label: 'Live navigation', icon: Map },
+  { href: '/dashboard/driver/route-planner', label: 'Route planner', icon: Navigation },
+  { href: '/dashboard/driver/applications', label: 'Applications', icon: ClipboardList },
+  { href: '/dashboard/driver/invitations', label: 'Broker invitations', icon: Handshake },
   { href: '/dashboard/driver/completed', label: 'Completed', icon: CheckCircle },
   { href: '/dashboard/driver/messages', label: 'Messages', icon: MessageSquare },
   { href: '/dashboard/driver/earnings', label: 'Earnings', icon: DollarSign },
@@ -45,11 +46,7 @@ const navItems = [
   { href: '/dashboard/driver/profile', label: 'Profile', icon: User },
 ]
 
-export default function DriverDashboardLayout({
-  children,
-}: {
-  children: React.ReactNode
-}) {
+export default function DriverDashboardLayout({ children }: { children: React.ReactNode }) {
   const { user, profile, loading, signOut } = useAuth()
   const router = useRouter()
   const pathname = usePathname()
@@ -59,13 +56,12 @@ export default function DriverDashboardLayout({
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[hsl(var(--surface-field))]">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-amber-500"></div>
+      <div className="flex min-h-screen items-center justify-center bg-[#f2f6f5]">
+        <div className="h-10 w-10 animate-spin rounded-full border-2 border-[#b8cdca] border-t-[#008c82]" />
       </div>
     )
   }
 
-  // Block access if driver must change password (e.g. first login with temp password)
   if (user?.user_metadata?.force_password_change === true) {
     router.replace('/change-password?required=true')
     return null
@@ -74,208 +70,131 @@ export default function DriverDashboardLayout({
   const userName = profile?.first_name && profile?.last_name
     ? `${profile.first_name} ${profile.last_name}`
     : profile?.email?.split('@')[0] || 'Driver'
+  const initials = userName.split(' ').map(part => part[0]).join('').slice(0, 2).toUpperCase()
 
   return (
-    <div className="min-h-screen bg-[hsl(var(--surface-field))]">
-      {/* Header */}
-      <header className="bg-white border-b border-gray-200 sticky top-0 z-40">
-        <div className="px-2 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            {/* Logo & Mobile Menu */}
-            <div className="flex items-center gap-2 sm:gap-4 min-w-0">
-              <button
-                onClick={() => setSidebarOpen(!sidebarOpen)}
-                className="lg:hidden p-2 rounded-lg hover:bg-gray-100 transition-colors"
-              >
-                {sidebarOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
-              </button>
-              
-              <Link href="/" className="flex items-center">
-                <Image
-                  src="/logo-primary.png"
-                  alt="DriveDrop"
-                  width={120}
-                  height={30}
-                  priority
-                  className="h-8 w-auto"
-                />
-              </Link>
+    <div className="min-h-screen bg-[#f2f6f5] text-[#193638]">
+      <header className="sticky top-0 z-40 border-b border-[#cbd8d6] bg-white">
+        <div className="flex h-16 items-center justify-between px-3 sm:px-6">
+          <div className="flex min-w-0 items-center gap-3">
+            <button
+              type="button"
+              onClick={() => setSidebarOpen(current => !current)}
+              aria-label={sidebarOpen ? 'Close navigation' : 'Open navigation'}
+              aria-expanded={sidebarOpen}
+              className="grid h-9 w-9 place-items-center border border-[#c8d5d3] text-[#304b4c] lg:hidden"
+            >
+              {sidebarOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+            </button>
+            <Link href="/" aria-label="DriveDrop home" className="shrink-0">
+              <Image src="/logo-primary.png" alt="DriveDrop" width={120} height={30} priority className="h-8 w-auto" />
+            </Link>
+            <div className="hidden border-l border-[#d7e1df] pl-3 sm:block">
+              <p className="text-xs font-bold uppercase tracking-[0.12em] text-[#6d807f]">Driver workspace</p>
             </div>
+          </div>
 
-            {/* Center - Driver Status Toggle */}
-            <div className="hidden md:flex items-center gap-3 px-4 py-2 rounded-full bg-gray-50 border border-gray-200">
-              <span className="text-sm font-medium text-gray-700">Status:</span>
-              <button
-                onClick={() => setIsOnline(!isOnline)}
-                className={`
-                  relative inline-flex h-6 w-11 items-center rounded-full transition-colors
-                  ${isOnline ? 'bg-green-500' : 'bg-gray-300'}
-                `}
-              >
-                <span
-                  className={`
-                    inline-block h-4 w-4 transform rounded-full bg-white transition-transform
-                    ${isOnline ? 'translate-x-6' : 'translate-x-1'}
-                  `}
-                />
-              </button>
-              <span className={`text-sm font-semibold ${isOnline ? 'text-green-600' : 'text-gray-500'}`}>
+          <div className="flex items-center gap-2 sm:gap-3">
+            <div className="hidden items-center gap-2 border border-[#cbd8d6] bg-[#f4f7f6] px-3 py-2 md:flex">
+              <span className={`h-2 w-2 ${isOnline ? 'bg-[#12a36d]' : 'bg-[#8a9a98]'}`} />
+              <button type="button" onClick={() => setIsOnline(current => !current)} className="text-xs font-bold text-[#405958]">
                 {isOnline ? 'Online' : 'Offline'}
-              </span>
+              </button>
             </div>
+            <NotificationBell />
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setUserMenuOpen(current => !current)}
+                aria-expanded={userMenuOpen}
+                className="flex h-10 items-center gap-2 px-1 text-left sm:px-2"
+              >
+                <span className="grid h-9 w-9 place-items-center bg-[#f3a712] text-xs font-bold text-[#173436]">{initials}</span>
+                <span className="hidden max-w-36 truncate text-sm font-semibold text-[#263f40] md:block">{userName}</span>
+                <ChevronDown className="hidden h-4 w-4 text-[#718482] md:block" />
+              </button>
 
-            {/* Right Side Actions */}
-            <div className="flex items-center gap-1 sm:gap-4">
-              {/* Notifications */}
-              <NotificationBell />
-
-              {/* User Menu */}
-              <div className="relative">
-                <button
-                  onClick={() => setUserMenuOpen(!userMenuOpen)}
-                  className="flex items-center gap-2 p-2 rounded-lg hover:bg-gray-100 transition-colors"
-                >
-                  <div className="w-8 h-8 rounded-full bg-amber-500 flex items-center justify-center">
-                    <span className="text-white font-semibold text-sm">
-                      {userName.charAt(0).toUpperCase()}
-                    </span>
+              {userMenuOpen && (
+                <div className="absolute right-0 top-12 w-60 border border-[#cbd8d6] bg-white py-2 shadow-lg">
+                  <div className="border-b border-[#dce5e3] px-4 py-3">
+                    <p className="truncate text-sm font-semibold text-[#263f40]">{userName}</p>
+                    <p className="mt-0.5 truncate text-xs text-[#718482]">{profile?.email}</p>
                   </div>
-                  <span className="hidden md:block text-sm font-medium text-gray-700">
-                    {userName}
-                  </span>
-                  <ChevronDown className="hidden md:block h-4 w-4 text-gray-500" />
-                </button>
-
-                {/* Dropdown Menu */}
-                {userMenuOpen && (
-                  <div className="absolute right-0 mt-2 w-56 bg-white rounded-md shadow-md border border-gray-200 py-2">
-                    <div className="px-4 py-3 border-b border-gray-100">
-                      <p className="text-sm font-medium text-gray-900">{userName}</p>
-                      <p className="text-xs text-gray-500 truncate">{profile?.email}</p>
-                      <div className="flex items-center gap-2 mt-2">
-                        <div className={`w-2 h-2 rounded-full ${isOnline ? 'bg-green-500' : 'bg-gray-400'}`}></div>
-                        <span className="text-xs text-gray-600">
-                          {isOnline ? 'Available for deliveries' : 'Not available'}
-                        </span>
-                      </div>
-                    </div>
-                    <Link
-                      href="/dashboard/driver/profile"
-                      className="flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
-                    >
-                      <User className="h-4 w-4" />
-                      Profile Settings
-                    </Link>
-                    <button
-                      onClick={signOut}
-                      className="flex items-center gap-3 px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors w-full"
-                    >
-                      <LogOut className="h-4 w-4" />
-                      Sign Out
-                    </button>
-                  </div>
-                )}
-              </div>
+                  <Link href="/dashboard/driver/profile" onClick={() => setUserMenuOpen(false)} className="flex items-center gap-3 px-4 py-2.5 text-sm text-[#405958] hover:bg-[#f2f6f5]">
+                    <User className="h-4 w-4" /> Profile settings
+                  </Link>
+                  <button type="button" onClick={signOut} className="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-[#aa3e35] hover:bg-[#fff4f3]">
+                    <LogOut className="h-4 w-4" /> Sign out
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         </div>
       </header>
 
       <div className="flex">
-        {/* Sidebar */}
         <aside
-          className={`
-            fixed lg:sticky top-16 left-0 h-[calc(100vh-4rem)] 
-            w-[min(18rem,85vw)] lg:w-64 bg-white border-r border-gray-200
-            transition-transform duration-300 ease-in-out z-30
-            ${sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
-          `}
+          className={`fixed bottom-0 left-0 top-16 z-30 flex w-[min(18rem,85vw)] flex-col border-r border-[#294849] bg-[#173436] text-white transition-transform duration-200 lg:sticky lg:h-[calc(100vh-4rem)] lg:w-64 lg:translate-x-0 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}
         >
-          <nav className="p-4 space-y-1">
-            {navItems.map((item) => {
+          <div className="border-b border-white/10 px-5 py-5">
+            <p className="text-xs font-bold uppercase tracking-[0.14em] text-[#8fb5b1]">Current status</p>
+            <div className="mt-3 flex items-center justify-between">
+              <div>
+                <p className="text-sm font-semibold">{isOnline ? 'Available for work' : 'Not available'}</p>
+                <p className="mt-0.5 text-xs text-[#9fbcba]">Update your dispatch status</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsOnline(current => !current)}
+                aria-label={isOnline ? 'Go offline' : 'Go online'}
+                className={`relative h-6 w-11 ${isOnline ? 'bg-[#12a36d]' : 'bg-[#587170]'}`}
+              >
+                <span className={`absolute top-1 h-4 w-4 bg-white transition-transform ${isOnline ? 'translate-x-5' : 'translate-x-1'}`} />
+              </button>
+            </div>
+          </div>
+
+          <nav className="custom-scrollbar flex-1 space-y-1 overflow-y-auto p-3" aria-label="Driver navigation">
+            {navItems.map(item => {
               const Icon = item.icon
-              const isActive = pathname === item.href
-              
+              const isActive = pathname === item.href || (item.href !== '/dashboard/driver' && pathname.startsWith(`${item.href}/`))
+
               return (
                 <Link
                   key={item.href}
                   href={item.href}
                   onClick={() => setSidebarOpen(false)}
-                  className={`
-                    flex items-center gap-3 px-4 py-3 rounded-md transition-all
-                    ${isActive 
-                      ? 'bg-amber-500 text-white' 
-                      : 'text-gray-700 hover:bg-gray-50'
-                    }
-                  `}
+                  aria-current={isActive ? 'page' : undefined}
+                  className={`flex min-h-10 items-center gap-3 px-3 py-2 text-sm font-medium ${isActive ? 'bg-white text-[#173436]' : 'text-[#bfd0ce] hover:bg-white/10 hover:text-white'}`}
                 >
-                  <Icon className="h-5 w-5" />
-                  <span className="font-medium">{item.label}</span>
+                  <Icon className="h-4 w-4 shrink-0" />
+                  <span>{item.label}</span>
                 </Link>
               )
             })}
           </nav>
 
-          {/* Earnings Widget */}
-          <div className="p-4">
-            <div className="bg-slate-50 rounded-md p-4 border border-border">
-              <div className="flex items-center gap-2 mb-2">
-                <DollarSign className="h-5 w-5 text-amber-500" />
-                <h3 className="font-semibold text-gray-900 text-sm">Today's Earnings</h3>
-              </div>
-              <p className="text-3xl font-bold text-amber-500 mb-1">$0.00</p>
-              <p className="text-xs text-gray-600">0 deliveries completed</p>
-            </div>
-          </div>
-
-          {/* Quick Help */}
-          <div className="p-4">
-            <div className="bg-slate-50 rounded-md p-4 border border-border">
-              <h3 className="font-semibold text-gray-900 mb-2 text-sm">Need Help?</h3>
-              <p className="text-sm text-gray-600 mb-3">
-                Contact driver support
-              </p>
-              <div className="space-y-2">
-                <a 
-                  href="mailto:support@drivedrop.us.com"
-                  className="flex items-center justify-center gap-2 w-full px-4 py-2 text-sm font-medium text-amber-600 border border-amber-300 rounded-md hover:bg-amber-500 hover:text-white transition-colors"
-                >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                  </svg>
-                  Email Support
-                </a>
-                <a 
-                  href="tel:+15042662317"
-                  className="flex items-center justify-center gap-2 w-full px-4 py-2 text-sm font-medium text-amber-600 border border-amber-300 rounded-md hover:bg-amber-500 hover:text-white transition-colors"
-                >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
-                  </svg>
-                  Call Support
-                </a>
-              </div>
+          <div className="border-t border-white/10 p-3">
+            <p className="px-2 text-[10px] font-bold uppercase tracking-[0.12em] text-[#8fb5b1]">Driver support</p>
+            <div className="mt-2 grid grid-cols-2 gap-2">
+              <a href="mailto:support@drivedrop.us.com" className="flex h-9 items-center justify-center gap-2 border border-white/20 text-xs font-semibold text-[#d5e2e0] hover:bg-white/10">
+                <Mail className="h-3.5 w-3.5" /> Email
+              </a>
+              <a href="tel:+15042662317" className="flex h-9 items-center justify-center gap-2 border border-white/20 text-xs font-semibold text-[#d5e2e0] hover:bg-white/10">
+                <Phone className="h-3.5 w-3.5" /> Call
+              </a>
             </div>
           </div>
         </aside>
 
-        {/* Mobile Overlay */}
-        {sidebarOpen && (
-          <div
-            className="fixed inset-0 bg-black/20 z-20 lg:hidden"
-            onClick={() => setSidebarOpen(false)}
-          />
-        )}
+        {sidebarOpen && <button type="button" aria-label="Close navigation overlay" className="fixed inset-0 top-16 z-20 bg-black/35 lg:hidden" onClick={() => setSidebarOpen(false)} />}
 
-        {/* Main Content */}
-        <main className="flex-1 min-w-0 p-3 sm:p-6 lg:p-8">
-          <div className="max-w-7xl mx-auto">
-            {children}
-          </div>
+        <main className="min-w-0 flex-1 p-3 sm:p-5 lg:p-6">
+          <div className="mx-auto max-w-[1440px]">{children}</div>
         </main>
       </div>
 
-      {/* Benji V3 — global floating assistant */}
       <BenjiAssistant userType="driver" userId={user?.id} />
     </div>
   )

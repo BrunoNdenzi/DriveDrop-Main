@@ -32,7 +32,7 @@ import {
   BarChart3,
   Layers,
   User,
-} from 'lucide-react'
+} from '@/components/icons/streamline-lucide'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 

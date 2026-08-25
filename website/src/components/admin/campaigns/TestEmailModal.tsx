@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { sendTestEmail } from '@/lib/api/campaigns'
 import { toast } from '@/components/ui/toast'
-import { Loader2, Send, X } from 'lucide-react'
+import { Loader2, Send, X } from '@/components/icons/streamline-lucide'
 
 interface TestEmailModalProps {
   campaignId: string

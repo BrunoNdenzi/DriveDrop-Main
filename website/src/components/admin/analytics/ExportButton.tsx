@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { exportReport } from '@/lib/api/analytics'
 import { toast } from '@/components/ui/toast'
-import { Download, Loader2 } from 'lucide-react'
+import { Download, Loader2 } from '@/components/icons/streamline-lucide'
 
 interface ExportButtonProps {
   campaignId?: string

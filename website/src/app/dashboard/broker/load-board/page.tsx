@@ -15,7 +15,7 @@ import {
   Filter,
   X,
   ArrowRight
-} from 'lucide-react';
+} from '@/components/icons/streamline-lucide';
 import { Button } from '@/components/ui/button';
 
 export default function LoadBoardPage() {

@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { getSupabaseBrowserClient } from '@/lib/supabase-client';
 import type { CreateBrokerProfile, BusinessStructure } from '@/types/broker';
+import { AccessPageShell } from '@/components/auth/AccessPageShell';
 
 export default function BrokerSignupPage() {
   const router = useRouter();
@@ -159,38 +160,28 @@ export default function BrokerSignupPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
-      <div className="sm:mx-auto sm:w-full sm:max-w-2xl">
-        <h2 className="text-center text-3xl font-extrabold text-gray-900">
-          Broker Registration
-        </h2>
-        <p className="mt-2 text-center text-sm text-gray-600">
-          Join DriveDrop's broker network
-        </p>
-      </div>
-
-      <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-2xl">
-        <div className="bg-white py-8 px-4 shadow sm:rounded-lg sm:px-10">
+    <AccessPageShell eyebrow={`Broker registration · Step ${step} of 4`} title="Connect your brokerage." description="Create a verified operating profile for your company, authority, carrier network, and commission structure.">
+      <div className="max-w-2xl border border-[#c7d4d2] bg-white px-5 py-7 sm:px-8">
           {/* Progress Indicator */}
           <div className="mb-8">
             <div className="flex items-center justify-between">
               {[1, 2, 3, 4].map((s) => (
                 <div key={s} className="flex items-center">
                   <div
-                    className={`w-8 h-8 rounded-full flex items-center justify-center ${
+                    className={`flex h-8 w-8 items-center justify-center text-xs font-bold ${
                       s === step
-                        ? 'bg-blue-600 text-white'
+                        ? 'bg-[#008c82] text-white'
                         : s < step
-                        ? 'bg-green-600 text-white'
-                        : 'bg-gray-200 text-gray-600'
+                        ? 'bg-[#173436] text-white'
+                        : 'bg-[#e4ecea] text-[#607675]'
                     }`}
                   >
                     {s < step ? '✓' : s}
                   </div>
                   {s < 4 && (
                     <div
-                      className={`w-16 h-1 ${
-                        s < step ? 'bg-green-600' : 'bg-gray-200'
+                      className={`h-px w-8 sm:w-16 ${
+                        s < step ? 'bg-[#173436]' : 'bg-[#cbd8d6]'
                       }`}
                     />
                   )}
@@ -206,7 +197,7 @@ export default function BrokerSignupPage() {
           </div>
 
           {error && (
-            <div className="mb-4 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
+            <div className="mb-4 border border-[#e5b8b4] bg-[#fff4f3] px-4 py-3 text-[#9f2f27]">
               {error}
             </div>
           )}
@@ -547,7 +538,7 @@ export default function BrokerSignupPage() {
               <div className="space-y-6">
                 <h3 className="text-lg font-medium text-gray-900">Review Your Information</h3>
                 
-                <div className="bg-gray-50 p-4 rounded-md space-y-4">
+                <div className="space-y-4 border border-[#d7e1df] bg-[#f4f7f6] p-4">
                   <div>
                     <h4 className="font-medium text-gray-900">Account</h4>
                     <p className="text-sm text-gray-600">{formData.full_name}</p>
@@ -587,7 +578,7 @@ export default function BrokerSignupPage() {
                   </div>
                 </div>
 
-                <div className="bg-yellow-50 border border-yellow-200 p-4 rounded-md">
+                <div className="border border-[#e4c984] bg-[#fff8e8] p-4">
                   <p className="text-sm text-yellow-800">
                     <strong>Note:</strong> Your broker account will be pending verification. 
                     An admin will review your information and may request additional documentation 
@@ -603,7 +594,7 @@ export default function BrokerSignupPage() {
                 <button
                   type="button"
                   onClick={handleBack}
-                  className="inline-flex justify-center py-2 px-4 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                  className="inline-flex h-10 items-center justify-center border border-[#b9c9c7] bg-white px-4 text-sm font-semibold text-[#405958] hover:bg-[#f4f7f6]"
                 >
                   Back
                 </button>
@@ -614,7 +605,7 @@ export default function BrokerSignupPage() {
                   <button
                     type="button"
                     onClick={handleNext}
-                    className="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                    className="inline-flex h-10 items-center justify-center bg-[#008c82] px-5 text-sm font-semibold text-white hover:bg-[#00756d]"
                   >
                     Next
                   </button>
@@ -622,7 +613,7 @@ export default function BrokerSignupPage() {
                   <button
                     type="submit"
                     disabled={loading}
-                    className="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="inline-flex h-10 items-center justify-center bg-[#008c82] px-5 text-sm font-semibold text-white hover:bg-[#00756d] disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     {loading ? 'Creating Account...' : 'Complete Registration'}
                   </button>
@@ -634,13 +625,12 @@ export default function BrokerSignupPage() {
           <div className="mt-6 text-center">
             <p className="text-sm text-gray-600">
               Already have an account?{' '}
-              <a href="/login" className="font-medium text-blue-600 hover:text-blue-500">
+              <a href="/login" className="font-medium text-[#007b72] hover:underline">
                 Sign in
               </a>
             </p>
           </div>
-        </div>
       </div>
-    </div>
+    </AccessPageShell>
   );
 }

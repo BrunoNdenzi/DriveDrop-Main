@@ -28,7 +28,7 @@ import {
   Calendar,
   RefreshCw,
   ExternalLink,
-} from 'lucide-react';
+} from '@/components/icons/streamline-lucide';
 import { Button } from '@/components/ui/button';
 
 // ─── Interfaces ──────────────────────────────────────────────────────

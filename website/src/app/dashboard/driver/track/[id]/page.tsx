@@ -22,7 +22,7 @@ import {
   FileText,
   Download,
   Mail
-} from 'lucide-react'
+} from '@/components/icons/streamline-lucide'
 import { Button } from '@/components/ui/button'
 import DriverMapNavigation, { type NavStop } from '@/components/driver/DriverMapNavigation'
 

@@ -19,7 +19,7 @@ import {
   RefreshCw,
   CheckCircle,
   AlertCircle,
-} from 'lucide-react'
+} from '@/components/icons/streamline-lucide'
 
 interface PlatformSettings {
   // Commission & Fees

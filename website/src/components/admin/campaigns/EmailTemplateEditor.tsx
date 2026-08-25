@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { ChevronDown, Info } from 'lucide-react'
+import { ChevronDown, Info } from '@/components/icons/streamline-lucide'
 
 const INTRO_TEMPLATE = `<!DOCTYPE html>
 <html lang="en">

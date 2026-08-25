@@ -18,7 +18,7 @@ import {
   XCircle,
   Edit,
   AlertCircle,
-} from 'lucide-react';
+} from '@/components/icons/streamline-lucide';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 

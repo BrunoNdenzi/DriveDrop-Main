@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { getSupabaseBrowserClient } from '@/lib/supabase-client';
-import { ArrowLeft, Save, Loader2 } from 'lucide-react';
+import { ArrowLeft, Save, Loader2 } from '@/components/icons/streamline-lucide';
 import { Button } from '@/components/ui/button';
 import ShipmentForm from '@/components/shipment/ShipmentForm';
 import Link from 'next/link';

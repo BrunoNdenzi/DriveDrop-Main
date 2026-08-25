@@ -1,6 +1,6 @@
 'use client'
 
-import { LucideIcon, TrendingUp, TrendingDown } from 'lucide-react'
+import { LucideIcon, TrendingUp, TrendingDown } from '@/components/icons/streamline-lucide'
 
 interface StatsCardProps {
   title: string

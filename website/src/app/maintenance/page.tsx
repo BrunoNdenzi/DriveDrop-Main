@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Wrench, Clock, ArrowRight } from 'lucide-react'
+import { Wrench, Clock, ArrowRight } from '@/components/icons/streamline-lucide'
 
 export default function MaintenancePage() {
   const [dots, setDots] = useState('')

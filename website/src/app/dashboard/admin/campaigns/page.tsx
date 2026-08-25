@@ -7,7 +7,7 @@ import { CampaignStats as Stats } from '@/types/campaigns'
 import CampaignList from '@/components/admin/campaigns/CampaignList'
 import StatsCard from '@/components/admin/campaigns/StatsCard'
 import Link from 'next/link'
-import { Plus, Mail, Send, Eye, MousePointer } from 'lucide-react'
+import { Plus, Mail, Send, Eye, MousePointer } from '@/components/icons/streamline-lucide'
 
 export default function CampaignsPage() {
   const [campaigns, setCampaigns] = useState<Campaign[]>([])

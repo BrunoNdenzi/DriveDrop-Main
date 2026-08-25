@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Sparkles, Zap, TrendingUp, DollarSign, Clock, CheckCircle, AlertTriangle, Loader2, User, MapPin, Star } from 'lucide-react'
+import { Sparkles, Zap, TrendingUp, DollarSign, Clock, CheckCircle, AlertTriangle, Loader2, User, MapPin, Star } from '@/components/icons/streamline-lucide'
 import { Button } from '@/components/ui/button'
 import toast from 'react-hot-toast'
 import { getSupabaseBrowserClient } from '@/lib/supabase-client'

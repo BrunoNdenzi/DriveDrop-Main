@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { AnalyticsOverview, LeaderboardEntry } from '@/types/campaigns'
 import { getOverview, getLeaderboard } from '@/lib/api/analytics'
 import LeaderboardTable from './LeaderboardTable'
-import { Mail, Eye, MousePointer, Users, RefreshCw } from 'lucide-react'
+import { Mail, Eye, MousePointer, Users, RefreshCw } from '@/components/icons/streamline-lucide'
 
 function StatCard({ icon: Icon, label, value, sub, color }: {
   icon: React.ElementType
