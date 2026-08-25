@@ -1,997 +1,919 @@
-# DriveDrop
+# DriveDrop Company and Technical Handover
 
-A modern, full-stack file sharing and collaboration platform built with React Native (Expo) and Node.js/Express.
+> **Authoritative repository guide**
+> **Last code verification:** 2026-08-25
+> **Document owner after handover:** `[NAME / ROLE]`
+> **Business owner:** `[CEO / OWNER NAME]`
+> **Production website:** <https://www.drivedrop.us.com>
+> **Confidential credentials:** Never put passwords, recovery codes, private keys, or service-role keys in this file. Store them in the company password manager and record only ownership below.
 
-## 🏗️ Project Structure
+This is the primary handover for DriveDrop. It is written for executives, operations staff, support staff, and engineers. Runtime code, deployment consoles, and database state take precedence if they disagree with this document. Update this file in the same pull request as any material system or operating-process change.
 
+## Contents
+
+- [Read This First](#read-this-first)
+- [Executive Summary](#executive-summary)
+- [Company Knowledge to Complete](#company-knowledge-to-complete)
+- [Product and Users](#product-and-users)
+- [System Architecture](#system-architecture)
+- [Repository Map](#repository-map)
+- [Roles and Access](#roles-and-access)
+- [Core Business Workflows](#core-business-workflows)
+- [Website](#website)
+- [Mobile Application](#mobile-application)
+- [Backend API](#backend-api)
+- [Database and Storage](#database-and-storage)
+- [Benji and AI](#benji-and-ai)
+- [External Services](#external-services)
+- [Configuration and Secrets](#configuration-and-secrets)
+- [Local Development](#local-development)
+- [Testing and Quality](#testing-and-quality)
+- [Deployment and Release](#deployment-and-release)
+- [Operations Runbooks](#operations-runbooks)
+- [Security Privacy and Compliance](#security-privacy-and-compliance)
+- [Monitoring and Incident Response](#monitoring-and-incident-response)
+- [Backup and Disaster Recovery](#backup-and-disaster-recovery)
+- [Costs Contracts and Ownership](#costs-contracts-and-ownership)
+- [Known Risks and Open Decisions](#known-risks-and-open-decisions)
+- [Successor Onboarding](#successor-onboarding)
+- [Departure Checklist](#departure-checklist)
+- [Glossary](#glossary)
+- [Documentation Rules](#documentation-rules)
+
+## Read This First
+
+1. Obtain company-managed access to GitHub, Supabase, Railway, Vercel, Expo/EAS, Apple Developer, Google Play Console, Stripe, the domain registrar, DNS, and the password manager.
+2. Verify production from the vendor consoles. A green GitHub workflow does **not** mean production deployed; the current GitHub deploy job only prints placeholder messages.
+3. Never paste credentials into tickets, chat, this README, or committed `.env` files. Use the password manager and each platform's encrypted environment settings.
+4. Do not run old root-level SQL files against production without reviewing the migration history and taking a backup. The repository contains historical and one-off SQL in addition to formal migrations.
+5. Confirm the current production schema before changing it. The initial schema, later migrations, and application expectations have drifted over time.
+6. Treat pricing, payment, identity, driver approval, webhook, and AI-action changes as high risk. Test them in a non-production environment first.
+7. Fill every `[FILL BEFORE DEPARTURE]` item in this guide or assign an owner who can obtain it.
+
+### Sources of truth
+
+| Subject | Authoritative source |
+|---|---|
+| Product behavior | Deployed app, then current source code |
+| Database structure | Production Supabase schema and applied migration ledger |
+| Secrets | Company password manager and vendor environment consoles |
+| Backend deployment | Railway project settings and deployment logs |
+| Website deployment | Vercel project settings and deployment logs |
+| Mobile releases | EAS, Apple App Store Connect, and Google Play Console |
+| Payments and refunds | Stripe dashboard and webhook event history |
+| User identity | Supabase Auth plus the `profiles` table |
+| Domain and email | Registrar, DNS provider, Google Workspace/Gmail, and Brevo |
+| Business policy | Signed contracts and CEO-approved written policy |
+
+## Executive Summary
+
+DriveDrop is a vehicle-shipping platform connecting clients and brokers who need vehicles moved with approved drivers/carriers and internal administrators who oversee fulfillment. The product includes:
+
+- A public and authenticated Next.js website.
+- An Expo/React Native mobile application for role-specific workflows.
+- An Express/TypeScript API hosted on Railway.
+- Supabase for authentication, PostgreSQL/PostGIS data, realtime features, and object storage.
+- Stripe for payments and financial events.
+- Mapping, routing, fuel, and weather providers for route and pricing evidence.
+- Email, SMS, campaigns, and voice-agent integrations.
+- Benji AI orchestration for supported administrative and operational assistance.
+
+The system is not a single monolith. Production depends on multiple independently managed vendor accounts, environment variables, webhook registrations, DNS records, mobile signing identities, and database policies. Ownership transfer is therefore as important as source-code transfer.
+
+### Business continuity priorities
+
+1. Keep Supabase, Railway, Vercel, Stripe, DNS, and email billing active.
+2. Preserve access to the GitHub organization and production vendor accounts with at least two company-controlled administrators.
+3. Reconcile active shipments and payment state before any production maintenance.
+4. Keep Stripe, Brevo, Gmail, Vapi/Retell, and integration webhooks pointed at the current production API.
+5. Rotate credentials previously known by departing personnel and verify all clients afterward.
+6. Maintain a tested database recovery procedure.
+
+## Company Knowledge to Complete
+
+The repository cannot establish the following company facts. The departing owner and CEO must complete them.
+
+| Item | Value | Accountable owner |
+|---|---|---|
+| Legal company name and jurisdiction | `[FILL BEFORE DEPARTURE]` | `[NAME]` |
+| Registered business address | `[FILL BEFORE DEPARTURE]` | `[NAME]` |
+| EIN/tax records location | `[PASSWORD-MANAGER OR DRIVE LINK]` | `[NAME]` |
+| Insurance policies and renewal dates | `[FILL BEFORE DEPARTURE]` | `[NAME]` |
+| Carrier/broker authority and identifiers | `[MC/DOT/OTHER OR N/A]` | `[NAME]` |
+| Primary executive escalation contact | `[NAME / PHONE / EMAIL]` | CEO |
+| Operations escalation contact | `[NAME / PHONE / EMAIL]` | `[NAME]` |
+| Technical escalation contact | `[NAME / PHONE / EMAIL]` | `[NAME]` |
+| Finance/refund approval contact | `[NAME / PHONE / EMAIL]` | `[NAME]` |
+| Privacy and legal contact | `[NAME / PHONE / EMAIL]` | `[NAME]` |
+| Standard support hours and SLA | `[FILL BEFORE DEPARTURE]` | `[NAME]` |
+| Pricing approval policy | `[LINK OR SUMMARY]` | `[NAME]` |
+| Cancellation/refund policy | `[LINK OR SUMMARY]` | `[NAME]` |
+| Driver vetting policy | `[LINK OR SUMMARY]` | `[NAME]` |
+| Incident communications policy | `[LINK OR SUMMARY]` | `[NAME]` |
+| Customer contracts/templates location | `[SECURE DRIVE LINK]` | `[NAME]` |
+| Vendor contracts and renewal calendar | `[SECURE DRIVE LINK]` | `[NAME]` |
+| Accounting/bookkeeping system | `[SYSTEM / OWNER]` | `[NAME]` |
+| Bank/payout account ownership | `[OWNER ONLY; NO NUMBERS]` | `[NAME]` |
+
+## Product and Users
+
+### User groups
+
+- **Visitor:** Views public marketing, service, legal, and quote-entry pages.
+- **Client:** Requests and pays for vehicle shipments; tracks status; exchanges shipment messages and documents.
+- **Driver:** Applies, supplies identity/vehicle evidence, receives assignments, performs pickup/delivery workflows, and receives payouts where enabled.
+- **Broker:** Uses broker-specific shipment, application, and payout workflows introduced by later schema and UI changes.
+- **Administrator:** Reviews applications, manages shipments and assignments, controls pricing/operations, monitors outreach and integrations, and accesses supported Benji tooling.
+- **Commercial/integration client:** Uses bulk, BOL, webhook, API, or SFTP functionality when corresponding feature flags and account configuration are enabled.
+
+### Product boundaries
+
+DriveDrop coordinates shipment creation, pricing, assignment, status evidence, communications, and payment-related actions. It does not make external providers infallible. Route estimates, fuel/weather observations, AI output, and third-party carrier data must be treated as evidence or assistance, not unquestionable truth.
+
+## System Architecture
+
+```mermaid
+flowchart LR
+    Visitor[Visitors and staff] --> Web[Next.js website on Vercel]
+    Users[Clients, brokers, drivers] --> Mobile[Expo mobile apps]
+    Web --> API[Express API on Railway]
+    Mobile --> API
+    Web --> SB[Supabase Auth / DB / Storage / Realtime]
+    Mobile --> SB
+    API --> SB
+    API --> Stripe[Stripe]
+    API --> Maps[Google Maps / HERE]
+    API --> Evidence[EIA / OpenWeather]
+    API --> Comms[Brevo / Gmail / Twilio]
+    API --> Voice[Vapi / Retell]
+    API --> AI[OpenAI / Benji]
+    API --> Outreach[Hunter / Apollo / Snov / SerpAPI]
+    Partners[Commercial partners] --> API
+    Stripe --> API
+    Comms --> API
+    Voice --> API
 ```
-DriveDrop-Main/
-├── mobile/          # React Native app (Expo SDK 53)
-├── backend/         # Node.js/Express API server
-├── .gitignore       # Git ignore rules
-└── README.md        # This file
-```
 
-## 🎨 Design Philosophy
+### Request flow
 
-**"Apply a modern, tech-rich, yet simple and classic UI/UX design throughout all user-facing interfaces."**
+1. Supabase authenticates a user and issues an access token.
+2. Website/mobile sends that bearer token to protected API routes.
+3. Backend `authenticate` validates it using `supabase.auth.getUser`, loads the matching `profiles` row, and attaches identity/role information.
+4. Route-level `authorize(...)` middleware limits selected endpoints by role.
+5. Services read/write Supabase, invoke vendors, and return normalized responses.
+6. Webhooks independently update payment, email, integration, or voice state and must be authenticated by provider-specific mechanisms.
 
-We favor:
-- **Clean layouts** with purposeful white space and logical information hierarchy
-- **Balanced color palettes** that are accessible and professional
-- **Intuitive navigation** that follows platform conventions and user expectations
-- **Responsive layouts** that work seamlessly across devices and screen sizes
-- **Accessibility best practices** including proper contrast ratios, screen reader support, and touch targets
+### Runtime startup effects
 
-### Recommended Design Systems
-- **Mobile**: Custom design tokens with React Native StyleSheet and Expo themes
-- **Web (future)**: Material-UI or Ant Design for consistency and rapid development
-- **Typography**: System fonts with custom fallbacks for brand consistency
-- **Color scheme**: Light/dark mode support with semantic color tokens
+The backend entry point loads configuration, registers Benji tools/events, mounts health and API routes, preserves raw request bodies for Stripe webhook verification, starts confirmation cleanup, and registers SMS notification listeners. Startup changes can therefore affect more than HTTP routing.
 
-## 🚀 Getting Started
+## Repository Map
+
+| Path | Purpose |
+|---|---|
+| `backend/` | Express API, services, middleware, Benji, jobs/listeners, scripts, and tests |
+| `website/` | Next.js App Router website, dashboards, server/client integrations, public assets, and tests |
+| `mobile/` | Expo/React Native app, native projects, screens, navigation, services, and assets |
+| `supabase/` | Formal Supabase migrations and related project assets |
+| `.github/workflows/` | GitHub validation workflow; current deployment steps are placeholders |
+| `railway.toml` | Railway backend build/deploy entry point |
+| Root `*.sql` | Historical setup, diagnostics, repair, and one-off scripts; review before use |
+| Root `README.md` | This handover and the only general project-status document |
+
+Generated outputs such as `.next/`, `dist/`, Expo exports, dependency directories, temporary reports, and local `.env` files must remain untracked.
+
+## Roles and Access
+
+### Application authorization
+
+The backend recognizes `client`, `driver`, and `admin` roles in its main middleware; later features also introduce broker behavior. Supabase RLS and route middleware jointly determine access. Never rely only on hidden UI controls.
+
+**Important current risk:** universal `is_verified` enforcement is commented out in `backend/src/middlewares/auth.middleware.ts`. Individual routes may enforce checks, but authentication alone does not guarantee that a profile or driver was approved. Resolve this policy explicitly before assuming verification is enforced.
+
+### Access-control review checklist
+
+- Confirm every sensitive route uses authentication and appropriate role authorization.
+- Confirm Supabase RLS is enabled and tested for every exposed table.
+- Use service-role credentials only in trusted server code.
+- Test client, driver, broker, admin, expired-token, and unverified-user cases.
+- Review object-storage bucket policies separately from table RLS.
+- Remove former staff from GitHub, cloud vendors, domain/DNS, app stores, email, and payment systems.
+
+## Core Business Workflows
+
+### Signup and login
+
+1. User creates or enters credentials through website/mobile.
+2. Supabase Auth establishes identity.
+3. A `profiles` row supplies application role and profile state.
+4. Clients preserve sessions using Supabase-supported storage/cookie behavior.
+5. Protected API calls send a bearer token; backend resolves the current profile.
+
+Operational checks: confirm email/phone verification behavior, profile creation trigger health, redirect URLs, cookie domain/security, and role assignment. Never assign admin status based only on client-supplied data.
+
+### Client shipment lifecycle
+
+1. Client enters origin, destination, vehicle, timing, and contact details.
+2. Pricing combines configured rules with route/evidence sources as available.
+3. A shipment is created and associated with the authenticated owner.
+4. Payment intent/checkout state is created through Stripe where required.
+5. Admin reviews and assigns a driver/carrier.
+6. Driver records pickup evidence and status updates.
+7. Client/admin tracks progress and communicates through shipment messaging.
+8. Driver records delivery evidence; shipment and payment/payout state are reconciled.
+
+At each transition, verify authorization, allowed previous status, timestamps, audit evidence, notifications, and payment consequences.
+
+### Broker workflow
+
+Broker functionality was added after the initial schema and includes dedicated UI, application/change-request, shipment, and payout concerns. Before operating it, verify the production `broker_*` tables, role representation, RLS policies, and enabled routes. Broker payout changes are financially sensitive and require dual review.
+
+### Driver onboarding and approval
+
+1. Applicant submits profile, identity/license, vehicle, insurance, and requested evidence.
+2. Files are uploaded to controlled storage paths.
+3. Admin reviews the application and supporting records.
+4. Approval/rejection changes application/profile state.
+5. Only approved drivers should receive operational assignments under company policy.
+
+The database includes `driver_applications` and `vehicle_photos`; later migrations add related controls. The actual required documents and rejection/appeal rules must be supplied in [Company Knowledge to Complete](#company-knowledge-to-complete).
+
+### Assignment pickup and delivery
+
+- Assignment must be authorized and bound to the correct driver and shipment.
+- Pickup should capture time, location/status, photos/inspection, and BOL where enabled.
+- Delivery should capture time, recipient/evidence, final photos/inspection, and completion state.
+- Tracking events are append-oriented operational evidence; avoid silently rewriting history.
+- Failure, cancellation, reassignment, damage, and dispute paths need human escalation.
+
+### Payments refunds and payouts
+
+Stripe is the financial source of truth for card events. Application payment rows must reconcile to Stripe object IDs and webhook events.
+
+- Verify webhook signatures using `STRIPE_WEBHOOK_SECRET` and preserve raw request bodies.
+- Make handlers idempotent because Stripe retries events.
+- Never mark a shipment paid from a browser redirect alone.
+- Record refund reason, approver, amount, Stripe ID, and customer communication.
+- Confirm driver payout eligibility from delivered/accepted state and company policy.
+- Reconcile failed, disputed, partially refunded, and duplicated events manually.
+
+### Cancellation
+
+Before cancelling, identify shipment state, driver assignment, captured payment, refund eligibility, incurred costs, and notification obligations. Do not use a single status update as a substitute for Stripe/refund and assignment reconciliation.
+
+### Messaging and notifications
+
+Messages and notifications can involve Supabase realtime, email, and SMS listeners. Confirm participants are authorized for the shipment, redact sensitive information, and avoid treating delivery-provider acceptance as proof a person read the message.
+
+### Pricing and route evidence
+
+Google Maps and HERE support geocoding/routing; EIA supports diesel data; OpenWeather can add route-point observations. OPIS remains disabled unless the company has a licensed feed contract. Pricing must fail conservatively when evidence is missing, stale, or contradictory. AI must not invent costs, routes, or profit.
+
+### Campaigns and outreach
+
+Campaign tooling can discover/enrich contacts and send through Brevo/Gmail. Honor consent, unsubscribe, suppression, warmup, and daily limits. Keep `OUTREACH_WARMUP=true` until the owner intentionally approves sending. Brevo webhook and Gmail OAuth credentials are separate systems.
+
+### Commercial integrations
+
+Commercial functionality may include accounts, bulk upload, APIs, BOL, gate passes, outbound webhooks, SFTP, and incoming partner webhooks. Most are disabled by default. Enable only after contract, credentials, schema, RLS, replay/idempotency, and support ownership are confirmed.
+
+## Website
+
+The website uses Next.js 14 App Router, React 18, TypeScript, Tailwind, Radix UI, Supabase, Stripe, React Hook Form, Zod, Recharts, and locally licensed Streamline icons.
+
+### Route families
+
+The repository currently contains more than 100 `page.tsx` routes. Treat the filesystem under `website/src/app/` as the exact route inventory. Major families include:
+
+- Public home, services, company/about, contact, pricing/quote, and legal pages.
+- Authentication and account recovery.
+- Client account, shipment, tracking, payment, and messaging pages.
+- Driver onboarding/profile/application and operational pages.
+- Broker application/dashboard/shipment/payout pages.
+- Admin dashboards for shipments, drivers, users, pricing, maps, analytics, communications, outreach, campaigns, integrations, and AI tooling.
+
+### UI assets and icons
+
+- Canonical Streamline metadata: `website/src/components/icons/streamline-manifest.ts`.
+- Renderer: `website/src/components/icons/StreamlineIcon.tsx`.
+- Lucide-compatible adapter: `website/src/components/icons/streamline-lucide.tsx`.
+- Licensed SVG assets: `website/public/icons/streamline/`.
+- The project currently uses 76 mapped icons with a 100-icon license guard. Do not bypass that guard or redistribute the assets outside the licensed project.
+- The carrier hero at `website/public/images/vehicle-carrier-highway.jpg` has visible plates permanently mosaicked. Review all future vehicle photography for plate, DOT, carrier-brand, face, and location privacy.
+
+### Website environment
+
+No tracked website `.env.example` currently exists. Create one when configuration is normalized. Public values generally include Supabase URL/anon key, backend URL, Google Maps browser key, and Stripe publishable key. Server-only route handlers may also reference private email/payment configuration. Audit `process.env` references before each production setup.
+
+Public-prefixed values are embedded into browser bundles and are not secrets. Restrict them by domain/API/platform in the provider console.
+
+## Mobile Application
+
+The mobile app uses Expo SDK 53, React 19, React Native 0.79.5, React Navigation, Supabase, Stripe React Native, Sentry, maps/location, camera, document/image tools, notifications, and secure storage.
+
+### Version state
+
+- `mobile/app.json` app version: `1.7.0`.
+- `mobile/package.json` package version: `1.6.0`.
+- Expo Android `versionCode`: `10`.
+- Checked-in native Android Gradle values differ (`versionName 1.2.0`, `versionCode 4`), so determine whether EAS/prebuild or checked-in native settings are authoritative before release.
+- `extra.eas.projectId` is still `your-project-id` and must be replaced with the real company-owned EAS project ID.
+
+### Build profiles
+
+- `development`: internal development client.
+- `preview`: internal distribution on the preview channel.
+- `production`: production channel, Android app bundle, remote versioning/auto-increment.
+
+### Mobile map key
+
+The checked-in Android manifest uses a `GOOGLE_MAPS_API_KEY` manifest placeholder. Gradle sources it from `EXPO_PUBLIC_GOOGLE_MAPS_API_KEY` at build time. EAS/local build environments must define this value. Restrict the Android key by package name and signing certificate; use a separately restricted iOS key if iOS maps require one.
+
+### Release process
+
+1. Reconcile versions and changelog.
+2. Install dependencies and pass type-check/lint.
+3. Test on physical Android and iOS devices, including auth, background/resume, camera, uploads, location, maps, notifications, Stripe, and poor connectivity.
+4. Confirm EAS project ownership, environment variables, signing credentials, bundle/package identifiers, store listings, privacy declarations, and support URLs.
+5. Build with `eas build --platform android --profile production` and/or the iOS equivalent.
+6. Test the resulting store artifact before staged rollout.
+7. Submit through EAS or app-store consoles, monitor crash reporting, and retain rollback/previous-version information.
+
+## Backend API
+
+The backend uses Node.js, Express 5, TypeScript, Supabase, Stripe, OpenAI, Brevo, Twilio, Google Maps, HERE, EIA, OpenWeather, Vapi/Retell, and outreach/integration providers.
+
+### Endpoints and route modules
+
+Health endpoints are available at `/health` and `/api/health`; business routes are mounted under the configured API prefix. The route registry in `backend/src/routes/index.ts` is authoritative.
+
+| Area | Responsibility |
+|---|---|
+| auth, users | Identity-adjacent API and profiles |
+| shipments | Shipment creation, state, evidence, and role workflows |
+| payments | Stripe intents, financial state, refunds/payout concerns |
+| applications, drivers | Driver application, approval, profile, and assignment data |
+| messages, notifications, SMS, email | User and operational communications |
+| maps, route optimization | Geocoding, routes, matrices, and optimization |
+| pricing, intelligence | Quotes and supporting market/route evidence |
+| admin, diagnostics, analytics | Restricted operational visibility and controls |
+| commercial, integrations, uploads | Partner accounts, files, bulk/API/SFTP/webhook workflows |
+| BOL | Bill of lading generation/management |
+| AI, Benji V2, Benji V3 | AI endpoints and orchestration |
+| leads, outreach, campaigns, carriers | Prospecting and campaign operations |
+| Quick Send | Isolated Gmail OAuth/send flow |
+| Vapi, Retell | Voice-agent setup and webhook processing |
+| webhooks/email webhooks | Provider callbacks; validate signatures/tokens and idempotency |
+
+There are dozens of route modules and hundreds of route declarations. Generate an endpoint inventory from source when changing public contracts; do not maintain a stale hand-written list here.
+
+### Feature flags
+
+All flags below are disabled unless the environment value is exactly `true`:
+
+| Variable | Capability |
+|---|---|
+| `ENABLE_COMMERCIAL` | Commercial accounts |
+| `ENABLE_AI_DISPATCHER` | AI dispatch assistance |
+| `ENABLE_NATURAL_LANGUAGE` | Natural-language shipment creation |
+| `ENABLE_INTEGRATIONS` | Universal integrations |
+| `ENABLE_BULK_V2` | Enhanced bulk upload |
+| `ENABLE_BOL` | Bill of lading system |
+| `ENABLE_GATE_PASS` | Gate passes |
+| `ENABLE_AI_EXTRACTION` | AI document extraction |
+| `ENABLE_COMMERCIAL_API` | Commercial REST API |
+| `ENABLE_WEBHOOKS` | Outbound webhook system |
+| `ENABLE_BENJI_QA_CONSOLE` | Admin QA console; never enable in customer production |
+
+## Database and Storage
+
+Supabase PostgreSQL with PostGIS, Auth, RLS, Realtime, and Storage is the shared data platform. More than 100 SQL/migration assets exist across the repository.
+
+### Core data domains
+
+The original schema includes `profiles`, `driver_applications`, `vehicle_photos`, `shipments`, `tracking_events`, `messages`, and `payments`. Later migrations add or extend:
+
+- Broker and commercial accounts/workflows.
+- Driver/carrier operations and assignment data.
+- Pricing intelligence and route evidence.
+- BOL, gate-pass, integration, API, and webhook data.
+- Campaign, lead, carrier outreach, email-event, and Quick Send data.
+- Parking-interest data.
+- Benji events, traces, trace steps, usage, policy violations, confirmations, memories, and sessions.
+- Storage buckets and policies for operational documents/images.
+
+### Migration procedure
+
+1. Identify production project and latest applied migration in Supabase.
+2. Take a verified backup or point-in-time recovery checkpoint.
+3. Review SQL for destructive operations, lock duration, RLS/policy changes, defaults, backfills, and rollback feasibility.
+4. Apply to staging and test all affected roles.
+5. Apply through the team-approved Supabase migration process, not by casually pasting root SQL.
+6. Verify schema, policies, indexes, triggers, storage policies, and representative workflows.
+7. Record operator, timestamp, migration, result, and rollback notes.
+
+### RLS and service role
+
+Client applications use the Supabase anon key plus user sessions; RLS must constrain access. Backend service-role usage bypasses RLS and is therefore highly sensitive. Never ship `SUPABASE_SERVICE_ROLE_KEY` to website browser code or mobile bundles.
+
+### Production inventory to capture
+
+- Supabase organization/project ID and region: `[FILL BEFORE DEPARTURE]`
+- Database size and growth: `[FILL BEFORE DEPARTURE]`
+- Enabled extensions: `[VERIFY IN CONSOLE]`
+- Storage bucket names/policies: `[VERIFY IN CONSOLE]`
+- Backup/PITR tier and retention: `[FILL BEFORE DEPARTURE]`
+- Realtime publications: `[VERIFY IN CONSOLE]`
+- Scheduled jobs/Edge Functions: `[VERIFY IN CONSOLE]`
+- Applied migration baseline: `[FILL BEFORE DEPARTURE]`
+
+## Benji and AI
+
+Benji V2 lives under `backend/src/benji/`; a parallel V3 implementation exists under `backend/src/benji-v3/`. The system includes orchestration, tool registration, events/traces, policy controls, confirmations, memory/session data, usage records, and violation logging.
+
+### AI operating rules
+
+- AI output is untrusted until validated.
+- Require explicit confirmation for consequential actions.
+- Never allow AI to invent prices, profit, identity status, payment state, route evidence, or legal conclusions.
+- Validate tool arguments, role authorization, resource ownership, and current state server-side.
+- Keep usage/cost limits and audit traces enabled.
+- Redact secrets and unnecessary personal data from prompts and logs.
+- `ENABLE_BENJI_QA_CONSOLE` must remain off in customer production.
+- Review both V2 and V3 before changing shared behavior; parallel implementations create drift risk.
+
+## External Services
+
+| Service | Purpose | Key configuration | Console owner |
+|---|---|---|---|
+| GitHub | Source and CI | repository, environments, branch rules | `[NAME]` |
+| Supabase | Auth, DB, storage, realtime | URL, anon/service keys, JWT, policies | `[NAME]` |
+| Railway | Backend hosting | production variables, domain, logs | `[NAME]` |
+| Vercel | Website hosting | project, domain, variables | `[NAME]` |
+| Expo/EAS | Mobile builds/updates | project ID, credentials, channels | `[NAME]` |
+| Apple Developer/App Store Connect | iOS signing/distribution | team, certificates, listing | `[NAME]` |
+| Google Play Console | Android distribution | app, signing, listing | `[NAME]` |
+| Stripe | Payments/refunds/webhooks | secret/publishable keys, webhook secret | `[NAME]` |
+| Google Maps/Cloud | Maps, places, geocoding | platform-restricted keys | `[NAME]` |
+| HERE | Truck routing/matrices | server API key | `[NAME]` |
+| EIA | Diesel evidence | API key | `[NAME]` |
+| OpenWeather | Route weather evidence | API key | `[NAME]` |
+| OPIS | Licensed fuel feed | contract/product; currently disabled | `[NAME]` |
+| Brevo | Transactional/outreach email | API key, sender/domain, webhook token | `[NAME]` |
+| Gmail/Google OAuth | Quick Send and SMTP fallback | OAuth client, encrypted token, app password | `[NAME]` |
+| Twilio | SMS/verification | account, auth token, number/service | `[NAME]` |
+| OpenAI | Benji/document/AI capabilities | API key, limits, project | `[NAME]` |
+| Vapi | Voice agent | API key, phone number, webhook | `[NAME]` |
+| Retell | Voice agent | API/webhook settings | `[NAME]` |
+| Hunter | Contact discovery | API key | `[NAME]` |
+| Apollo | Contact enrichment | API key | `[NAME]` |
+| Snov | Email discovery/verification | client credentials | `[NAME]` |
+| SerpAPI | Company discovery | API key | `[NAME]` |
+| FMCSA | Carrier/driver lookup | credentials/settings if required | `[NAME]` |
+| Sentry | Mobile/error monitoring where configured | DSN/project/access | `[NAME]` |
+| Domain registrar/DNS | Domain, records, renewals | registrar login, nameservers | `[NAME]` |
+
+For every webhook, record production URL, subscribed event types, signing mechanism, replay procedure, and last successful event in the password manager or secure operations register.
+
+## Configuration and Secrets
+
+### Secret-handling policy
+
+- Local secrets: untracked `.env` files copied from examples.
+- Railway/Vercel/EAS: encrypted project environment variables/secrets.
+- Shared human credentials and recovery codes: company password manager.
+- Never store production values in Markdown, source, screenshots, test fixtures, or chat.
+- Use distinct development/staging/production credentials.
+- Use distinct Google keys for browser, Android, iOS, and server workloads with platform/API restrictions.
+- Rotate keys after staff departure, suspected disclosure, or accidental commit.
+
+Google Maps and Firebase client keys previously appeared in tracked mobile configuration and historical documentation. They were removed from runtime source on 2026-08-25. The owning Google Cloud administrator must restrict or rotate them and review usage. If Firebase push is enabled later, provision a fresh restricted `google-services.json` through the controlled mobile build process.
+
+### Backend variables
+
+`backend/.env.example` is the starting template. The runtime source must be audited because not every referenced variable is guaranteed to be represented there.
+
+| Group | Variables |
+|---|---|
+| Runtime | `NODE_ENV`, `PORT`, `API_VERSION`, `LOG_LEVEL`, `ENABLE_SWAGGER`, `APP_URL`, `FRONTEND_URL`, `API_URL`, `API_PUBLIC_URL` |
+| Auth/security | `JWT_SECRET`, JWT/refresh TTL settings, login limits, `CORS_*`, `STREAM_TOKEN_SECRET` |
+| Supabase | `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_JWT_SECRET` |
+| Stripe | `STRIPE_SECRET_KEY`, `STRIPE_PUBLISHABLE_KEY`, `STRIPE_WEBHOOK_SECRET`, price IDs, tolerance |
+| Maps/evidence | `GOOGLE_MAPS_API_KEY`, `HERE_*`, `EIA_*`, `OPENWEATHER_*`, `OPIS_*` |
+| Email/SMS | `BREVO_*`, `GMAIL_*`, `TWILIO_*`, SMTP settings |
+| Gmail OAuth | `GMAIL_OAUTH_CLIENT_ID`, `GMAIL_OAUTH_CLIENT_SECRET`, `GMAIL_TOKEN_ENCRYPTION_KEY`, Quick Send state/unsubscribe secrets |
+| Outreach | `HUNTER_API_KEY`, `APOLLO_API_KEY`, `SNOV_*`, `SERPAPI_KEY`, warmup/daily limits |
+| AI | `OPENAI_API_KEY`, AI thresholds/timeouts, Benji flags/rate settings |
+| Voice | `VAPI_*`, Retell variables used in source |
+| Carrier lookup | FMCSA variables used in source |
+| Optional infrastructure | Redis, AWS/S3/CDN, Sentry, Datadog settings shown in template |
+| Features | All `ENABLE_*` flags listed in [Feature flags](#feature-flags) |
+
+Server-only secrets include service-role, private API, webhook, OAuth client, token-encryption, JWT, SMTP password, and Stripe secret values.
+
+### Website variables
+
+Audit all `process.env` references under `website/src` and configure Vercel environments separately. Common public variables are expected for API URL, Supabase URL/anon key, Google Maps, and Stripe publishable key. Any unprefixed server variable used by Next.js route handlers remains server-only.
+
+### Mobile variables
+
+| Variable | Purpose |
+|---|---|
+| `EXPO_PUBLIC_API_URL` | Backend API base URL |
+| `EXPO_PUBLIC_ENV` | Environment name |
+| `EXPO_PUBLIC_GOOGLE_MAPS_API_KEY` | Build/runtime maps key; platform-restrict it |
+| `EXPO_PUBLIC_SUPABASE_URL` / `EXPO_PUBLIC_SUPABASE_ANON_KEY` | Supabase client configuration; normalize names with source/template |
+| `EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY` | Stripe client key |
+| `EXPO_PUBLIC_SENTRY_DSN` | Crash reporting DSN |
+| `EXPO_PUBLIC_ENABLE_ANALYTICS` | Analytics toggle |
+| `EXPO_PUBLIC_ENABLE_PUSH_NOTIFICATIONS` | Push toggle |
+| `EXPO_PUBLIC_ENABLE_CRASH_REPORTING` | Crash-reporting toggle |
+
+All `EXPO_PUBLIC_*` values are bundled into the app and are not secrets. The current `.env.example` uses unprefixed Supabase names while EAS uses prefixed names; normalize and test this before release.
+
+### Credential register
+
+Fill this in with password-manager item names, never values.
+
+| Account | Login identity | Password-manager item | MFA/recovery owner | Backup admin |
+|---|---|---|---|---|
+| GitHub | `[FILL]` | `[FILL]` | `[FILL]` | `[FILL]` |
+| Supabase | `[FILL]` | `[FILL]` | `[FILL]` | `[FILL]` |
+| Railway | `[FILL]` | `[FILL]` | `[FILL]` | `[FILL]` |
+| Vercel | `[FILL]` | `[FILL]` | `[FILL]` | `[FILL]` |
+| Expo/EAS | `[FILL]` | `[FILL]` | `[FILL]` | `[FILL]` |
+| Apple | `[FILL]` | `[FILL]` | `[FILL]` | `[FILL]` |
+| Google Play/Cloud | `[FILL]` | `[FILL]` | `[FILL]` | `[FILL]` |
+| Stripe | `[FILL]` | `[FILL]` | `[FILL]` | `[FILL]` |
+| Domain/DNS | `[FILL]` | `[FILL]` | `[FILL]` | `[FILL]` |
+| Email/Brevo | `[FILL]` | `[FILL]` | `[FILL]` | `[FILL]` |
+| Remaining vendors | `[FILL]` | `[FILL]` | `[FILL]` | `[FILL]` |
+
+## Local Development
 
 ### Prerequisites
 
-- Node.js 18+ (LTS recommended)
-- npm or yarn
-- Expo CLI
-- For mobile development: Expo Go app on your device or iOS Simulator/Android Emulator
+- Git.
+- Node.js compatible with the packages; CI currently selects Node 18, while modern Expo tooling may require a newer supported release. Verify and standardize.
+- npm; lockfile ownership must be standardized because npm and Yarn lockfiles coexist.
+- Expo/EAS CLI and Android Studio/Xcode for native work.
+- Supabase CLI if applying or testing migrations locally.
+- Non-production vendor credentials in untracked environment files.
 
-### Quick Setup
+### Backend
 
-1. **Clone the repository**
-   ```bash
-   git clone <repository-url>
-   cd DriveDrop-Main
-   ```
-
-2. **Set up environment variables**
-   ```bash
-   # Backend
-   cp backend/.env.example backend/.env
-   
-   # Mobile
-   cp mobile/.env.example mobile/.env
-   ```
-
-3. **Install dependencies and start both apps**
-   ```bash
-   # Terminal 1 - Backend
-   cd backend
-   npm install
-   npm run dev
-   
-   # Terminal 2 - Mobile
-   cd mobile
-   npm install
-   npm start
-   ```
-
-## 📱 Mobile App (`/mobile`)
-
-React Native app built with Expo SDK 53 and TypeScript.
-
-### Technology Stack
-- **Framework**: Expo SDK 53
-- **Language**: TypeScript
-- **Navigation**: React Navigation v6
-- **State Management**: React Context (expandable to Redux Toolkit)
-- **Styling**: React Native StyleSheet with design tokens
-- **Code Quality**: ESLint + Prettier + TypeScript
-
-### Available Scripts
-```bash
-npm start         # Start Expo development server
-npm run android   # Start on Android device/emulator
-npm run ios       # Start on iOS device/simulator
-npm run web       # Start web version
-npm run build     # Build for production
-npm run lint      # Run ESLint
-npm run format    # Format code with Prettier
-npm run type-check # Run TypeScript type checking
-```
-
-### Key Dependencies
-- **expo**: ~53.0.17 (Latest SDK)
-- **react**: 19.0.0
-- **react-native**: 0.79.5
-- **@react-navigation/native**: Latest navigation library
-- **react-native-reanimated**: Smooth animations
-- **react-native-gesture-handler**: Touch gestures
-
-## 🖥️ Backend API (`/backend`)
-
-RESTful API server built with Node.js, Express, TypeScript, and Supabase integration.
-
-### Technology Stack
-- **Runtime**: Node.js (Latest LTS)
-- **Framework**: Express.js with TypeScript
-- **Database**: Supabase (PostgreSQL + PostGIS)
-- **Authentication**: JWT + Supabase Auth
-- **Security**: Helmet, CORS, Rate limiting
-- **Logging**: Morgan + Winston
-- **Code Quality**: ESLint + Prettier + TypeScript
-
-### Available Scripts
-```bash
-npm run dev       # Start development server with hot reload
-npm start         # Start production server
-npm run build     # Build TypeScript to JavaScript
-npm run lint      # Run ESLint
-npm run format    # Format code with Prettier
-npm run type-check # Run TypeScript type checking
-npm run clean     # Clean build directory
-npm run test      # Run integration tests
-npm run test:supabase # Test Supabase integration
-```
-
-### API Endpoints
-
-#### Authentication
-```
-POST /api/v1/auth/register    # User registration
-POST /api/v1/auth/login       # User login
-POST /api/v1/auth/refresh-token # Refresh JWT token
-POST /api/v1/auth/logout      # User logout
-```
-
-#### Users
-```
-GET  /api/v1/users/me         # Get current user profile
-GET  /api/v1/users/:id        # Get user by ID (admin only)
-GET  /api/v1/users            # Get all users (admin only)
-PUT  /api/v1/users/me         # Update current user profile
-GET  /api/v1/users/drivers/nearby # Find nearby drivers
-```
-
-#### Shipments
-```
-GET  /api/v1/shipments        # Get shipments (filtered by user role)
-GET  /api/v1/shipments/:id    # Get shipment by ID
-POST /api/v1/shipments        # Create new shipment
-PUT  /api/v1/shipments/:id/status # Update shipment status
-GET  /api/v1/shipments/nearby # Find nearby shipments (drivers)
-POST /api/v1/shipments/:id/events # Create tracking event
-GET  /api/v1/shipments/:id/events # Get tracking events
-```
-
-#### Health & Monitoring
-```
-GET  /health                  # Basic health check
-GET  /health/db              # Database connectivity check
-```
-
-### Authentication & Authorization
-
-#### JWT Token Flow
-1. **Login/Register**: Returns access token and sets HTTP-only refresh token cookie
-2. **Protected Routes**: Require `Authorization: Bearer <token>` header
-3. **Token Refresh**: Automatic refresh using HTTP-only cookies
-4. **Role-Based Access**: Routes protected by user roles (client, driver, admin)
-
-#### Example Usage
-```javascript
-// Login
-const response = await fetch('/api/v1/auth/login', {
-  method: 'POST',
-  headers: { 'Content-Type': 'application/json' },
-  body: JSON.stringify({ email, password })
-});
-const { accessToken } = await response.json();
-
-// Use token for protected routes
-const userResponse = await fetch('/api/v1/users/me', {
-  headers: { 
-    'Authorization': `Bearer ${accessToken}`,
-    'Content-Type': 'application/json'
-  }
-});
-```
-
-### Supabase Integration
-
-#### Service Architecture
-```
-Controllers -> Services -> Supabase Client -> Database
-```
-
-#### Key Services
-- **`userService`**: User profile management and driver location queries
-- **`shipmentService`**: Shipment CRUD operations and geospatial queries
-- **`authService`**: Authentication with Supabase Auth integration
-
-#### Database Features
-- **Row Level Security (RLS)**: Database-level access control
-- **PostGIS Integration**: Geospatial queries for location-based features
-- **Real-time Subscriptions**: Live updates for shipment tracking
-- **Custom Functions**: Business logic implemented in PostgreSQL
-
-#### Environment Variables
-```bash
-# Required
-SUPABASE_URL=https://your-project.supabase.co
-SUPABASE_ANON_KEY=your-anon-key
-JWT_SECRET=your-jwt-secret
-
-# Optional
-SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
-GOOGLE_MAPS_API_KEY=your-maps-api-key
-STRIPE_SECRET_KEY=your-stripe-key
-```
-
-### Key Dependencies
-- **@supabase/supabase-js**: ^2.50.5 (Supabase client)
-- **express**: ^5.1.0 (Web framework)
-- **jsonwebtoken**: ^9.0.2 (JWT handling)
-- **bcryptjs**: ^3.0.2 (Password hashing)
-- **helmet**: ^8.1.0 (Security middleware)
-- **cors**: ^2.8.5 (CORS handling)
-- **morgan**: ^1.10.0 (Request logging)
-
-### Error Handling
-The API returns standardized error responses:
-```json
-{
-  "success": false,
-  "error": {
-    "code": "ERROR_CODE",
-    "message": "Human-readable error message",
-    "errors": [] // Optional validation errors array
-  }
-}
-```
-
-### Testing
-```bash
-# Run all tests
-npm test
-
-# Test Supabase integration specifically
-npm run test:supabase
-
-# Check environment configuration
+```powershell
+Set-Location backend
+Copy-Item .env.example .env
+npm ci --legacy-peer-deps
 npm run verify:env
+npm run dev
 ```
 
-## 📊 Supabase Integration (`/supabase`)
+Default local port is 3000 unless overridden. Useful checks:
 
-The project uses Supabase as its primary database, authentication provider, and realtime backend.
-
-### Technology Stack
-- **Database**: PostgreSQL with PostGIS extension
-- **Authentication**: Supabase Auth
-- **Storage**: Supabase Storage
-- **Realtime**: Supabase Realtime for live updates
-
-### Features
-- **User Management**: Client and driver profiles with role-based permissions
-- **Geospatial Queries**: Find nearby shipments using PostGIS
-- **Row Level Security**: Database-level access control policies
-- **Custom Functions**: SQL functions for business logic
-- **Migrations**: Versioned database schema changes
-
-### Database Schema
-- **profiles**: Extended user profiles (clients, drivers, admins)
-- **driver_applications**: Driver verification and onboarding
-- **vehicle_photos**: Photos of driver vehicles for verification
-- **shipments**: Package delivery jobs with locations and details
-- **job_applications**: Driver applications for shipments (consolidated table)
-- **tracking_events**: Events that track shipment progress
-- **messages**: Communication between clients and drivers
-- **payments**: Payment records for shipments
-- **shipment_applications_view**: View that provides compatibility with older code
-
-### Setup Instructions
-1. **Create a Supabase project**
-   ```bash
-   # Visit https://supabase.com and create a new project
-   # Note your project URL and anon key
-   ```
-
-2. **Install the Supabase CLI**
-   ```bash
-   npm install -g supabase
-   # or
-   brew install supabase/tap/supabase
-   ```
-
-3. **Initialize and link your project**
-   ```bash
-   cd supabase
-   supabase login
-   supabase link --project-ref YOUR_PROJECT_ID
-   ```
-
-4. **Apply database migrations**
-   ```bash
-   supabase db push
-   # or for development
-   supabase db reset
-   ```
-
-5. **Seed the database** (optional)
-   ```bash
-   supabase db seed --db-url YOUR_DATABASE_URL
-   ```
-
-6. **Set environment variables**
-   ```bash
-   # Backend (.env)
-   SUPABASE_URL=https://your-project.supabase.co
-   SUPABASE_ANON_KEY=your-anon-key
-   SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
-   
-   # Mobile (.env)
-   EXPO_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
-   EXPO_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
-   ```
-
-### Authentication Flow
-1. **User Registration/Login**: Handled by Supabase Auth
-2. **JWT Token Generation**: Automatic via Supabase
-3. **Middleware Validation**: Custom middleware validates tokens
-4. **Role-Based Access**: Database policies enforce permissions
-
-### Available Database Functions
-- `get_drivers_near_location()`: Find drivers within radius
-- `get_shipments_near_location()`: Find shipments by location
-- `create_tracking_event()`: Add shipment tracking events
-- `calculate_shipment_distance()`: Calculate delivery distance
-
-## 🔧 Development Workflow
-
-### Code Quality Standards
-Both projects enforce strict code quality with:
-- **TypeScript**: Strict mode enabled with comprehensive type checking
-- **ESLint**: Zero warnings policy with recommended rules
-- **Prettier**: Consistent code formatting
-- **Git hooks**: Pre-commit linting and formatting (setup recommended)
-
-### Database Development
-1. **Schema Changes**: Create migrations in `/supabase/migrations/`
-2. **Local Development**: Use `supabase db reset` to apply changes
-3. **Testing**: Run `npm run test:supabase` to validate integration
-4. **Deployment**: Push changes with `supabase db push`
-
-### Authentication Testing
-```bash
-# Test authentication flow
-curl -X POST http://localhost:3000/api/v1/auth/login \
-  -H "Content-Type: application/json" \
-  -d '{"email":"test@example.com","password":"password123"}'
-
-# Test protected endpoint
-curl -X GET http://localhost:3000/api/v1/users/me \
-  -H "Authorization: Bearer YOUR_JWT_TOKEN"
+```powershell
+npm run type-check
+npm run lint
+npm run build
+npm run test:benji
 ```
 
-### Adding New Resources
-1. **Create migration**: Add new table/columns in Supabase
-2. **Update types**: Regenerate TypeScript types from schema
-3. **Add service methods**: Implement CRUD operations in services
-4. **Create controller**: Add route handlers with validation
-5. **Protect routes**: Add authentication/authorization middleware
-6. **Update tests**: Add integration tests for new endpoints
+### Website
 
-## 🔐 Security & Best Practices
-
-### Authentication Security
-- **JWT Tokens**: Short-lived access tokens with refresh token rotation
-- **HTTP-Only Cookies**: Refresh tokens stored securely
-- **Role-Based Access Control**: Database-level and application-level permissions
-- **Rate Limiting**: Protection against brute force attacks
-
-### Database Security
-- **Row Level Security (RLS)**: Enforced at database level
-- **Parameterized Queries**: Protection against SQL injection
-- **Connection Pooling**: Efficient database connection management
-- **Audit Logging**: Track all database changes
-
-### API Security
-- **CORS**: Configured for specific origins only
-- **Helmet**: Security headers middleware
-- **Input Validation**: Comprehensive request validation
-- **Error Handling**: Sanitized error responses
-
-## 🧪 Testing
-
-### Backend Testing
-```bash
-cd backend
-
-# Run all tests
-npm test
-
-# Run specific test suites
-npm run test:auth        # Authentication tests
-npm run test:supabase    # Database integration tests
-npm run test:api         # API endpoint tests
-
-# Test coverage
-npm run test:coverage
+```powershell
+Set-Location website
+npm ci
+npm run dev
 ```
 
-### Mobile Testing
-```bash
-cd mobile
+Create an untracked `.env.local` with the development values required by source. Validate with:
 
-# Run unit tests
-npm test
-
-# Run on specific platforms
-npm run test:ios
-npm run test:android
+```powershell
+npm run type-check
+npm run lint
+npm run test:unit
+npm run build
+npm run test:e2e
 ```
 
-### Integration Testing
-The project includes comprehensive integration tests for:
-- **Authentication flows**: Registration, login, token refresh
-- **Database operations**: CRUD operations with RLS validation
-- **API endpoints**: All routes with proper authentication
-- **Geospatial queries**: Location-based features with PostGIS
+### Mobile
 
-## 📚 API Documentation
-
-### Interactive Documentation
-When running in development mode, visit:
-- **Swagger UI**: `http://localhost:3000/api/v1/docs` (coming soon)
-- **Health Check**: `http://localhost:3000/health`
-- **API Info**: `http://localhost:3000/api/v1`
-
-### Postman Collection
-Import the provided Postman collection for easy API testing:
-```bash
-# Located at: /docs/DriveDrop-API.postman_collection.json
+```powershell
+Set-Location mobile
+Copy-Item .env.example .env
+npm ci --legacy-peer-deps
+npm run start
 ```
 
-## 🤝 Contributing
+Then use a physical device/emulator or:
 
-### Development Setup
-1. **Fork and clone** the repository
-2. **Install dependencies** in both `/backend` and `/mobile`
-3. **Set up environment variables** using `.env.example` files
-4. **Start local development** servers
-5. **Run tests** to ensure everything works
+```powershell
+npm run android
+npm run ios
+npm run type-check
+npm run lint
+```
 
-### Code Contribution Guidelines
-1. **Follow established code style** (ESLint + Prettier)
-2. **Write TypeScript** with strict type checking
-3. **Add tests** for new features and bug fixes
-4. **Update documentation** for API changes
-5. **Test on multiple platforms** for mobile changes
-6. **Follow design philosophy** for UI/UX changes
+On 2026-08-25, local mobile type-check could not run because dependencies were absent and `tsc` was unavailable. Install dependencies before interpreting validation status.
 
-### Database Contributions
-1. **Create migrations** for schema changes
-2. **Update TypeScript types** after schema changes
-3. **Test with RLS policies** to ensure security
-4. **Document new functions** and procedures
+## Testing and Quality
 
-### Pull Request Process
-1. **Create feature branch** from `main`
-2. **Make changes** following contribution guidelines
-3. **Run full test suite** (`npm test` in both projects)
-4. **Update documentation** if needed
-5. **Submit pull request** with clear description
+Automated coverage is currently weak: only a small number of test/spec files were found relative to the system's size. Payment, authorization, migrations, role boundaries, and shipment state transitions need substantially more automated coverage.
 
-### Reporting Issues
-- **Use GitHub Issues** for bug reports and feature requests
-- **Include reproduction steps** for bugs
-- **Specify platform/environment** for mobile issues
-- **Check existing issues** before creating new ones
+### Required change checks
+
+- Backend: type-check, lint, build, and focused route/service tests.
+- Website: type-check, lint, unit tests, production build, and Playwright for changed workflows.
+- Mobile: type-check, lint, physical-device workflow checks, and a release artifact smoke test.
+- Database: staging migration, RLS tests by role, and rollback/recovery review.
+- Integrations: provider sandbox or signed test webhook, including duplicate/retry behavior.
+- Repository: secret scan and `git diff --check`.
+
+### High-value regression suite to add
+
+1. User cannot read or mutate another user's shipment.
+2. Driver cannot act on an unassigned shipment.
+3. Unverified/denied driver cannot accept work under approved policy.
+4. Admin-only endpoints reject all non-admin roles.
+5. Stripe webhooks reject invalid signatures and process duplicates once.
+6. Shipment state machine rejects illegal transitions.
+7. Refund/payout totals cannot exceed valid amounts.
+8. Upload policies reject unauthorized paths/types/sizes.
+9. Quote fails conservatively when routing/evidence is unavailable.
+10. AI tools require authorization, validation, and confirmation.
+
+## Deployment and Release
+
+### Environments
+
+Document real production and staging identifiers here:
+
+| Component | Development | Staging/preview | Production |
+|---|---|---|---|
+| Website | local | `[VERCEL PREVIEW]` | <https://www.drivedrop.us.com> |
+| Backend | local | `[RAILWAY SERVICE/URL]` | <https://drivedrop-main-production.up.railway.app> (verify) |
+| Supabase | `[PROJECT]` | `[PROJECT]` | `[PROJECT ID/REGION]` |
+| Mobile | EAS development | preview channel | production channel/stores |
+
+### Backend on Railway
+
+The root `railway.toml` sets `rootDirectory = "backend"`, production `PORT=8080`, and `npm run railway:start`. That script currently installs dependencies at startup, builds TypeScript, then starts `dist/index.js`.
+
+Release procedure:
+
+1. Confirm production variables and active service/domain.
+2. Run backend checks locally/CI.
+3. Review migrations and apply them separately with backup when required.
+4. Merge approved code to the branch connected to Railway.
+5. Watch build/start logs and call both health endpoints.
+6. Smoke-test auth and one representative protected request.
+7. Check provider webhooks and error logs.
+8. Roll back to the last known-good Railway deployment if required; do not roll back schema blindly.
+
+### Website on Vercel
+
+`website/vercel.json` builds with `npm run build`, outputs `.next`, and selects region `iad1`. Verify the Vercel project root is `website` and production domain/DNS are company-owned.
+
+The config applies a broad one-year immutable cache header while `next.config.js` applies more nuanced no-cache behavior for HTML/API responses. Review the effective production headers; caching HTML/API responses immutably could serve stale or user-specific content.
+
+Release procedure: validate type/lint/tests/build, deploy preview, test roles and responsive layouts, merge, verify production domain and browser console/network, then monitor Vercel logs/analytics.
+
+### Mobile through EAS/stores
+
+Before production builds, replace the placeholder EAS project ID, normalize version sources and environment names, ensure company ownership of signing credentials, and verify the build-time Maps key. Use staged store rollouts where possible.
+
+### GitHub Actions limitation
+
+`.github/workflows/ci-cd.yml` validates backend and mobile only. It omits the website. Its deployment job contains echo statements and commented examples; it does not deploy Railway, Vercel, EAS, or stores. Upgrade action versions, standardize Node/package manager versions, add website/tests/secret scanning, and either implement real controlled deployment or rename/remove the misleading job.
+
+## Operations Runbooks
+
+### Daily operations
+
+- Review active/late/unassigned/exception shipments.
+- Review new driver and broker applications.
+- Review payment failures, disputes, refunds, and payout exceptions.
+- Review support messages and failed email/SMS/webhook deliveries.
+- Review backend/website/mobile errors and vendor status pages.
+- Check campaign suppression/unsubscribe health before sending.
+
+### Shipment stuck or incorrect
+
+1. Identify shipment ID, user, current status, assignment, and last tracking event.
+2. Check API logs around the last action and the database audit/timestamps.
+3. Check payment state in Stripe independently.
+4. Contact responsible operations/driver/customer without exposing unnecessary data.
+5. Apply the smallest authorized correction and record who approved it.
+6. Confirm notifications and downstream state.
+7. Open an engineering issue if code or data repair was needed.
+
+### Payment mismatch
+
+1. Stop further financial action on the shipment.
+2. Compare Stripe PaymentIntent/Charge/Refund/Dispute with application payment rows.
+3. Inspect signed webhook history and handler logs.
+4. Check duplicate, delayed, failed, or out-of-order events.
+5. Have finance approve any manual refund/payout.
+6. Record Stripe IDs and reconciliation outcome without card data.
+
+### Driver cannot access assignment
+
+Check authenticated Supabase user, `profiles` role, verification/application state, assignment's driver UUID, allowed shipment status, token freshness, RLS, and API logs. Do not bypass ownership checks merely to unblock the UI.
+
+### Maps/pricing unavailable
+
+Check provider status/quota/restrictions, server logs, request parameters, and configured fallback. Never substitute fabricated distance, fuel, weather, or margin. Inform operations that manual review is required.
+
+### Email/SMS not delivered
+
+Check provider dashboard/event logs, sender/domain verification, suppression/unsubscribe state, phone/email validity, quota, webhook health, and backend logs. Respect opt-out status.
+
+### Webhook failure
+
+Verify endpoint availability, signing secret/token, raw-body requirements, event subscriptions, timestamp tolerance, and replay/idempotency. Replay from the provider console only after confirming duplicate processing is safe.
+
+### Campaign emergency stop
+
+Set warmup/disable state as supported, stop active campaign processing, revoke or pause sender credentials if necessary, inspect sends and suppressions, notify compliance/owner, and document affected recipients.
+
+### AI unsafe or incorrect action
+
+Disable the relevant feature flag/tool, preserve trace/event/policy records, verify downstream effects manually, reverse only through approved business workflows, rotate compromised credentials if applicable, and add a regression test/policy before re-enabling.
+
+## Security Privacy and Compliance
+
+### Data handled
+
+The platform may handle names, contact information, addresses, geolocation/tracking, vehicle/VIN/plate information, licenses/identity documents, insurance/application evidence, messages, payment metadata, and operational photos. Treat all as sensitive according to purpose and applicable policy. Card data should remain with Stripe; do not store raw card numbers or CVC.
+
+### Minimum controls
+
+- MFA for all infrastructure, payment, domain, email, and store accounts.
+- Company-owned accounts with two administrators and documented recovery.
+- Least privilege and prompt offboarding.
+- Encrypted transit/storage through managed providers.
+- RLS and server authorization tests.
+- Short-lived tokens and secure cookies/storage.
+- Signed/secret-validated webhooks with replay protection.
+- Restricted API keys and spending/quota alerts.
+- Dependency, secret, and code scanning.
+- Retention/deletion policy for documents, photos, tracking, messages, and AI traces.
+- Incident and breach response approved by counsel.
+
+### Legal material
+
+Public Terms, Privacy, and any FCRA/driver-screening disclosures in application routes are product artifacts, not a substitute for legal review. Record counsel, approval date, effective date, and archived prior versions: `[FILL BEFORE DEPARTURE]`.
+
+### Photography and documents
+
+Do not publish readable plates, unrelated carrier DOT/branding, identity documents, signatures, faces, or private locations without authorization and necessity. Redaction must alter the final asset, not merely cover it with reversible UI.
+
+## Monitoring and Incident Response
+
+### Current observability
+
+Backend/Railway logs, Vercel logs/analytics/speed insights, Supabase logs, Stripe event history, provider dashboards, and Sentry where configured are the primary signals. A single unified alerting and on-call system is not proven by repository configuration.
+
+### Severity model
+
+- **SEV-1:** Security breach, broad outage, data loss, uncontrolled payments, or inability to operate active shipments.
+- **SEV-2:** Major role/workflow or vendor failure with significant operational impact.
+- **SEV-3:** Limited defect with workaround and no immediate security/financial exposure.
+
+### Incident procedure
+
+1. Name an incident lead and timestamp the incident.
+2. Protect people, data, and funds; disable the narrow feature/credential if needed.
+3. Preserve logs and evidence; do not delete or rewrite production records casually.
+4. Assess users, shipments, money, data, vendors, and regulatory obligations.
+5. Communicate through the approved company channel at a regular cadence.
+6. Recover using tested rollback/repair procedures.
+7. Verify service and reconcile data/financial state.
+8. Complete a blameless post-incident review with owners and deadlines.
+
+Record alert destinations, on-call contacts, status-page process, and regulatory/legal escalation in `[SECURE OPERATIONS REGISTER]`.
+
+## Backup and Disaster Recovery
+
+Repository presence is not a database backup. Confirm the Supabase plan, automated backups/PITR, storage-object recovery, and retention in the production console.
+
+### Required plan
+
+- Define RPO: `[MAXIMUM ACCEPTABLE DATA LOSS]`.
+- Define RTO: `[MAXIMUM ACCEPTABLE OUTAGE]`.
+- Keep source and infrastructure ownership company-controlled.
+- Export/backup critical configuration and vendor inventories securely.
+- Test database restore into an isolated project on a schedule.
+- Test application operation against the restored schema/data safely.
+- Preserve audit/payment identifiers and reconcile Stripe after recovery.
+- Document DNS, Railway, Vercel, Supabase, and mobile recovery owners.
+
+Do not restore production by running all root SQL files. Use a verified database backup plus known applied migrations.
+
+## Costs Contracts and Ownership
+
+Finance should maintain a monthly register for every service in [External Services](#external-services): billing owner, plan, renewal, payment method, spending cap, usage alert, contract link, cancellation/export procedure, and business criticality.
+
+Highest-risk billing interruptions are likely Supabase, Railway, Vercel/domain/DNS, Stripe-related services, email/SMS, maps/routing, AI, Expo/app stores, and monitoring. Actual tiers and costs are console-only and must be filled before departure.
+
+## Known Risks and Open Decisions
+
+| Priority | Risk or gap | Required action |
+|---|---|---|
+| Critical | Universal profile/driver verification is commented out in auth middleware | Define policy, enforce server-side, add role/state tests |
+| Critical | Production schema/migration baseline is uncertain | Inventory production, establish baseline, test backup/restore |
+| Critical | Google Maps key was historically tracked | Restrict/rotate and review usage/billing |
+| High | GitHub “deploy” job does not deploy | Implement or rename/remove it |
+| High | Website is absent from CI | Add install, type, lint, test, and build jobs |
+| High | Automated test coverage is very low | Build authorization/payment/state/RLS regression suite |
+| High | Mobile versions and EAS project ID are inconsistent/placeholders | Reconcile before next release |
+| High | Mobile env template and EAS use different Supabase variable names | Normalize and test |
+| High | Vercel broad immutable caching may conflict with app cache policy | Inspect effective headers and correct |
+| High | Benji V2 and V3 coexist | Define active version and migration/deprecation plan |
+| High | Hundreds of routes and broad integrations increase attack surface | Inventory ownership/auth/webhooks and disable unused features |
+| Medium | npm and Yarn lockfiles coexist | Select one package manager per workspace |
+| Medium | Railway installs dependencies during application startup | Move install/build to deterministic build phase |
+| Medium | Node 18 CI may diverge from supported local/Expo runtime | Standardize documented Node versions |
+| Medium | Environment examples are incomplete/inconsistent | Generate audited templates with required/optional validation |
+| Medium | Historical one-off SQL exists outside formal migrations | Classify, archive securely if needed, and prevent accidental execution |
+| Medium | Monitoring/on-call ownership is not established in code | Create alerts, rotation, and runbook ownership |
+| Medium | Company policy fields in this document remain blank | Complete all placeholders before departure |
+
+## Successor Onboarding
+
+### First day
+
+- Read this document and current open issues/pull requests.
+- Receive company-managed accounts and password-manager access.
+- Confirm two admins on every critical vendor.
+- Clone without copying anyone's personal `.env`.
+- Run website, backend, and mobile locally with development credentials.
+
+### First week
+
+- Shadow one shipment from quote through delivery/payment reconciliation.
+- Review production architecture and logs in each vendor console.
+- Map production schema, RLS, buckets, webhooks, and migrations.
+- Verify deployment and rollback procedures in non-production.
+- Review critical/high risks with CEO, operations, finance, and legal owners.
+- Add missing account/vendor details to this document without secrets.
+
+### First month
+
+- Resolve verification policy and add authorization/RLS tests.
+- Establish tested backup/restore and incident procedures.
+- Repair CI/deployment truthfulness and add website validation.
+- Reconcile mobile/EAS configuration and release ownership.
+- Reduce unused integrations and formalize environment validation.
+
+## Departure Checklist
+
+- [ ] Complete every company, owner, account, domain, policy, and recovery placeholder.
+- [ ] Transfer all accounts to company-controlled email identities.
+- [ ] Add a second company administrator and test recovery for critical systems.
+- [ ] Transfer domain, DNS, app-store, signing, Stripe, Supabase, Railway, Vercel, EAS, and GitHub ownership.
+- [ ] Store API keys/recovery codes in the password manager; never in this file.
+- [ ] Rotate credentials known by departing personnel and test clients/webhooks.
+- [ ] Record production environment-variable names and password-manager item names.
+- [ ] Record all webhook URLs/events/signing ownership.
+- [ ] Reconcile active shipments, disputes, refunds, campaigns, and scheduled work.
+- [ ] Confirm vendor billing, renewals, spending alerts, and payment methods.
+- [ ] Verify backup/PITR and complete a restore exercise.
+- [ ] Confirm legal/privacy/retention policy ownership.
+- [ ] Walk successor through one deployment and one incident simulation.
+- [ ] Remove personal accounts/devices and verify audit logs after handoff.
+- [ ] CEO and successor sign off on unresolved items and accepted risks.
+
+## Glossary
+
+- **BOL:** Bill of Lading, a transport document and evidence record.
+- **EAS:** Expo Application Services for mobile builds, credentials, updates, and submission.
+- **PITR:** Point-in-time database recovery.
+- **RLS:** PostgreSQL Row Level Security used by Supabase to constrain row access.
+- **RPO:** Recovery Point Objective, acceptable data-loss window.
+- **RTO:** Recovery Time Objective, acceptable outage duration.
+- **Service role:** Highly privileged Supabase server credential that bypasses RLS.
+- **Shipment state:** Current operational stage of a vehicle movement.
+- **Webhook:** Provider-to-backend HTTP event callback requiring authentication and idempotency.
+
+## Documentation Rules
+
+1. Keep this README as the single general handover/status source.
+2. Prefer code, migrations, tests, and executable configuration over “complete” reports or implementation diaries.
+3. Add focused documentation next to code only when it defines a durable contract, license, runbook, or non-obvious subsystem.
+4. Delete obsolete progress reports, duplicate setup guides, generated audits, temporary HTML, and backup source files after verifying they contain no unique operational knowledge.
+5. Never claim “production ready,” “100% complete,” or “fully secure” without dated evidence and named checks.
+6. Mark console-only facts as verified dates or placeholders.
+7. Link to secure records by title/location, never reproduce their secrets.
+8. Review this document quarterly and after architecture, vendor, policy, deployment, or ownership changes.
 
 ---
 
-## 🎯 Roadmap
+**Handover acceptance**
 
-### Phase 1: Core Platform (Current)
-- ✅ **Backend API**: Express server with Supabase integration
-- ✅ **Authentication**: JWT-based auth with role management
-- ✅ **Database**: PostgreSQL with PostGIS for geospatial features
-- 🔄 **Mobile App**: React Native app with Expo
-- 🔄 **Basic Features**: User registration, shipment tracking
-
-### Phase 2: Enhanced Features
-- � **Real-time Tracking**: Live shipment location updates
-- 📋 **Payment Integration**: Stripe payment processing
-- 📋 **Push Notifications**: Real-time updates via Expo notifications
-- 📋 **File Uploads**: Photo uploads for shipment verification
-- 📋 **Chat System**: In-app messaging between clients and drivers
-
-### Phase 3: Advanced Features
-- 📋 **Web Dashboard**: Admin panel for managing platform
-- 📋 **Analytics**: Business intelligence and reporting
-- 📋 **Multi-language**: Internationalization support
-- 📋 **API Rate Limiting**: Advanced security and performance
-- 📋 **CI/CD Pipeline**: Automated testing and deployment
-
-## 📞 Support
-
-### Documentation
-- **API Documentation**: Available at `/backend/README.md`
-- **Mobile Documentation**: Available at `/mobile/README.md`
-- **Database Schema**: Available at `/supabase/README.md`
-
-### Getting Help
-- **GitHub Issues**: For bugs and feature requests
-- **GitHub Discussions**: For questions and community support
-- **Email**: [support@drivedrop.com](mailto:support@drivedrop.com)
-
-### Version Information
-- **Current Version**: 1.0.0-beta
-- **Node.js**: 18+ required
-- **Expo SDK**: 53.x
-- **Supabase**: Latest stable
-- **Last Updated**: July 2025
-
-## �📄 License
-
-This project is licensed under the ISC License - see the [LICENSE](LICENSE) file for details.
-
----
-
-**Built with ❤️ using modern technologies for optimal performance and developer experience.**
-
-*DriveDrop - Connecting people through seamless package delivery.*
-
-```
-DriveDrop-Main
-├─ .qodo
-├─ backend
-│  ├─ .eslintrc.js
-│  ├─ .prettierrc
-│  ├─ app.json
-│  ├─ docs
-│  │  ├─ DRIVER_APPLICATION_API.md
-│  │  └─ IMPLEMENTATION_VALIDATION.md
-│  ├─ eslint.config.js
-│  ├─ nodemon.json
-│  ├─ package-lock.json
-│  ├─ package.json
-│  ├─ README.md
-│  ├─ schema.sql
-│  ├─ scripts
-│  │  ├─ check-driver-api.js
-│  │  ├─ check-env.js
-│  │  ├─ create-admin-user.js
-│  │  ├─ test-driver-endpoints.ts
-│  │  ├─ test-supabase.js
-│  │  └─ verify-env.js
-│  ├─ src
-│  │  ├─ config
-│  │  │  └─ index.ts
-│  │  ├─ controllers
-│  │  │  ├─ application.controller.ts
-│  │  │  ├─ auth.controller.ts
-│  │  │  ├─ health.controller.ts
-│  │  │  ├─ maps.controller.ts
-│  │  │  ├─ payments.controller.getConfig.ts
-│  │  │  ├─ payments.controller.ts
-│  │  │  ├─ shipment.controller.ts
-│  │  │  ├─ sms.controller.ts
-│  │  │  ├─ temp_payments.controller.ts
-│  │  │  └─ user.controller.ts
-│  │  ├─ index.ts
-│  │  ├─ lib
-│  │  │  ├─ database.types.ts
-│  │  │  └─ supabase.ts
-│  │  ├─ middlewares
-│  │  │  ├─ auth.middleware.ts
-│  │  │  ├─ error.middleware.ts
-│  │  │  └─ supabase-auth.middleware.ts
-│  │  ├─ register-paths.ts
-│  │  ├─ routes
-│  │  │  ├─ application.routes.ts
-│  │  │  ├─ auth.routes.ts
-│  │  │  ├─ diagnostics.routes.ts
-│  │  │  ├─ driver.routes.ts
-│  │  │  ├─ health.routes.ts
-│  │  │  ├─ index.ts
-│  │  │  ├─ maps.routes.ts
-│  │  │  ├─ payments.routes.bak.ts
-│  │  │  ├─ payments.routes.ts
-│  │  │  ├─ shipment.routes.ts
-│  │  │  ├─ sms.routes.ts
-│  │  │  └─ user.routes.ts
-│  │  ├─ services
-│  │  │  ├─ auth.service.ts
-│  │  │  ├─ google-maps.service.ts
-│  │  │  ├─ stripe.service.ts
-│  │  │  ├─ supabase.service.ts
-│  │  │  └─ twilio.service.ts
-│  │  ├─ types
-│  │  │  └─ api.types.ts
-│  │  └─ utils
-│  │     ├─ error.ts
-│  │     ├─ logger.ts
-│  │     ├─ response.ts
-│  │     ├─ supabase-test.ts
-│  │     └─ validation.ts
-│  ├─ tests
-│  │  └─ driver-application.integration.test.ts
-│  └─ tsconfig.json
-├─ docs
-│  ├─ application-consolidation-plan.md
-│  ├─ application-management-implementation.md
-│  ├─ AUTH-UNIFICATION.md
-│  ├─ HEALTH-ENDPOINTS.md
-│  ├─ MIGRATION_FIX_FUNCTION_COLLISION.md
-│  ├─ realtime-features-updated.md
-│  ├─ realtime-features.md
-│  └─ SECRETS-MANAGEMENT.md
-├─ DRIVE_DROP_CHECKLIST.md
-├─ DRIVE_DROP_PLAN.md
-├─ ENHANCEMENT_SUMMARY.md
-├─ fix_payments_policy.sql
-├─ LICENSE
-├─ mobile
-│  ├─ .eslintignore
-│  ├─ .eslintrc.js
-│  ├─ .prettierrc
-│  ├─ app.config.js
-│  ├─ app.json
-│  ├─ App.tsx
-│  ├─ assets
-│  │  ├─ adaptive_icon.png
-│  │  ├─ favicon.png
-│  │  ├─ icon.png
-│  │  ├─ notification_icon.png
-│  │  ├─ notification_sound.wav
-│  │  ├─ splash.png
-│  │  └─ splash_icon.png
-│  ├─ docs
-│  │  └─ enhancements-summary.md
-│  ├─ eas-build.json
-│  ├─ eas.json
-│  ├─ eslint.config.js
-│  ├─ image1.jpg
-│  ├─ image2.jpg
-│  ├─ image3.jpg
-│  ├─ image4.jpg
-│  ├─ index.ts
-│  ├─ integration-test.ts
-│  ├─ package.json
-│  ├─ PAYMENT_POLICY_IMPLEMENTATION.md
-│  ├─ README.md
-│  ├─ refactors
-│  │  └─ AdminAssignmentScreen.refactor.md
-│  ├─ scripts
-│  │  ├─ preinstall.sh
-│  │  ├─ verify-env.js
-│  │  └─ verify-mobile-env.js
-│  ├─ src
-│  │  ├─ components
-│  │  │  ├─ AdminAssignmentHeader.tsx
-│  │  │  ├─ AdminAssignmentHeader.tsx.bak
-│  │  │  ├─ Button.tsx
-│  │  │  ├─ Button.tsx.bak
-│  │  │  ├─ Card.tsx
-│  │  │  ├─ Card.tsx.bak
-│  │  │  ├─ DriverSelectionModal.tsx
-│  │  │  ├─ DriverSelectionModal.tsx.bak
-│  │  │  ├─ index.ts
-│  │  │  ├─ Loading.tsx
-│  │  │  ├─ Loading.tsx.bak
-│  │  │  ├─ payment
-│  │  │  │  ├─ PaymentPolicyCard.tsx
-│  │  │  │  ├─ PaymentPolicyCard.tsx.bak
-│  │  │  │  ├─ PAYMENT_COMPONENT_USAGE.md
-│  │  │  │  ├─ StripePaymentForm.tsx
-│  │  │  │  └─ StripePaymentForm.tsx.bak
-│  │  │  ├─ PaymentPolicyCard.tsx
-│  │  │  ├─ PaymentPolicyCard.tsx.bak
-│  │  │  ├─ ShipmentList.tsx
-│  │  │  ├─ ShipmentList.tsx.bak
-│  │  │  ├─ ShipmentListItem.tsx
-│  │  │  ├─ ShipmentListItem.tsx.bak
-│  │  │  ├─ ShipmentSummary.tsx
-│  │  │  ├─ ShipmentSummary.tsx.bak
-│  │  │  ├─ TextInput.tsx
-│  │  │  ├─ TextInput.tsx.bak
-│  │  │  ├─ ui
-│  │  │  │  ├─ Button.tsx
-│  │  │  │  ├─ Button.tsx.bak
-│  │  │  │  ├─ Card.tsx
-│  │  │  │  ├─ Card.tsx.bak
-│  │  │  │  ├─ Input.tsx
-│  │  │  │  └─ Input.tsx.bak
-│  │  │  ├─ UserProfile.tsx
-│  │  │  └─ UserProfile.tsx.bak
-│  │  ├─ constants
-│  │  │  ├─ Colors.ts
-│  │  │  ├─ Colors.ts.bak
-│  │  │  ├─ DesignSystem.ts
-│  │  │  ├─ DesignSystem.ts.bak
-│  │  │  ├─ Expo.ts
-│  │  │  └─ index.ts
-│  │  ├─ context
-│  │  │  ├─ AuthContext.tsx
-│  │  │  ├─ AuthContext.tsx.bak
-│  │  │  ├─ BookingContext.tsx
-│  │  │  └─ BookingContext.tsx.bak
-│  │  ├─ contexts
-│  │  │  ├─ NotificationContext.tsx
-│  │  │  └─ NotificationContext.tsx.bak
-│  │  ├─ db
-│  │  │  ├─ dbUtils.ts
-│  │  │  └─ dbUtils.ts.bak
-│  │  ├─ examples
-│  │  │  ├─ ShipmentDetailsWithRealtime.tsx
-│  │  │  └─ ShipmentDetailsWithRealtime.tsx.bak
-│  │  ├─ hooks
-│  │  │  ├─ index.ts
-│  │  │  ├─ useAPI.ts
-│  │  │  ├─ useAPI.ts.bak
-│  │  │  ├─ useDriverLocation.ts
-│  │  │  ├─ useDriverLocation.ts.bak
-│  │  │  ├─ useFetch.ts
-│  │  │  ├─ useFetch.ts.bak
-│  │  │  ├─ useRealtimeMessages.ts
-│  │  │  ├─ useRealtimeMessages.ts.bak
-│  │  │  ├─ useRealtimeShipment.ts
-│  │  │  ├─ useRealtimeShipment.ts.bak
-│  │  │  ├─ useRoleCheck.ts
-│  │  │  ├─ useRoleCheck.tsx
-│  │  │  └─ useRoleCheck.tsx.bak
-│  │  ├─ lib
-│  │  │  ├─ database.types.ts
-│  │  │  ├─ database.types.update.ts
-│  │  │  ├─ database.types.update.ts.bak
-│  │  │  ├─ supabase.ts
-│  │  │  └─ supabase.ts.bak
-│  │  ├─ navigation
-│  │  │  ├─ index.tsx
-│  │  │  ├─ index.tsx.bak
-│  │  │  └─ types.ts
-│  │  ├─ README-realtime.md
-│  │  ├─ screens
-│  │  │  ├─ admin
-│  │  │  │  ├─ AdminAssignmentScreen.tsx
-│  │  │  │  ├─ AdminAssignmentScreen.tsx.bak
-│  │  │  │  ├─ AdminDashboardScreen.tsx
-│  │  │  │  ├─ AdminDashboardScreen.tsx.bak
-│  │  │  │  ├─ AdminDashboardScreenNew.tsx
-│  │  │  │  └─ AdminDashboardScreenNew.tsx.bak
-│  │  │  ├─ auth
-│  │  │  │  ├─ ForgotPasswordScreen.tsx
-│  │  │  │  ├─ ForgotPasswordScreen.tsx.bak
-│  │  │  │  ├─ LoginScreen.tsx
-│  │  │  │  ├─ LoginScreen.tsx.bak
-│  │  │  │  ├─ SignUpScreen.tsx
-│  │  │  │  └─ SignUpScreen.tsx.bak
-│  │  │  ├─ booking
-│  │  │  │  ├─ BookingConfirmationScreen.tsx
-│  │  │  │  ├─ BookingConfirmationScreen.tsx.bak
-│  │  │  │  ├─ BookingPaymentProcessingScreen.tsx
-│  │  │  │  ├─ BookingPaymentProcessingScreen.tsx.bak
-│  │  │  │  ├─ BookingStepCustomerScreen.tsx
-│  │  │  │  ├─ BookingStepCustomerScreen.tsx.bak
-│  │  │  │  ├─ BookingStepDeliveryScreen.tsx
-│  │  │  │  ├─ BookingStepDeliveryScreen.tsx.bak
-│  │  │  │  ├─ BookingStepInsuranceScreen.tsx
-│  │  │  │  ├─ BookingStepInsuranceScreen.tsx.bak
-│  │  │  │  ├─ BookingStepPaymentScreen.tsx
-│  │  │  │  ├─ BookingStepPaymentScreen.tsx.bak
-│  │  │  │  ├─ BookingStepPickupScreen.tsx
-│  │  │  │  ├─ BookingStepPickupScreen.tsx.bak
-│  │  │  │  ├─ BookingStepTermsScreen.tsx
-│  │  │  │  ├─ BookingStepTermsScreen.tsx.bak
-│  │  │  │  ├─ BookingStepTowingScreen.tsx
-│  │  │  │  ├─ BookingStepTowingScreen.tsx.bak
-│  │  │  │  ├─ BookingStepVehicleScreen.tsx
-│  │  │  │  ├─ BookingStepVehicleScreen.tsx.bak
-│  │  │  │  ├─ BookingStepVisualScreen.tsx
-│  │  │  │  └─ BookingStepVisualScreen.tsx.bak
-│  │  │  ├─ debug
-│  │  │  │  ├─ TestInputScreen.tsx
-│  │  │  │  └─ TestInputScreen.tsx.bak
-│  │  │  ├─ driver
-│  │  │  │  ├─ AvailableJobsScreen.tsx
-│  │  │  │  ├─ AvailableJobsScreen.tsx.bak
-│  │  │  │  ├─ AvailableShipmentsScreen.tsx
-│  │  │  │  ├─ AvailableShipmentsScreen.tsx.bak
-│  │  │  │  ├─ DriverDashboardScreen.tsx
-│  │  │  │  ├─ DriverDashboardScreen.tsx.bak
-│  │  │  │  ├─ DriverProfileScreen.tsx
-│  │  │  │  ├─ DriverProfileScreen.tsx.bak
-│  │  │  │  ├─ JobDetailsScreen.tsx
-│  │  │  │  ├─ JobDetailsScreen.tsx.bak
-│  │  │  │  ├─ MessagesScreen.tsx
-│  │  │  │  ├─ MessagesScreen.tsx.bak
-│  │  │  │  ├─ MyJobsScreen.tsx
-│  │  │  │  ├─ MyJobsScreen.tsx.bak
-│  │  │  │  ├─ MyShipmentsScreen.tsx
-│  │  │  │  ├─ MyShipmentsScreen.tsx.bak
-│  │  │  │  ├─ README.md
-│  │  │  │  ├─ RouteMapScreen.tsx
-│  │  │  │  ├─ RouteMapScreen.tsx.bak
-│  │  │  │  ├─ ShipmentDetailsScreen.tsx
-│  │  │  │  └─ ShipmentDetailsScreen.tsx.bak
-│  │  │  ├─ home
-│  │  │  │  ├─ HomeScreen.tsx
-│  │  │  │  ├─ HomeScreen.tsx.bak
-│  │  │  │  ├─ HomeScreenNew.tsx
-│  │  │  │  └─ HomeScreenNew.tsx.bak
-│  │  │  ├─ NetworkDiagnosticScreen.tsx
-│  │  │  ├─ NetworkDiagnosticScreen.tsx.bak
-│  │  │  ├─ NotificationTestScreen.tsx
-│  │  │  ├─ NotificationTestScreen.tsx.bak
-│  │  │  ├─ profile
-│  │  │  │  ├─ ProfileScreen.tsx
-│  │  │  │  ├─ ProfileScreen.tsx.bak
-│  │  │  │  ├─ ProfileScreenNew.tsx
-│  │  │  │  └─ ProfileScreenNew.tsx.bak
-│  │  │  ├─ SettingsScreen.tsx
-│  │  │  ├─ SettingsScreen.tsx.bak
-│  │  │  └─ shipments
-│  │  │     ├─ NewShipmentScreen.tsx
-│  │  │     ├─ NewShipmentScreen.tsx.bak
-│  │  │     ├─ ShipmentDetailsScreen.tsx
-│  │  │     ├─ ShipmentDetailsScreen.tsx.bak
-│  │  │     ├─ ShipmentsScreen.tsx
-│  │  │     ├─ ShipmentsScreen.tsx.bak
-│  │  │     ├─ ShipmentsScreenNew.tsx
-│  │  │     └─ ShipmentsScreenNew.tsx.bak
-│  │  ├─ services
-│  │  │  ├─ applicationService.ts
-│  │  │  ├─ applicationService.ts.bak
-│  │  │  ├─ NotificationService.ts
-│  │  │  ├─ NotificationService.ts.bak
-│  │  │  ├─ OfflineService.ts
-│  │  │  ├─ OfflineService.ts.bak
-│  │  │  ├─ paymentApiTest.ts
-│  │  │  ├─ paymentApiTest.ts.bak
-│  │  │  ├─ paymentService.ts
-│  │  │  ├─ paymentService.ts.bak
-│  │  │  ├─ RealtimeService.ts
-│  │  │  ├─ RealtimeService.ts.bak
-│  │  │  ├─ shipmentService.ts
-│  │  │  └─ shipmentService.ts.bak
-│  │  ├─ sql
-│  │  │  └─ job_applications_schema.sql
-│  │  ├─ supabase.ts
-│  │  ├─ theme
-│  │  │  ├─ colors.ts
-│  │  │  └─ colors.ts.bak
-│  │  ├─ types
-│  │  │  ├─ app.d.ts
-│  │  │  ├─ index.ts
-│  │  │  ├─ shipment.ts
-│  │  │  ├─ shipment.ts.bak
-│  │  │  ├─ shipment.types.ts
-│  │  │  └─ user.ts
-│  │  └─ utils
-│  │     ├─ environment.ts
-│  │     ├─ formatters.ts
-│  │     ├─ index.ts
-│  │     ├─ logger.ts
-│  │     ├─ maps.ts
-│  │     ├─ MessageUtil.ts
-│  │     ├─ MessageUtil.ts.bak
-│  │     ├─ NetworkUtil.ts
-│  │     ├─ paymentApiTest.ts
-│  │     ├─ paymentApiTest.ts.bak
-│  │     ├─ ShipmentUtil.ts
-│  │     ├─ ShipmentUtil.ts.bak
-│  │     ├─ storage.ts
-│  │     └─ validation.ts
-│  ├─ supabase
-│  │  └─ config.toml
-│  ├─ t002_results.md
-│  ├─ T003_PRIORITIZED_FIXES.md
-│  ├─ t003_results.md
-│  ├─ test-shipment-data.js
-│  ├─ tsconfig.json
-│  ├─ TYPESCRIPT_FIXES.md
-│  └─ yarn.lock
-├─ MOBILE_NETWORK_FIX.md
-├─ PAYMENT_SYSTEM_ENHANCEMENT.md
-├─ PAYMENT_SYSTEM_FIX_SUMMARY.md
-├─ README.md
-├─ scripts
-│  ├─ admin-auth-helper.js
-│  ├─ apply-migration-fix.js
-│  ├─ auth-helper.js
-│  ├─ generate-secrets.js
-│  ├─ package-lock.json
-│  ├─ package.json
-│  ├─ README.md
-│  ├─ temp_restart.txt
-│  ├─ test-api-auth.bat
-│  ├─ test-api-auth.ps1
-│  ├─ test-api-endpoint.js
-│  ├─ test-api-robust.js
-│  ├─ test-api-with-auth-final.js
-│  ├─ test-api-with-auth.js
-│  ├─ test-api.bat
-│  ├─ test-applications-endpoint.js
-│  ├─ test-health-curl.ps1
-│  ├─ test-health-only.js
-│  ├─ test-health.bat
-│  ├─ test-health.ps1
-│  ├─ test-invalid-shipment-status.js
-│  ├─ test-quick-auth.js
-│  └─ validate-token.js
-├─ sql
-│  ├─ add_open_status_to_enum.sql
-│  ├─ add_updated_by_field.sql
-│  ├─ all_fixes.sql
-│  ├─ alternative_phase3.sql
-│  ├─ BACKEND_IMPLEMENTATION_SUMMARY.md
-│  ├─ check_profiles.sql
-│  ├─ check_profiles_table.sql
-│  ├─ COMPLETION_SUMMARY.md
-│  ├─ create_user_trigger.sql
-│  ├─ database_fixes.sql
-│  ├─ database_functions.sql
-│  ├─ debug_user_creation.sql
-│  ├─ DriveDrop_Prioritized_Checklist_Version2.md
-│  ├─ eliminate_status_change.sql
-│  ├─ ENHANCEMENT_SUMMARY.md
-│  ├─ FIXES-SUMMARY.md
-│  ├─ fix_additional_issues.sql
-│  ├─ fix_driver_errors.md
-│  ├─ fix_driver_settings.sql
-│  ├─ fix_messaging.sql
-│  ├─ fix_payments_policy.sql
-│  ├─ fix_profiles_policy.sql
-│  ├─ fix_shipment_assignment.sql
-│  ├─ fix_tracking_enum.sql
-│  ├─ fix_tracking_enum_comprehensive.sql
-│  ├─ fix_triggers.sql
-│  ├─ FUNCTION_COLLISION_FIX_SUMMARY.md
-│  ├─ HEALTH-ENDPOINT-FIX.md
-│  ├─ MOBILE_NETWORK_FIX.md
-│  ├─ PAYMENT_SYSTEM_ENHANCEMENT.md
-│  ├─ PAYMENT_SYSTEM_FIX_SUMMARY.md
-│  ├─ phase1_setup.sql
-│  ├─ phase2_driver_assignment.sql
-│  ├─ phase3_update_data.sql
-│  ├─ phase4_recreate_triggers.sql
-│  ├─ REALTIME-IMPLEMENTATION.md
-│  ├─ sample_data.sql
-│  ├─ SECTION_2.2_COMPLETION_SUMMARY.md
-│  ├─ shipment_status_migration_report.md
-│  ├─ simple_user_trigger.sql
-│  ├─ start-and-test-backend.bat
-│  ├─ start-app.bat
-│  ├─ start-app.sh
-│  ├─ start-testing.sh
-│  └─ update_user_trigger.sql
-├─ supabase
-│  ├─ migrations
-│  │  ├─ 01_initial_schema.sql
-│  │  ├─ 02_row_level_security.sql
-│  │  ├─ 03_fix_shipments.sql
-│  │  ├─ 03_functions_and_triggers.sql
-│  │  ├─ 04_consolidate_application_tables.sql
-│  │  ├─ 04_fix_shipment_status_enum.sql
-│  │  ├─ 05_application_management_procedures.sql
-│  │  ├─ 05_application_management_procedures_production.sql
-│  │  ├─ 05_fix_messages_rls.sql
-│  │  ├─ 06_add_enum_helper_function.sql
-│  │  ├─ 07_add_exec_sql_function.sql
-│  │  ├─ 08_add_picked_up_status.sql
-│  │  ├─ 20250725_driver_locations.sql
-│  │  ├─ 20250725_realtime_messaging.sql
-│  │  ├─ 20250726_realtime_shipment_updates.sql
-│  │  ├─ 20250729_enhanced_payments.sql
-│  │  ├─ 20250729_fix_payment_rls.sql
-│  │  ├─ 20250729_fix_user_id_client_id.sql
-│  │  ├─ test_function_cleanup.sql
-│  │  ├─ verify_application_procedures.sql
-│  │  ├─ verify_application_procedures_production.sql
-│  │  └─ verify_consolidation.sql
-│  ├─ README.md
-│  ├─ Schema.sql
-│  └─ seed
-│     └─ 01_example_data.sql
-├─ t001_audit.bat
-├─ t001_audit.sh
-├─ t001_audit_safe.bat
-├─ t002_autolint.ps1
-├─ t003_admin_followup
-└─ y
-
-```
+| Role | Name | Date | Signature/reference |
+|---|---|---|---|
+| Departing owner | `[FILL]` | `[FILL]` | `[FILL]` |
+| Successor | `[FILL]` | `[FILL]` | `[FILL]` |
+| CEO/business owner | `[FILL]` | `[FILL]` | `[FILL]` |
