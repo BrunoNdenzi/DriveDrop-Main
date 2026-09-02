@@ -8,8 +8,25 @@ import {
 
 const services = [
   {
-    id: 'tiles',
+    id: 'dump-trucks',
     featured: true,
+    icon: Truck,
+    name: 'Dump Truck Services',
+    tag: 'Public & Private Projects',
+    tagline: 'Request trucks and drivers for construction, site development, aggregate, asphalt, debris, and government work.',
+    attrs: [
+      { icon: Briefcase, label: 'DBE certified' },
+      { icon: Clock, label: 'Advance scheduling' },
+      { icon: MapPin, label: 'Project-based routing' },
+      { icon: ShieldCheck, label: 'Reviewed before dispatch' },
+    ],
+    cta: 'Request trucks',
+    href: '/services/dump-trucks',
+    accent: '#f3a712',
+  },
+  {
+    id: 'tiles',
+    featured: false,
     icon: Layers,
     name: 'Premium Tiles',
     tag: 'Supply & Delivery',
@@ -93,7 +110,7 @@ export default function ServicesPage() {
           </h1>
 
           <p className="text-white/40 text-base md:text-lg max-w-md leading-relaxed mb-10">
-            Licensed, locally operated contractors — tiles, tree work, and van delivery from one Charlotte team.
+            Licensed, locally operated services for hauling, freight, delivery, property work, and materials from one Charlotte team.
           </p>
 
           <a
@@ -179,7 +196,7 @@ export default function ServicesPage() {
       {/* ── BOTTOM PHONE BAR ───────────────────────────────────── */}
       <section className="bg-slate-950 py-16 mt-4">
         <div className="container text-center">
-          <p className="text-white/30 text-xs tracking-widest uppercase mb-4">Three services, one number</p>
+          <p className="text-white/30 text-xs tracking-widest uppercase mb-4">Every service, one number</p>
           <a
             href="tel:+17042662317"
             className="text-4xl md:text-5xl font-black text-white hover:text-amber-400 transition-colors tracking-tight"

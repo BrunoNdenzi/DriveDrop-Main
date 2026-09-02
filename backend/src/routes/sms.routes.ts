@@ -13,6 +13,7 @@ import {
   validatePhoneNumber,
   getMessageStatus,
   sendParkingInterestNotification,
+  sendDumpTruckBookingNotification,
 } from '@controllers/sms.controller';
 
 const router = Router();
@@ -23,6 +24,13 @@ const router = Router();
  * @access Internal (HMAC signed by the website server)
  */
 router.post('/parking-interest', sendParkingInterestNotification);
+
+/**
+ * @route POST /api/v1/sms/dump-truck-booking
+ * @desc Send a fixed-recipient dump truck booking alert through the shared Twilio service
+ * @access Internal (HMAC signed by the website server)
+ */
+router.post('/dump-truck-booking', sendDumpTruckBookingNotification);
 
 /**
  * @route POST /api/v1/sms/send

@@ -8,7 +8,7 @@ import { successResponse } from '@utils/response';
 import { twilioService } from '@services/twilio.service';
 import { isValidPhone } from '@utils/validation';
 
-const PARKING_ALERT_PHONE = '+17045247921';
+const OPERATIONS_ALERT_PHONE = '+17045247921';
 
 function hasValidParkingSignature(req: Request): boolean {
   const timestamp = req.header('x-parking-timestamp');
@@ -61,7 +61,47 @@ export const sendParkingInterestNotification = asyncHandler(async (req: Request,
 
   const message = `DriveDrop parking lead: ${companyName} needs ${spacesNeeded} space${spacesNeeded === 1 ? '' : 's'} for ${vehicleTypes.join(', ')}. ${parkingFrequency}; needed ${neededBy}. Contact ${fullName}: ${phone}, ${email}.`;
   const messageSid = await twilioService.sendSMS({
-    to: PARKING_ALERT_PHONE,
+    to: OPERATIONS_ALERT_PHONE,
+    message,
+  });
+
+  res.status(201).json(successResponse({ messageSid, status: 'sent' }));
+});
+
+export const sendDumpTruckBookingNotification = asyncHandler(async (req: Request, res: Response) => {
+  if (!hasValidParkingSignature(req)) {
+    throw createError('Invalid or expired request signature', 401, 'INVALID_SIGNATURE');
+  }
+
+  const {
+    fullName,
+    companyName,
+    phone,
+    trucksNeeded,
+    serviceDate,
+    startTime,
+    duration,
+    jobSiteAddress,
+    materialType,
+  } = req.body as Record<string, unknown>;
+
+  if (
+    typeof fullName !== 'string' || !fullName.trim() ||
+    typeof companyName !== 'string' || !companyName.trim() ||
+    typeof phone !== 'string' || !phone.trim() ||
+    typeof trucksNeeded !== 'number' || !Number.isInteger(trucksNeeded) || trucksNeeded < 1 || trucksNeeded > 100 ||
+    typeof serviceDate !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(serviceDate) ||
+    typeof startTime !== 'string' || !startTime.trim() ||
+    typeof duration !== 'string' || !duration.trim() ||
+    typeof jobSiteAddress !== 'string' || !jobSiteAddress.trim() ||
+    typeof materialType !== 'string' || !materialType.trim()
+  ) {
+    throw createError('Invalid dump truck booking notification data', 400, 'INVALID_DUMP_TRUCK_BOOKING');
+  }
+
+  const message = `Benji dump truck alert: ${companyName} requests ${trucksNeeded} truck${trucksNeeded === 1 ? '' : 's'} on ${serviceDate} at ${startTime} for ${duration}. ${materialType}; site: ${jobSiteAddress}. Contact ${fullName}: ${phone}.`;
+  const messageSid = await twilioService.sendSMS({
+    to: OPERATIONS_ALERT_PHONE,
     message,
   });
 
