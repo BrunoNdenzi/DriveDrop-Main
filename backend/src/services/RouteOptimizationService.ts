@@ -12,8 +12,14 @@
  * - Benji AI coaching integration
  */
 
-import { googleMapsService, DirectionsResult } from './google-maps.service';
+import { googleMapsService, DirectionsResult, DrivingRouteOptions } from './google-maps.service';
+import {
+  commercialRoutingService,
+  CommercialVehicleProfile,
+} from './commercial-routing.service';
 import { logger } from '@utils/logger';
+
+export type { CommercialVehicleProfile } from './commercial-routing.service';
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // Types
@@ -43,7 +49,27 @@ export interface OptimizedRoute {
   carolinaInsights: CarolinaInsight[];
   fuelStops: FuelStopRecommendation[];
   benjiTips: string[];
+  constraintWarnings: string[];
+  commercialCompliance: {
+    status: 'verified' | 'profile_required' | 'not_requested';
+    provider: 'here' | null;
+    restrictions: string[];
+  };
   polyline?: string;
+}
+
+interface RouteOptions {
+  vehicleType?: string | undefined;
+  departureTime?: string | undefined;
+  returnToOrigin?: boolean | undefined;
+  avoidHighways?: boolean | undefined;
+  preferHighway?: boolean | undefined;
+  prioritizeFuel?: boolean | undefined;
+  maxDetourMinutes?: number | undefined;
+  maxHours?: number | undefined;
+  vehicleSlots?: number | undefined;
+  driverProfile?: { vehicleSlots?: number | undefined } | undefined;
+  commercialVehicle?: CommercialVehicleProfile | undefined;
 }
 
 export interface OptimizedStop extends RouteStop {
@@ -256,16 +282,7 @@ class RouteOptimizationService {
    */
   async optimizeRoute(
     stops: RouteStop[],
-    options: {
-      vehicleType?: string | undefined;
-      departureTime?: string | undefined; // ISO datetime
-      returnToOrigin?: boolean | undefined;
-      avoidHighways?: boolean | undefined;
-      prioritizeFuel?: boolean | undefined;
-      maxDetourMinutes?: number | undefined;
-      vehicleSlots?: number | undefined;
-      driverProfile?: { vehicleSlots?: number | undefined } | undefined;
-    } = {}
+    options: RouteOptions = {}
   ): Promise<OptimizedRoute> {
     const startTime = Date.now();
     logger.info('Starting route optimization', { 
@@ -276,37 +293,67 @@ class RouteOptimizationService {
     if (stops.length < 2) {
       throw new Error('At least 2 stops are required for route optimization');
     }
+    for (const key of ['returnToOrigin', 'avoidHighways', 'preferHighway', 'prioritizeFuel'] as const) {
+      if (options[key] !== undefined && typeof options[key] !== 'boolean') {
+        throw new Error(`${key} must be a boolean`);
+      }
+    }
+    if (options.avoidHighways && options.preferHighway) {
+      throw new Error('avoidHighways and preferHighway cannot both be enabled');
+    }
+    if (options.maxHours !== undefined && (!Number.isFinite(options.maxHours) || options.maxHours <= 0)) {
+      throw new Error('maxHours must be greater than zero');
+    }
+    if (options.maxDetourMinutes !== undefined && (!Number.isFinite(options.maxDetourMinutes) || options.maxDetourMinutes < 0)) {
+      throw new Error('maxDetourMinutes cannot be negative');
+    }
 
     // 1. Build distance matrix between all stops
-    const distanceMatrix = await this.buildDistanceMatrix(stops);
+    const departureTime = options.departureTime
+      ? new Date(options.departureTime)
+      : new Date();
+    if (Number.isNaN(departureTime.getTime())) throw new Error('departureTime must be a valid ISO datetime');
+    const routePreferences = {
+      avoidHighways: options.avoidHighways === true,
+      departureTime,
+    };
+    const distanceMatrix = await this.buildDistanceMatrix(stops, routePreferences);
     const vehicleSlots = this.normalizeVehicleSlots(
       options.driverProfile?.vehicleSlots ?? options.vehicleSlots
     );
 
     // 2. Calculate naive (original) route distance for comparison
-    const naiveDistance = this.calculateNaiveDistance(distanceMatrix, stops.length);
+    const commercialVehicle = options.commercialVehicle
+      ? commercialRoutingService.validateProfile(options.commercialVehicle)
+      : undefined;
+    const optimizationMatrix = options.preferHighway
+      ? this.applyHighwayPreference(distanceMatrix, stops)
+      : distanceMatrix;
+    const baselineOrder = this.buildLegalBaselineOrder(stops, vehicleSlots);
+    if (options.returnToOrigin) baselineOrder.push(baselineOrder[0]!);
+    const baselineDistance = this.calculateRouteDistance(distanceMatrix, baselineOrder);
 
     // 3. Solve TSP with nearest-neighbor heuristic
-    let optimizedOrder = this.nearestNeighborTSP(distanceMatrix, stops, 0, vehicleSlots);
+    let optimizedOrder = this.nearestNeighborTSP(optimizationMatrix, stops, 0, vehicleSlots);
 
     // 4. Improve with 2-opt local search
-    optimizedOrder = this.twoOptImprovement(distanceMatrix, optimizedOrder, stops, vehicleSlots);
+    optimizedOrder = this.twoOptImprovement(optimizationMatrix, optimizedOrder, stops, vehicleSlots);
 
     // 5. Apply time-window constraints (shift stops if needed)
     optimizedOrder = this.applyTimeWindowConstraints(
-      stops, optimizedOrder, vehicleSlots, options.departureTime
+      stops, optimizedOrder, distanceMatrix, vehicleSlots, departureTime
     );
 
     // 6. Apply priority constraints (high-priority stops earlier)
-    optimizedOrder = this.applyPriorityConstraints(stops, optimizedOrder, vehicleSlots);
+    optimizedOrder = this.applyPriorityConstraints(
+      stops, optimizedOrder, distanceMatrix, vehicleSlots, departureTime
+    );
+
+    if (options.returnToOrigin) optimizedOrder.push(optimizedOrder[0]!);
 
     // 7. Build optimized stops with ETAs
-    const departureTime = options.departureTime 
-      ? new Date(options.departureTime) 
-      : new Date();
-    
     const { optimizedStops, legs } = await this.buildOptimizedRoute(
-      stops, optimizedOrder, distanceMatrix, departureTime
+      stops, optimizedOrder, distanceMatrix, departureTime, routePreferences, commercialVehicle
     );
 
     // 8. Calculate optimized total distance from routed legs. Matrix values are
@@ -322,16 +369,17 @@ class RouteOptimizationService {
     const totalFuelCost = fuelGallons * fuelPrice;
 
     // 10. Savings calculation
-    const naiveMiles = naiveDistance / 1609.34;
-    const naiveFuel = (naiveMiles / mpg) * fuelPrice;
+    const baselineMiles = baselineDistance / 1609.34;
+    const baselineFuel = (baselineMiles / mpg) * fuelPrice;
+    const distanceSaved = Math.max(0, baselineMiles - totalMiles);
     
     const savings: RouteSavings = {
-      distanceSaved: Math.max(0, Math.round((naiveMiles - totalMiles) * 10) / 10),
-      timeSaved: Math.max(0, this.calculateTimeSaved(distanceMatrix, optimizedOrder, stops.length)),
-      fuelCostSaved: Math.max(0, Math.round((naiveFuel - totalFuelCost) * 100) / 100),
-      emptyMilesSaved: this.calculateEmptyMilesSaved(stops, optimizedOrder, distanceMatrix),
-      percentImprovement: naiveMiles > 0 
-        ? Math.round(((naiveMiles - totalMiles) / naiveMiles) * 1000) / 10 
+      distanceSaved: Math.round(distanceSaved * 10) / 10,
+      timeSaved: Math.max(0, this.calculateTimeSaved(distanceMatrix, optimizedOrder, baselineOrder)),
+      fuelCostSaved: Math.max(0, Math.round((baselineFuel - totalFuelCost) * 100) / 100),
+      emptyMilesSaved: this.calculateEmptyMilesSaved(stops, optimizedOrder, baselineOrder, distanceMatrix),
+      percentImprovement: baselineMiles > 0
+        ? Math.max(0, Math.round((distanceSaved / baselineMiles) * 1000) / 10)
         : 0,
     };
 
@@ -352,8 +400,20 @@ class RouteOptimizationService {
 
     // 14. Total duration
     const totalDuration = legs.reduce((sum, leg) => sum + leg.duration.value, 0) / 60; // seconds to minutes
-    const stopDuration = optimizedStops.reduce((sum, s) => sum + (s.estimatedDuration || 15), 0);
+    const stopDuration = optimizedStops.reduce((sum, s) => sum + (s.estimatedDuration ?? 15), 0);
     const totalWithStops = totalDuration + stopDuration;
+
+    if (options.maxHours !== undefined && totalWithStops > options.maxHours * 60) {
+      throw new Error(`No feasible route fits within maxHours (${options.maxHours})`);
+    }
+    if (options.maxDetourMinutes !== undefined && optimizedOrder.length > 1) {
+      const finalDestinationIndex = options.returnToOrigin ? optimizedOrder[optimizedOrder.length - 2]! : optimizedOrder[optimizedOrder.length - 1]!;
+      const directMinutes = this.metersToMinutes(distanceMatrix[optimizedOrder[0]!]?.[finalDestinationIndex] ?? 0);
+      const routedMinutes = legs.reduce((sum, leg) => sum + leg.duration.value / 60, 0);
+      if (routedMinutes - directMinutes > options.maxDetourMinutes) {
+        throw new Error(`No feasible route fits within maxDetourMinutes (${options.maxDetourMinutes})`);
+      }
+    }
 
     const endTime = new Date(departureTime.getTime() + totalWithStops * 60000);
 
@@ -362,6 +422,14 @@ class RouteOptimizationService {
       savings, optimizedStops.length, totalMiles, totalWithStops
     );
 
+    const commercialVehicleTypes = new Set(['car_hauler_loaded', 'pickup_with_trailer', 'flatbed_loaded', 'enclosed_loaded']);
+    const constraintWarnings: string[] = [];
+    if (options.preferHighway) {
+      constraintWarnings.push('Highway preference uses corridor-aware ordering; each final leg is still selected by the routing provider.');
+    }
+    if (!commercialVehicle && commercialVehicleTypes.has(vehicleType)) {
+      constraintWarnings.push('Commercial road restrictions are not verified until vehicle dimensions and weight are provided.');
+    }
     const result: OptimizedRoute = {
       stops: optimizedStops,
       legs,
@@ -378,6 +446,18 @@ class RouteOptimizationService {
       carolinaInsights,
       fuelStops,
       benjiTips,
+      constraintWarnings,
+      commercialCompliance: commercialVehicle
+        ? {
+            status: 'verified',
+            provider: 'here',
+            restrictions: this.describeCommercialRestrictions(commercialVehicle),
+          }
+        : {
+            status: commercialVehicleTypes.has(vehicleType) ? 'profile_required' : 'not_requested',
+            provider: null,
+            restrictions: [],
+          },
     };
 
     const elapsed = Date.now() - startTime;
@@ -418,7 +498,12 @@ class RouteOptimizationService {
       departureTime?: string | undefined;
       maxHours?: number | undefined;
       preferHighway?: boolean | undefined;
+      avoidHighways?: boolean | undefined;
+      returnToOrigin?: boolean | undefined;
+      maxDetourMinutes?: number | undefined;
+      prioritizeFuel?: boolean | undefined;
       vehicleSlots?: number | undefined;
+      commercialVehicle?: CommercialVehicleProfile | undefined;
     } = {}
   ): Promise<DailyPlan> {
     logger.info('Generating daily plan', { 
@@ -473,6 +558,13 @@ class RouteOptimizationService {
       vehicleType: options.vehicleType,
       departureTime: options.departureTime,
       vehicleSlots: options.vehicleSlots,
+      maxHours: options.maxHours,
+      preferHighway: options.preferHighway,
+      avoidHighways: options.avoidHighways,
+      returnToOrigin: options.returnToOrigin,
+      maxDetourMinutes: options.maxDetourMinutes,
+      prioritizeFuel: options.prioritizeFuel,
+      commercialVehicle: options.commercialVehicle,
     });
 
     // Generate break schedule based on FMCSA rules
@@ -608,12 +700,24 @@ class RouteOptimizationService {
     return total;
   }
 
+  private applyHighwayPreference(matrix: number[][], stops: RouteStop[]): number[][] {
+    return matrix.map((row, fromIndex) => row.map((distance, toIndex) => {
+      const from = stops[fromIndex];
+      const to = stops[toIndex];
+      if (!from || !to) return distance;
+      return this.identifyCorridors(from.address, to.address).length > 0 ? distance * 0.9 : distance;
+    }));
+  }
+
   // ── Distance Matrix Builder ───────────────────────────────────────────
 
   /**
    * Build NxN distance matrix using stored coordinates, geocoding only when absent.
    */
-  private async buildDistanceMatrix(stops: RouteStop[]): Promise<number[][]> {
+  private async buildDistanceMatrix(
+    stops: RouteStop[],
+    routeOptions: DrivingRouteOptions = {}
+  ): Promise<number[][]> {
     const locations = await Promise.all(stops.map(stop => this.resolveStopLocation(stop)));
     const n = locations.length;
     const matrix: number[][] = Array.from({ length: n }, () => 
@@ -633,7 +737,7 @@ class RouteOptimizationService {
         const cachedDistances = originBatch.flatMap(origin =>
           destBatch.map(destination => this.getCachedValue(
             this.distanceCache,
-            this.buildLookupKey(origin, destination)
+            this.buildLookupKey(origin, destination, routeOptions)
           ))
         );
 
@@ -650,7 +754,9 @@ class RouteOptimizationService {
         try {
           const results = await googleMapsService.getDistanceMatrix(
             originBatch,
-            destBatch
+            destBatch,
+            undefined,
+            routeOptions
           );
 
           // Map results back to matrix
@@ -664,7 +770,7 @@ class RouteOptimizationService {
                 matrix[globalI]![globalJ] = distance;
                 this.setCachedValue(
                   this.distanceCache,
-                  this.buildLookupKey(originBatch[oi]!, destBatch[dj]!),
+                  this.buildLookupKey(originBatch[oi]!, destBatch[dj]!, routeOptions),
                   distance
                 );
               }
@@ -693,16 +799,19 @@ class RouteOptimizationService {
 
   /** Apply time-window constraints: ensure stops with time windows are reachable */
   private applyTimeWindowConstraints(
-    stops: RouteStop[], 
+    stops: RouteStop[],
     order: number[],
+    distanceMatrix: number[][],
     vehicleSlots: number,
-    _departureTime?: string
+    departureTime: Date
   ): number[] {
     // If no stops have time windows, return as-is
     const hasTimeWindows = stops.some(s => s.timeWindow);
     if (!hasTimeWindows) return order;
 
     // Simple constraint: move high-urgency time-window stops earlier
+    if (this.isScheduleFeasible(stops, order, distanceMatrix, departureTime)) return order;
+
     const result = [...order];
     // Sort by urgency of time window (earliest deadline first) while keeping first stop fixed
     const fixed = result[0]!;
@@ -721,14 +830,22 @@ class RouteOptimizationService {
     });
 
     const candidate = [fixed, ...rest];
-    return this.isRouteFeasible(stops, candidate, vehicleSlots) ? candidate : order;
+    if (
+      this.isRouteFeasible(stops, candidate, vehicleSlots) &&
+      this.isScheduleFeasible(stops, candidate, distanceMatrix, departureTime)
+    ) {
+      return candidate;
+    }
+    throw new Error('No feasible route satisfies all stop time windows');
   }
 
   /** Apply priority constraints: high-priority stops get moved earlier */
   private applyPriorityConstraints(
     stops: RouteStop[],
     order: number[],
-    vehicleSlots: number
+    distanceMatrix: number[][],
+    vehicleSlots: number,
+    departureTime: Date
   ): number[] {
     const priorityWeight = { high: 0, medium: 1, low: 2 };
     
@@ -747,7 +864,10 @@ class RouteOptimizationService {
     });
 
     const candidate = [fixed, ...rest];
-    return this.isRouteFeasible(stops, candidate, vehicleSlots) ? candidate : order;
+    return this.isRouteFeasible(stops, candidate, vehicleSlots) &&
+      this.isScheduleFeasible(stops, candidate, distanceMatrix, departureTime)
+      ? candidate
+      : order;
   }
 
   // ── Route Building ────────────────────────────────────────────────────
@@ -757,7 +877,9 @@ class RouteOptimizationService {
     stops: RouteStop[],
     order: number[],
     distanceMatrix: number[][],
-    departureTime: Date
+    departureTime: Date,
+    routeOptions: DrivingRouteOptions,
+    commercialVehicle?: CommercialVehicleProfile
   ): Promise<{ optimizedStops: OptimizedStop[]; legs: RouteLeg[] }> {
     const optimizedStops: OptimizedStop[] = [];
     const legs: RouteLeg[] = [];
@@ -769,8 +891,21 @@ class RouteOptimizationService {
       const stop = stops[stopIdx]!;
 
       try {
-        return await this.getCachedDirections(prevStop, stop);
+        if (commercialVehicle) {
+          const [origin, destination] = await Promise.all([
+            this.resolveStopLocation(prevStop),
+            this.resolveStopLocation(stop),
+          ]);
+          return await commercialRoutingService.getDirections(
+            origin,
+            destination,
+            commercialVehicle,
+            routeOptions.avoidHighways === true
+          );
+        }
+        return await this.getCachedDirections(prevStop, stop, routeOptions);
       } catch (error) {
+        if (commercialVehicle) throw error;
         logger.warn('Directions lookup failed; using distance-matrix estimate', {
           fromStop: prevStop.id,
           toStop: stop.id,
@@ -783,7 +918,7 @@ class RouteOptimizationService {
     for (let i = 0; i < order.length; i++) {
       const stopIdx = order[i]!;
       const stop = stops[stopIdx]!;
-      const stopDuration = stop.estimatedDuration || 15; // default 15 min
+      const stopDuration = stop.estimatedDuration ?? 15; // default 15 min
 
       let distFromPrev = 0;
       let durFromPrev = 0;
@@ -829,6 +964,11 @@ class RouteOptimizationService {
         currentTime = new Date(currentTime.getTime() + durFromPrev * 60000);
       }
 
+      const window = this.parseTimeWindow(stop);
+      if (window && currentTime.getTime() < window.earliest) currentTime = new Date(window.earliest);
+      if (window && currentTime.getTime() > window.latest) {
+        throw new Error(`No feasible route reaches stop ${stop.id} before its latest time window`);
+      }
       const arrival = new Date(currentTime);
       const departure = new Date(currentTime.getTime() + stopDuration * 60000);
       currentTime = departure;
@@ -1035,6 +1175,66 @@ class RouteOptimizationService {
     return vehicleSlots;
   }
 
+  private buildLegalBaselineOrder(stops: RouteStop[], vehicleSlots: number): number[] {
+    const remaining = new Set(stops.map((_stop, index) => index).slice(1));
+    const order = [0];
+    while (remaining.size > 0) {
+      const next = [...remaining].find(index => this.isRouteFeasible(stops, [...order, index], vehicleSlots));
+      if (next === undefined) throw new Error('No legal baseline route satisfies pickup precedence and trailer capacity');
+      order.push(next);
+      remaining.delete(next);
+    }
+    return order;
+  }
+
+  private parseTimeWindow(stop: RouteStop): { earliest: number; latest: number } | null {
+    if (!stop.timeWindow) return null;
+    const earliest = new Date(stop.timeWindow.earliest).getTime();
+    const latest = new Date(stop.timeWindow.latest).getTime();
+    if (!Number.isFinite(earliest) || !Number.isFinite(latest) || earliest > latest) {
+      throw new Error(`Stop ${stop.id} has an invalid time window`);
+    }
+    return { earliest, latest };
+  }
+
+  private isScheduleFeasible(
+    stops: RouteStop[],
+    order: number[],
+    matrix: number[][],
+    departureTime: Date
+  ): boolean {
+    let currentTime = departureTime.getTime();
+    for (let index = 0; index < order.length; index++) {
+      const stopIndex = order[index]!;
+      if (index > 0) {
+        currentTime += this.metersToMinutes(matrix[order[index - 1]!]?.[stopIndex] ?? 0) * 60_000;
+      }
+      const stop = stops[stopIndex]!;
+      const window = this.parseTimeWindow(stop);
+      if (window) {
+        currentTime = Math.max(currentTime, window.earliest);
+        if (currentTime > window.latest) return false;
+      }
+      currentTime += (stop.estimatedDuration ?? 15) * 60_000;
+    }
+    return true;
+  }
+
+  private metersToMinutes(meters: number): number {
+    return (meters / 1000) / 72.4 * 60;
+  }
+
+  private describeCommercialRestrictions(profile: CommercialVehicleProfile): string[] {
+    const restrictions: string[] = [];
+    if (profile.heightFeet !== undefined) restrictions.push(`height ${profile.heightFeet} ft`);
+    if (profile.widthFeet !== undefined) restrictions.push(`width ${profile.widthFeet} ft`);
+    if (profile.lengthFeet !== undefined) restrictions.push(`length ${profile.lengthFeet} ft`);
+    if (profile.grossWeightPounds !== undefined) restrictions.push(`gross weight ${profile.grossWeightPounds} lb`);
+    if (profile.axleCount !== undefined) restrictions.push(`${profile.axleCount} axles`);
+    if (profile.hazmatTypes?.length) restrictions.push(`hazmat ${profile.hazmatTypes.join(', ')}`);
+    return restrictions;
+  }
+
   private isRouteFeasible(stops: RouteStop[], order: number[], vehicleSlots: number): boolean {
     const pairedShipments = new Set(
       stops
@@ -1077,22 +1277,33 @@ class RouteOptimizationService {
     return { lat: geocoded.latitude, lng: geocoded.longitude };
   }
 
-  private async getCachedDirections(from: RouteStop, to: RouteStop): Promise<DirectionsResult> {
+  private async getCachedDirections(
+    from: RouteStop,
+    to: RouteStop,
+    routeOptions: DrivingRouteOptions = {}
+  ): Promise<DirectionsResult> {
     const [origin, destination] = await Promise.all([
       this.resolveStopLocation(from),
       this.resolveStopLocation(to),
     ]);
-    const key = this.buildLookupKey(origin, destination);
+    const key = this.buildLookupKey(origin, destination, routeOptions);
     const cached = this.getCachedValue(this.directionsCache, key);
     if (cached) return cached;
 
-    const directions = await googleMapsService.getDirections(origin, destination);
+    const directions = await googleMapsService.getDirections(origin, destination, undefined, routeOptions);
     this.setCachedValue(this.directionsCache, key, directions);
     return directions;
   }
 
-  private buildLookupKey(origin: RouteLocation, destination: RouteLocation): string {
-    return `${this.locationCacheKey(origin)}>${this.locationCacheKey(destination)}`;
+  private buildLookupKey(
+    origin: RouteLocation,
+    destination: RouteLocation,
+    routeOptions: DrivingRouteOptions = {}
+  ): string {
+    const trafficBucket = routeOptions.departureTime
+      ? Math.floor(routeOptions.departureTime.getTime() / (15 * 60 * 1000))
+      : 'none';
+    return `${this.locationCacheKey(origin)}>${this.locationCacheKey(destination)}|avoidHighways:${routeOptions.avoidHighways === true}|departure:${trafficBucket}`;
   }
 
   private locationCacheKey(location: RouteLocation): string {
@@ -1128,46 +1339,22 @@ class RouteOptimizationService {
     return 6_371_000 * 2 * Math.atan2(Math.sqrt(haversine), Math.sqrt(1 - haversine));
   }
 
-  /** Calculate naive (original order) route distance */
-  private calculateNaiveDistance(matrix: number[][], n: number): number {
-    let total = 0;
-    for (let i = 0; i < n - 1; i++) {
-      total += matrix[i]?.[i + 1] ?? 0;
-    }
-    return total;
-  }
-
   /** Calculate time saved in minutes */
   private calculateTimeSaved(
-    matrix: number[][], 
-    optimizedOrder: number[], 
-    n: number
+    matrix: number[][],
+    optimizedOrder: number[],
+    baselineOrder: number[]
   ): number {
-    // Naive time: sequential order at avg 45mph
-    let naiveMeters = 0;
-    for (let i = 0; i < n - 1; i++) {
-      naiveMeters += matrix[i]?.[i + 1] ?? 0;
-    }
-    
-    // Optimized time
-    let optMeters = 0;
-    for (let i = 0; i < optimizedOrder.length - 1; i++) {
-      const from = optimizedOrder[i]!;
-      const to = optimizedOrder[i + 1]!;
-      optMeters += matrix[from]?.[to] ?? 0;
-    }
-
-    // Convert meters to minutes at avg 45 mph (72.4 km/h)
-    const naiveMinutes = (naiveMeters / 1000) / 72.4 * 60;
-    const optMinutes = (optMeters / 1000) / 72.4 * 60;
-
-    return Math.round(naiveMinutes - optMinutes);
+    const baselineMinutes = this.metersToMinutes(this.calculateRouteDistance(matrix, baselineOrder));
+    const optimizedMinutes = this.metersToMinutes(this.calculateRouteDistance(matrix, optimizedOrder));
+    return Math.round(baselineMinutes - optimizedMinutes);
   }
 
   /** Calculate empty miles saved by grouping pickups/deliveries */
   private calculateEmptyMilesSaved(
-    stops: RouteStop[], 
-    order: number[], 
+    stops: RouteStop[],
+    order: number[],
+    baselineOrder: number[],
     matrix: number[][]
   ): number {
     // Compare only delivery-to-pickup repositioning transitions.
@@ -1182,15 +1369,17 @@ class RouteOptimizationService {
       }
     }
     
-    // Naive empty miles
-    let naiveEmpty = 0;
-    for (let i = 0; i < stops.length - 1; i++) {
-      if (stops[i]?.type === 'delivery' && stops[i + 1]?.type === 'pickup') {
-        naiveEmpty += (matrix[i]?.[i + 1] ?? 0) / 1609.34;
+    // Legal-baseline empty miles
+    let baselineEmpty = 0;
+    for (let i = 0; i < baselineOrder.length - 1; i++) {
+      const currentIndex = baselineOrder[i]!;
+      const nextIndex = baselineOrder[i + 1]!;
+      if (stops[currentIndex]?.type === 'delivery' && stops[nextIndex]?.type === 'pickup') {
+        baselineEmpty += (matrix[currentIndex]?.[nextIndex] ?? 0) / 1609.34;
       }
     }
 
-    return Math.max(0, Math.round((naiveEmpty - emptyMiles) * 10) / 10);
+    return Math.max(0, Math.round((baselineEmpty - emptyMiles) * 10) / 10);
   }
 
   /** Get regional fuel price based on address state */

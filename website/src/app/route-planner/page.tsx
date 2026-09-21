@@ -33,6 +33,25 @@ interface PlannerStop {
   serviceMinutes: number
   latitude?: number
   longitude?: number
+  timeWindow?: { earliest: string; latest: string }
+}
+
+interface RoutePlannerOptions {
+  vehicleType: string
+  vehicleSlots: number
+  returnToOrigin: boolean
+  avoidHighways: boolean
+  preferHighway: boolean
+  maxHours?: number
+  maxDetourMinutes?: number
+  commercialVehicle?: {
+    heightFeet: number
+    widthFeet: number
+    lengthFeet: number
+    grossWeightPounds: number
+    axleCount: number
+    hazmatTypes: string[]
+  }
 }
 
 interface SavedLocation {
@@ -52,7 +71,7 @@ interface SavedRoute {
   id: string
   name: string
   stops: PlannerStop[]
-  options: Record<string, unknown>
+  options: Partial<RoutePlannerOptions>
   recurrence: Recurrence | null
   next_run_at: string | null
   is_recurring: boolean
@@ -78,6 +97,12 @@ interface OptimizedRoute {
     distanceSaved: number
     timeSaved: number
     percentImprovement: number
+  }
+  constraintWarnings: string[]
+  commercialCompliance: {
+    status: 'verified' | 'profile_required' | 'not_requested'
+    provider: 'here' | null
+    restrictions: string[]
   }
 }
 
@@ -106,6 +131,14 @@ export default function StandaloneRoutePlannerPage() {
   const [businessName, setBusinessName] = useState('')
   const [vehicleType, setVehicleType] = useState('default')
   const [vehicleSlots, setVehicleSlots] = useState(1)
+  const [routingPreference, setRoutingPreference] = useState<'fastest' | 'preferHighway' | 'avoidHighways'>('fastest')
+  const [returnToOrigin, setReturnToOrigin] = useState(false)
+  const [maxHours, setMaxHours] = useState('')
+  const [maxDetourMinutes, setMaxDetourMinutes] = useState('')
+  const [verifyCommercialRoute, setVerifyCommercialRoute] = useState(false)
+  const [commercialVehicle, setCommercialVehicle] = useState({
+    heightFeet: '13.5', widthFeet: '8.5', lengthFeet: '75', grossWeightPounds: '80000', axleCount: '5', hazmatTypes: '',
+  })
   const [stops, setStops] = useState<PlannerStop[]>([newStop(0, 'draft-origin'), newStop(1, 'draft-stop-2')])
   const [routeName, setRouteName] = useState('')
   const [currentRouteId, setCurrentRouteId] = useState<string | null>(null)
@@ -221,10 +254,30 @@ export default function StandaloneRoutePlannerPage() {
     setResult(null)
   }
 
+  const routeOptions = (): RoutePlannerOptions => ({
+    vehicleType,
+    vehicleSlots,
+    returnToOrigin,
+    avoidHighways: routingPreference === 'avoidHighways',
+    preferHighway: routingPreference === 'preferHighway',
+    ...(maxHours ? { maxHours: Number(maxHours) } : {}),
+    ...(maxDetourMinutes ? { maxDetourMinutes: Number(maxDetourMinutes) } : {}),
+    ...(verifyCommercialRoute ? {
+      commercialVehicle: {
+        heightFeet: Number(commercialVehicle.heightFeet),
+        widthFeet: Number(commercialVehicle.widthFeet),
+        lengthFeet: Number(commercialVehicle.lengthFeet),
+        grossWeightPounds: Number(commercialVehicle.grossWeightPounds),
+        axleCount: Number(commercialVehicle.axleCount),
+        hazmatTypes: commercialVehicle.hazmatTypes.split(',').map(value => value.trim()).filter(Boolean),
+      },
+    } : {}),
+  })
+
   const routePayload = () => ({
     name: routeName.trim(),
     stops,
-    options: { vehicleType, vehicleSlots },
+    options: routeOptions(),
     recurrence: recurring ? {
       frequency,
       interval: 1,
@@ -236,6 +289,13 @@ export default function StandaloneRoutePlannerPage() {
     if (stops.length < 2) throw new Error('Add at least two stops')
     if (stops.some(stop => !stop.address.trim())) throw new Error('Every stop needs an address')
     if (requireName && !routeName.trim()) throw new Error('Give this route a name')
+    if (maxHours && (!Number.isFinite(Number(maxHours)) || Number(maxHours) <= 0)) throw new Error('Maximum hours must be greater than zero')
+    if (maxDetourMinutes && (!Number.isFinite(Number(maxDetourMinutes)) || Number(maxDetourMinutes) < 0)) throw new Error('Maximum detour cannot be negative')
+    for (const stop of stops) {
+      if (stop.timeWindow && new Date(stop.timeWindow.earliest) > new Date(stop.timeWindow.latest)) {
+        throw new Error(`${stop.name || stop.address} has an invalid time window`)
+      }
+    }
   }
 
   const optimize = async () => {
@@ -244,7 +304,7 @@ export default function StandaloneRoutePlannerPage() {
       validateRoute()
       const data = await api<OptimizedRoute>('/optimize', {
         method: 'POST',
-        body: JSON.stringify({ stops, options: { vehicleType, vehicleSlots }, routeId: currentRouteId }),
+        body: JSON.stringify({ stops, options: routeOptions(), routeId: currentRouteId }),
       })
       setResult(data)
       flash('Route optimized')
@@ -277,6 +337,23 @@ export default function StandaloneRoutePlannerPage() {
     setCurrentRouteId(route.id)
     setRouteName(route.name)
     setStops(route.stops)
+    setVehicleType(route.options.vehicleType ?? vehicleType)
+    setVehicleSlots(route.options.vehicleSlots ?? vehicleSlots)
+    setRoutingPreference(route.options.avoidHighways ? 'avoidHighways' : route.options.preferHighway ? 'preferHighway' : 'fastest')
+    setReturnToOrigin(route.options.returnToOrigin === true)
+    setMaxHours(route.options.maxHours === undefined ? '' : String(route.options.maxHours))
+    setMaxDetourMinutes(route.options.maxDetourMinutes === undefined ? '' : String(route.options.maxDetourMinutes))
+    setVerifyCommercialRoute(Boolean(route.options.commercialVehicle))
+    if (route.options.commercialVehicle) {
+      setCommercialVehicle({
+        heightFeet: String(route.options.commercialVehicle.heightFeet),
+        widthFeet: String(route.options.commercialVehicle.widthFeet),
+        lengthFeet: String(route.options.commercialVehicle.lengthFeet),
+        grossWeightPounds: String(route.options.commercialVehicle.grossWeightPounds),
+        axleCount: String(route.options.commercialVehicle.axleCount),
+        hazmatTypes: route.options.commercialVehicle.hazmatTypes.join(', '),
+      })
+    }
     setRecurring(route.is_recurring)
     setFrequency(route.recurrence?.frequency ?? 'weekly')
     setRecurrenceStart(route.recurrence?.startsAt ? localDateTime(new Date(route.recurrence.startsAt)) : localDateTime())
@@ -425,12 +502,18 @@ export default function StandaloneRoutePlannerPage() {
               </div>
               <div className="divide-y divide-[#e4ebe9]">
                 {stops.map((stop, index) => (
-                  <div key={stop.id} className="grid gap-3 px-5 py-4 md:grid-cols-[34px_minmax(120px,.45fr)_minmax(220px,1fr)_110px_36px] md:items-center">
-                    <span className="grid h-8 w-8 place-items-center bg-[#e4f3f1] text-sm font-bold text-[#00756d]">{index + 1}</span>
-                    <input aria-label={`Stop ${index + 1} name`} value={stop.name} onChange={event => updateStop(stop.id, { name: event.target.value })} placeholder="Stop name" className="h-10 border border-[#c6d4d2] px-3 text-sm outline-none focus:border-[#008c82]" />
-                    <div className="relative"><MapPin className="absolute left-3 top-3 h-4 w-4 text-[#708482]" /><input aria-label={`Stop ${index + 1} address`} list="saved-locations" value={stop.address} onChange={event => updateStop(stop.id, { address: event.target.value, latitude: undefined, longitude: undefined })} placeholder={index === 0 ? 'Starting address' : 'Street, city, state'} className="h-10 w-full border border-[#c6d4d2] pl-9 pr-3 text-sm outline-none focus:border-[#008c82]" /></div>
-                    <label className="flex items-center gap-2 text-xs text-[#617775]"><input aria-label={`Stop ${index + 1} service minutes`} type="number" min={0} max={1440} value={stop.serviceMinutes} onChange={event => updateStop(stop.id, { serviceMinutes: Number(event.target.value) })} className="h-10 w-16 border border-[#c6d4d2] px-2 text-sm" /> min</label>
-                    <button onClick={() => removeStop(stop.id)} disabled={stops.length <= 2 || index === 0} title="Remove stop" className="grid h-9 w-9 place-items-center text-[#8a5c58] hover:bg-red-50 disabled:opacity-25"><Trash2 className="h-4 w-4" /></button>
+                  <div key={stop.id} className="px-5 py-4">
+                    <div className="grid gap-3 md:grid-cols-[34px_minmax(120px,.45fr)_minmax(220px,1fr)_110px_36px] md:items-center">
+                      <span className="grid h-8 w-8 place-items-center bg-[#e4f3f1] text-sm font-bold text-[#00756d]">{index + 1}</span>
+                      <input aria-label={`Stop ${index + 1} name`} value={stop.name} onChange={event => updateStop(stop.id, { name: event.target.value })} placeholder="Stop name" className="h-10 border border-[#c6d4d2] px-3 text-sm outline-none focus:border-[#008c82]" />
+                      <div className="relative"><MapPin className="absolute left-3 top-3 h-4 w-4 text-[#708482]" /><input aria-label={`Stop ${index + 1} address`} list="saved-locations" value={stop.address} onChange={event => updateStop(stop.id, { address: event.target.value, latitude: undefined, longitude: undefined })} placeholder={index === 0 ? 'Starting address' : 'Street, city, state'} className="h-10 w-full border border-[#c6d4d2] pl-9 pr-3 text-sm outline-none focus:border-[#008c82]" /></div>
+                      <label className="flex items-center gap-2 text-xs text-[#617775]"><input aria-label={`Stop ${index + 1} service minutes`} type="number" min={0} max={1440} value={stop.serviceMinutes} onChange={event => updateStop(stop.id, { serviceMinutes: Number(event.target.value) })} className="h-10 w-16 border border-[#c6d4d2] px-2 text-sm" /> min</label>
+                      <button onClick={() => removeStop(stop.id)} disabled={stops.length <= 2 || index === 0} title="Remove stop" className="grid h-9 w-9 place-items-center text-[#8a5c58] hover:bg-red-50 disabled:opacity-25"><Trash2 className="h-4 w-4" /></button>
+                    </div>
+                    <div className="mt-3 flex flex-wrap items-center gap-3 pl-0 md:pl-[46px]">
+                      <label className="flex items-center gap-2 text-xs font-semibold text-[#617775]"><input type="checkbox" checked={Boolean(stop.timeWindow)} onChange={event => updateStop(stop.id, { timeWindow: event.target.checked ? { earliest: new Date().toISOString(), latest: new Date(Date.now() + 2 * 60 * 60_000).toISOString() } : undefined })} className="h-4 w-4 accent-[#008c82]" />Time window</label>
+                      {stop.timeWindow && <><input aria-label={`Stop ${index + 1} earliest time`} type="datetime-local" value={localDateTime(new Date(stop.timeWindow.earliest))} onChange={event => updateStop(stop.id, { timeWindow: { ...stop.timeWindow!, earliest: new Date(event.target.value).toISOString() } })} className="h-9 border border-[#c6d4d2] px-2 text-xs" /><span className="text-xs text-[#718482]">to</span><input aria-label={`Stop ${index + 1} latest time`} type="datetime-local" value={localDateTime(new Date(stop.timeWindow.latest))} onChange={event => updateStop(stop.id, { timeWindow: { ...stop.timeWindow!, latest: new Date(event.target.value).toISOString() } })} className="h-9 border border-[#c6d4d2] px-2 text-xs" /></>}
+                    </div>
                   </div>
                 ))}
               </div>
@@ -445,13 +528,18 @@ export default function StandaloneRoutePlannerPage() {
                   <label><span className="mb-1 block text-xs font-semibold text-[#617775]">Vehicle</span><select value={vehicleType} onChange={event => setVehicleType(event.target.value)} className="h-10 w-full border border-[#c6d4d2] bg-white px-2 text-sm"><option value="default">Standard</option><option value="car_hauler_loaded">Car hauler</option><option value="pickup_with_trailer">Pickup + trailer</option><option value="flatbed_loaded">Flatbed</option><option value="enclosed_loaded">Enclosed</option></select></label>
                   <label><span className="mb-1 block text-xs font-semibold text-[#617775]">Capacity</span><input type="number" min={1} max={100} value={vehicleSlots} onChange={event => setVehicleSlots(Number(event.target.value))} className="h-10 w-full border border-[#c6d4d2] px-3 text-sm" /></label>
                 </div>
+                <label className="mt-4 block"><span className="mb-1 block text-xs font-semibold text-[#617775]">Routing mode</span><select value={routingPreference} onChange={event => setRoutingPreference(event.target.value as typeof routingPreference)} className="h-10 w-full border border-[#c6d4d2] bg-white px-2 text-sm"><option value="fastest">Fastest available</option><option value="preferHighway">Prefer highways</option><option value="avoidHighways">Avoid highways</option></select></label>
+                <label className="mt-3 flex items-center gap-2 text-sm font-semibold"><input type="checkbox" checked={returnToOrigin} onChange={event => setReturnToOrigin(event.target.checked)} className="h-4 w-4 accent-[#008c82]" />Return to origin</label>
+                <div className="mt-3 grid grid-cols-2 gap-3"><label><span className="mb-1 block text-xs font-semibold text-[#617775]">Maximum hours</span><input type="number" min="0.1" step="0.5" value={maxHours} onChange={event => setMaxHours(event.target.value)} placeholder="No limit" className="h-10 w-full border border-[#c6d4d2] px-2 text-sm" /></label><label><span className="mb-1 block text-xs font-semibold text-[#617775]">Maximum detour</span><div className="flex items-center gap-2"><input type="number" min="0" value={maxDetourMinutes} onChange={event => setMaxDetourMinutes(event.target.value)} placeholder="No limit" className="h-10 min-w-0 flex-1 border border-[#c6d4d2] px-2 text-sm" /><span className="text-xs text-[#617775]">min</span></div></label></div>
+                <label className="mt-4 flex items-center gap-2 text-sm font-semibold"><input type="checkbox" checked={verifyCommercialRoute} onChange={event => setVerifyCommercialRoute(event.target.checked)} className="h-4 w-4 accent-[#008c82]" />Verify commercial road restrictions</label>
+                {verifyCommercialRoute && <div className="mt-3 grid grid-cols-2 gap-3 border-l-2 border-[#008c82] pl-3"><label><span className="mb-1 block text-xs text-[#617775]">Height (ft)</span><input type="number" min="1" step="0.1" value={commercialVehicle.heightFeet} onChange={event => setCommercialVehicle(current => ({ ...current, heightFeet: event.target.value }))} className="h-9 w-full border border-[#c6d4d2] px-2 text-sm" /></label><label><span className="mb-1 block text-xs text-[#617775]">Width (ft)</span><input type="number" min="1" step="0.1" value={commercialVehicle.widthFeet} onChange={event => setCommercialVehicle(current => ({ ...current, widthFeet: event.target.value }))} className="h-9 w-full border border-[#c6d4d2] px-2 text-sm" /></label><label><span className="mb-1 block text-xs text-[#617775]">Length (ft)</span><input type="number" min="1" step="0.1" value={commercialVehicle.lengthFeet} onChange={event => setCommercialVehicle(current => ({ ...current, lengthFeet: event.target.value }))} className="h-9 w-full border border-[#c6d4d2] px-2 text-sm" /></label><label><span className="mb-1 block text-xs text-[#617775]">Gross weight (lb)</span><input type="number" min="1" value={commercialVehicle.grossWeightPounds} onChange={event => setCommercialVehicle(current => ({ ...current, grossWeightPounds: event.target.value }))} className="h-9 w-full border border-[#c6d4d2] px-2 text-sm" /></label><label><span className="mb-1 block text-xs text-[#617775]">Axles</span><input type="number" min="1" step="1" value={commercialVehicle.axleCount} onChange={event => setCommercialVehicle(current => ({ ...current, axleCount: event.target.value }))} className="h-9 w-full border border-[#c6d4d2] px-2 text-sm" /></label><label><span className="mb-1 block text-xs text-[#617775]">Hazmat types</span><input value={commercialVehicle.hazmatTypes} onChange={event => setCommercialVehicle(current => ({ ...current, hazmatTypes: event.target.value }))} placeholder="flammable, gas" className="h-9 w-full border border-[#c6d4d2] px-2 text-sm" /></label></div>}
                 <label className="mt-4 flex items-center gap-2 text-sm font-semibold"><input type="checkbox" checked={recurring} onChange={event => setRecurring(event.target.checked)} className="h-4 w-4 accent-[#008c82]" />Repeat this route</label>
                 {recurring && <div className="mt-3 grid grid-cols-2 gap-3"><select value={frequency} onChange={event => setFrequency(event.target.value as Recurrence['frequency'])} className="h-10 border border-[#c6d4d2] bg-white px-2 text-sm"><option value="daily">Daily</option><option value="weekly">Weekly</option><option value="monthly">Monthly</option></select><input type="datetime-local" value={recurrenceStart} onChange={event => setRecurrenceStart(event.target.value)} className="h-10 border border-[#c6d4d2] px-2 text-xs" /></div>}
                 <div className="mt-5 grid grid-cols-2 gap-2"><button onClick={saveRoute} disabled={busy} className="flex h-10 items-center justify-center gap-2 border border-[#008c82] text-sm font-bold text-[#00756d] hover:bg-[#edf8f6] disabled:opacity-50"><Save className="h-4 w-4" />{currentRouteId ? 'Update' : 'Save'}</button><button onClick={optimize} disabled={busy} className="flex h-10 items-center justify-center gap-2 bg-[#008c82] text-sm font-bold text-white hover:bg-[#00756d] disabled:opacity-50"><Navigation className={`h-4 w-4 ${busy ? 'animate-spin' : ''}`} />Optimize</button></div>
                 <p className="mt-3 text-xs leading-5 text-[#718482]">CSV/XLSX headers: <strong>address</strong>, with optional name, service_minutes, type, and notes.</p>
               </section>
 
-              {result && <section className="border border-[#9fc7c2] bg-[#f8fbfa] p-5"><div className="flex items-center justify-between"><h2 className="font-semibold">Optimized route</h2><span className="bg-[#dff2ee] px-2 py-1 text-xs font-bold text-[#00756d]">{result.summary.efficiencyScore}/100</span></div><div className="mt-4 grid grid-cols-2 gap-px bg-[#cbd8d6]"><Metric icon={Route} label="Distance" value={`${result.summary.totalDistance} mi`} /><Metric icon={Clock} label="Duration" value={`${Math.round(result.summary.totalDuration / 6) / 10} hr`} /><Metric icon={Fuel} label="Fuel" value={`$${result.summary.totalFuelCost.toFixed(2)}`} /><Metric icon={Navigation} label="Finish" value={new Date(result.summary.estimatedEndTime).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })} /></div><ol className="mt-4 space-y-3">{result.stops.map(stop => <li key={stop.id} className="flex gap-3 text-sm"><span className="grid h-6 w-6 shrink-0 place-items-center bg-[#173f40] text-xs font-bold text-white">{stop.order}</span><div><p className="font-semibold">{stop.vehicleInfo || stop.name || stop.address}</p><p className="text-xs text-[#657a78]">{stop.address}</p></div></li>)}</ol></section>}
+              {result && <section className="border border-[#9fc7c2] bg-[#f8fbfa] p-5"><div className="flex items-center justify-between"><h2 className="font-semibold">Optimized route</h2><span className="bg-[#dff2ee] px-2 py-1 text-xs font-bold text-[#00756d]">{result.summary.efficiencyScore}/100</span></div><div className="mt-4 grid grid-cols-2 gap-px bg-[#cbd8d6]"><Metric icon={Route} label="Distance" value={`${result.summary.totalDistance} mi`} /><Metric icon={Clock} label="Duration" value={`${Math.round(result.summary.totalDuration / 6) / 10} hr`} /><Metric icon={Fuel} label="Fuel" value={`$${result.summary.totalFuelCost.toFixed(2)}`} /><Metric icon={Navigation} label="Finish" value={new Date(result.summary.estimatedEndTime).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })} /></div>{result.commercialCompliance.status === 'verified' && <p className="mt-3 border border-emerald-200 bg-emerald-50 p-2 text-xs font-semibold text-emerald-800">Commercial route verified by HERE for {result.commercialCompliance.restrictions.join(', ')}.</p>}{result.constraintWarnings.map(warning => <p key={warning} className="mt-2 border border-amber-200 bg-amber-50 p-2 text-xs text-amber-800">{warning}</p>)}<ol className="mt-4 space-y-3">{result.stops.map(stop => <li key={`${stop.order}-${stop.id}`} className="flex gap-3 text-sm"><span className="grid h-6 w-6 shrink-0 place-items-center bg-[#173f40] text-xs font-bold text-white">{stop.order}</span><div><p className="font-semibold">{stop.vehicleInfo || stop.name || stop.address}</p><p className="text-xs text-[#657a78]">{stop.address}</p></div></li>)}</ol></section>}
             </aside>
           </div>
         )}

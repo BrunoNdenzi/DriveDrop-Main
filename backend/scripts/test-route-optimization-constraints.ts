@@ -1,5 +1,7 @@
 import assert from 'node:assert/strict';
+import config from '../src/config';
 import { googleMapsService } from '../src/services/google-maps.service';
+import { pricingLiveEvidenceService } from '../src/services/pricingLiveEvidence.service';
 import { routeOptimizationService, RouteStop } from '../src/services/RouteOptimizationService';
 
 const stops: RouteStop[] = [
@@ -27,6 +29,7 @@ let geocodeCalls = 0;
 let directionsCalls = 0;
 let activeDirections = 0;
 let maxActiveDirections = 0;
+let avoidHighwaysObserved = false;
 
 function locationKey(location: string | { lat: number; lng: number }): string {
   assert.notEqual(typeof location, 'string');
@@ -39,8 +42,9 @@ googleMapsService.geocodeAddress = async () => {
   throw new Error('Stored coordinates should avoid geocoding');
 };
 
-googleMapsService.getDistanceMatrix = async (origins, destinations) => {
+googleMapsService.getDistanceMatrix = async (origins, destinations, _mode, options) => {
   matrixCalls++;
+  avoidHighwaysObserved ||= options?.avoidHighways === true;
   return origins.flatMap(origin => destinations.map(destination => {
     const originIndex = locationIndex.get(locationKey(origin))!;
     const destinationIndex = locationIndex.get(locationKey(destination))!;
@@ -55,8 +59,9 @@ googleMapsService.getDistanceMatrix = async (origins, destinations) => {
   }));
 };
 
-googleMapsService.getDirections = async (origin, destination) => {
+googleMapsService.getDirections = async (origin, destination, _mode, options) => {
   directionsCalls++;
+  avoidHighwaysObserved ||= options?.avoidHighways === true;
   activeDirections++;
   maxActiveDirections = Math.max(maxActiveDirections, activeDirections);
   await new Promise(resolve => setTimeout(resolve, 10));
@@ -102,6 +107,7 @@ async function main(): Promise<void> {
   assert.equal(geocodeCalls, 0);
   assert.equal(matrixCalls, 1);
   assert.ok(maxActiveDirections > 1, 'Directions calls should run concurrently');
+  assert.equal(first.savings.percentImprovement, 0, 'A legal baseline must never produce negative savings');
 
   const firstDirectionsCalls = directionsCalls;
   const second = await routeOptimizationService.optimizeRoute(stops, { vehicleSlots: 1 });
@@ -109,7 +115,97 @@ async function main(): Promise<void> {
   assert.equal(matrixCalls, 1, 'Second optimization should use the distance cache');
   assert.equal(directionsCalls, firstDirectionsCalls, 'Second optimization should use the directions cache');
 
-  console.log('Route optimizer constraint, coordinate, cache, and concurrency checks passed.');
+  const roundTrip = await routeOptimizationService.optimizeRoute(stops, {
+    vehicleSlots: 1,
+    returnToOrigin: true,
+    avoidHighways: true,
+  });
+  assert.equal(roundTrip.stops.at(-1)?.id, 'start', 'returnToOrigin must close the route');
+  assert.ok(avoidHighwaysObserved, 'avoidHighways must reach the routing provider');
+
+  await assert.rejects(
+    routeOptimizationService.optimizeRoute(stops, { vehicleSlots: 1, maxHours: 0.001 }),
+    /maxHours/
+  );
+  await assert.rejects(
+    routeOptimizationService.optimizeRoute(stops, { vehicleSlots: 1, maxDetourMinutes: 0 }),
+    /maxDetourMinutes/
+  );
+  await assert.rejects(
+    routeOptimizationService.optimizeRoute(stops, { avoidHighways: true, preferHighway: true }),
+    /cannot both be enabled/
+  );
+
+  const impossibleWindowStops = stops.map(stop => ({ ...stop }));
+  impossibleWindowStops[1] = {
+    ...impossibleWindowStops[1]!,
+    timeWindow: {
+      earliest: '2030-01-01T08:00:00.000Z',
+      latest: '2030-01-01T08:00:00.001Z',
+    },
+  };
+  await assert.rejects(
+    routeOptimizationService.optimizeRoute(impossibleWindowStops, {
+      vehicleSlots: 1,
+      departureTime: '2030-01-01T08:00:00.000Z',
+    }),
+    /time window/
+  );
+
+  config.here.apiKey = 'test-here-key';
+  const originalFetch = globalThis.fetch;
+  const hereUrls: URL[] = [];
+  let trafficRouteCalls = 0;
+  globalThis.fetch = async input => {
+    const url = new URL(String(input));
+    if (url.hostname === 'router.hereapi.com') {
+      hereUrls.push(url);
+      return new Response(JSON.stringify({
+        routes: [{ sections: [{ summary: { length: 1609, duration: 120 }, polyline: 'test' }] }],
+      }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+    }
+    if (url.hostname === 'routes.googleapis.com') {
+      trafficRouteCalls++;
+      return new Response(JSON.stringify({
+        routes: [{ staticDuration: '100s', duration: '130s', distanceMeters: 1000 }],
+      }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+    }
+    return new Response('{}', { status: 503, headers: { 'Content-Type': 'application/json' } });
+  };
+
+  const commercialRoute = await routeOptimizationService.optimizeRoute(stops.slice(0, 2), {
+    vehicleSlots: 1,
+    commercialVehicle: {
+      heightFeet: 13.5,
+      widthFeet: 8.5,
+      lengthFeet: 75,
+      grossWeightPounds: 80_000,
+      axleCount: 5,
+      hazmatTypes: ['flammable'],
+    },
+  });
+  assert.equal(commercialRoute.commercialCompliance.status, 'verified');
+  assert.equal(hereUrls.length, 1, 'Every commercial leg must be verified by HERE truck routing');
+  assert.equal(hereUrls[0]?.searchParams.get('transportMode'), 'truck');
+  assert.equal(hereUrls[0]?.searchParams.get('vehicle[height]'), '411');
+  assert.equal(hereUrls[0]?.searchParams.get('vehicle[grossWeight]'), '36287');
+  assert.equal(hereUrls[0]?.searchParams.get('vehicle[shippedHazardousGoods]'), 'flammable');
+
+  let geocodeIndex = 0;
+  googleMapsService.geocodeAddress = async address => ({
+    address,
+    latitude: 35 + geocodeIndex * 0.1,
+    longitude: -80 - geocodeIndex++ * 0.1,
+  });
+  const evidence = await pricingLiveEvidenceService.collectRoute(['Origin', 'Middle', 'Destination']);
+  assert.equal(trafficRouteCalls, 2, 'Traffic evidence must evaluate every optimized leg');
+  assert.equal(evidence.traffic.status, 'available');
+  assert.equal(evidence.traffic.evidence?.evaluatedLegs, 2);
+  assert.equal(evidence.traffic.evidence?.totalLegs, 2);
+  assert.equal(evidence.traffic.evidence?.delaySeconds, 60);
+  globalThis.fetch = originalFetch;
+
+  console.log('Route optimizer legality, options, schedule, traffic, truck routing, cache, and concurrency checks passed.');
 }
 
 main().catch(error => {

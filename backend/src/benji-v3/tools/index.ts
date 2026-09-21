@@ -1297,11 +1297,9 @@ export async function execPlanRoute(
       ...(departureTime ? { departureTime } : {}),
       ...(vehicleSlots !== undefined ? { vehicleSlots } : {}),
     });
-    const firstPlannedStop = route.stops.find(stop => stop.type !== 'current_location');
-    const liveEvidence = firstPlannedStop
-      ? await (await import('../../services/pricingLiveEvidence.service')).pricingLiveEvidenceService.collect(
-          stops[0]!.address,
-          firstPlannedStop.address,
+    const liveEvidence = route.stops.length > 1
+      ? await (await import('../../services/pricingLiveEvidence.service')).pricingLiveEvidenceService.collectRoute(
+          route.stops.map(stop => stop.address),
         )
       : null;
 
@@ -1328,10 +1326,10 @@ export async function execPlanRoute(
       ? `Delivery-to-pickup repositioning reduced by ${route.savings.emptyMilesSaved} miles versus the original order.\n`
       : '';
     const trafficNote = liveEvidence?.traffic.status === 'available' && liveEvidence.traffic.evidence
-      ? `Next-leg traffic delay: ${Math.round(liveEvidence.traffic.evidence.delaySeconds / 60)} minutes (Google Routes, observed ${liveEvidence.traffic.observedAt}).\n`
+      ? `Whole-route traffic delay: ${Math.round(liveEvidence.traffic.evidence.delaySeconds / 60)} minutes across ${liveEvidence.traffic.evidence.evaluatedLegs}/${liveEvidence.traffic.evidence.totalLegs} legs (Google Routes, observed ${liveEvidence.traffic.observedAt}).\n`
       : '';
     const weatherNote = liveEvidence?.weather.status === 'available' && liveEvidence.weather.evidence
-      ? `Next-leg midpoint weather: ${liveEvidence.weather.evidence.condition}, ${Math.round(liveEvidence.weather.evidence.temperatureFahrenheit)}°F, ${Math.round(liveEvidence.weather.evidence.windSpeedMph)} mph wind (OpenWeather, observed ${liveEvidence.weather.observedAt}).\n`
+      ? `Route midpoint weather: ${liveEvidence.weather.evidence.condition}, ${Math.round(liveEvidence.weather.evidence.temperatureFahrenheit)}°F, ${Math.round(liveEvidence.weather.evidence.windSpeedMph)} mph wind (OpenWeather, observed ${liveEvidence.weather.observedAt}).\n`
       : '';
     const summary = formatForSms(
       `Your optimized route covers ${shipments.length} shipment${shipments.length === 1 ? '' : 's'}.\n` +

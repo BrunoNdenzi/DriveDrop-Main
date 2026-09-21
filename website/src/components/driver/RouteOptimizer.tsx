@@ -86,7 +86,7 @@ interface EvidenceSource<T> {
 }
 
 interface RouteLiveEvidence {
-  traffic: EvidenceSource<{ delaySeconds: number; delayPercent: number }>
+  traffic: EvidenceSource<{ delaySeconds: number; delayPercent: number; evaluatedLegs: number; totalLegs: number }>
   tolls: EvidenceSource<{ currency: string; estimatedAmount: number; tollCount: number }>
   weather: EvidenceSource<{
     condition: string
@@ -140,6 +140,12 @@ interface OptimizedRoute {
   carolinaInsights: CarolinaInsight[]
   fuelStops: FuelStopRec[]
   benjiTips: string[]
+  constraintWarnings: string[]
+  commercialCompliance: {
+    status: 'verified' | 'profile_required' | 'not_requested'
+    provider: 'here' | null
+    restrictions: string[]
+  }
 }
 
 interface DailyPlan {
@@ -188,6 +194,14 @@ export default function RouteOptimizer({ driverId }: { driverId: string }) {
   const [vehicleType, setVehicleType] = useState('default')
   const [vehicleSlots, setVehicleSlots] = useState(1)
   const [departureTime, setDepartureTime] = useState('')
+  const [routingPreference, setRoutingPreference] = useState<'fastest' | 'preferHighway' | 'avoidHighways'>('preferHighway')
+  const [returnToOrigin, setReturnToOrigin] = useState(false)
+  const [maxHours, setMaxHours] = useState('11')
+  const [maxDetourMinutes, setMaxDetourMinutes] = useState('')
+  const [verifyCommercialRoute, setVerifyCommercialRoute] = useState(false)
+  const [commercialVehicle, setCommercialVehicle] = useState({
+    heightFeet: '13.5', widthFeet: '8.5', lengthFeet: '75', grossWeightPounds: '80000', axleCount: '5', hazmatTypes: '',
+  })
   const [optimizedRoute, setOptimizedRoute] = useState<OptimizedRoute | null>(null)
   const [dailyPlan, setDailyPlan] = useState<DailyPlan | null>(null)
   const [trafficConditions, setTrafficConditions] = useState<TrafficCondition[]>([])
@@ -350,6 +364,28 @@ export default function RouteOptimizer({ driverId }: { driverId: string }) {
 
   const selectedShipments = activeShipments.filter(s => selectedShipmentIds.has(s.id))
 
+  const routingOptions = () => ({
+    vehicleType,
+    vehicleSlots,
+    departureTime: departureTime || undefined,
+    returnToOrigin,
+    avoidHighways: routingPreference === 'avoidHighways',
+    preferHighway: routingPreference === 'preferHighway',
+    maxHours: maxHours ? Number(maxHours) : undefined,
+    maxDetourMinutes: maxDetourMinutes ? Number(maxDetourMinutes) : undefined,
+    prioritizeFuel: true,
+    ...(verifyCommercialRoute ? {
+      commercialVehicle: {
+        heightFeet: Number(commercialVehicle.heightFeet),
+        widthFeet: Number(commercialVehicle.widthFeet),
+        lengthFeet: Number(commercialVehicle.lengthFeet),
+        grossWeightPounds: Number(commercialVehicle.grossWeightPounds),
+        axleCount: Number(commercialVehicle.axleCount),
+        hazmatTypes: commercialVehicle.hazmatTypes.split(',').map(value => value.trim()).filter(Boolean),
+      },
+    } : {}),
+  })
+
   // ── Load Traffic on mount ──────────────────────────────────────────
 
   useEffect(() => {
@@ -378,12 +414,7 @@ export default function RouteOptimizer({ driverId }: { driverId: string }) {
         body: JSON.stringify({
           driverLocation: driverLocation.trim(),
           shipmentIds: selectedShipments.map(shipment => shipment.id),
-          options: {
-            vehicleType,
-            vehicleSlots,
-            departureTime: departureTime || undefined,
-            prioritizeFuel: true,
-          },
+          options: routingOptions(),
         }),
       })
 
@@ -420,11 +451,7 @@ export default function RouteOptimizer({ driverId }: { driverId: string }) {
         body: JSON.stringify({
           driverLocation: driverLocation.trim(),
           shipmentIds: selectedShipments.map(shipment => shipment.id),
-          options: {
-            vehicleType,
-            vehicleSlots,
-            departureTime: departureTime || undefined,
-          },
+          options: routingOptions(),
         }),
       })
 
@@ -714,6 +741,16 @@ export default function RouteOptimizer({ driverId }: { driverId: string }) {
             <span className="text-xs text-amber-600 ml-2">Pick up loads from Available Jobs first</span>
           )}
         </div>
+        <details className="mt-4 border-t border-gray-200 pt-4">
+          <summary className="cursor-pointer text-sm font-semibold text-gray-800">Routing constraints and commercial profile</summary>
+          <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-3">
+            <label><span className="mb-1 block text-xs font-medium text-gray-600">Routing mode</span><select value={routingPreference} onChange={event => setRoutingPreference(event.target.value as typeof routingPreference)} className="h-10 w-full rounded-md border border-gray-300 bg-white px-3 text-sm"><option value="fastest">Fastest available</option><option value="preferHighway">Prefer highways</option><option value="avoidHighways">Avoid highways</option></select></label>
+            <label><span className="mb-1 block text-xs font-medium text-gray-600">Maximum route hours</span><input type="number" min="0.1" step="0.5" value={maxHours} onChange={event => setMaxHours(event.target.value)} className="h-10 w-full rounded-md border border-gray-300 px-3 text-sm" /></label>
+            <label><span className="mb-1 block text-xs font-medium text-gray-600">Maximum detour minutes</span><input type="number" min="0" value={maxDetourMinutes} onChange={event => setMaxDetourMinutes(event.target.value)} placeholder="No limit" className="h-10 w-full rounded-md border border-gray-300 px-3 text-sm" /></label>
+          </div>
+          <div className="mt-3 flex flex-wrap gap-5"><label className="flex items-center gap-2 text-sm font-medium text-gray-700"><input type="checkbox" checked={returnToOrigin} onChange={event => setReturnToOrigin(event.target.checked)} className="h-4 w-4 accent-amber-500" />Return to origin</label><label className="flex items-center gap-2 text-sm font-medium text-gray-700"><input type="checkbox" checked={verifyCommercialRoute} onChange={event => setVerifyCommercialRoute(event.target.checked)} className="h-4 w-4 accent-amber-500" />Verify truck restrictions</label></div>
+          {verifyCommercialRoute && <div className="mt-4 grid grid-cols-2 gap-3 border-l-2 border-amber-500 pl-4 md:grid-cols-3 lg:grid-cols-6"><label><span className="mb-1 block text-xs text-gray-600">Height (ft)</span><input type="number" min="1" step="0.1" value={commercialVehicle.heightFeet} onChange={event => setCommercialVehicle(current => ({ ...current, heightFeet: event.target.value }))} className="h-9 w-full rounded-md border border-gray-300 px-2 text-sm" /></label><label><span className="mb-1 block text-xs text-gray-600">Width (ft)</span><input type="number" min="1" step="0.1" value={commercialVehicle.widthFeet} onChange={event => setCommercialVehicle(current => ({ ...current, widthFeet: event.target.value }))} className="h-9 w-full rounded-md border border-gray-300 px-2 text-sm" /></label><label><span className="mb-1 block text-xs text-gray-600">Length (ft)</span><input type="number" min="1" step="0.1" value={commercialVehicle.lengthFeet} onChange={event => setCommercialVehicle(current => ({ ...current, lengthFeet: event.target.value }))} className="h-9 w-full rounded-md border border-gray-300 px-2 text-sm" /></label><label><span className="mb-1 block text-xs text-gray-600">Gross weight (lb)</span><input type="number" min="1" value={commercialVehicle.grossWeightPounds} onChange={event => setCommercialVehicle(current => ({ ...current, grossWeightPounds: event.target.value }))} className="h-9 w-full rounded-md border border-gray-300 px-2 text-sm" /></label><label><span className="mb-1 block text-xs text-gray-600">Axles</span><input type="number" min="1" step="1" value={commercialVehicle.axleCount} onChange={event => setCommercialVehicle(current => ({ ...current, axleCount: event.target.value }))} className="h-9 w-full rounded-md border border-gray-300 px-2 text-sm" /></label><label><span className="mb-1 block text-xs text-gray-600">Hazmat</span><input value={commercialVehicle.hazmatTypes} onChange={event => setCommercialVehicle(current => ({ ...current, hazmatTypes: event.target.value }))} placeholder="flammable, gas" className="h-9 w-full rounded-md border border-gray-300 px-2 text-sm" /></label></div>}
+        </details>
       </div>
 
       {/* ── Shipment Picker ───────────────────────────────────────── */}
@@ -840,7 +877,7 @@ export default function RouteOptimizer({ driverId }: { driverId: string }) {
             />
             <SummaryCard
               icon={<TrendingUp className="h-5 w-5 text-emerald-500" />}
-              label="Saved"
+              label="Improvement"
               value={`${optimizedRoute.savings.percentImprovement}%`}
             />
           </div>
@@ -856,6 +893,13 @@ export default function RouteOptimizer({ driverId }: { driverId: string }) {
               </div>
             </div>
           )}
+
+          {optimizedRoute.commercialCompliance.status === 'verified' && (
+            <div className="flex items-start gap-3 rounded-lg border border-emerald-300 bg-emerald-50 px-4 py-3 text-emerald-900"><CheckCircle className="mt-0.5 h-5 w-5 shrink-0" /><div><p className="text-sm font-semibold">Commercial route verified by HERE</p><p className="text-xs">Restrictions: {optimizedRoute.commercialCompliance.restrictions.join(', ')}</p></div></div>
+          )}
+          {optimizedRoute.constraintWarnings.map(warning => (
+            <div key={warning} className="flex items-start gap-3 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-amber-900"><AlertTriangle className="mt-0.5 h-5 w-5 shrink-0" /><p className="text-xs">{warning}</p></div>
+          ))}
 
           <RouteConditions evidence={optimizedRoute.liveEvidence} />
 
@@ -1418,21 +1462,21 @@ function RouteConditions({ evidence }: { evidence: RouteLiveEvidence | null }) {
   return (
     <div className="bg-white rounded-lg border border-gray-200 p-4">
       <div className="flex items-center justify-between mb-3 gap-3">
-        <h3 className="text-sm font-semibold text-gray-900">Next Leg Conditions</h3>
+        <h3 className="text-sm font-semibold text-gray-900">Route Conditions</h3>
         <span className="text-xs text-gray-500 text-right">Provider observations, verify before departure</span>
       </div>
       <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
         <ConditionItem
           icon={<Route className="h-4 w-4 text-blue-600" />}
-          label="Next-leg traffic delay"
+          label="Whole-route traffic delay"
           value={unavailable(evidence.traffic)
             ? 'Unavailable'
             : `${Math.round(evidence.traffic.evidence!.delaySeconds / 60)} min (${Math.round(evidence.traffic.evidence!.delayPercent)}%)`}
-          source={`Google Routes · ${observed(evidence.traffic)}`}
+          source={`Google Routes · ${unavailable(evidence.traffic) ? 'coverage unavailable' : `${evidence.traffic.evidence!.evaluatedLegs}/${evidence.traffic.evidence!.totalLegs} legs`} · ${observed(evidence.traffic)}`}
         />
         <ConditionItem
           icon={<DollarSign className="h-4 w-4 text-emerald-600" />}
-          label="Next-leg estimated tolls"
+          label="Route estimated tolls"
           value={unavailable(evidence.tolls)
             ? 'Unavailable'
             : `$${evidence.tolls.evidence!.estimatedAmount.toFixed(2)} · ${evidence.tolls.evidence!.tollCount} toll${evidence.tolls.evidence!.tollCount === 1 ? '' : 's'}`}
@@ -1440,7 +1484,7 @@ function RouteConditions({ evidence }: { evidence: RouteLiveEvidence | null }) {
         />
         <ConditionItem
           icon={<Cloud className="h-4 w-4 text-sky-600" />}
-          label="Next-leg midpoint weather"
+          label="Route midpoint weather"
           value={unavailable(evidence.weather)
             ? 'Unavailable'
             : `${evidence.weather.evidence!.condition} · ${Math.round(evidence.weather.evidence!.temperatureFahrenheit)}°F · ${Math.round(evidence.weather.evidence!.windSpeedMph)} mph wind`}

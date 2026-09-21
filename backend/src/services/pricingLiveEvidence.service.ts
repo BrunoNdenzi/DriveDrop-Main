@@ -19,6 +19,8 @@ export interface PricingLiveEvidence {
     trafficDurationSeconds: number;
     delaySeconds: number;
     delayPercent: number;
+    evaluatedLegs: number;
+    totalLegs: number;
   }>;
   tolls: PricingEvidenceSource<{
     currency: string;
@@ -109,16 +111,26 @@ function parseGoogleDuration(value: unknown): number {
 
 class PricingLiveEvidenceService {
   async collect(origin: string, destination: string): Promise<PricingLiveEvidence> {
-    let originCoordinates: Coordinates;
-    let destinationCoordinates: Coordinates;
+    return this.collectRoute([origin, destination]);
+  }
+
+  async collectRoute(addresses: string[]): Promise<PricingLiveEvidence> {
+    if (addresses.length < 2) {
+      return {
+        traffic: unavailable('google_maps', 'ROUTE_REQUIRES_TWO_STOPS', 5),
+        tolls: unavailable('here', 'ROUTE_REQUIRES_TWO_STOPS', 5),
+        weather: unavailable('openweather', 'ROUTE_REQUIRES_TWO_STOPS', 5),
+        fuel: await this.getFuelFallback(),
+      };
+    }
+
+    let coordinates: Coordinates[];
 
     try {
-      const [originResult, destinationResult] = await Promise.all([
-        googleMapsService.geocodeAddress(origin),
-        googleMapsService.geocodeAddress(destination),
-      ]);
-      originCoordinates = originResult;
-      destinationCoordinates = destinationResult;
+      coordinates = await Promise.all(addresses.map(async address => {
+        const result = await googleMapsService.geocodeAddress(address);
+        return { latitude: result.latitude, longitude: result.longitude };
+      }));
     } catch {
       return {
         traffic: unavailable('google_maps', 'GEOCODING_UNAVAILABLE', 5),
@@ -128,18 +140,60 @@ class PricingLiveEvidenceService {
       };
     }
 
-    const [traffic, tolls, weather, fuel] = await Promise.all([
-      this.getTraffic(originCoordinates, destinationCoordinates),
+    const originCoordinates = coordinates[0]!;
+    const destinationCoordinates = coordinates[coordinates.length - 1]!;
+    const [trafficByLeg, tolls, weather, fuel] = await Promise.all([
+      Promise.all(coordinates.slice(1).map((destination, index) =>
+        this.getTraffic(coordinates[index]!, destination)
+      )),
       this.getTolls(originCoordinates, destinationCoordinates),
       this.getWeather(originCoordinates, destinationCoordinates),
       this.getFuel(originCoordinates),
     ]);
 
     return {
-      traffic,
+      traffic: this.aggregateTraffic(trafficByLeg),
       tolls,
       weather,
       fuel,
+    };
+  }
+
+  private aggregateTraffic(
+    legs: PricingLiveEvidence['traffic'][]
+  ): PricingLiveEvidence['traffic'] {
+    const availableLegs = legs.filter(leg => leg.status === 'available' && leg.evidence);
+    const observedAt = new Date();
+    if (availableLegs.length !== legs.length) {
+      return {
+        provider: 'google_maps',
+        status: legs.some(leg => leg.status === 'error') ? 'error' : 'unavailable',
+        observedAt: observedAt.toISOString(),
+        freshUntil: expiresAt(observedAt, 5),
+        latencyMs: legs.reduce((sum, leg) => sum + leg.latencyMs, 0),
+        errorCode: `TRAFFIC_COVERAGE_INCOMPLETE_${availableLegs.length}_OF_${legs.length}`,
+      };
+    }
+
+    const totals = availableLegs.reduce((sum, leg) => ({
+      normal: sum.normal + leg.evidence!.normalDurationSeconds,
+      traffic: sum.traffic + leg.evidence!.trafficDurationSeconds,
+    }), { normal: 0, traffic: 0 });
+    const delaySeconds = Math.max(0, totals.traffic - totals.normal);
+    return {
+      provider: 'google_maps',
+      status: 'available',
+      observedAt: observedAt.toISOString(),
+      freshUntil: expiresAt(observedAt, 15),
+      latencyMs: legs.reduce((sum, leg) => sum + leg.latencyMs, 0),
+      evidence: {
+        normalDurationSeconds: totals.normal,
+        trafficDurationSeconds: totals.traffic,
+        delaySeconds,
+        delayPercent: totals.normal > 0 ? (delaySeconds / totals.normal) * 100 : 0,
+        evaluatedLegs: availableLegs.length,
+        totalLegs: legs.length,
+      },
     };
   }
 
@@ -212,6 +266,8 @@ class PricingLiveEvidenceService {
           trafficDurationSeconds: trafficSeconds,
           delaySeconds,
           delayPercent: normalSeconds > 0 ? (delaySeconds / normalSeconds) * 100 : 0,
+          evaluatedLegs: 1,
+          totalLegs: 1,
         },
       };
     } catch (error) {

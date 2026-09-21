@@ -75,7 +75,8 @@ const query = {
     if (column === 'id') queriedShipmentIds = values;
     return query;
   },
-  order: async () => ({
+  order: () => query,
+  then: (resolve: (result: { data: typeof shipments; error: null }) => unknown) => resolve({
     data: queriedShipmentIds.length > 0
       ? shipments.filter(shipment => queriedShipmentIds.includes(shipment.id))
       : shipments,
@@ -129,7 +130,7 @@ googleMapsService.getDirections = async (origin, destination) => {
   };
 };
 
-pricingLiveEvidenceService.collect = async () => ({
+pricingLiveEvidenceService.collectRoute = async () => ({
   traffic: {
     provider: 'google_maps',
     status: 'available',
@@ -141,6 +142,8 @@ pricingLiveEvidenceService.collect = async () => ({
       trafficDurationSeconds: 720,
       delaySeconds: 120,
       delayPercent: 20,
+      evaluatedLegs: 4,
+      totalLegs: 4,
     },
   },
   tolls: {
@@ -218,8 +221,8 @@ async function main(): Promise<void> {
   assert.match(result.summary, /optimized route covers 2 shipments/i);
   assert.match(result.summary, /Total: .* miles .* hours/i);
   assert.match(result.summary, /\$217\.35 accepted payout/i);
-  assert.match(result.summary, /next-leg traffic delay: 2 minutes/i);
-  assert.match(result.summary, /next-leg midpoint weather: clear/i);
+  assert.match(result.summary, /whole-route traffic delay: 2 minutes across 4\/4 legs/i);
+  assert.match(result.summary, /route midpoint weather: clear/i);
   assert.doesNotMatch(result.summary, /assigned revenue/i);
   assert.ok(!result.summary.includes('**'), 'SMS summary should not contain markdown bold');
 

@@ -1,7 +1,7 @@
 /**
  * Google Maps service for geocoding, directions, and distance calculations
  */
-import { Client, TravelMode } from '@googlemaps/google-maps-services-js';
+import { Client, TrafficModel, TravelMode, TravelRestriction } from '@googlemaps/google-maps-services-js';
 import config from '@config';
 import { createError } from '@utils/error';
 import { logger } from '@utils/logger';
@@ -57,6 +57,11 @@ export interface DistanceMatrixResult {
     value: number; // in seconds
   };
   status: string;
+}
+
+export interface DrivingRouteOptions {
+  avoidHighways?: boolean | undefined;
+  departureTime?: Date | undefined;
 }
 
 /**
@@ -193,7 +198,8 @@ export const googleMapsService = {
   async getDirections(
     origin: string | { lat: number; lng: number },
     destination: string | { lat: number; lng: number },
-    mode: TravelMode = TravelMode.driving
+    mode: TravelMode = TravelMode.driving,
+    options: DrivingRouteOptions = {}
   ): Promise<DirectionsResult> {
     try {
       if (!config.googleMaps.apiKey) {
@@ -205,6 +211,11 @@ export const googleMapsService = {
           origin,
           destination,
           mode,
+          ...(options.avoidHighways ? { avoid: [TravelRestriction.highways] } : {}),
+          ...(options.departureTime ? {
+            departure_time: options.departureTime,
+            traffic_model: TrafficModel.best_guess,
+          } : {}),
           key: config.googleMaps.apiKey,
         },
       });
@@ -225,7 +236,7 @@ export const googleMapsService = {
 
       const directionsResult: DirectionsResult = {
         distance: leg.distance,
-        duration: leg.duration,
+          duration: leg.duration_in_traffic || leg.duration,
         startAddress: leg.start_address,
         endAddress: leg.end_address,
         polyline: route.overview_polyline.points,
@@ -260,7 +271,8 @@ export const googleMapsService = {
   async getDistanceMatrix(
     origins: (string | { lat: number; lng: number })[],
     destinations: (string | { lat: number; lng: number })[],
-    mode: TravelMode = TravelMode.driving
+    mode: TravelMode = TravelMode.driving,
+    options: DrivingRouteOptions = {}
   ): Promise<DistanceMatrixResult[]> {
     try {
       if (!config.googleMaps.apiKey) {
@@ -272,6 +284,11 @@ export const googleMapsService = {
           origins,
           destinations,
           mode,
+          ...(options.avoidHighways ? { avoid: [TravelRestriction.highways] } : {}),
+          ...(options.departureTime ? {
+            departure_time: options.departureTime,
+            traffic_model: TrafficModel.best_guess,
+          } : {}),
           key: config.googleMaps.apiKey,
         },
       });
@@ -286,7 +303,7 @@ export const googleMapsService = {
               originAddress: response.data.origin_addresses[originIndex] || 'Unknown',
               destinationAddress: response.data.destination_addresses[destinationIndex] || 'Unknown',
               distance: element.distance || { text: 'N/A', value: 0 },
-              duration: element.duration || { text: 'N/A', value: 0 },
+              duration: element.duration_in_traffic || element.duration || { text: 'N/A', value: 0 },
               status: element.status,
             });
           });

@@ -16,6 +16,13 @@ import { pricingLiveEvidenceService } from '../services/pricingLiveEvidence.serv
 const router = Router();
 
 const ROUTABLE_STATUSES = ['accepted', 'assigned', 'picked_up', 'in_transit'];
+const ROUTE_INPUT_ERROR = /must|cannot|requires|at least|no feasible|time window|capacity|precedence/i;
+
+function optimizationErrorResponse(res: Response, error: unknown, fallback: string): void {
+  const message = error instanceof Error ? error.message : fallback;
+  const status = ROUTE_INPUT_ERROR.test(message) ? 400 : 500;
+  res.status(status).json({ error: status === 400 ? message : fallback, details: message });
+}
 
 interface RoutableShipment {
   id: string;
@@ -24,12 +31,14 @@ interface RoutableShipment {
   title: string | null;
   status: string;
   driver_offer_amount: number | null;
+  pickup_date: string | null;
+  delivery_date: string | null;
 }
 
 async function loadAuthorizedShipments(shipmentIds: string[], userId: string, role: string) {
   let query = supabaseAdmin
     .from('shipments')
-    .select('id, pickup_address, delivery_address, title, status, driver_offer_amount')
+    .select('id, pickup_address, delivery_address, title, status, driver_offer_amount, pickup_date, delivery_date')
     .in('id', shipmentIds)
     .in('status', ROUTABLE_STATUSES);
 
@@ -55,6 +64,15 @@ function buildStops(driverLocation: string, shipments: RoutableShipment[]): Rout
     estimatedDuration: 0,
   }];
 
+  const dayWindow = (value: string | null): RouteStop['timeWindow'] => {
+    if (!value) return undefined;
+    const date = value.slice(0, 10);
+    const earliest = new Date(`${date}T00:00:00.000Z`);
+    const latest = new Date(`${date}T23:59:59.999Z`);
+    if (Number.isNaN(earliest.getTime()) || Number.isNaN(latest.getTime())) return undefined;
+    return { earliest: earliest.toISOString(), latest: latest.toISOString() };
+  };
+
   for (const shipment of shipments) {
     if (shipment.status === 'accepted' || shipment.status === 'assigned') {
       stops.push({
@@ -63,6 +81,7 @@ function buildStops(driverLocation: string, shipments: RoutableShipment[]): Rout
         type: 'pickup',
         shipmentId: shipment.id,
         vehicleInfo: shipment.title ?? undefined,
+        timeWindow: dayWindow(shipment.pickup_date),
         estimatedDuration: 20,
       });
     }
@@ -72,6 +91,7 @@ function buildStops(driverLocation: string, shipments: RoutableShipment[]): Rout
       type: 'delivery',
       shipmentId: shipment.id,
       vehicleInfo: shipment.title ?? undefined,
+      timeWindow: dayWindow(shipment.delivery_date),
       estimatedDuration: 15,
     });
   }
@@ -91,10 +111,10 @@ function summarizePayouts(shipments: RoutableShipment[]) {
   };
 }
 
-async function loadRouteEvidence(driverLocation: string, stops: RouteStop[]) {
-  const destination = stops.find(stop => stop.type !== 'current_location')?.address;
-  if (!destination) return null;
-  return pricingLiveEvidenceService.collect(driverLocation, destination);
+async function loadRouteEvidence(stops: RouteStop[]) {
+  const addresses = stops.map(stop => stop.address);
+  if (addresses.length < 2) return null;
+  return pricingLiveEvidenceService.collectRoute(addresses);
 }
 
 /**
@@ -145,7 +165,7 @@ router.post('/optimize', authenticate, async (req: Request, res: Response): Prom
     });
 
     const result = await routeOptimizationService.optimizeRoute(stops as RouteStop[], options);
-    const liveEvidence = await loadRouteEvidence(driverLocation.trim(), result.stops);
+    const liveEvidence = await loadRouteEvidence(result.stops);
 
     res.status(200).json({
       success: true,
@@ -154,10 +174,7 @@ router.post('/optimize', authenticate, async (req: Request, res: Response): Prom
     });
   } catch (error: any) {
     console.error('Route optimization error:', error);
-    res.status(500).json({
-      error: 'Failed to optimize route',
-      details: error.message,
-    });
+    optimizationErrorResponse(res, error, 'Failed to optimize route');
   }
 });
 
@@ -218,7 +235,7 @@ router.post('/daily-plan', authenticate, async (req: Request, res: Response): Pr
     );
     const firstRoute = plan.routes[0];
     const liveEvidence = firstRoute
-      ? await loadRouteEvidence(driverLocation.trim(), firstRoute.stops)
+      ? await loadRouteEvidence(firstRoute.stops)
       : null;
     const routes = firstRoute
       ? [{ ...firstRoute, liveEvidence }, ...plan.routes.slice(1)]
@@ -232,10 +249,7 @@ router.post('/daily-plan', authenticate, async (req: Request, res: Response): Pr
     });
   } catch (error: any) {
     console.error('Daily plan error:', error);
-    res.status(500).json({
-      error: 'Failed to generate daily plan',
-      details: error.message,
-    });
+    optimizationErrorResponse(res, error, 'Failed to generate daily plan');
   }
 });
 
