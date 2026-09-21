@@ -106,6 +106,30 @@ router.post(
 );
 
 // Subscription routes
+router.get(
+  '/planner-billing',
+  authenticate,
+  paymentsController.getPlannerBilling
+);
+
+router.post(
+  '/planner-billing/checkout',
+  authenticate,
+  paymentsController.createPlannerCheckout
+);
+
+router.post(
+  '/planner-billing/portal',
+  authenticate,
+  paymentsController.createPlannerPortal
+);
+
+router.post(
+  '/planner-billing/cancel',
+  authenticate,
+  paymentsController.cancelPlannerSubscription
+);
+
 router.post(
   '/subscriptions',
   authenticate,

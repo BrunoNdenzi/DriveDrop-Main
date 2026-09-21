@@ -6,6 +6,7 @@ import { authenticate } from '@middlewares/auth.middleware';
 import { supabaseAdmin } from '@lib/supabase';
 import { asyncHandler, createError } from '@utils/error';
 import { routeOptimizationService, RouteStop } from '../services/RouteOptimizationService';
+import { plannerBillingService } from '../services/plannerBilling.service';
 
 const router = Router();
 const MAX_STOPS = 100;
@@ -521,12 +522,14 @@ router.get('/routes/:id', asyncHandler(async (req: Request, res: Response) => {
 }));
 
 router.post('/routes', asyncHandler(async (req: Request, res: Response) => {
+  const ownerId = userId(req);
   const stops = normalizeStoredStops(req.body.stops);
   const schedule = normalizeRecurrence(req.body.recurrence);
+  await plannerBillingService.assertRouteCreationAllowed(ownerId, stops.length, schedule.recurrence !== null);
   const { data, error } = await supabaseAdmin
     .from('planner_routes')
     .insert({
-      user_id: userId(req),
+      user_id: ownerId,
       name: text(req.body.name, 'Route name', 160),
       stops,
       options: typeof req.body.options === 'object' && req.body.options ? req.body.options : {},
@@ -538,11 +541,13 @@ router.post('/routes', asyncHandler(async (req: Request, res: Response) => {
     .single();
   if (error) throw createError(error.message, error.code === '23505' ? 409 : 500, 'ROUTE_CREATE_FAILED');
   await recordRouteVersion(data as PlannerRouteRecord, 'created');
+  await plannerBillingService.recordUsage(ownerId, 'route_created', data.id, `route-created:${data.id}`);
   res.status(201).json({ success: true, data });
 }));
 
 router.patch('/routes/:id', asyncHandler(async (req: Request, res: Response) => {
-  const existing = await ownedRoute(req.params['id']!, userId(req));
+  const ownerId = userId(req);
+  const existing = await ownedRoute(req.params['id']!, ownerId);
   const updates: Record<string, unknown> = {};
   if (req.body.name !== undefined) updates['name'] = text(req.body.name, 'Route name', 160);
   if (req.body.stops !== undefined) updates['stops'] = normalizeStoredStops(req.body.stops);
@@ -553,13 +558,18 @@ router.patch('/routes/:id', asyncHandler(async (req: Request, res: Response) => 
     updates['next_run_at'] = schedule.nextRunAt;
     updates['is_recurring'] = schedule.recurrence !== null;
   }
+  await plannerBillingService.assertRouteAllowed(
+    ownerId,
+    (updates['stops'] as PlannerStopInput[] | undefined)?.length ?? existing.stops.length,
+    (updates['is_recurring'] as boolean | undefined) ?? existing.recurrence !== null
+  );
   updates['current_version'] = existing.current_version + 1;
   if (existing.status === 'completed' || existing.status === 'cancelled') updates['status'] = 'draft';
   const { data, error } = await supabaseAdmin
     .from('planner_routes')
     .update(updates)
     .eq('id', req.params['id'])
-    .eq('user_id', userId(req))
+    .eq('user_id', ownerId)
     .select(ROUTE_COLUMNS)
     .maybeSingle();
   if (error) throw createError(error.message, error.code === '23505' ? 409 : 500, 'ROUTE_UPDATE_FAILED');
@@ -581,7 +591,8 @@ router.get('/routes/:id/versions', asyncHandler(async (req: Request, res: Respon
 }));
 
 router.post('/routes/:id/versions/:version/restore', asyncHandler(async (req: Request, res: Response) => {
-  const route = await ownedRoute(req.params['id']!, userId(req));
+  const ownerId = userId(req);
+  const route = await ownedRoute(req.params['id']!, ownerId);
   const versionNumber = Number(req.params['version']);
   if (!Number.isInteger(versionNumber) || versionNumber < 1) {
     throw createError('Version must be a positive integer', 400, 'INVALID_INPUT');
@@ -590,27 +601,30 @@ router.post('/routes/:id/versions/:version/restore', asyncHandler(async (req: Re
     .from('planner_route_versions')
     .select('snapshot')
     .eq('route_id', route.id)
-    .eq('user_id', userId(req))
+    .eq('user_id', ownerId)
     .eq('version_number', versionNumber)
     .maybeSingle();
   if (versionError) throw createError(versionError.message, 500, 'ROUTE_VERSION_READ_FAILED');
   if (!version) throw createError('Route version not found', 404, 'NOT_FOUND');
 
   const snapshot = version.snapshot as Record<string, unknown>;
+  const restoredStops = normalizeStoredStops(snapshot['stops']);
+  const restoredRecurrence = snapshot['recurrence'] ?? null;
+  await plannerBillingService.assertRouteAllowed(ownerId, restoredStops.length, restoredRecurrence !== null);
   const { data, error } = await supabaseAdmin
     .from('planner_routes')
     .update({
       name: text(snapshot['name'], 'Route name', 160),
-      stops: normalizeStoredStops(snapshot['stops']),
+      stops: restoredStops,
       options: snapshot['options'] && typeof snapshot['options'] === 'object' ? snapshot['options'] : {},
-      recurrence: snapshot['recurrence'] ?? null,
+      recurrence: restoredRecurrence,
       last_optimized_result: snapshot['optimizedResult'] ?? null,
       current_version: route.current_version + 1,
       status: 'draft',
       completed_at: null,
     })
     .eq('id', route.id)
-    .eq('user_id', userId(req))
+    .eq('user_id', ownerId)
     .select(ROUTE_COLUMNS)
     .single();
   if (error) throw createError(error.message, 500, 'ROUTE_VERSION_RESTORE_FAILED');
@@ -619,7 +633,9 @@ router.post('/routes/:id/versions/:version/restore', asyncHandler(async (req: Re
 }));
 
 router.post('/routes/:id/dispatch', asyncHandler(async (req: Request, res: Response) => {
-  const route = await ownedRoute(req.params['id']!, userId(req));
+  const ownerId = userId(req);
+  const route = await ownedRoute(req.params['id']!, ownerId);
+  await plannerBillingService.assertRouteAllowed(ownerId, route.stops.length, route.recurrence !== null);
   if (route.status === 'dispatched' || route.status === 'in_progress') {
     throw createError('This route already has an active dispatch', 409, 'ROUTE_ALREADY_DISPATCHED');
   }
@@ -629,7 +645,7 @@ router.post('/routes/:id/dispatch', asyncHandler(async (req: Request, res: Respo
     .from('planner_route_executions')
     .insert({
       route_id: route.id,
-      user_id: userId(req),
+      user_id: ownerId,
       version_number: route.current_version,
       status: 'dispatched',
       planned_start_at: plannedStartAt,
@@ -644,8 +660,9 @@ router.post('/routes/:id/dispatch', asyncHandler(async (req: Request, res: Respo
     .from('planner_routes')
     .update({ status: 'dispatched', dispatched_at: new Date().toISOString(), completed_at: null })
     .eq('id', route.id)
-    .eq('user_id', userId(req));
+    .eq('user_id', ownerId);
   if (routeError) throw createError(routeError.message, 500, 'ROUTE_STATUS_UPDATE_FAILED');
+  await plannerBillingService.recordUsage(ownerId, 'route_dispatched', route.id, `route-dispatched:${execution.id}`);
   res.status(201).json({ success: true, data: execution });
 }));
 
@@ -806,13 +823,15 @@ router.post('/executions/:id/complete', asyncHandler(async (req: Request, res: R
 }));
 
 router.post('/executions/:id/reoptimize', asyncHandler(async (req: Request, res: Response) => {
-  const execution = await ownedExecution(req.params['id']!, userId(req));
+  const ownerId = userId(req);
+  const execution = await ownedExecution(req.params['id']!, ownerId);
   if (execution.status !== 'dispatched' && execution.status !== 'in_progress') {
     throw createError('Only active routes can be reoptimized', 409, 'INVALID_EXECUTION_STATUS');
   }
-  const route = await ownedRoute(execution.route_id, userId(req));
+  const route = await ownedRoute(execution.route_id, ownerId);
   const remaining = execution.stop_progress.filter(stop => stop.status !== 'completed' && stop.status !== 'skipped');
   if (remaining.length < 2) throw createError('At least two unfinished stops are required to reoptimize', 409, 'NOT_ENOUGH_STOPS');
+  await plannerBillingService.assertRouteAllowed(ownerId, remaining.length, route.recurrence !== null);
 
   const currentLocation = req.body.currentLocation && typeof req.body.currentLocation === 'object'
     ? req.body.currentLocation as Record<string, unknown>
@@ -832,7 +851,7 @@ router.post('/executions/:id/reoptimize', asyncHandler(async (req: Request, res:
     .from('planner_routes')
     .update({ last_optimized_result: result, last_optimized_at: new Date().toISOString(), current_version: nextVersion })
     .eq('id', route.id)
-    .eq('user_id', userId(req))
+    .eq('user_id', ownerId)
     .select(ROUTE_COLUMNS)
     .single();
   if (routeError) throw createError(routeError.message, 500, 'REOPTIMIZATION_SAVE_FAILED');
@@ -868,10 +887,11 @@ router.post('/executions/:id/reoptimize', asyncHandler(async (req: Request, res:
       reoptimizations: [...(execution.reoptimizations ?? []), auditEntry],
     })
     .eq('id', execution.id)
-    .eq('user_id', userId(req))
+    .eq('user_id', ownerId)
     .select('*')
     .single();
   if (error) throw createError(error.message, 500, 'EXECUTION_REOPTIMIZATION_FAILED');
+  await plannerBillingService.recordUsage(ownerId, 'route_optimized', route.id, `route-reoptimized:${execution.id}:${nextVersion}`);
   res.json({ success: true, data: { execution: data, optimizedRoute: result, audit: auditEntry } });
 }));
 
@@ -888,13 +908,15 @@ router.get('/routes/:id/shares', asyncHandler(async (req: Request, res: Response
 }));
 
 router.post('/routes/:id/shares', asyncHandler(async (req: Request, res: Response) => {
-  const route = await ownedRoute(req.params['id']!, userId(req));
+  const ownerId = userId(req);
+  const route = await ownedRoute(req.params['id']!, ownerId);
+  await plannerBillingService.assertSharingAllowed(ownerId);
   const permission = req.body.permission ?? 'view';
   if (permission !== 'view' && permission !== 'track') throw createError('Share permission must be view or track', 400, 'INVALID_INPUT');
   const expiresAt = optionalIsoDate(req.body.expiresAt, 'Expiration');
   const { data, error } = await supabaseAdmin
     .from('planner_route_shares')
-    .insert({ route_id: route.id, user_id: userId(req), permission, expires_at: expiresAt })
+    .insert({ route_id: route.id, user_id: ownerId, permission, expires_at: expiresAt })
     .select('id, token, permission, expires_at, created_at')
     .single();
   if (error) throw createError(error.message, 500, 'SHARE_CREATE_FAILED');
@@ -951,11 +973,13 @@ router.delete('/routes/:id', asyncHandler(async (req: Request, res: Response) =>
 }));
 
 router.post('/optimize', asyncHandler(async (req: Request, res: Response) => {
+  const ownerId = userId(req);
   const stops = normalizeStops(req.body.stops);
+  await plannerBillingService.assertRouteAllowed(ownerId, stops.length);
   const result = await routeOptimizationService.optimizeRoute(stops, req.body.options ?? {});
 
   if (typeof req.body.routeId === 'string') {
-    const route = await ownedRoute(req.body.routeId, userId(req));
+    const route = await ownedRoute(req.body.routeId, ownerId);
     const { data, error } = await supabaseAdmin
       .from('planner_routes')
       .update({
@@ -965,12 +989,13 @@ router.post('/optimize', asyncHandler(async (req: Request, res: Response) => {
         current_version: route.current_version + 1,
       })
       .eq('id', req.body.routeId)
-      .eq('user_id', userId(req))
+      .eq('user_id', ownerId)
       .select(ROUTE_COLUMNS)
       .maybeSingle();
     if (error) throw createError(error.message, 500, 'ROUTE_RESULT_SAVE_FAILED');
     if (!data) throw createError('Route not found', 404, 'NOT_FOUND');
     await recordRouteVersion(data as PlannerRouteRecord, 'optimized');
+    await plannerBillingService.recordUsage(ownerId, 'route_optimized', route.id, `route-optimized:${route.id}:${data.current_version}`);
   }
 
   res.json({ success: true, data: result, timestamp: new Date().toISOString() });

@@ -10,6 +10,7 @@ import config from '@config';
 import Stripe from 'stripe';
 import { getConfig } from './payments.controller.getConfig';
 import { supabaseAdmin as supabase } from '@lib/supabase';
+import { plannerBillingService } from '@services/plannerBilling.service';
 
 // All payment controller functions will be exported at the end of this file
 // This prevents the "Block-scoped variable used before declaration" TypeScript error
@@ -366,11 +367,19 @@ export const createCustomer = asyncHandler(async (req: Request, res: Response) =
     throw createError('User email is required', 400, 'MISSING_EMAIL');
   }
 
+  const existing = await plannerBillingService.getStatus(req.user.id);
+  if (existing.stripeCustomerId) {
+    res.status(200).json(successResponse({ customerId: existing.stripeCustomerId, email: req.user.email }));
+    return;
+  }
+
   const customer = await stripeService.createCustomer(
     req.user.email,
     name || `${req.user.id}`,
-    phone
+    phone,
+    { user_id: req.user.id, product: 'route_planner' }
   );
+  await plannerBillingService.saveCustomer(req.user.id, customer.id);
 
   res.status(201).json(successResponse({
     customerId: customer.id,
@@ -468,6 +477,7 @@ export const addPaymentMethod = asyncHandler(async (req: Request, res: Response)
   if (!customerId) {
     throw createError('Customer ID is required', 400, 'MISSING_CUSTOMER_ID');
   }
+  if (req.user.role !== 'admin') await plannerBillingService.assertCustomerOwner(req.user.id, customerId);
 
   const paymentMethod = await stripeService.addPaymentMethod({
     customerId,
@@ -495,9 +505,8 @@ export const listPaymentMethods = asyncHandler(async (req: Request, res: Respons
   if (!customerId) {
     throw createError('Customer ID is required', 400, 'MISSING_CUSTOMER_ID');
   }
-
-  // Verify ownership (only allow user who owns the customer or admin)
-  // Implementation depends on how you store customerId <-> userId mapping
+  if (!req.user?.id) throw createError('Authentication required', 401, 'UNAUTHORIZED');
+  if (req.user.role !== 'admin') await plannerBillingService.assertCustomerOwner(req.user.id, customerId);
   
   const paymentMethods = await stripeService.listPaymentMethods(
     customerId, 
@@ -530,9 +539,11 @@ export const removePaymentMethod = asyncHandler(async (req: Request, res: Respon
   if (!id) {
     throw createError('Payment method ID is required', 400, 'MISSING_ID');
   }
-
-  // Verify ownership (only allow user who owns the payment method or admin)
-  // Implementation depends on how you store payment method <-> user mapping
+  if (!req.user?.id) throw createError('Authentication required', 401, 'UNAUTHORIZED');
+  const existingMethod = await stripeService.getPaymentMethod(id);
+  const methodCustomerId = typeof existingMethod.customer === 'string' ? existingMethod.customer : existingMethod.customer?.id;
+  if (!methodCustomerId) throw createError('Payment method is not attached to a customer', 409, 'PAYMENT_METHOD_NOT_ATTACHED');
+  if (req.user.role !== 'admin') await plannerBillingService.assertCustomerOwner(req.user.id, methodCustomerId);
 
   const paymentMethod = await stripeService.removePaymentMethod(id);
 
@@ -554,14 +565,16 @@ export const createSubscription = asyncHandler(async (req: Request, res: Respons
     throw createError('Customer ID and price ID are required', 400, 'MISSING_REQUIRED_FIELDS');
   }
 
-  // Verify ownership (only allow user who owns the customer or admin)
+  if (!req.user?.id) throw createError('Authentication required', 401, 'UNAUTHORIZED');
+  await plannerBillingService.assertCustomerOwner(req.user.id, customerId);
   
   const subscription = await stripeService.createSubscription(
     customerId,
     priceId,
     paymentMethodId,
-    metadata
+    { ...(typeof metadata === 'object' && metadata ? metadata : {}), user_id: req.user.id, product: 'route_planner' }
   );
+  await plannerBillingService.syncSubscription(subscription);
 
   const subscriptionData = subscription as unknown as {
     id: string;
@@ -578,6 +591,64 @@ export const createSubscription = asyncHandler(async (req: Request, res: Respons
   }));
 });
 
+export const getPlannerBilling = asyncHandler(async (req: Request, res: Response) => {
+  if (!req.user?.id) throw createError('Authentication required', 401, 'UNAUTHORIZED');
+  res.status(200).json(successResponse(await plannerBillingService.getStatus(req.user.id)));
+});
+
+export const createPlannerCheckout = asyncHandler(async (req: Request, res: Response) => {
+  if (!req.user?.id || !req.user.email) throw createError('Authentication required', 401, 'UNAUTHORIZED');
+  const planKey = req.body.planKey as 'starter' | 'pro';
+  if (!['starter', 'pro'].includes(planKey)) throw createError('Select Starter or Pro', 400, 'INVALID_PLAN');
+  const priceId = planKey === 'starter' ? config.stripe.priceIdBasic : config.stripe.priceIdPremium;
+  if (!priceId || /your-|placeholder|replace/i.test(priceId)) throw createError(`${planKey} Stripe price is not configured`, 503, 'BILLING_NOT_CONFIGURED');
+
+  let status = await plannerBillingService.getStatus(req.user.id);
+  if (status.stripeSubscriptionId && ['active', 'trialing', 'past_due'].includes(status.status)) {
+    throw createError('Manage the existing subscription in the billing portal', 409, 'SUBSCRIPTION_EXISTS');
+  }
+  let customerId = status.stripeCustomerId;
+  if (!customerId) {
+    const customer = await stripeService.createCustomer(req.user.email, req.user.id, undefined, { user_id: req.user.id, product: 'route_planner' });
+    customerId = customer.id;
+    await plannerBillingService.saveCustomer(req.user.id, customerId);
+    status = await plannerBillingService.getStatus(req.user.id);
+  }
+
+  const appUrl = process.env['WEBSITE_URL'] || process.env['FRONTEND_URL'] || 'http://localhost:3000';
+  const trialEndDate = status.status === 'trialing' && status.trialEndsAt ? new Date(status.trialEndsAt) : null;
+  const trialEnd = trialEndDate && trialEndDate.getTime() > Date.now() + 48 * 60 * 60 * 1000 ? Math.floor(trialEndDate.getTime() / 1000) : undefined;
+  const session = await stripeService.createPlannerCheckout(
+    customerId,
+    priceId,
+    req.user.id,
+    planKey,
+    `${appUrl}/route-planner?billing=success`,
+    `${appUrl}/route-planner?billing=cancelled`,
+    trialEnd
+  );
+  res.status(201).json(successResponse({ url: session.url }));
+});
+
+export const createPlannerPortal = asyncHandler(async (req: Request, res: Response) => {
+  if (!req.user?.id) throw createError('Authentication required', 401, 'UNAUTHORIZED');
+  const status = await plannerBillingService.getStatus(req.user.id);
+  if (!status.stripeCustomerId) throw createError('No billing account exists yet', 404, 'BILLING_ACCOUNT_NOT_FOUND');
+  const appUrl = process.env['WEBSITE_URL'] || process.env['FRONTEND_URL'] || 'http://localhost:3000';
+  const session = await stripeService.createBillingPortalSession(status.stripeCustomerId, `${appUrl}/route-planner`);
+  res.status(201).json(successResponse({ url: session.url }));
+});
+
+export const cancelPlannerSubscription = asyncHandler(async (req: Request, res: Response) => {
+  if (!req.user?.id) throw createError('Authentication required', 401, 'UNAUTHORIZED');
+  const status = await plannerBillingService.getStatus(req.user.id);
+  if (!status.stripeSubscriptionId) throw createError('No active subscription exists', 404, 'SUBSCRIPTION_NOT_FOUND');
+  await plannerBillingService.assertSubscriptionOwner(req.user.id, status.stripeSubscriptionId);
+  const subscription = await stripeService.cancelSubscription(status.stripeSubscriptionId, true);
+  await plannerBillingService.syncSubscription(subscription);
+  res.status(200).json(successResponse(await plannerBillingService.getStatus(req.user.id)));
+});
+
 /**
  * Cancel subscription
  * @route POST /api/v1/payments/subscriptions/:id/cancel
@@ -591,9 +662,11 @@ export const cancelSubscription = asyncHandler(async (req: Request, res: Respons
     throw createError('Subscription ID is required', 400, 'MISSING_ID');
   }
 
-  // Verify ownership (only allow user who owns the subscription or admin)
+  if (!req.user?.id) throw createError('Authentication required', 401, 'UNAUTHORIZED');
+  await plannerBillingService.assertSubscriptionOwner(req.user.id, id);
   
   const subscription = await stripeService.cancelSubscription(id, cancelAtPeriodEnd);
+  await plannerBillingService.syncSubscription(subscription);
 
   res.status(200).json(successResponse({
     subscriptionId: subscription.id,
@@ -614,8 +687,8 @@ export const getTransactionHistory = asyncHandler(async (req: Request, res: Resp
   if (!customerId) {
     throw createError('Customer ID is required', 400, 'MISSING_CUSTOMER_ID');
   }
-
-  // Verify ownership (only allow user who owns the customer or admin)
+  if (!req.user?.id) throw createError('Authentication required', 401, 'UNAUTHORIZED');
+  if (req.user.role !== 'admin') await plannerBillingService.assertCustomerOwner(req.user.id, customerId);
   
   const history = await stripeService.getCustomerTransactionHistory(
     customerId,
@@ -685,8 +758,8 @@ export const createSetupIntent = asyncHandler(async (req: Request, res: Response
   if (!customerId) {
     throw createError('Customer ID is required', 400, 'MISSING_CUSTOMER_ID');
   }
-
-  // Verify ownership (only allow user who owns the customer or admin)
+  if (!req.user?.id) throw createError('Authentication required', 401, 'UNAUTHORIZED');
+  if (req.user.role !== 'admin') await plannerBillingService.assertCustomerOwner(req.user.id, customerId);
   
   const setupIntent = await stripeService.createSetupIntent(customerId, metadata);
 
@@ -955,6 +1028,10 @@ export const paymentsController = {
   handleWebhook,
   getConfig,
   createSubscription,
+  getPlannerBilling,
+  createPlannerCheckout,
+  createPlannerPortal,
+  cancelPlannerSubscription,
   cancelSubscription,
   getTransactionHistory,
   getPaymentAnalytics,

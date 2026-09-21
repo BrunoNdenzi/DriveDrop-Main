@@ -7,6 +7,7 @@ import { createError } from '@utils/error';
 import { logger } from '@utils/logger';
 import { supabase } from '@lib/supabase';
 import { emailService } from './email.service';
+import { plannerBillingService } from './plannerBilling.service';
 // import { Database } from '../lib/database.types';
 
 // Initialize Stripe with API key and validate it's configured
@@ -218,13 +219,14 @@ export const stripeService = {
   /**
    * Create a customer
    */
-  async createCustomer(email: string, name?: string, phone?: string): Promise<Stripe.Customer> {
+  async createCustomer(email: string, name?: string, phone?: string, metadata?: Record<string, string>): Promise<Stripe.Customer> {
     try {
       // Create params object, handling optional fields properly
       const params: Stripe.CustomerCreateParams = {
         email,
         metadata: {
           source: 'drivedrop_app',
+          ...metadata,
         },
       };
       
@@ -311,6 +313,10 @@ export const stripeService = {
    */
   async handleWebhookEvent(event: Stripe.Event): Promise<void> {
     try {
+      if (await plannerBillingService.webhookProcessed(event.id)) {
+        logger.info('Skipping previously processed Stripe webhook', { eventId: event.id, eventType: event.type });
+        return;
+      }
       switch (event.type) {
         case 'payment_intent.succeeded':
           await this.handlePaymentSucceeded(event.data.object as Stripe.PaymentIntent);
@@ -347,6 +353,7 @@ export const stripeService = {
         default:
           logger.info(`Unhandled event type: ${event.type}`);
       }
+      await plannerBillingService.markWebhookProcessed(event.id, event.type);
     } catch (error) {
       logger.error('Error handling webhook event', { error, eventType: event.type });
       throw error;
@@ -1073,8 +1080,7 @@ export const stripeService = {
         status: subscription.status,
       });
 
-      // Here you would update the user's subscription status in your database
-      // Example: await userService.updateSubscriptionStatus(customerId, subscriptionId, 'active');
+      await plannerBillingService.syncSubscription(subscription);
     } catch (error) {
       logger.error('Error handling subscription creation', { error, subscriptionId: subscription.id });
       throw error;
@@ -1092,8 +1098,7 @@ export const stripeService = {
         status: subscription.status,
       });
 
-      // Here you would update the user's subscription status in your database
-      // Example: await userService.updateSubscriptionStatus(customerId, subscriptionId, subscription.status);
+      await plannerBillingService.syncSubscription(subscription);
     } catch (error) {
       logger.error('Error handling subscription update', { error, subscriptionId: subscription.id });
       throw error;
@@ -1111,8 +1116,7 @@ export const stripeService = {
         status: subscription.status,
       });
 
-      // Here you would update the user's subscription status in your database
-      // Example: await userService.updateSubscriptionStatus(customerId, subscriptionId, 'canceled');
+      await plannerBillingService.syncSubscription(subscription);
     } catch (error) {
       logger.error('Error handling subscription cancellation', { error, subscriptionId: subscription.id });
       throw error;
@@ -1135,8 +1139,7 @@ export const stripeService = {
         amount: invoice.amount_paid,
       });
 
-      // Here you would update the user's payment records in your database
-      // Example: await paymentService.recordSuccessfulPayment(customerId, invoiceId, amount);
+      await plannerBillingService.recordInvoiceResult(invoice, true);
     } catch (error) {
       logger.error('Error handling invoice payment success', { error, invoiceId: invoice.id });
       throw error;
@@ -1159,9 +1162,7 @@ export const stripeService = {
         amount: invoice.amount_due,
       });
 
-      // Here you would handle the failed payment in your database
-      // Example: await paymentService.recordFailedPayment(customerId, invoiceId, amount);
-      // Example: await notificationService.sendPaymentFailureNotification(customerId);
+      await plannerBillingService.recordInvoiceResult(invoice, false);
     } catch (error) {
       logger.error('Error handling invoice payment failure', { error, invoiceId: invoice.id });
       throw error;
@@ -1201,6 +1202,15 @@ export const stripeService = {
         400,
         'PAYMENT_METHOD_FAILED'
       );
+    }
+  },
+
+  async getPaymentMethod(paymentMethodId: string): Promise<Stripe.PaymentMethod> {
+    try {
+      return await stripe.paymentMethods.retrieve(paymentMethodId);
+    } catch (error) {
+      logger.error('Error retrieving payment method', { error, paymentMethodId });
+      throw createError('Payment method not found', 404, 'PAYMENT_METHOD_NOT_FOUND');
     }
   },
 
@@ -1289,6 +1299,36 @@ export const stripeService = {
         'SUBSCRIPTION_CREATION_FAILED'
       );
     }
+  },
+
+  async createPlannerCheckout(
+    customerId: string,
+    priceId: string,
+    userId: string,
+    planKey: string,
+    successUrl: string,
+    cancelUrl: string,
+    trialEnd?: number
+  ): Promise<Stripe.Checkout.Session> {
+    const subscriptionData: Stripe.Checkout.SessionCreateParams.SubscriptionData = {
+      metadata: { user_id: userId, plan_key: planKey },
+    };
+    if (trialEnd) subscriptionData.trial_end = trialEnd;
+    return stripe.checkout.sessions.create({
+      mode: 'subscription',
+      customer: customerId,
+      line_items: [{ price: priceId, quantity: 1 }],
+      success_url: successUrl,
+      cancel_url: cancelUrl,
+      allow_promotion_codes: true,
+      client_reference_id: userId,
+      metadata: { user_id: userId, plan_key: planKey },
+      subscription_data: subscriptionData,
+    });
+  },
+
+  async createBillingPortalSession(customerId: string, returnUrl: string): Promise<Stripe.BillingPortal.Session> {
+    return stripe.billingPortal.sessions.create({ customer: customerId, return_url: returnUrl });
   },
 
   /**

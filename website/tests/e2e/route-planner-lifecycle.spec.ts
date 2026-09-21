@@ -5,7 +5,7 @@ const password = process.env.E2E_ROUTE_PLANNER_PASSWORD
 
 test.skip(!email || !password, 'E2E route planner credentials are required')
 
-test('route planner operations are usable on desktop and mobile', async ({ page }) => {
+test('route planner operations and billing are usable on desktop and mobile', async ({ page }) => {
   test.setTimeout(120_000)
   const appUrl = process.env.E2E_ROUTE_PLANNER_URL || ''
   const login = await page.request.post(`${appUrl}/api/auth/login`, {
@@ -56,4 +56,13 @@ test('route planner operations are usable on desktop and mobile', async ({ page 
     })
     expect(overlaps).toEqual([])
   }
+
+  await page.getByRole('button', { name: 'Billing' }).click()
+  await expect(page.getByText('Current plan', { exact: true })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Starter' }).first()).toBeVisible()
+  await expect(page.getByText(/Starter trial ends/)).toBeVisible()
+  await expect(page.getByText('Routes this month')).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Choose Pro' })).toBeVisible()
+  const billingWidth = await page.evaluate(() => ({ client: document.documentElement.clientWidth, scroll: document.documentElement.scrollWidth }))
+  expect(billingWidth.scroll).toBeLessThanOrEqual(billingWidth.client)
 })
