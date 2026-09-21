@@ -36,7 +36,8 @@
     "setup": "npm run build && npm run create:admin && npm run start",
     "test:benji": "ts-node -r tsconfig-paths/register src/benji/tests/benji-integration.harness.ts",
     "test:route-planner": "ts-node -r tsconfig-paths/register scripts/test-standalone-route-planner.ts",
-    "test:route-constraints": "ts-node -r tsconfig-paths/register scripts/test-route-optimization-constraints.ts"
+    "test:route-constraints": "ts-node -r tsconfig-paths/register scripts/test-route-optimization-constraints.ts",
+    "test:route-lifecycle": "node scripts/test-route-planner-lifecycle.js"
   },
   "keywords": [],
   "author": "",

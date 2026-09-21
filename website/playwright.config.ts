@@ -3,6 +3,7 @@ import { loadEnvConfig } from '@next/env'
 import path from 'node:path'
 
 loadEnvConfig(path.resolve(__dirname))
+const externalBaseUrl = process.env.E2E_ROUTE_PLANNER_URL
 
 export default defineConfig({
   testDir: './tests/e2e',
@@ -12,7 +13,7 @@ export default defineConfig({
   workers: process.env.CI ? 1 : undefined,
   reporter: process.env.CI ? 'dot' : 'list',
   use: {
-    baseURL: 'http://127.0.0.1:3100',
+    baseURL: externalBaseUrl || 'http://127.0.0.1:3100',
     trace: 'on-first-retry',
   },
   projects: [
@@ -21,7 +22,7 @@ export default defineConfig({
       use: { ...devices['Desktop Chrome'] },
     },
   ],
-  webServer: {
+  webServer: externalBaseUrl ? undefined : {
     command: `"${process.execPath}" node_modules/next/dist/bin/next dev -H 127.0.0.1 -p 3100`,
     cwd: __dirname,
     env: {

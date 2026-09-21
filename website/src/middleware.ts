@@ -53,6 +53,12 @@ export async function middleware(request: NextRequest) {
     },
   })
 
+  const redirectWithAuthCookies = (url: URL) => {
+    const redirectResponse = NextResponse.redirect(url)
+    response.cookies.getAll().forEach(cookie => redirectResponse.cookies.set(cookie))
+    return redirectResponse
+  }
+
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
@@ -99,27 +105,28 @@ export async function middleware(request: NextRequest) {
     }
   )
 
-  // Refresh session if expired
+  // Validate the JWT with Supabase and refresh auth cookies when needed.
   const {
-    data: { session },
-  } = await supabase.auth.getSession()
+    data: { user },
+  } = await supabase.auth.getUser()
 
   console.log('[MIDDLEWARE] Path:', pathname)
-  console.log('[MIDDLEWARE] Has session:', !!session)
+  console.log('[MIDDLEWARE] Has user:', !!user)
   
-  const isPlannerWorkspace = pathname === '/route-planner' || pathname.startsWith('/route-planner/') && pathname !== '/route-planner/signup'
+  const isPublicPlannerPath = pathname === '/route-planner/signup' || pathname.startsWith('/route-planner/shared/')
+  const isPlannerWorkspace = (pathname === '/route-planner' || pathname.startsWith('/route-planner/')) && !isPublicPlannerPath
 
   // Protect dashboard routes and the standalone planner workspace
   if (pathname.startsWith('/dashboard') || isPlannerWorkspace) {
     // Not authenticated - redirect to login
-    if (!session) {
+    if (!user) {
       console.log('[MIDDLEWARE] No session, redirecting to login')
       const redirectUrl = new URL('/login', request.url)
       redirectUrl.searchParams.set('redirect', request.nextUrl.pathname)
-      return NextResponse.redirect(redirectUrl)
+      return redirectWithAuthCookies(redirectUrl)
     }
 
-    console.log('[MIDDLEWARE] Session user ID:', session.user.id)
+    console.log('[MIDDLEWARE] Session user ID:', user.id)
 
     if (isPlannerWorkspace) return response
 
@@ -127,7 +134,7 @@ export async function middleware(request: NextRequest) {
     const { data: profile, error: profileError } = await supabase
       .from('profiles')
       .select('role')
-      .eq('id', session.user.id)
+      .eq('id', user.id)
       .single()
 
     console.log('[MIDDLEWARE] Profile:', profile)
@@ -136,7 +143,7 @@ export async function middleware(request: NextRequest) {
     if (profileError || !profile) {
       console.error('[MIDDLEWARE] Profile fetch error:', profileError)
       // Profile not found - redirect to login
-      return NextResponse.redirect(new URL('/login?error=profile_not_found', request.url))
+      return redirectWithAuthCookies(new URL('/login?error=profile_not_found', request.url))
     }
 
     const userRole = profile.role
@@ -148,26 +155,26 @@ export async function middleware(request: NextRequest) {
     // User accessing /dashboard root - redirect to their role dashboard
     if (requestedPath === '/dashboard' || requestedPath === '/dashboard/') {
       console.log('[MIDDLEWARE] Redirecting to role dashboard:', `/dashboard/${userRole}`)
-      return NextResponse.redirect(new URL(`/dashboard/${userRole}`, request.url))
+      return redirectWithAuthCookies(new URL(`/dashboard/${userRole}`, request.url))
     }
 
     // Role-based access control
     if (requestedPath.startsWith('/dashboard/client') && userRole !== 'client') {
       // Non-clients trying to access client dashboard
       console.log('[MIDDLEWARE] Wrong role for client dashboard, redirecting')
-      return NextResponse.redirect(new URL(`/dashboard/${userRole}`, request.url))
+      return redirectWithAuthCookies(new URL(`/dashboard/${userRole}`, request.url))
     }
 
     if (requestedPath.startsWith('/dashboard/driver') && userRole !== 'driver') {
       // Non-drivers trying to access driver dashboard
       console.log('[MIDDLEWARE] Wrong role for driver dashboard, redirecting')
-      return NextResponse.redirect(new URL(`/dashboard/${userRole}`, request.url))
+      return redirectWithAuthCookies(new URL(`/dashboard/${userRole}`, request.url))
     }
 
     if (requestedPath.startsWith('/dashboard/admin') && userRole !== 'admin') {
       // Non-admins trying to access admin dashboard
       console.log('[MIDDLEWARE] Wrong role for admin dashboard, redirecting')
-      return NextResponse.redirect(new URL(`/dashboard/${userRole}`, request.url))
+      return redirectWithAuthCookies(new URL(`/dashboard/${userRole}`, request.url))
     }
 
     console.log('[MIDDLEWARE] Access granted!')

@@ -43,8 +43,53 @@ interface RecurrenceInput {
   endsAt?: string;
 }
 
-const ROUTE_COLUMNS = 'id, user_id, name, stops, options, recurrence, next_run_at, is_recurring, last_optimized_result, last_optimized_at, created_at, updated_at';
+const ROUTE_COLUMNS = 'id, user_id, name, stops, options, recurrence, next_run_at, is_recurring, last_optimized_result, last_optimized_at, status, current_version, dispatched_at, completed_at, created_at, updated_at';
 const LOCATION_COLUMNS = 'id, user_id, name, address, latitude, longitude, notes, created_at, updated_at';
+
+interface PlannerRouteRecord {
+  id: string;
+  user_id: string;
+  name: string;
+  stops: PlannerStopInput[];
+  options: Record<string, unknown>;
+  recurrence: RecurrenceInput | null;
+  last_optimized_result: Record<string, unknown> | null;
+  status: string;
+  current_version: number;
+}
+
+interface ExecutionStopProgress {
+  stopId: string;
+  order: number;
+  name?: string;
+  address: string;
+  plannedArrival?: string;
+  plannedServiceMinutes: number;
+  status: 'pending' | 'arrived' | 'completed' | 'skipped';
+  arrivedAt?: string;
+  completedAt?: string;
+  skippedAt?: string;
+  actualLatitude?: number;
+  actualLongitude?: number;
+  gpsAccuracyMeters?: number;
+  proofOfDeliveryUrls?: string[];
+  notes?: string;
+}
+
+interface PlannerExecutionRecord {
+  id: string;
+  route_id: string;
+  user_id: string;
+  version_number: number;
+  status: 'dispatched' | 'in_progress' | 'completed' | 'cancelled';
+  planned_start_at: string | null;
+  started_at: string | null;
+  completed_at: string | null;
+  planned_snapshot: Record<string, unknown>;
+  stop_progress: ExecutionStopProgress[];
+  reoptimizations: Record<string, unknown>[];
+  actual_distance_miles: number | null;
+}
 
 function userId(req: Request): string {
   if (!req.user?.id) throw createError('Authentication required', 401, 'UNAUTHORIZED');
@@ -60,6 +105,80 @@ function text(value: unknown, field: string, maxLength: number): string {
     throw createError(`${field} must be ${maxLength} characters or fewer`, 400, 'INVALID_INPUT');
   }
   return normalized;
+}
+
+function optionalIsoDate(value: unknown, field: string): string | null {
+  if (value === undefined || value === null || value === '') return null;
+  const date = new Date(String(value));
+  if (Number.isNaN(date.getTime())) throw createError(`${field} must be a valid date`, 400, 'INVALID_INPUT');
+  return date.toISOString();
+}
+
+function csvCell(value: unknown): string {
+  const normalized = value === undefined || value === null ? '' : String(value);
+  return /[",\r\n]/.test(normalized) ? `"${normalized.replace(/"/g, '""')}"` : normalized;
+}
+
+async function ownedRoute(routeId: string, ownerId: string): Promise<PlannerRouteRecord> {
+  const { data, error } = await supabaseAdmin
+    .from('planner_routes')
+    .select(ROUTE_COLUMNS)
+    .eq('id', routeId)
+    .eq('user_id', ownerId)
+    .maybeSingle();
+  if (error) throw createError(error.message, 500, 'ROUTE_READ_FAILED');
+  if (!data) throw createError('Route not found', 404, 'NOT_FOUND');
+  return data as PlannerRouteRecord;
+}
+
+function routeSnapshot(route: PlannerRouteRecord): Record<string, unknown> {
+  return {
+    name: route.name,
+    stops: route.stops,
+    options: route.options,
+    recurrence: route.recurrence,
+    optimizedResult: route.last_optimized_result,
+  };
+}
+
+async function recordRouteVersion(route: PlannerRouteRecord, changeType: string): Promise<void> {
+  const { error } = await supabaseAdmin.from('planner_route_versions').insert({
+    route_id: route.id,
+    user_id: route.user_id,
+    version_number: route.current_version,
+    change_type: changeType,
+    snapshot: routeSnapshot(route),
+  });
+  if (error) throw createError(error.message, 500, 'ROUTE_VERSION_SAVE_FAILED');
+}
+
+async function ownedExecution(executionId: string, ownerId: string): Promise<PlannerExecutionRecord> {
+  const { data, error } = await supabaseAdmin
+    .from('planner_route_executions')
+    .select('*')
+    .eq('id', executionId)
+    .eq('user_id', ownerId)
+    .maybeSingle();
+  if (error) throw createError(error.message, 500, 'EXECUTION_READ_FAILED');
+  if (!data) throw createError('Route execution not found', 404, 'NOT_FOUND');
+  return data as PlannerExecutionRecord;
+}
+
+function plannedStops(route: PlannerRouteRecord): ExecutionStopProgress[] {
+  const optimizedStops = route.last_optimized_result?.['stops'];
+  const source = Array.isArray(optimizedStops) ? optimizedStops : route.stops;
+  return source.map((value, index) => {
+    const stop = value as Record<string, unknown>;
+    return {
+      stopId: String(stop['id'] ?? `stop-${index + 1}`),
+      order: Number(stop['order'] ?? index + 1),
+      ...(stop['vehicleInfo'] || stop['name'] ? { name: String(stop['vehicleInfo'] ?? stop['name']) } : {}),
+      address: String(stop['address'] ?? ''),
+      ...(stop['estimatedArrival'] ? { plannedArrival: String(stop['estimatedArrival']) } : {}),
+      plannedServiceMinutes: Number(stop['estimatedDuration'] ?? stop['serviceMinutes'] ?? 0),
+      status: 'pending',
+    };
+  });
 }
 
 function optionalCoordinate(value: unknown, min: number, max: number, field: string): number | undefined {
@@ -214,6 +333,40 @@ export async function parseImportRows(file: Express.Multer.File | undefined, csv
   });
   return rows;
 }
+
+router.get('/shared/:token', asyncHandler(async (req: Request, res: Response) => {
+  const { data: share, error: shareError } = await supabaseAdmin
+    .from('planner_route_shares')
+    .select('id, route_id, permission, expires_at, revoked_at')
+    .eq('token', req.params['token'])
+    .maybeSingle();
+  if (shareError) throw createError(shareError.message, 500, 'SHARE_READ_FAILED');
+  if (!share || share.revoked_at || (share.expires_at && new Date(share.expires_at) <= new Date())) {
+    throw createError('Shared route is unavailable or expired', 404, 'SHARE_NOT_FOUND');
+  }
+
+  const { data: route, error: routeError } = await supabaseAdmin
+    .from('planner_routes')
+    .select('id, name, stops, options, last_optimized_result, status, current_version, updated_at')
+    .eq('id', share.route_id)
+    .single();
+  if (routeError) throw createError(routeError.message, 500, 'SHARED_ROUTE_READ_FAILED');
+
+  let execution = null;
+  if (share.permission === 'track') {
+    const { data, error } = await supabaseAdmin
+      .from('planner_route_executions')
+      .select('id, status, planned_start_at, started_at, completed_at, planned_snapshot, stop_progress, updated_at')
+      .eq('route_id', share.route_id)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (error) throw createError(error.message, 500, 'SHARED_EXECUTION_READ_FAILED');
+    execution = data;
+  }
+
+  res.json({ success: true, data: { route, permission: share.permission, execution } });
+}));
 
 router.use(authenticate);
 
@@ -384,10 +537,12 @@ router.post('/routes', asyncHandler(async (req: Request, res: Response) => {
     .select(ROUTE_COLUMNS)
     .single();
   if (error) throw createError(error.message, error.code === '23505' ? 409 : 500, 'ROUTE_CREATE_FAILED');
+  await recordRouteVersion(data as PlannerRouteRecord, 'created');
   res.status(201).json({ success: true, data });
 }));
 
 router.patch('/routes/:id', asyncHandler(async (req: Request, res: Response) => {
+  const existing = await ownedRoute(req.params['id']!, userId(req));
   const updates: Record<string, unknown> = {};
   if (req.body.name !== undefined) updates['name'] = text(req.body.name, 'Route name', 160);
   if (req.body.stops !== undefined) updates['stops'] = normalizeStoredStops(req.body.stops);
@@ -398,6 +553,8 @@ router.patch('/routes/:id', asyncHandler(async (req: Request, res: Response) => 
     updates['next_run_at'] = schedule.nextRunAt;
     updates['is_recurring'] = schedule.recurrence !== null;
   }
+  updates['current_version'] = existing.current_version + 1;
+  if (existing.status === 'completed' || existing.status === 'cancelled') updates['status'] = 'draft';
   const { data, error } = await supabaseAdmin
     .from('planner_routes')
     .update(updates)
@@ -407,7 +564,377 @@ router.patch('/routes/:id', asyncHandler(async (req: Request, res: Response) => 
     .maybeSingle();
   if (error) throw createError(error.message, error.code === '23505' ? 409 : 500, 'ROUTE_UPDATE_FAILED');
   if (!data) throw createError('Route not found', 404, 'NOT_FOUND');
+  await recordRouteVersion(data as PlannerRouteRecord, 'edit');
   res.json({ success: true, data });
+}));
+
+router.get('/routes/:id/versions', asyncHandler(async (req: Request, res: Response) => {
+  await ownedRoute(req.params['id']!, userId(req));
+  const { data, error } = await supabaseAdmin
+    .from('planner_route_versions')
+    .select('id, route_id, version_number, change_type, snapshot, created_at')
+    .eq('route_id', req.params['id'])
+    .eq('user_id', userId(req))
+    .order('version_number', { ascending: false });
+  if (error) throw createError(error.message, 500, 'ROUTE_VERSION_LIST_FAILED');
+  res.json({ success: true, data: data ?? [] });
+}));
+
+router.post('/routes/:id/versions/:version/restore', asyncHandler(async (req: Request, res: Response) => {
+  const route = await ownedRoute(req.params['id']!, userId(req));
+  const versionNumber = Number(req.params['version']);
+  if (!Number.isInteger(versionNumber) || versionNumber < 1) {
+    throw createError('Version must be a positive integer', 400, 'INVALID_INPUT');
+  }
+  const { data: version, error: versionError } = await supabaseAdmin
+    .from('planner_route_versions')
+    .select('snapshot')
+    .eq('route_id', route.id)
+    .eq('user_id', userId(req))
+    .eq('version_number', versionNumber)
+    .maybeSingle();
+  if (versionError) throw createError(versionError.message, 500, 'ROUTE_VERSION_READ_FAILED');
+  if (!version) throw createError('Route version not found', 404, 'NOT_FOUND');
+
+  const snapshot = version.snapshot as Record<string, unknown>;
+  const { data, error } = await supabaseAdmin
+    .from('planner_routes')
+    .update({
+      name: text(snapshot['name'], 'Route name', 160),
+      stops: normalizeStoredStops(snapshot['stops']),
+      options: snapshot['options'] && typeof snapshot['options'] === 'object' ? snapshot['options'] : {},
+      recurrence: snapshot['recurrence'] ?? null,
+      last_optimized_result: snapshot['optimizedResult'] ?? null,
+      current_version: route.current_version + 1,
+      status: 'draft',
+      completed_at: null,
+    })
+    .eq('id', route.id)
+    .eq('user_id', userId(req))
+    .select(ROUTE_COLUMNS)
+    .single();
+  if (error) throw createError(error.message, 500, 'ROUTE_VERSION_RESTORE_FAILED');
+  await recordRouteVersion(data as PlannerRouteRecord, 'restored');
+  res.json({ success: true, data });
+}));
+
+router.post('/routes/:id/dispatch', asyncHandler(async (req: Request, res: Response) => {
+  const route = await ownedRoute(req.params['id']!, userId(req));
+  if (route.status === 'dispatched' || route.status === 'in_progress') {
+    throw createError('This route already has an active dispatch', 409, 'ROUTE_ALREADY_DISPATCHED');
+  }
+  const plannedStartAt = optionalIsoDate(req.body.plannedStartAt, 'Planned start');
+  const progress = plannedStops(route);
+  const { data: execution, error } = await supabaseAdmin
+    .from('planner_route_executions')
+    .insert({
+      route_id: route.id,
+      user_id: userId(req),
+      version_number: route.current_version,
+      status: 'dispatched',
+      planned_start_at: plannedStartAt,
+      planned_snapshot: routeSnapshot(route),
+      stop_progress: progress,
+    })
+    .select('*')
+    .single();
+  if (error) throw createError(error.message, 500, 'ROUTE_DISPATCH_FAILED');
+
+  const { error: routeError } = await supabaseAdmin
+    .from('planner_routes')
+    .update({ status: 'dispatched', dispatched_at: new Date().toISOString(), completed_at: null })
+    .eq('id', route.id)
+    .eq('user_id', userId(req));
+  if (routeError) throw createError(routeError.message, 500, 'ROUTE_STATUS_UPDATE_FAILED');
+  res.status(201).json({ success: true, data: execution });
+}));
+
+router.get('/executions', asyncHandler(async (req: Request, res: Response) => {
+  let query = supabaseAdmin
+    .from('planner_route_executions')
+    .select('*')
+    .eq('user_id', userId(req))
+    .order('created_at', { ascending: false });
+  if (typeof req.query['routeId'] === 'string') query = query.eq('route_id', req.query['routeId']);
+  const { data, error } = await query;
+  if (error) throw createError(error.message, 500, 'EXECUTION_LIST_FAILED');
+  res.json({ success: true, data: data ?? [] });
+}));
+
+router.get('/executions/:id', asyncHandler(async (req: Request, res: Response) => {
+  const execution = await ownedExecution(req.params['id']!, userId(req));
+  res.json({ success: true, data: execution });
+}));
+
+router.post('/executions/:id/start', asyncHandler(async (req: Request, res: Response) => {
+  const execution = await ownedExecution(req.params['id']!, userId(req));
+  if (execution.status !== 'dispatched') throw createError('Only dispatched routes can be started', 409, 'INVALID_EXECUTION_STATUS');
+  const startedAt = optionalIsoDate(req.body.startedAt, 'Start time') ?? new Date().toISOString();
+  const { data, error } = await supabaseAdmin
+    .from('planner_route_executions')
+    .update({ status: 'in_progress', started_at: startedAt })
+    .eq('id', execution.id)
+    .eq('user_id', userId(req))
+    .select('*')
+    .single();
+  if (error) throw createError(error.message, 500, 'EXECUTION_START_FAILED');
+  await supabaseAdmin.from('planner_routes').update({ status: 'in_progress' }).eq('id', execution.route_id).eq('user_id', userId(req));
+  res.json({ success: true, data });
+}));
+
+router.patch('/executions/:id/stops/:stopId', asyncHandler(async (req: Request, res: Response) => {
+  const execution = await ownedExecution(req.params['id']!, userId(req));
+  if (execution.status !== 'in_progress' && execution.status !== 'dispatched') {
+    throw createError('Stops can only be updated on an active route', 409, 'INVALID_EXECUTION_STATUS');
+  }
+  const action = req.body.action;
+  if (!['arrived', 'completed', 'skipped'].includes(action)) {
+    throw createError('Stop action must be arrived, completed, or skipped', 400, 'INVALID_INPUT');
+  }
+  const timestamp = optionalIsoDate(req.body.timestamp, 'Event time') ?? new Date().toISOString();
+  const latitude = optionalCoordinate(req.body.latitude, -90, 90, 'Latitude');
+  const longitude = optionalCoordinate(req.body.longitude, -180, 180, 'Longitude');
+  const accuracy = req.body.gpsAccuracyMeters === undefined ? undefined : Number(req.body.gpsAccuracyMeters);
+  if (accuracy !== undefined && (!Number.isFinite(accuracy) || accuracy < 0)) {
+    throw createError('GPS accuracy must be zero or greater', 400, 'INVALID_INPUT');
+  }
+  const podUrls = req.body.proofOfDeliveryUrls;
+  if (podUrls !== undefined && (!Array.isArray(podUrls) || podUrls.length > 10 || podUrls.some(url => typeof url !== 'string' || url.length > 1000))) {
+    throw createError('Proof of delivery must contain at most 10 valid URLs', 400, 'INVALID_INPUT');
+  }
+
+  let found = false;
+  const stopProgress = execution.stop_progress.map(stop => {
+    if (stop.stopId !== req.params['stopId']) return stop;
+    found = true;
+    return {
+      ...stop,
+      status: action,
+      ...(action === 'arrived' ? { arrivedAt: timestamp } : {}),
+      ...(action === 'completed' ? { completedAt: timestamp, arrivedAt: stop.arrivedAt ?? timestamp } : {}),
+      ...(action === 'skipped' ? { skippedAt: timestamp } : {}),
+      ...(latitude !== undefined ? { actualLatitude: latitude } : {}),
+      ...(longitude !== undefined ? { actualLongitude: longitude } : {}),
+      ...(accuracy !== undefined ? { gpsAccuracyMeters: accuracy } : {}),
+      ...(podUrls !== undefined ? { proofOfDeliveryUrls: podUrls } : {}),
+      ...(typeof req.body.notes === 'string' ? { notes: req.body.notes.trim().slice(0, 2000) } : {}),
+    } as ExecutionStopProgress;
+  });
+  if (!found) throw createError('Execution stop not found', 404, 'NOT_FOUND');
+
+  const allFinished = stopProgress.every(stop => stop.status === 'completed' || stop.status === 'skipped');
+  const completedAt = allFinished ? new Date().toISOString() : null;
+  const { data, error } = await supabaseAdmin
+    .from('planner_route_executions')
+    .update({
+      stop_progress: stopProgress,
+      status: allFinished ? 'completed' : 'in_progress',
+      started_at: execution.started_at ?? timestamp,
+      completed_at: completedAt,
+    })
+    .eq('id', execution.id)
+    .eq('user_id', userId(req))
+    .select('*')
+    .single();
+  if (error) throw createError(error.message, 500, 'STOP_PROGRESS_UPDATE_FAILED');
+  await supabaseAdmin.from('planner_routes').update({ status: allFinished ? 'completed' : 'in_progress', completed_at: completedAt }).eq('id', execution.route_id).eq('user_id', userId(req));
+  res.json({ success: true, data });
+}));
+
+router.post('/executions/:id/cancel', asyncHandler(async (req: Request, res: Response) => {
+  const execution = await ownedExecution(req.params['id']!, userId(req));
+  if (execution.status === 'completed') throw createError('Completed routes cannot be cancelled', 409, 'INVALID_EXECUTION_STATUS');
+  const { data, error } = await supabaseAdmin
+    .from('planner_route_executions')
+    .update({ status: 'cancelled', completed_at: new Date().toISOString() })
+    .eq('id', execution.id)
+    .eq('user_id', userId(req))
+    .select('*')
+    .single();
+  if (error) throw createError(error.message, 500, 'EXECUTION_CANCEL_FAILED');
+  await supabaseAdmin.from('planner_routes').update({ status: 'cancelled' }).eq('id', execution.route_id).eq('user_id', userId(req));
+  res.json({ success: true, data });
+}));
+
+router.get('/executions/:id/report', asyncHandler(async (req: Request, res: Response) => {
+  const execution = await ownedExecution(req.params['id']!, userId(req));
+  const summary = execution.planned_snapshot['optimizedResult'] as Record<string, unknown> | undefined;
+  const plannedSummary = summary?.['summary'] as Record<string, unknown> | undefined;
+  const stopAnalysis = execution.stop_progress.map(stop => {
+    const planned = stop.plannedArrival ? new Date(stop.plannedArrival).getTime() : Number.NaN;
+    const actual = stop.arrivedAt ? new Date(stop.arrivedAt).getTime() : Number.NaN;
+    const arrivalVarianceMinutes = Number.isFinite(planned) && Number.isFinite(actual) ? Math.round((actual - planned) / 60_000) : null;
+    return { ...stop, arrivalVarianceMinutes, onTime: arrivalVarianceMinutes === null ? null : arrivalVarianceMinutes <= 5 };
+  });
+  const actualDurationMinutes = execution.started_at && execution.completed_at
+    ? Math.round((new Date(execution.completed_at).getTime() - new Date(execution.started_at).getTime()) / 60_000)
+    : null;
+  res.json({
+    success: true,
+    data: {
+      executionId: execution.id,
+      status: execution.status,
+      plannedDistanceMiles: Number(plannedSummary?.['totalDistance'] ?? 0),
+      actualDistanceMiles: execution.actual_distance_miles,
+      plannedDurationMinutes: Number(plannedSummary?.['totalDuration'] ?? 0),
+      actualDurationMinutes,
+      completedStops: stopAnalysis.filter(stop => stop.status === 'completed').length,
+      skippedStops: stopAnalysis.filter(stop => stop.status === 'skipped').length,
+      stopAnalysis,
+    },
+  });
+}));
+
+router.post('/executions/:id/complete', asyncHandler(async (req: Request, res: Response) => {
+  const execution = await ownedExecution(req.params['id']!, userId(req));
+  if (execution.status === 'cancelled') throw createError('Cancelled routes cannot be completed', 409, 'INVALID_EXECUTION_STATUS');
+  const actualDistanceMiles = req.body.actualDistanceMiles === undefined ? execution.actual_distance_miles : Number(req.body.actualDistanceMiles);
+  if (actualDistanceMiles !== null && (!Number.isFinite(actualDistanceMiles) || actualDistanceMiles < 0)) {
+    throw createError('Actual distance must be zero or greater', 400, 'INVALID_INPUT');
+  }
+  const completedAt = optionalIsoDate(req.body.completedAt, 'Completion time') ?? new Date().toISOString();
+  const { data, error } = await supabaseAdmin
+    .from('planner_route_executions')
+    .update({ status: 'completed', completed_at: completedAt, actual_distance_miles: actualDistanceMiles })
+    .eq('id', execution.id)
+    .eq('user_id', userId(req))
+    .select('*')
+    .single();
+  if (error) throw createError(error.message, 500, 'EXECUTION_COMPLETE_FAILED');
+  await supabaseAdmin.from('planner_routes').update({ status: 'completed', completed_at: completedAt }).eq('id', execution.route_id).eq('user_id', userId(req));
+  res.json({ success: true, data });
+}));
+
+router.post('/executions/:id/reoptimize', asyncHandler(async (req: Request, res: Response) => {
+  const execution = await ownedExecution(req.params['id']!, userId(req));
+  if (execution.status !== 'dispatched' && execution.status !== 'in_progress') {
+    throw createError('Only active routes can be reoptimized', 409, 'INVALID_EXECUTION_STATUS');
+  }
+  const route = await ownedRoute(execution.route_id, userId(req));
+  const remaining = execution.stop_progress.filter(stop => stop.status !== 'completed' && stop.status !== 'skipped');
+  if (remaining.length < 2) throw createError('At least two unfinished stops are required to reoptimize', 409, 'NOT_ENOUGH_STOPS');
+
+  const currentLocation = req.body.currentLocation && typeof req.body.currentLocation === 'object'
+    ? req.body.currentLocation as Record<string, unknown>
+    : null;
+  const stops: RouteStop[] = remaining.map((stop, index) => ({
+    id: stop.stopId,
+    address: index === 0 && currentLocation?.['address'] ? text(currentLocation['address'], 'Current location', 500) : stop.address,
+    type: index === 0 ? 'current_location' : 'stop',
+    estimatedDuration: stop.plannedServiceMinutes,
+    latitude: index === 0 ? optionalCoordinate(currentLocation?.['latitude'], -90, 90, 'Current latitude') : stop.actualLatitude,
+    longitude: index === 0 ? optionalCoordinate(currentLocation?.['longitude'], -180, 180, 'Current longitude') : stop.actualLongitude,
+    vehicleInfo: stop.name,
+  }));
+  const result = await routeOptimizationService.optimizeRoute(stops, route.options);
+  const nextVersion = route.current_version + 1;
+  const { data: updatedRoute, error: routeError } = await supabaseAdmin
+    .from('planner_routes')
+    .update({ last_optimized_result: result, last_optimized_at: new Date().toISOString(), current_version: nextVersion })
+    .eq('id', route.id)
+    .eq('user_id', userId(req))
+    .select(ROUTE_COLUMNS)
+    .single();
+  if (routeError) throw createError(routeError.message, 500, 'REOPTIMIZATION_SAVE_FAILED');
+  await recordRouteVersion(updatedRoute as PlannerRouteRecord, 'reoptimized');
+
+  const reordered = result.stops.map((stop, index) => {
+    const previous = execution.stop_progress.find(item => item.stopId === stop.id);
+    return {
+      stopId: stop.id,
+      order: index + 1,
+      name: stop.vehicleInfo,
+      address: stop.address,
+      plannedArrival: stop.estimatedArrival,
+      plannedServiceMinutes: stop.estimatedDuration ?? previous?.plannedServiceMinutes ?? 0,
+      status: previous?.status ?? 'pending',
+      ...(previous?.arrivedAt ? { arrivedAt: previous.arrivedAt } : {}),
+    } as ExecutionStopProgress;
+  });
+  const finished = execution.stop_progress.filter(stop => stop.status === 'completed' || stop.status === 'skipped');
+  const auditEntry = {
+    versionNumber: nextVersion,
+    reoptimizedAt: new Date().toISOString(),
+    remainingStops: remaining.length,
+    previousSummary: (execution.planned_snapshot['optimizedResult'] as Record<string, unknown> | undefined)?.['summary'] ?? null,
+    newSummary: result.summary,
+  };
+  const { data, error } = await supabaseAdmin
+    .from('planner_route_executions')
+    .update({
+      version_number: nextVersion,
+      planned_snapshot: { ...routeSnapshot(updatedRoute as PlannerRouteRecord), optimizedResult: result },
+      stop_progress: [...finished, ...reordered.filter(stop => !finished.some(done => done.stopId === stop.stopId))],
+      reoptimizations: [...(execution.reoptimizations ?? []), auditEntry],
+    })
+    .eq('id', execution.id)
+    .eq('user_id', userId(req))
+    .select('*')
+    .single();
+  if (error) throw createError(error.message, 500, 'EXECUTION_REOPTIMIZATION_FAILED');
+  res.json({ success: true, data: { execution: data, optimizedRoute: result, audit: auditEntry } });
+}));
+
+router.get('/routes/:id/shares', asyncHandler(async (req: Request, res: Response) => {
+  await ownedRoute(req.params['id']!, userId(req));
+  const { data, error } = await supabaseAdmin
+    .from('planner_route_shares')
+    .select('id, token, permission, expires_at, revoked_at, created_at')
+    .eq('route_id', req.params['id'])
+    .eq('user_id', userId(req))
+    .order('created_at', { ascending: false });
+  if (error) throw createError(error.message, 500, 'SHARE_LIST_FAILED');
+  res.json({ success: true, data: data ?? [] });
+}));
+
+router.post('/routes/:id/shares', asyncHandler(async (req: Request, res: Response) => {
+  const route = await ownedRoute(req.params['id']!, userId(req));
+  const permission = req.body.permission ?? 'view';
+  if (permission !== 'view' && permission !== 'track') throw createError('Share permission must be view or track', 400, 'INVALID_INPUT');
+  const expiresAt = optionalIsoDate(req.body.expiresAt, 'Expiration');
+  const { data, error } = await supabaseAdmin
+    .from('planner_route_shares')
+    .insert({ route_id: route.id, user_id: userId(req), permission, expires_at: expiresAt })
+    .select('id, token, permission, expires_at, created_at')
+    .single();
+  if (error) throw createError(error.message, 500, 'SHARE_CREATE_FAILED');
+  res.status(201).json({ success: true, data });
+}));
+
+router.delete('/routes/:routeId/shares/:shareId', asyncHandler(async (req: Request, res: Response) => {
+  await ownedRoute(req.params['routeId']!, userId(req));
+  const { data, error } = await supabaseAdmin
+    .from('planner_route_shares')
+    .update({ revoked_at: new Date().toISOString() })
+    .eq('id', req.params['shareId'])
+    .eq('route_id', req.params['routeId'])
+    .eq('user_id', userId(req))
+    .select('id')
+    .maybeSingle();
+  if (error) throw createError(error.message, 500, 'SHARE_REVOKE_FAILED');
+  if (!data) throw createError('Route share not found', 404, 'NOT_FOUND');
+  res.status(204).send();
+}));
+
+router.get('/routes/:id/export', asyncHandler(async (req: Request, res: Response) => {
+  const route = await ownedRoute(req.params['id']!, userId(req));
+  const format = req.query['format'] === 'csv' ? 'csv' : 'json';
+  if (format === 'json') {
+    res.setHeader('Content-Disposition', `attachment; filename="${route.name.replace(/[^a-z0-9]+/gi, '-').toLowerCase()}-v${route.current_version}.json"`);
+    res.json({ route: routeSnapshot(route), status: route.status, version: route.current_version });
+    return;
+  }
+  const rows = ['order,name,address,type,service_minutes,planned_arrival'];
+  plannedStops(route).forEach(stop => rows.push([
+    stop.order,
+    stop.name,
+    stop.address,
+    route.stops.find(item => item.id === stop.stopId)?.type ?? 'stop',
+    stop.plannedServiceMinutes,
+    stop.plannedArrival,
+  ].map(csvCell).join(',')));
+  res.type('text/csv').setHeader('Content-Disposition', `attachment; filename="${route.name.replace(/[^a-z0-9]+/gi, '-').toLowerCase()}-v${route.current_version}.csv"`);
+  res.send(rows.join('\r\n'));
 }));
 
 router.delete('/routes/:id', asyncHandler(async (req: Request, res: Response) => {
@@ -428,15 +955,22 @@ router.post('/optimize', asyncHandler(async (req: Request, res: Response) => {
   const result = await routeOptimizationService.optimizeRoute(stops, req.body.options ?? {});
 
   if (typeof req.body.routeId === 'string') {
+    const route = await ownedRoute(req.body.routeId, userId(req));
     const { data, error } = await supabaseAdmin
       .from('planner_routes')
-      .update({ last_optimized_result: result, last_optimized_at: new Date().toISOString() })
+      .update({
+        last_optimized_result: result,
+        last_optimized_at: new Date().toISOString(),
+        status: 'planned',
+        current_version: route.current_version + 1,
+      })
       .eq('id', req.body.routeId)
       .eq('user_id', userId(req))
-      .select('id')
+      .select(ROUTE_COLUMNS)
       .maybeSingle();
     if (error) throw createError(error.message, 500, 'ROUTE_RESULT_SAVE_FAILED');
     if (!data) throw createError('Route not found', 404, 'NOT_FOUND');
+    await recordRouteVersion(data as PlannerRouteRecord, 'optimized');
   }
 
   res.json({ success: true, data: result, timestamp: new Date().toISOString() });
