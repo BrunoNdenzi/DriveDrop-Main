@@ -34,7 +34,8 @@
     "create:admin": "node scripts/create-admin-user.js",
     "create:review-users": "node scripts/create-review-users.js",
     "setup": "npm run build && npm run create:admin && npm run start",
-    "test:benji": "ts-node -r tsconfig-paths/register src/benji/tests/benji-integration.harness.ts"
+    "test:benji": "ts-node -r tsconfig-paths/register src/benji/tests/benji-integration.harness.ts",
+    "test:route-planner": "ts-node -r tsconfig-paths/register scripts/test-standalone-route-planner.ts"
   },
   "keywords": [],
   "author": "",
@@ -49,6 +50,7 @@
     "cors": "^2.8.5",
     "csv-parse": "^6.2.1",
     "dotenv": "^17.2.0",
+    "exceljs": "^4.4.0",
     "express": "^5.1.0",
     "helmet": "^8.1.0",
     "jsonwebtoken": "^9.0.2",

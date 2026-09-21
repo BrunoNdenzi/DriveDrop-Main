@@ -24,7 +24,7 @@ export interface RouteStop {
   address: string;
   latitude?: number | undefined;
   longitude?: number | undefined;
-  type: 'pickup' | 'delivery' | 'fuel' | 'rest' | 'current_location';
+  type: 'pickup' | 'delivery' | 'fuel' | 'rest' | 'current_location' | 'stop';
   shipmentId?: string | undefined;
   vehicleInfo?: string | undefined;
   timeWindow?: {

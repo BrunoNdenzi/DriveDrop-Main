@@ -13,6 +13,7 @@ export async function POST(request: NextRequest) {
       phone,
       brokerProfile,
       smsConsent,
+      product,
     } = await request.json()
 
     if (!email || !password || !role || !firstName) {
@@ -235,6 +236,20 @@ export async function POST(request: NextRequest) {
         await supabase.auth.admin.deleteUser(userId)
         return NextResponse.json(
           { error: 'Failed to create broker profile' },
+          { status: 500 }
+        )
+      }
+    }
+
+    if (product === 'route-planner') {
+      const plannerProfile = await supabase
+        .from('planner_profiles')
+        .upsert({ user_id: userId, onboarding_completed: false }, { onConflict: 'user_id' })
+
+      if (plannerProfile.error) {
+        await supabase.auth.admin.deleteUser(userId)
+        return NextResponse.json(
+          { error: 'Failed to create route planner workspace' },
           { status: 500 }
         )
       }

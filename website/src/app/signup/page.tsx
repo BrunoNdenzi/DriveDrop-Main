@@ -14,6 +14,7 @@ function SignUpPageContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const role = searchParams.get('role') || 'client' // Get role from URL param
+  const isRoutePlanner = searchParams.get('product') === 'route-planner'
   
   const [formData, setFormData] = useState({
     firstName: '',
@@ -81,6 +82,7 @@ function SignUpPageContent() {
           phone: formData.phone,
           role,
           smsConsent,
+          product: isRoutePlanner ? 'route-planner' : undefined,
         }),
       })
 
@@ -232,7 +234,7 @@ function SignUpPageContent() {
                 </p>
               </div>
               <div className="pt-4">
-                <Button onClick={() => router.push('/login')} className="h-11 w-full rounded-none bg-[#008c82] hover:bg-[#00756d]">
+                <Button onClick={() => router.push(isRoutePlanner ? '/login?redirect=/route-planner' : '/login')} className="h-11 w-full rounded-none bg-[#008c82] hover:bg-[#00756d]">
                   Go to Login
                 </Button>
               </div>
@@ -242,7 +244,7 @@ function SignUpPageContent() {
   }
 
   return (
-    <AccessPageShell eyebrow="Create an account" title="Join the DriveDrop network." description="Set up secure access for vehicle shipping, live tracking, and coordinated delivery.">
+    <AccessPageShell eyebrow={isRoutePlanner ? 'Route planner account' : 'Create an account'} title={isRoutePlanner ? 'Plan better routes.' : 'Join the DriveDrop network.'} description={isRoutePlanner ? 'Create a standalone workspace for multi-stop planning, saved routes, and recurring schedules.' : 'Set up secure access for vehicle shipping, live tracking, and coordinated delivery.'}>
           <div className="max-w-lg">
             {/* Header */}
             <div className="text-center space-y-3 mb-6">
@@ -252,7 +254,7 @@ function SignUpPageContent() {
               <div>
                 <h1 className="text-2xl font-bold tracking-tight">Create Your Account</h1>
                 <p className="text-sm text-muted-foreground mt-1">
-                  {role === 'client' && 'Join DriveDrop and start shipping your vehicles today'}
+                  {role === 'client' && (isRoutePlanner ? 'Start planning routes without creating DriveDrop shipments' : 'Join DriveDrop and start shipping your vehicles today')}
                   {role === 'broker' && 'Join DriveDrop as a broker and connect your network'}
                   {!role || (role !== 'client' && role !== 'broker') && 'Join DriveDrop today'}
                 </p>

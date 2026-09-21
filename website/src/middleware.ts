@@ -107,8 +107,10 @@ export async function middleware(request: NextRequest) {
   console.log('[MIDDLEWARE] Path:', pathname)
   console.log('[MIDDLEWARE] Has session:', !!session)
   
-  // Protect all dashboard routes
-  if (pathname.startsWith('/dashboard')) {
+  const isPlannerWorkspace = pathname === '/route-planner' || pathname.startsWith('/route-planner/') && pathname !== '/route-planner/signup'
+
+  // Protect dashboard routes and the standalone planner workspace
+  if (pathname.startsWith('/dashboard') || isPlannerWorkspace) {
     // Not authenticated - redirect to login
     if (!session) {
       console.log('[MIDDLEWARE] No session, redirecting to login')
@@ -118,6 +120,8 @@ export async function middleware(request: NextRequest) {
     }
 
     console.log('[MIDDLEWARE] Session user ID:', session.user.id)
+
+    if (isPlannerWorkspace) return response
 
     // Get user's role from profiles table
     const { data: profile, error: profileError } = await supabase

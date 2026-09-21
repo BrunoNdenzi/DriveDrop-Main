@@ -27,6 +27,7 @@ function AccessMetric({ label, value }: { label: string; value: string }) {
 function LoginForm() {
   const searchParams = useSearchParams()
   const redirectTo = searchParams.get('redirect')
+  const isRoutePlanner = redirectTo === '/route-planner'
   const isVerified = searchParams.get('verified') === 'true'
   const [activeRole, setActiveRole] = useState<UserRole>('client')
   const [email, setEmail] = useState('')
@@ -92,9 +93,9 @@ function LoginForm() {
 
         <div className="flex items-center bg-white px-5 py-10 sm:px-10 lg:px-14">
           <div className="mx-auto w-full max-w-md">
-            <p className="text-xs font-bold uppercase tracking-[0.16em] text-[#008c82]">Welcome back</p>
-            <h2 className="mt-2 text-3xl font-semibold text-[#132c2d]">Sign in to DriveDrop</h2>
-            <p className="mt-2 text-sm leading-6 text-[#667b79]">Use the workspace assigned to your account.</p>
+            <p className="text-xs font-bold uppercase tracking-[0.16em] text-[#008c82]">{isRoutePlanner ? 'Route planner' : 'Welcome back'}</p>
+            <h2 className="mt-2 text-3xl font-semibold text-[#132c2d]">{isRoutePlanner ? 'Sign in to your planner' : 'Sign in to DriveDrop'}</h2>
+            <p className="mt-2 text-sm leading-6 text-[#667b79]">{isRoutePlanner ? 'Continue to your routes, stops, and saved locations.' : 'Use the workspace assigned to your account.'}</p>
 
             {isVerified && (
               <div className="mt-5 flex items-start gap-3 border border-[#a7d8c5] bg-[#edf9f3] p-3 text-[#17603f]" role="status">
@@ -103,7 +104,7 @@ function LoginForm() {
               </div>
             )}
 
-            <div className="mt-7 grid grid-cols-4 border border-[#cbd8d6] bg-[#f2f6f5] p-1" role="group" aria-label="Account type">
+            <div className={`${isRoutePlanner ? 'hidden' : 'mt-7 grid'} grid-cols-4 border border-[#cbd8d6] bg-[#f2f6f5] p-1`} role="group" aria-label="Account type">
               {(Object.keys(roleConfig) as UserRole[]).map(role => (
                 <button
                   key={role}
@@ -178,13 +179,13 @@ function LoginForm() {
                 {loading ? (
                   <><span className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />Signing in</>
                 ) : (
-                  <>Continue as {currentRole.label.toLowerCase()}<ArrowRight className="h-4 w-4" /></>
+                  <>{isRoutePlanner ? 'Open route planner' : `Continue as ${currentRole.label.toLowerCase()}`}<ArrowRight className="h-4 w-4" /></>
                 )}
               </button>
             </form>
 
             <div className="mt-7 border-t border-[#dce5e3] pt-5">
-              <Link href={currentRole.signupHref} className="text-sm font-semibold text-[#007b72] hover:underline">{currentRole.signupLabel}</Link>
+              <Link href={isRoutePlanner ? '/route-planner/signup' : currentRole.signupHref} className="text-sm font-semibold text-[#007b72] hover:underline">{isRoutePlanner ? 'Create a route planner account' : currentRole.signupLabel}</Link>
               <p className="mt-4 text-xs leading-5 text-[#718482]">
                 By signing in, you agree to our <Link href="/terms" className="hover:underline">Terms</Link> and <Link href="/privacy" className="hover:underline">Privacy Policy</Link>.
               </p>
