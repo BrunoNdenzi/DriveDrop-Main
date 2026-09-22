@@ -5,6 +5,7 @@ import { getSupabaseBrowserClient } from '@/lib/supabase-client'
 import { toast } from '@/components/ui/toast'
 import { Button } from '@/components/ui/button'
 import DriverMapNavigation, { type NavStop } from '@/components/driver/DriverMapNavigation'
+import DriverRouteOperations from '@/components/driver/DriverRouteOperations'
 import {
   Navigation,
   MapPin,
@@ -198,7 +199,7 @@ export default function RouteOptimizer({ driverId }: { driverId: string }) {
   const [returnToOrigin, setReturnToOrigin] = useState(false)
   const [maxHours, setMaxHours] = useState('11')
   const [maxDetourMinutes, setMaxDetourMinutes] = useState('')
-  const [verifyCommercialRoute, setVerifyCommercialRoute] = useState(false)
+  const [verifyCommercialRoute, setVerifyCommercialRoute] = useState(true)
   const [commercialVehicle, setCommercialVehicle] = useState({
     heightFeet: '13.5', widthFeet: '8.5', lengthFeet: '75', grossWeightPounds: '80000', axleCount: '5', hazmatTypes: '',
   })
@@ -207,7 +208,8 @@ export default function RouteOptimizer({ driverId }: { driverId: string }) {
   const [trafficConditions, setTrafficConditions] = useState<TrafficCondition[]>([])
   const [loading, setLoading] = useState(false)
   const [loadingTraffic, setLoadingTraffic] = useState(false)
-  const [activeTab, setActiveTab] = useState<'optimize' | 'daily-plan' | 'traffic'>('optimize')
+  const [activeTab, setActiveTab] = useState<'optimize' | 'daily-plan' | 'traffic' | 'operations'>('optimize')
+  const [savedRoutesRefreshKey, setSavedRoutesRefreshKey] = useState(0)
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
     stops: true,
     savings: true,
@@ -408,7 +410,7 @@ export default function RouteOptimizer({ driverId }: { driverId: string }) {
     try {
       const headers = await getHeaders()
 
-      const response = await fetch(`${API_BASE_URL}/route-optimization/optimize`, {
+      const response = await fetch(`${API_BASE_URL}/driver-routes/optimize`, {
         method: 'POST',
         headers,
         body: JSON.stringify({
@@ -421,8 +423,9 @@ export default function RouteOptimizer({ driverId }: { driverId: string }) {
       const result = await response.json()
       if (!result.success) throw new Error(result.error || 'Optimization failed')
 
-      setOptimizedRoute(result.data)
-      toast('Route optimized!', 'success')
+      setOptimizedRoute(result.data.optimizedRoute)
+      setSavedRoutesRefreshKey(current => current + 1)
+      toast('Route optimized and saved!', 'success')
     } catch (err: any) {
       console.error('Optimization error:', err)
       toast(err.message || 'Failed to optimize route', 'error')
@@ -445,7 +448,7 @@ export default function RouteOptimizer({ driverId }: { driverId: string }) {
     try {
       const headers = await getHeaders()
 
-      const response = await fetch(`${API_BASE_URL}/route-optimization/daily-plan`, {
+      const response = await fetch(`${API_BASE_URL}/driver-routes/daily-plan`, {
         method: 'POST',
         headers,
         body: JSON.stringify({
@@ -459,6 +462,7 @@ export default function RouteOptimizer({ driverId }: { driverId: string }) {
       if (!result.success) throw new Error(result.error || 'Plan generation failed')
 
       setDailyPlan(result.data)
+      setSavedRoutesRefreshKey(current => current + 1)
       if (result.data.routes?.[0]) {
         setOptimizedRoute({
           ...result.data.routes[0],
@@ -467,7 +471,7 @@ export default function RouteOptimizer({ driverId }: { driverId: string }) {
           missingPayoutCount: result.data.missingPayoutCount,
         })
       }
-      toast('Daily plan ready!', 'success')
+      toast('Daily plan ready and saved!', 'success')
     } catch (err: any) {
       console.error('Daily plan error:', err)
       toast(err.message || 'Failed to generate plan', 'error')
@@ -579,12 +583,13 @@ export default function RouteOptimizer({ driverId }: { driverId: string }) {
     <div className="space-y-6">
 
       {/* ── Tab Navigation ────────────────────────────────────────── */}
-      <div className="border-b border-gray-200">
+      <div className="overflow-x-auto border-b border-gray-200">
         <nav className="flex gap-1">
           {[
             { key: 'optimize' as const, label: 'Route Optimizer', icon: Navigation },
             { key: 'daily-plan' as const, label: 'Daily Plan', icon: Target },
             { key: 'traffic' as const, label: 'Traffic', icon: AlertTriangle },
+            { key: 'operations' as const, label: 'Routes & Operations', icon: Truck },
           ].map(tab => (
             <button
               key={tab.key}
@@ -603,6 +608,7 @@ export default function RouteOptimizer({ driverId }: { driverId: string }) {
       </div>
 
       {/* ── Configuration Panel ───────────────────────────────────── */}
+      {activeTab !== 'operations' && (
       <div className="bg-white rounded-lg border border-gray-200 p-5">
         <h3 className="text-sm font-semibold text-gray-900 mb-4">Route Configuration</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
@@ -752,9 +758,10 @@ export default function RouteOptimizer({ driverId }: { driverId: string }) {
           {verifyCommercialRoute && <div className="mt-4 grid grid-cols-2 gap-3 border-l-2 border-amber-500 pl-4 md:grid-cols-3 lg:grid-cols-6"><label><span className="mb-1 block text-xs text-gray-600">Height (ft)</span><input type="number" min="1" step="0.1" value={commercialVehicle.heightFeet} onChange={event => setCommercialVehicle(current => ({ ...current, heightFeet: event.target.value }))} className="h-9 w-full rounded-md border border-gray-300 px-2 text-sm" /></label><label><span className="mb-1 block text-xs text-gray-600">Width (ft)</span><input type="number" min="1" step="0.1" value={commercialVehicle.widthFeet} onChange={event => setCommercialVehicle(current => ({ ...current, widthFeet: event.target.value }))} className="h-9 w-full rounded-md border border-gray-300 px-2 text-sm" /></label><label><span className="mb-1 block text-xs text-gray-600">Length (ft)</span><input type="number" min="1" step="0.1" value={commercialVehicle.lengthFeet} onChange={event => setCommercialVehicle(current => ({ ...current, lengthFeet: event.target.value }))} className="h-9 w-full rounded-md border border-gray-300 px-2 text-sm" /></label><label><span className="mb-1 block text-xs text-gray-600">Gross weight (lb)</span><input type="number" min="1" value={commercialVehicle.grossWeightPounds} onChange={event => setCommercialVehicle(current => ({ ...current, grossWeightPounds: event.target.value }))} className="h-9 w-full rounded-md border border-gray-300 px-2 text-sm" /></label><label><span className="mb-1 block text-xs text-gray-600">Axles</span><input type="number" min="1" step="1" value={commercialVehicle.axleCount} onChange={event => setCommercialVehicle(current => ({ ...current, axleCount: event.target.value }))} className="h-9 w-full rounded-md border border-gray-300 px-2 text-sm" /></label><label><span className="mb-1 block text-xs text-gray-600">Hazmat</span><input value={commercialVehicle.hazmatTypes} onChange={event => setCommercialVehicle(current => ({ ...current, hazmatTypes: event.target.value }))} placeholder="flammable, gas" className="h-9 w-full rounded-md border border-gray-300 px-2 text-sm" /></label></div>}
         </details>
       </div>
+      )}
 
       {/* ── Shipment Picker ───────────────────────────────────────── */}
-      {activeShipments.length > 0 && (
+      {activeTab !== 'operations' && activeShipments.length > 0 && (
         <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
           <div className="flex items-center justify-between px-5 py-3 border-b border-gray-100">
             <div className="flex items-center gap-2">
@@ -1370,6 +1377,10 @@ export default function RouteOptimizer({ driverId }: { driverId: string }) {
             </div>
           </div>
         </div>
+      )}
+
+      {activeTab === 'operations' && (
+        <DriverRouteOperations refreshKey={savedRoutesRefreshKey} />
       )}
 
       {/* ── Benji Route Assistant (always visible) ────────────────── */}

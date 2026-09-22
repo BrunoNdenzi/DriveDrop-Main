@@ -361,7 +361,7 @@ export default function Navigation() {
               component={RouteMapScreen}
               options={{ title: 'Route Map', headerShown: false }}
             />
-            
+
             <Stack.Screen
               name="TransactionHistory"
               component={TransactionHistoryScreen}

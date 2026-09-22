@@ -31,6 +31,7 @@ import webhooksRoutes from './webhooks';
 import aiRoutes from './ai.routes';
 import routeOptimizationRoutes from './routeOptimization.routes';
 import standaloneRoutePlannerRoutes from './standaloneRoutePlanner.routes';
+import driverRouteLifecycleRoutes from './driverRouteLifecycle.routes';
 
 // Benji V2 Orchestrator
 import benjiRoutes from './benji.routes';
@@ -93,6 +94,7 @@ router.get('/', (_req, res) => {
       benji:        '/api/v1/benji',
       'benji-v3':   '/api/v1/benji-v3',
       routeOptimization: '/api/v1/route-optimization',
+      driverRoutes: '/api/v1/driver-routes',
       standaloneRoutePlanner: '/api/v1/standalone-route-planner',
       leads: '/api/v1/leads',
       outreach: '/api/v1/outreach',
@@ -139,6 +141,7 @@ router.use('/ai', aiRoutes);
 router.use('/benji', benjiRoutes);
 router.use('/benji-v3', benjiV3Router);
 router.use('/route-optimization', routeOptimizationRoutes);
+router.use('/driver-routes', driverRouteLifecycleRoutes);
 router.use('/standalone-route-planner', standaloneRoutePlannerRoutes);
 
 // Lead Acquisition
