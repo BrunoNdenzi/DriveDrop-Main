@@ -23,16 +23,14 @@ export async function POST(request: Request) {
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
       {
         cookies: {
-          get(name: string) {
-            return cookieStore.get(name)?.value
+          getAll() {
+            return cookieStore.getAll()
           },
-          set(name: string, value: string, options: CookieOptions) {
-            pendingCookies.push({ name, value, options })
-            cookieStore.set({ name, value, ...options })
-          },
-          remove(name: string, options: CookieOptions) {
-            pendingCookies.push({ name, value: '', options })
-            cookieStore.set({ name, value: '', ...options })
+          setAll(cookiesToSet) {
+            cookiesToSet.forEach(({ name, value, options }) => {
+              pendingCookies.push({ name, value, options })
+              cookieStore.set(name, value, options)
+            })
           },
         },
       }
@@ -98,10 +96,14 @@ export async function POST(request: Request) {
       })
     }
 
+    const safeRedirect = typeof redirectTo === 'string' && redirectTo.startsWith('/') && !redirectTo.startsWith('//')
+      ? redirectTo
+      : `/dashboard/${profile.role}`
+
     // Return success with redirect path
     return jsonResponse({
       success: true,
-      redirectTo: redirectTo || `/dashboard/${profile.role}`,
+      redirectTo: safeRedirect,
       user: {
         id: authData.user.id,
         email: authData.user.email,

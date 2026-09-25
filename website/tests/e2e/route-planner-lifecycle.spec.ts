@@ -8,11 +8,14 @@ test.skip(!email || !password, 'E2E route planner credentials are required')
 test('route planner operations and billing are usable on desktop and mobile', async ({ page }) => {
   test.setTimeout(120_000)
   const appUrl = process.env.E2E_ROUTE_PLANNER_URL || 'http://127.0.0.1:3100'
-  const login = await page.request.post(`${appUrl}/api/auth/login`, {
-    data: { email, password, role: 'client', redirectTo: '/route-planner' },
-  })
-  expect(login.ok(), await login.text()).toBe(true)
-  await page.goto(`${appUrl}/route-planner`, { waitUntil: 'domcontentloaded' })
+
+  await page.goto(`${appUrl}/route-planner/signup`, { waitUntil: 'domcontentloaded' })
+  await expect(page.getByRole('link', { name: 'Sign in' })).toHaveAttribute('href', '/login?redirect=/route-planner')
+  await page.getByRole('link', { name: 'Sign in' }).click()
+  await expect(page.getByRole('heading', { name: 'Sign in to your planner' })).toBeVisible()
+  await page.getByLabel('Email address').fill(email!)
+  await page.getByLabel(/^Password/).fill(password!)
+  await page.getByRole('button', { name: 'Open route planner' }).click()
   await expect(page).toHaveURL(/\/route-planner$/, { timeout: 30_000 })
   const setup = page.getByRole('heading', { name: 'Set your planning defaults' })
   const needsSetup = await setup.waitFor({ state: 'visible', timeout: 10_000 }).then(() => true).catch(() => false)

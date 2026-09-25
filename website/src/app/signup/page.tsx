@@ -436,7 +436,7 @@ function SignUpPageContent() {
               <div className="text-center pt-6 mt-6 border-t border-white/10">
                 <p className="text-sm text-muted-foreground">
                   Already have an account?{' '}
-                  <Link href="/login" className="font-semibold text-primary hover:underline">
+                  <Link href={isRoutePlanner ? '/login?redirect=/route-planner' : '/login'} className="font-semibold text-primary hover:underline">
                     Sign in
                   </Link>
                 </p>
