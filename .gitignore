@@ -120,3 +120,4 @@ website/.env.local.example
 website/.env.example
 website/.env.example
 backend/scripts/test-route-planner-lifecycle.js
+website/tests/e2e/route-planner-lifecycle.spec.ts

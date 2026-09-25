@@ -38,7 +38,7 @@ export interface NavStop {
   address: string
   lat?: number
   lng?: number
-  type: 'pickup' | 'delivery' | 'fuel' | 'rest' | 'current_location'
+  type: 'pickup' | 'delivery' | 'fuel' | 'rest' | 'current_location' | 'stop'
   label?: string
   shipmentId?: string
   vehicleInfo?: string

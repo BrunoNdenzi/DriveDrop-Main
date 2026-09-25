@@ -7,7 +7,7 @@ test.skip(!email || !password, 'E2E route planner credentials are required')
 
 test('route planner operations and billing are usable on desktop and mobile', async ({ page }) => {
   test.setTimeout(120_000)
-  const appUrl = process.env.E2E_ROUTE_PLANNER_URL || ''
+  const appUrl = process.env.E2E_ROUTE_PLANNER_URL || 'http://127.0.0.1:3100'
   const login = await page.request.post(`${appUrl}/api/auth/login`, {
     data: { email, password, role: 'client', redirectTo: '/route-planner' },
   })
@@ -19,6 +19,11 @@ test('route planner operations and billing are usable on desktop and mobile', as
   if (needsSetup) {
     await page.getByRole('button', { name: 'Open route planner' }).click()
   }
+
+  await expect(page.getByText('Departure time', { exact: true })).toBeVisible()
+  await expect(page.getByText('Recommend fuel stops', { exact: true })).toBeVisible()
+  await expect(page.getByTitle('Use current GPS location as the origin')).toBeVisible()
+  await expect(page.getByLabel('Verify commercial road restrictions')).toBeChecked()
 
   await expect(page.getByRole('button', { name: 'Operations' })).toBeVisible({ timeout: 30_000 })
   await page.getByRole('button', { name: 'Operations' }).click()

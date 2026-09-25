@@ -7,6 +7,7 @@ import { supabaseAdmin } from '@lib/supabase';
 import { asyncHandler, createError } from '@utils/error';
 import { routeOptimizationService, RouteStop } from '../services/RouteOptimizationService';
 import { plannerBillingService } from '../services/plannerBilling.service';
+import { pricingLiveEvidenceService } from '../services/pricingLiveEvidence.service';
 
 const router = Router();
 const MAX_STOPS = 100;
@@ -180,6 +181,12 @@ function plannedStops(route: PlannerRouteRecord): ExecutionStopProgress[] {
       status: 'pending',
     };
   });
+}
+
+async function optimizeWithLiveEvidence(stops: RouteStop[], options: Record<string, unknown>) {
+  const result = await routeOptimizationService.optimizeRoute(stops, options);
+  const liveEvidence = await pricingLiveEvidenceService.collectRoute(result.stops.map(stop => stop.address));
+  return { ...result, liveEvidence };
 }
 
 function optionalCoordinate(value: unknown, min: number, max: number, field: string): number | undefined {
@@ -845,7 +852,7 @@ router.post('/executions/:id/reoptimize', asyncHandler(async (req: Request, res:
     longitude: index === 0 ? optionalCoordinate(currentLocation?.['longitude'], -180, 180, 'Current longitude') : stop.actualLongitude,
     vehicleInfo: stop.name,
   }));
-  const result = await routeOptimizationService.optimizeRoute(stops, route.options);
+  const result = await optimizeWithLiveEvidence(stops, route.options);
   const nextVersion = route.current_version + 1;
   const { data: updatedRoute, error: routeError } = await supabaseAdmin
     .from('planner_routes')
@@ -976,7 +983,8 @@ router.post('/optimize', asyncHandler(async (req: Request, res: Response) => {
   const ownerId = userId(req);
   const stops = normalizeStops(req.body.stops);
   await plannerBillingService.assertRouteAllowed(ownerId, stops.length);
-  const result = await routeOptimizationService.optimizeRoute(stops, req.body.options ?? {});
+  const options = req.body.options && typeof req.body.options === 'object' ? req.body.options : {};
+  const result = await optimizeWithLiveEvidence(stops, options);
 
   if (typeof req.body.routeId === 'string') {
     const route = await ownedRoute(req.body.routeId, ownerId);

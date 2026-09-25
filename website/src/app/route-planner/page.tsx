@@ -6,11 +6,13 @@ import { useRouter } from 'next/navigation'
 import { getSupabaseBrowserClient } from '@/lib/supabase-client'
 import RouteOperations from '@/components/route-planner/RouteOperations'
 import PlannerBilling from '@/components/route-planner/PlannerBilling'
+import DriverMapNavigation, { type NavStop } from '@/components/driver/DriverMapNavigation'
 import {
   BookOpen,
   Calendar,
   Clock,
   CreditCard,
+  Crosshair,
   Fuel,
   LogOut,
   MapPin,
@@ -42,6 +44,8 @@ interface PlannerStop {
 interface RoutePlannerOptions {
   vehicleType: string
   vehicleSlots: number
+  departureTime?: string
+  prioritizeFuel: boolean
   returnToOrigin: boolean
   avoidHighways: boolean
   preferHighway: boolean
@@ -80,6 +84,7 @@ interface SavedRoute {
   is_recurring: boolean
   status: 'draft' | 'planned' | 'dispatched' | 'in_progress' | 'completed' | 'cancelled'
   current_version: number
+  last_optimized_result: OptimizedRoute | null
   updated_at: string
 }
 
@@ -101,14 +106,34 @@ interface OptimizedRoute {
   savings: {
     distanceSaved: number
     timeSaved: number
+    fuelCostSaved: number
+    emptyMilesSaved: number
     percentImprovement: number
   }
+  liveEvidence: {
+    traffic: EvidenceSource<{ delaySeconds: number; delayPercent: number; evaluatedLegs: number; totalLegs: number }>
+    tolls: EvidenceSource<{ currency: string; estimatedAmount: number; tollCount: number }>
+    weather: EvidenceSource<{ condition: string; temperatureFahrenheit: number; windSpeedMph: number; precipitationOneHourInches: number }>
+    fuel: EvidenceSource<{ pricePerGallon: number; currency: string; geographicLevel: string; stationName?: string }>
+  } | null
+  carolinaInsights: Array<{ type: string; title: string; description: string; severity: 'info' | 'warning' | 'critical'; affectedSegment?: string }>
+  fuelStops: Array<{ name: string; address: string; estimatedPrice: number; afterStopIndex: number; reason: string }>
+  benjiTips: string[]
   constraintWarnings: string[]
   commercialCompliance: {
     status: 'verified' | 'profile_required' | 'not_requested'
     provider: 'here' | null
     restrictions: string[]
   }
+}
+
+interface EvidenceSource<T> {
+  status: 'available' | 'unavailable' | 'error'
+  provider: string
+  observedAt: string
+  freshUntil: string
+  evidence?: T
+  errorCode?: string
 }
 
 function newStop(index: number, id = crypto.randomUUID()): PlannerStop {
@@ -130,17 +155,21 @@ export default function StandaloneRoutePlannerPage() {
   const router = useRouter()
   const supabase = getSupabaseBrowserClient()
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const stopInputRefs = useRef(new Map<string, HTMLInputElement>())
+  const stopAutocompleteRefs = useRef(new Map<string, google.maps.places.Autocomplete>())
   const [tab, setTab] = useState<PlannerTab>('plan')
   const [profileLoaded, setProfileLoaded] = useState(false)
   const [onboarded, setOnboarded] = useState(false)
   const [businessName, setBusinessName] = useState('')
   const [vehicleType, setVehicleType] = useState('default')
   const [vehicleSlots, setVehicleSlots] = useState(1)
+  const [departureTime, setDepartureTime] = useState(localDateTime())
+  const [prioritizeFuel, setPrioritizeFuel] = useState(true)
   const [routingPreference, setRoutingPreference] = useState<'fastest' | 'preferHighway' | 'avoidHighways'>('fastest')
   const [returnToOrigin, setReturnToOrigin] = useState(false)
   const [maxHours, setMaxHours] = useState('')
   const [maxDetourMinutes, setMaxDetourMinutes] = useState('')
-  const [verifyCommercialRoute, setVerifyCommercialRoute] = useState(false)
+  const [verifyCommercialRoute, setVerifyCommercialRoute] = useState(true)
   const [commercialVehicle, setCommercialVehicle] = useState({
     heightFeet: '13.5', widthFeet: '8.5', lengthFeet: '75', grossWeightPounds: '80000', axleCount: '5', hazmatTypes: '',
   })
@@ -155,6 +184,7 @@ export default function StandaloneRoutePlannerPage() {
   const [locationForm, setLocationForm] = useState({ name: '', address: '', notes: '' })
   const [result, setResult] = useState<OptimizedRoute | null>(null)
   const [busy, setBusy] = useState(false)
+  const [detectingOrigin, setDetectingOrigin] = useState(false)
   const [message, setMessage] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
 
@@ -244,6 +274,55 @@ export default function StandaloneRoutePlannerPage() {
     setResult(null)
   }
 
+  useEffect(() => {
+    if (!window.google?.maps?.places) return
+    for (const stop of stops) {
+      const input = stopInputRefs.current.get(stop.id)
+      if (!input || stopAutocompleteRefs.current.has(stop.id)) continue
+      const autocomplete = new google.maps.places.Autocomplete(input, {
+        types: ['geocode', 'establishment'],
+        componentRestrictions: { country: 'us' },
+        fields: ['formatted_address', 'geometry'],
+      })
+      autocomplete.addListener('place_changed', () => {
+        const place = autocomplete.getPlace()
+        const location = place.geometry?.location
+        if (!place.formatted_address) return
+        setStops(current => current.map(item => item.id === stop.id ? {
+          ...item,
+          address: place.formatted_address!,
+          ...(location ? { latitude: location.lat(), longitude: location.lng() } : {}),
+        } : item))
+        setResult(null)
+      })
+      stopAutocompleteRefs.current.set(stop.id, autocomplete)
+    }
+  }, [stops])
+
+  const detectCurrentOrigin = () => {
+    if (!navigator.geolocation) return fail(new Error('Geolocation is unavailable in this browser'))
+    setDetectingOrigin(true)
+    navigator.geolocation.getCurrentPosition(async position => {
+      const latitude = position.coords.latitude
+      const longitude = position.coords.longitude
+      let address = `${latitude.toFixed(5)}, ${longitude.toFixed(5)}`
+      if (window.google?.maps) {
+        try {
+          const geocoded = await new google.maps.Geocoder().geocode({ location: { lat: latitude, lng: longitude } })
+          address = geocoded.results[0]?.formatted_address || address
+        } catch {
+          // Coordinates remain usable when reverse geocoding is unavailable.
+        }
+      }
+      const origin = stops[0]
+      if (origin) updateStop(origin.id, { address, latitude, longitude })
+      setDetectingOrigin(false)
+    }, () => {
+      setDetectingOrigin(false)
+      fail(new Error('Unable to detect your current location'))
+    }, { enableHighAccuracy: true, timeout: 10_000 })
+  }
+
   const addStop = (location?: SavedLocation) => {
     const stop = newStop(stops.length)
     setStops(current => [...current, location ? { ...stop, name: location.name, address: location.address } : stop])
@@ -262,6 +341,8 @@ export default function StandaloneRoutePlannerPage() {
   const routeOptions = (): RoutePlannerOptions => ({
     vehicleType,
     vehicleSlots,
+    ...(departureTime ? { departureTime: new Date(departureTime).toISOString() } : {}),
+    prioritizeFuel,
     returnToOrigin,
     avoidHighways: routingPreference === 'avoidHighways',
     preferHighway: routingPreference === 'preferHighway',
@@ -344,6 +425,8 @@ export default function StandaloneRoutePlannerPage() {
     setStops(route.stops)
     setVehicleType(route.options.vehicleType ?? vehicleType)
     setVehicleSlots(route.options.vehicleSlots ?? vehicleSlots)
+    setDepartureTime(route.options.departureTime ? localDateTime(new Date(route.options.departureTime)) : localDateTime())
+    setPrioritizeFuel(route.options.prioritizeFuel !== false)
     setRoutingPreference(route.options.avoidHighways ? 'avoidHighways' : route.options.preferHighway ? 'preferHighway' : 'fastest')
     setReturnToOrigin(route.options.returnToOrigin === true)
     setMaxHours(route.options.maxHours === undefined ? '' : String(route.options.maxHours))
@@ -362,7 +445,7 @@ export default function StandaloneRoutePlannerPage() {
     setRecurring(route.is_recurring)
     setFrequency(route.recurrence?.frequency ?? 'weekly')
     setRecurrenceStart(route.recurrence?.startsAt ? localDateTime(new Date(route.recurrence.startsAt)) : localDateTime())
-    setResult(null)
+    setResult(route.last_optimized_result)
     setTab('plan')
   }
 
@@ -501,6 +584,7 @@ export default function StandaloneRoutePlannerPage() {
                 <div><h2 className="font-semibold">Stops</h2><p className="text-xs text-[#6b807e]">First address is fixed as the route origin.</p></div>
                 <div className="flex gap-2">
                   <input ref={fileInputRef} type="file" accept=".csv,.xlsx,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" className="hidden" onChange={event => { const file = event.target.files?.[0]; if (file) void importCsv(file) }} />
+                  <button onClick={detectCurrentOrigin} disabled={detectingOrigin} title="Use current GPS location as the origin" className="grid h-9 w-9 place-items-center border border-[#b9c9c7] hover:bg-[#f3f7f6] disabled:opacity-50"><Crosshair className={`h-4 w-4 ${detectingOrigin ? 'animate-spin' : ''}`} /></button>
                   <button onClick={() => fileInputRef.current?.click()} className="flex h-9 items-center gap-2 border border-[#b9c9c7] px-3 text-sm font-semibold hover:bg-[#f3f7f6]"><Upload className="h-4 w-4" />Import file</button>
                   <button onClick={() => addStop()} className="flex h-9 items-center gap-2 bg-[#173f40] px-3 text-sm font-semibold text-white hover:bg-[#0f3031]"><Plus className="h-4 w-4" />Add stop</button>
                 </div>
@@ -511,7 +595,7 @@ export default function StandaloneRoutePlannerPage() {
                     <div className="grid gap-3 md:grid-cols-[34px_minmax(120px,.45fr)_minmax(220px,1fr)_110px_36px] md:items-center">
                       <span className="grid h-8 w-8 place-items-center bg-[#e4f3f1] text-sm font-bold text-[#00756d]">{index + 1}</span>
                       <input aria-label={`Stop ${index + 1} name`} value={stop.name} onChange={event => updateStop(stop.id, { name: event.target.value })} placeholder="Stop name" className="h-10 border border-[#c6d4d2] px-3 text-sm outline-none focus:border-[#008c82]" />
-                      <div className="relative"><MapPin className="absolute left-3 top-3 h-4 w-4 text-[#708482]" /><input aria-label={`Stop ${index + 1} address`} list="saved-locations" value={stop.address} onChange={event => updateStop(stop.id, { address: event.target.value, latitude: undefined, longitude: undefined })} placeholder={index === 0 ? 'Starting address' : 'Street, city, state'} className="h-10 w-full border border-[#c6d4d2] pl-9 pr-3 text-sm outline-none focus:border-[#008c82]" /></div>
+                      <div className="relative"><MapPin className="absolute left-3 top-3 h-4 w-4 text-[#708482]" /><input ref={element => { if (element) stopInputRefs.current.set(stop.id, element); else stopInputRefs.current.delete(stop.id) }} aria-label={`Stop ${index + 1} address`} list="saved-locations" value={stop.address} onChange={event => updateStop(stop.id, { address: event.target.value, latitude: undefined, longitude: undefined })} placeholder={index === 0 ? 'Starting address' : 'Street, city, state'} className="h-10 w-full border border-[#c6d4d2] pl-9 pr-3 text-sm outline-none focus:border-[#008c82]" /></div>
                       <label className="flex items-center gap-2 text-xs text-[#617775]"><input aria-label={`Stop ${index + 1} service minutes`} type="number" min={0} max={1440} value={stop.serviceMinutes} onChange={event => updateStop(stop.id, { serviceMinutes: Number(event.target.value) })} className="h-10 w-16 border border-[#c6d4d2] px-2 text-sm" /> min</label>
                       <button onClick={() => removeStop(stop.id)} disabled={stops.length <= 2 || index === 0} title="Remove stop" className="grid h-9 w-9 place-items-center text-[#8a5c58] hover:bg-red-50 disabled:opacity-25"><Trash2 className="h-4 w-4" /></button>
                     </div>
@@ -523,6 +607,26 @@ export default function StandaloneRoutePlannerPage() {
                 ))}
               </div>
               <datalist id="saved-locations">{locations.map(location => <option key={location.id} value={location.address}>{location.name}</option>)}</datalist>
+              {result && <div className="border-t border-[#d8e2e0] p-4"><DriverMapNavigation
+                stops={result.stops.map(stop => ({
+                  id: stop.id,
+                  address: stop.address,
+                  lat: stop.latitude,
+                  lng: stop.longitude,
+                  type: stop.type,
+                  label: stop.vehicleInfo || stop.name,
+                  order: stop.order,
+                  estimatedArrival: stop.estimatedArrival,
+                } satisfies NavStop))}
+                plannedDistance={result.summary.totalDistance}
+                plannedDurationMinutes={result.summary.totalDuration}
+                plannedEndTime={result.summary.estimatedEndTime}
+                departureTime={departureTime ? new Date(departureTime).toISOString() : undefined}
+                carolinaInsights={result.carolinaInsights}
+                benjiTips={result.benjiTips}
+                fuelStops={result.fuelStops}
+                height="h-[460px]"
+              /></div>}
             </section>
 
             <aside className="space-y-5">
@@ -534,6 +638,8 @@ export default function StandaloneRoutePlannerPage() {
                   <label><span className="mb-1 block text-xs font-semibold text-[#617775]">Capacity</span><input type="number" min={1} max={100} value={vehicleSlots} onChange={event => setVehicleSlots(Number(event.target.value))} className="h-10 w-full border border-[#c6d4d2] px-3 text-sm" /></label>
                 </div>
                 <label className="mt-4 block"><span className="mb-1 block text-xs font-semibold text-[#617775]">Routing mode</span><select value={routingPreference} onChange={event => setRoutingPreference(event.target.value as typeof routingPreference)} className="h-10 w-full border border-[#c6d4d2] bg-white px-2 text-sm"><option value="fastest">Fastest available</option><option value="preferHighway">Prefer highways</option><option value="avoidHighways">Avoid highways</option></select></label>
+                <label className="mt-3 block"><span className="mb-1 block text-xs font-semibold text-[#617775]">Departure time</span><input type="datetime-local" value={departureTime} onChange={event => setDepartureTime(event.target.value)} className="h-10 w-full border border-[#c6d4d2] px-2 text-sm" /></label>
+                <label className="mt-3 flex items-center gap-2 text-sm font-semibold"><input type="checkbox" checked={prioritizeFuel} onChange={event => setPrioritizeFuel(event.target.checked)} className="h-4 w-4 accent-[#008c82]" />Recommend fuel stops</label>
                 <label className="mt-3 flex items-center gap-2 text-sm font-semibold"><input type="checkbox" checked={returnToOrigin} onChange={event => setReturnToOrigin(event.target.checked)} className="h-4 w-4 accent-[#008c82]" />Return to origin</label>
                 <div className="mt-3 grid grid-cols-2 gap-3"><label><span className="mb-1 block text-xs font-semibold text-[#617775]">Maximum hours</span><input type="number" min="0.1" step="0.5" value={maxHours} onChange={event => setMaxHours(event.target.value)} placeholder="No limit" className="h-10 w-full border border-[#c6d4d2] px-2 text-sm" /></label><label><span className="mb-1 block text-xs font-semibold text-[#617775]">Maximum detour</span><div className="flex items-center gap-2"><input type="number" min="0" value={maxDetourMinutes} onChange={event => setMaxDetourMinutes(event.target.value)} placeholder="No limit" className="h-10 min-w-0 flex-1 border border-[#c6d4d2] px-2 text-sm" /><span className="text-xs text-[#617775]">min</span></div></label></div>
                 <label className="mt-4 flex items-center gap-2 text-sm font-semibold"><input type="checkbox" checked={verifyCommercialRoute} onChange={event => setVerifyCommercialRoute(event.target.checked)} className="h-4 w-4 accent-[#008c82]" />Verify commercial road restrictions</label>
@@ -545,6 +651,7 @@ export default function StandaloneRoutePlannerPage() {
               </section>
 
               {result && <section className="border border-[#9fc7c2] bg-[#f8fbfa] p-5"><div className="flex items-center justify-between"><h2 className="font-semibold">Optimized route</h2><span className="bg-[#dff2ee] px-2 py-1 text-xs font-bold text-[#00756d]">{result.summary.efficiencyScore}/100</span></div><div className="mt-4 grid grid-cols-2 gap-px bg-[#cbd8d6]"><Metric icon={Route} label="Distance" value={`${result.summary.totalDistance} mi`} /><Metric icon={Clock} label="Duration" value={`${Math.round(result.summary.totalDuration / 6) / 10} hr`} /><Metric icon={Fuel} label="Fuel" value={`$${result.summary.totalFuelCost.toFixed(2)}`} /><Metric icon={Navigation} label="Finish" value={new Date(result.summary.estimatedEndTime).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })} /></div>{result.commercialCompliance.status === 'verified' && <p className="mt-3 border border-emerald-200 bg-emerald-50 p-2 text-xs font-semibold text-emerald-800">Commercial route verified by HERE for {result.commercialCompliance.restrictions.join(', ')}.</p>}{result.constraintWarnings.map(warning => <p key={warning} className="mt-2 border border-amber-200 bg-amber-50 p-2 text-xs text-amber-800">{warning}</p>)}<ol className="mt-4 space-y-3">{result.stops.map(stop => <li key={`${stop.order}-${stop.id}`} className="flex gap-3 text-sm"><span className="grid h-6 w-6 shrink-0 place-items-center bg-[#173f40] text-xs font-bold text-white">{stop.order}</span><div><p className="font-semibold">{stop.vehicleInfo || stop.name || stop.address}</p><p className="text-xs text-[#657a78]">{stop.address}</p></div></li>)}</ol></section>}
+              {result && <><RouteIntelligence result={result} /><RouteCoach result={result} /></>}
             </aside>
           </div>
         )}
@@ -563,6 +670,79 @@ export default function StandaloneRoutePlannerPage() {
 
 function Metric({ icon: Icon, label, value }: { icon: typeof Route; label: string; value: string }) {
   return <div className="bg-white p-3"><Icon className="h-4 w-4 text-[#008c82]" /><p className="mt-2 text-xs text-[#6b807e]">{label}</p><p className="font-semibold">{value}</p></div>
+}
+
+function RouteIntelligence({ result }: { result: OptimizedRoute }) {
+  const traffic = result.liveEvidence?.traffic.evidence
+  const tolls = result.liveEvidence?.tolls.evidence
+  const weather = result.liveEvidence?.weather.evidence
+  const fuel = result.liveEvidence?.fuel.evidence
+
+  return <section className="border border-[#b9d8d4] bg-white p-5 text-xs">
+    <h2 className="font-semibold text-[#254947]">Route intelligence</h2>
+    <div className="mt-3 grid grid-cols-2 gap-2">
+      <IntelligenceMetric label="Distance saved" value={`${result.savings.distanceSaved} mi`} />
+      <IntelligenceMetric label="Time saved" value={`${Math.round(result.savings.timeSaved)} min`} />
+      <IntelligenceMetric label="Fuel saved" value={`$${result.savings.fuelCostSaved.toFixed(2)}`} />
+      <IntelligenceMetric label="Empty miles saved" value={`${result.savings.emptyMilesSaved} mi`} />
+    </div>
+    <div className="mt-3 border border-[#d6e1df] bg-[#f8fbfa] p-3">
+      <p className="font-bold text-[#254947]">Live route evidence</p>
+      <div className="mt-2 grid gap-1 text-[#5f7472]">
+        <p>Traffic: {traffic ? `${Math.round(traffic.delaySeconds / 60)} min delay across ${traffic.evaluatedLegs}/${traffic.totalLegs} legs` : result.liveEvidence?.traffic.errorCode || 'Unavailable'}</p>
+        <p>Tolls: {tolls ? `${tolls.currency} ${tolls.estimatedAmount.toFixed(2)} - ${tolls.tollCount} tolls` : result.liveEvidence?.tolls.errorCode || 'Unavailable'}</p>
+        <p>Weather: {weather ? `${weather.condition} - ${Math.round(weather.temperatureFahrenheit)} F - ${Math.round(weather.windSpeedMph)} mph wind` : result.liveEvidence?.weather.errorCode || 'Unavailable'}</p>
+        <p>Diesel: {fuel ? `$${fuel.pricePerGallon.toFixed(2)}/gal${fuel.stationName ? ` - ${fuel.stationName}` : ''}` : result.liveEvidence?.fuel.errorCode || 'Unavailable'}</p>
+      </div>
+    </div>
+    {result.carolinaInsights.length > 0 && <div className="mt-3 border border-[#d6e1df] p-3"><p className="font-bold text-[#254947]">Regional route intelligence</p>{result.carolinaInsights.map(insight => <div key={`${insight.title}-${insight.affectedSegment || ''}`} className="mt-2"><p className="font-semibold">{insight.title}</p><p className="text-[#617775]">{insight.description}</p></div>)}</div>}
+    {result.fuelStops.length > 0 && <div className="mt-3 border border-[#d6e1df] p-3"><p className="font-bold text-[#254947]">Recommended fuel stops</p>{result.fuelStops.map(stop => <div key={`${stop.name}-${stop.address}`} className="mt-2"><p className="font-semibold">{stop.name} - ${stop.estimatedPrice.toFixed(2)}/gal</p><p className="text-[#617775]">{stop.reason}</p></div>)}</div>}
+    {result.benjiTips.length > 0 && <div className="mt-3 border border-[#b9d8d4] bg-[#edf8f6] p-3"><p className="font-bold text-[#254947]">Route guidance</p><ul className="mt-2 space-y-1 text-[#496764]">{result.benjiTips.map(tip => <li key={tip}>- {tip}</li>)}</ul></div>}
+  </section>
+}
+
+function IntelligenceMetric({ label, value }: { label: string; value: string }) {
+  return <div className="border border-[#d6e1df] bg-[#f8fbfa] p-2"><p className="text-[#6b807e]">{label}</p><p className="mt-1 font-bold text-[#254947]">{value}</p></div>
+}
+
+function RouteCoach({ result }: { result: OptimizedRoute }) {
+  const supabase = getSupabaseBrowserClient()
+  const sessionId = useRef(`standalone-route-${crypto.randomUUID()}`)
+  const [question, setQuestion] = useState('')
+  const [answer, setAnswer] = useState('')
+  const [loading, setLoading] = useState(false)
+
+  const ask = async () => {
+    if (!question.trim()) return
+    setLoading(true)
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session?.access_token) throw new Error('Your session expired. Sign in again.')
+      const routeContext = result.stops.map(stop => `${stop.order}. ${stop.address}`).join('\n')
+      const response = await fetch(`${API_BASE_URL}/benji-v3/chat`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
+        body: JSON.stringify({
+          sessionId: sessionId.current,
+          message: `${question.trim()}\nOptimized standalone route:\n${routeContext}\nDistance: ${result.summary.totalDistance} miles. Duration: ${result.summary.totalDuration} minutes.`,
+        }),
+      })
+      const body = await response.json().catch(() => ({}))
+      if (!response.ok) throw new Error(body.error || 'Route coaching is unavailable')
+      setAnswer(body.response || 'No guidance returned.')
+      setQuestion('')
+    } catch (caught) {
+      setAnswer(caught instanceof Error ? caught.message : 'Route coaching is unavailable')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return <section className="border border-[#b9d8d4] bg-[#edf8f6] p-5">
+    <h2 className="font-semibold text-[#254947]">Ask Benji about this route</h2>
+    <div className="mt-3 flex gap-2"><input value={question} onChange={event => setQuestion(event.target.value)} onKeyDown={event => { if (event.key === 'Enter') void ask() }} placeholder="Traffic, fuel, timing, or route advice" className="h-10 min-w-0 flex-1 border border-[#b9cbc8] bg-white px-3 text-sm" /><button onClick={() => void ask()} disabled={loading || !question.trim()} className="h-10 bg-[#173f40] px-4 text-sm font-bold text-white disabled:opacity-40">{loading ? 'Asking...' : 'Ask'}</button></div>
+    {answer && <p className="mt-3 whitespace-pre-wrap border-t border-[#c7ddda] pt-3 text-sm leading-6 text-[#496764]">{answer}</p>}
+  </section>
 }
 
 function EmptyState({ icon: Icon, text, action, actionLabel }: { icon: typeof Route; text: string; action?: () => void; actionLabel?: string }) {
