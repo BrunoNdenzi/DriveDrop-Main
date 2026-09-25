@@ -35,6 +35,7 @@ interface PlannerStop {
   name: string
   address: string
   type: StopType
+  referenceId?: string
   serviceMinutes: number
   latitude?: number
   longitude?: number
@@ -151,6 +152,19 @@ function localDateTime(date = new Date(Date.now() + 60 * 60 * 1000)): string {
   return new Date(date.getTime() - offset).toISOString().slice(0, 16)
 }
 
+function navigationStops(result: OptimizedRoute): NavStop[] {
+  return result.stops.map(stop => ({
+    id: stop.id,
+    address: stop.address,
+    lat: stop.latitude,
+    lng: stop.longitude,
+    type: stop.type,
+    label: stop.vehicleInfo || stop.name,
+    order: stop.order,
+    estimatedArrival: stop.estimatedArrival,
+  }))
+}
+
 export default function StandaloneRoutePlannerPage() {
   const router = useRouter()
   const supabase = getSupabaseBrowserClient()
@@ -185,6 +199,7 @@ export default function StandaloneRoutePlannerPage() {
   const [result, setResult] = useState<OptimizedRoute | null>(null)
   const [busy, setBusy] = useState(false)
   const [detectingOrigin, setDetectingOrigin] = useState(false)
+  const [drivingMode, setDrivingMode] = useState(false)
   const [message, setMessage] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
 
@@ -275,28 +290,43 @@ export default function StandaloneRoutePlannerPage() {
   }
 
   useEffect(() => {
-    if (!window.google?.maps?.places) return
-    for (const stop of stops) {
-      const input = stopInputRefs.current.get(stop.id)
-      if (!input || stopAutocompleteRefs.current.has(stop.id)) continue
-      const autocomplete = new google.maps.places.Autocomplete(input, {
-        types: ['geocode', 'establishment'],
-        componentRestrictions: { country: 'us' },
-        fields: ['formatted_address', 'geometry'],
-      })
-      autocomplete.addListener('place_changed', () => {
-        const place = autocomplete.getPlace()
-        const location = place.geometry?.location
-        if (!place.formatted_address) return
-        setStops(current => current.map(item => item.id === stop.id ? {
-          ...item,
-          address: place.formatted_address!,
-          ...(location ? { latitude: location.lat(), longitude: location.lng() } : {}),
-        } : item))
-        setResult(null)
-      })
-      stopAutocompleteRefs.current.set(stop.id, autocomplete)
+    const initialize = () => {
+      if (!window.google?.maps?.places) return false
+      const activeIds = new Set(stops.map(stop => stop.id))
+      for (const [stopId, autocomplete] of stopAutocompleteRefs.current) {
+        if (activeIds.has(stopId)) continue
+        google.maps.event.clearInstanceListeners(autocomplete)
+        stopAutocompleteRefs.current.delete(stopId)
+      }
+      for (const stop of stops) {
+        const input = stopInputRefs.current.get(stop.id)
+        if (!input || stopAutocompleteRefs.current.has(stop.id)) continue
+        const autocomplete = new google.maps.places.Autocomplete(input, {
+          types: ['geocode', 'establishment'],
+          componentRestrictions: { country: 'us' },
+          fields: ['formatted_address', 'geometry'],
+        })
+        autocomplete.addListener('place_changed', () => {
+          const place = autocomplete.getPlace()
+          const location = place.geometry?.location
+          if (!place.formatted_address) return
+          setStops(current => current.map(item => item.id === stop.id ? {
+            ...item,
+            address: place.formatted_address!,
+            ...(location ? { latitude: location.lat(), longitude: location.lng() } : {}),
+          } : item))
+          setResult(null)
+        })
+        stopAutocompleteRefs.current.set(stop.id, autocomplete)
+      }
+      return stops.every(stop => stopAutocompleteRefs.current.has(stop.id))
     }
+
+    if (initialize()) return
+    const interval = window.setInterval(() => {
+      if (initialize()) window.clearInterval(interval)
+    }, 250)
+    return () => window.clearInterval(interval)
   }, [stops])
 
   const detectCurrentOrigin = () => {
@@ -469,18 +499,17 @@ export default function StandaloneRoutePlannerPage() {
     try {
       const formData = new FormData()
       formData.append('file', file)
-      const imported = await api<{ stops: PlannerStop[]; importedCount: number }>('/import', {
+      const imported = await api<{ stops: PlannerStop[]; importedCount: number; shipmentCount: number }>('/import', {
         method: 'POST',
         body: formData,
       })
-      const importedStops = imported.stops.map(stop => ({ ...stop, id: crypto.randomUUID(), type: 'stop' as StopType }))
-      if (stops[0]?.address) {
-        setStops([stops[0], ...importedStops])
-      } else {
-        setStops(importedStops.map((stop, index) => ({ ...stop, type: index === 0 ? 'current_location' : 'stop' })))
-      }
+      const importedStops = imported.stops.map(stop => ({ ...stop, id: crypto.randomUUID() }))
+      const origin = stops[0] ?? newStop(0, 'draft-origin')
+      setStops([{ ...origin, type: 'current_location' }, ...importedStops])
       setResult(null)
-      flash(`Imported ${imported.importedCount} stops`)
+      flash(imported.shipmentCount > 0
+        ? `Imported ${imported.shipmentCount} shipments as ${imported.importedCount} pickup and delivery stops`
+        : `Imported ${imported.importedCount} stops`)
     } catch (caught) {
       fail(caught)
     } finally {
@@ -565,6 +594,19 @@ export default function StandaloneRoutePlannerPage() {
         </div>
       </header>
 
+      {drivingMode && result && <div className="fixed inset-0 z-50 bg-[#101d1e]"><DriverMapNavigation
+        stops={navigationStops(result)}
+        plannedDistance={result.summary.totalDistance}
+        plannedDurationMinutes={result.summary.totalDuration}
+        plannedEndTime={result.summary.estimatedEndTime}
+        departureTime={departureTime ? new Date(departureTime).toISOString() : undefined}
+        carolinaInsights={result.carolinaInsights}
+        benjiTips={result.benjiTips}
+        fuelStops={result.fuelStops}
+        onClose={() => setDrivingMode(false)}
+        height="h-screen"
+      /></div>}
+
       <div className="mx-auto max-w-[1500px] px-4 py-5 sm:px-6">
         <div className="flex flex-wrap items-end justify-between gap-4 border-b border-[#bfd0cd]">
           <div><p className="text-xs font-bold uppercase tracking-[0.14em] text-[#008c82]">Planning workspace</p><h1 className="mt-1 text-2xl font-semibold">Build today&apos;s route</h1></div>
@@ -581,11 +623,12 @@ export default function StandaloneRoutePlannerPage() {
           <div className="mt-5 grid gap-5 xl:grid-cols-[minmax(0,1.25fr)_minmax(380px,.75fr)]">
             <section className="border border-[#c6d4d2] bg-white">
               <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#d8e2e0] px-5 py-4">
-                <div><h2 className="font-semibold">Stops</h2><p className="text-xs text-[#6b807e]">First address is fixed as the route origin.</p></div>
-                <div className="flex gap-2">
+                <div><h2 className="font-semibold">Origin and shipments</h2><p className="text-xs text-[#6b807e]">Start with where your truck is now, then add or import each load&apos;s pickup and delivery.</p></div>
+                <div className="flex flex-wrap gap-2">
                   <input ref={fileInputRef} type="file" accept=".csv,.xlsx,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" className="hidden" onChange={event => { const file = event.target.files?.[0]; if (file) void importCsv(file) }} />
-                  <button onClick={detectCurrentOrigin} disabled={detectingOrigin} title="Use current GPS location as the origin" className="grid h-9 w-9 place-items-center border border-[#b9c9c7] hover:bg-[#f3f7f6] disabled:opacity-50"><Crosshair className={`h-4 w-4 ${detectingOrigin ? 'animate-spin' : ''}`} /></button>
+                  <button onClick={detectCurrentOrigin} disabled={detectingOrigin} title="Use current GPS location as the origin" className="flex h-9 items-center gap-2 border border-[#b9c9c7] px-3 text-sm font-semibold hover:bg-[#f3f7f6] disabled:opacity-50"><Crosshair className={`h-4 w-4 ${detectingOrigin ? 'animate-spin' : ''}`} />{detectingOrigin ? 'Locating...' : 'Use my location'}</button>
                   <button onClick={() => fileInputRef.current?.click()} className="flex h-9 items-center gap-2 border border-[#b9c9c7] px-3 text-sm font-semibold hover:bg-[#f3f7f6]"><Upload className="h-4 w-4" />Import file</button>
+                  <a href="/templates/route-planner-five-shipments.csv" download className="flex h-9 items-center border border-[#b9c9c7] px-3 text-sm font-semibold text-[#486361] hover:bg-[#f3f7f6]">Sample CSV</a>
                   <button onClick={() => addStop()} className="flex h-9 items-center gap-2 bg-[#173f40] px-3 text-sm font-semibold text-white hover:bg-[#0f3031]"><Plus className="h-4 w-4" />Add stop</button>
                 </div>
               </div>
@@ -594,7 +637,7 @@ export default function StandaloneRoutePlannerPage() {
                   <div key={stop.id} className="px-5 py-4">
                     <div className="grid gap-3 md:grid-cols-[34px_minmax(120px,.45fr)_minmax(220px,1fr)_110px_36px] md:items-center">
                       <span className="grid h-8 w-8 place-items-center bg-[#e4f3f1] text-sm font-bold text-[#00756d]">{index + 1}</span>
-                      <input aria-label={`Stop ${index + 1} name`} value={stop.name} onChange={event => updateStop(stop.id, { name: event.target.value })} placeholder="Stop name" className="h-10 border border-[#c6d4d2] px-3 text-sm outline-none focus:border-[#008c82]" />
+                      <div><span className="mb-1 block text-[10px] font-bold uppercase text-[#64807d]">{index === 0 ? 'Origin' : stop.type}</span><input aria-label={`Stop ${index + 1} name`} value={stop.name} onChange={event => updateStop(stop.id, { name: event.target.value })} placeholder="Stop name" className="h-10 w-full border border-[#c6d4d2] px-3 text-sm outline-none focus:border-[#008c82]" /></div>
                       <div className="relative"><MapPin className="absolute left-3 top-3 h-4 w-4 text-[#708482]" /><input ref={element => { if (element) stopInputRefs.current.set(stop.id, element); else stopInputRefs.current.delete(stop.id) }} aria-label={`Stop ${index + 1} address`} list="saved-locations" value={stop.address} onChange={event => updateStop(stop.id, { address: event.target.value, latitude: undefined, longitude: undefined })} placeholder={index === 0 ? 'Starting address' : 'Street, city, state'} className="h-10 w-full border border-[#c6d4d2] pl-9 pr-3 text-sm outline-none focus:border-[#008c82]" /></div>
                       <label className="flex items-center gap-2 text-xs text-[#617775]"><input aria-label={`Stop ${index + 1} service minutes`} type="number" min={0} max={1440} value={stop.serviceMinutes} onChange={event => updateStop(stop.id, { serviceMinutes: Number(event.target.value) })} className="h-10 w-16 border border-[#c6d4d2] px-2 text-sm" /> min</label>
                       <button onClick={() => removeStop(stop.id)} disabled={stops.length <= 2 || index === 0} title="Remove stop" className="grid h-9 w-9 place-items-center text-[#8a5c58] hover:bg-red-50 disabled:opacity-25"><Trash2 className="h-4 w-4" /></button>
@@ -608,16 +651,7 @@ export default function StandaloneRoutePlannerPage() {
               </div>
               <datalist id="saved-locations">{locations.map(location => <option key={location.id} value={location.address}>{location.name}</option>)}</datalist>
               {result && <div className="border-t border-[#d8e2e0] p-4"><DriverMapNavigation
-                stops={result.stops.map(stop => ({
-                  id: stop.id,
-                  address: stop.address,
-                  lat: stop.latitude,
-                  lng: stop.longitude,
-                  type: stop.type,
-                  label: stop.vehicleInfo || stop.name,
-                  order: stop.order,
-                  estimatedArrival: stop.estimatedArrival,
-                } satisfies NavStop))}
+                stops={navigationStops(result)}
                 plannedDistance={result.summary.totalDistance}
                 plannedDurationMinutes={result.summary.totalDuration}
                 plannedEndTime={result.summary.estimatedEndTime}
@@ -647,11 +681,11 @@ export default function StandaloneRoutePlannerPage() {
                 <label className="mt-4 flex items-center gap-2 text-sm font-semibold"><input type="checkbox" checked={recurring} onChange={event => setRecurring(event.target.checked)} className="h-4 w-4 accent-[#008c82]" />Repeat this route</label>
                 {recurring && <div className="mt-3 grid grid-cols-2 gap-3"><select value={frequency} onChange={event => setFrequency(event.target.value as Recurrence['frequency'])} className="h-10 border border-[#c6d4d2] bg-white px-2 text-sm"><option value="daily">Daily</option><option value="weekly">Weekly</option><option value="monthly">Monthly</option></select><input type="datetime-local" value={recurrenceStart} onChange={event => setRecurrenceStart(event.target.value)} className="h-10 border border-[#c6d4d2] px-2 text-xs" /></div>}
                 <div className="mt-5 grid grid-cols-2 gap-2"><button onClick={saveRoute} disabled={busy} className="flex h-10 items-center justify-center gap-2 border border-[#008c82] text-sm font-bold text-[#00756d] hover:bg-[#edf8f6] disabled:opacity-50"><Save className="h-4 w-4" />{currentRouteId ? 'Update' : 'Save'}</button><button onClick={optimize} disabled={busy} className="flex h-10 items-center justify-center gap-2 bg-[#008c82] text-sm font-bold text-white hover:bg-[#00756d] disabled:opacity-50"><Navigation className={`h-4 w-4 ${busy ? 'animate-spin' : ''}`} />Optimize</button></div>
-                <p className="mt-3 text-xs leading-5 text-[#718482]">CSV/XLSX headers: <strong>address</strong>, with optional name, service_minutes, type, and notes.</p>
+                <p className="mt-3 text-xs leading-5 text-[#718482]">Shipment CSV/XLSX: <strong>reference_id, name, pickup_address, delivery_address</strong>. Generic stop files can use address, name, service_minutes, type, and notes.</p>
               </section>
 
               {result && <section className="border border-[#9fc7c2] bg-[#f8fbfa] p-5"><div className="flex items-center justify-between"><h2 className="font-semibold">Optimized route</h2><span className="bg-[#dff2ee] px-2 py-1 text-xs font-bold text-[#00756d]">{result.summary.efficiencyScore}/100</span></div><div className="mt-4 grid grid-cols-2 gap-px bg-[#cbd8d6]"><Metric icon={Route} label="Distance" value={`${result.summary.totalDistance} mi`} /><Metric icon={Clock} label="Duration" value={`${Math.round(result.summary.totalDuration / 6) / 10} hr`} /><Metric icon={Fuel} label="Fuel" value={`$${result.summary.totalFuelCost.toFixed(2)}`} /><Metric icon={Navigation} label="Finish" value={new Date(result.summary.estimatedEndTime).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })} /></div>{result.commercialCompliance.status === 'verified' && <p className="mt-3 border border-emerald-200 bg-emerald-50 p-2 text-xs font-semibold text-emerald-800">Commercial route verified by HERE for {result.commercialCompliance.restrictions.join(', ')}.</p>}{result.constraintWarnings.map(warning => <p key={warning} className="mt-2 border border-amber-200 bg-amber-50 p-2 text-xs text-amber-800">{warning}</p>)}<ol className="mt-4 space-y-3">{result.stops.map(stop => <li key={`${stop.order}-${stop.id}`} className="flex gap-3 text-sm"><span className="grid h-6 w-6 shrink-0 place-items-center bg-[#173f40] text-xs font-bold text-white">{stop.order}</span><div><p className="font-semibold">{stop.vehicleInfo || stop.name || stop.address}</p><p className="text-xs text-[#657a78]">{stop.address}</p></div></li>)}</ol></section>}
-              {result && <><RouteIntelligence result={result} /><RouteCoach result={result} /></>}
+              {result && <><RouteIntelligence result={result} onDrive={() => setDrivingMode(true)} /><RouteCoach result={result} /></>}
             </aside>
           </div>
         )}
@@ -672,14 +706,18 @@ function Metric({ icon: Icon, label, value }: { icon: typeof Route; label: strin
   return <div className="bg-white p-3"><Icon className="h-4 w-4 text-[#008c82]" /><p className="mt-2 text-xs text-[#6b807e]">{label}</p><p className="font-semibold">{value}</p></div>
 }
 
-function RouteIntelligence({ result }: { result: OptimizedRoute }) {
+function RouteIntelligence({ result, onDrive }: { result: OptimizedRoute; onDrive: () => void }) {
   const traffic = result.liveEvidence?.traffic.evidence
   const tolls = result.liveEvidence?.tolls.evidence
   const weather = result.liveEvidence?.weather.evidence
   const fuel = result.liveEvidence?.fuel.evidence
 
   return <section className="border border-[#b9d8d4] bg-white p-5 text-xs">
-    <h2 className="font-semibold text-[#254947]">Route intelligence</h2>
+    <div className="flex items-center justify-between gap-3"><div><h2 className="font-semibold text-[#254947]">Costs and savings</h2><p className="mt-1 text-[#667b79]">Compared with the legal pickup-before-delivery baseline.</p></div><button onClick={onDrive} className="flex h-9 shrink-0 items-center gap-2 bg-[#173f40] px-3 text-sm font-bold text-white"><Navigation className="h-4 w-4" />Driving mode</button></div>
+    <div className="mt-3 grid grid-cols-2 gap-2">
+      <IntelligenceMetric label="Planned fuel cost" value={`$${result.summary.totalFuelCost.toFixed(2)}`} />
+      <IntelligenceMetric label="Efficiency" value={`${result.summary.efficiencyScore}/100`} />
+    </div>
     <div className="mt-3 grid grid-cols-2 gap-2">
       <IntelligenceMetric label="Distance saved" value={`${result.savings.distanceSaved} mi`} />
       <IntelligenceMetric label="Time saved" value={`${Math.round(result.savings.timeSaved)} min`} />

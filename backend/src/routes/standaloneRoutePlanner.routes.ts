@@ -342,6 +342,53 @@ export async function parseImportRows(file: Express.Multer.File | undefined, csv
   return rows;
 }
 
+export function buildImportedStops(rows: Record<string, string>[]) {
+  let shipmentCount = 0;
+  const stops = rows.flatMap((row, index) => {
+    const pickupAddress = csvValue(row, ['pickupaddress', 'pickup', 'origin']);
+    const deliveryAddress = csvValue(row, ['deliveryaddress', 'delivery', 'dropoffaddress', 'dropoff']);
+    if (pickupAddress || deliveryAddress) {
+      if (!pickupAddress || !deliveryAddress) {
+        throw createError(`Row ${index + 2} requires both pickup_address and delivery_address`, 400, 'INVALID_IMPORT');
+      }
+      shipmentCount += 1;
+      const referenceId = csvValue(row, ['referenceid', 'reference', 'shipmentid', 'loadid']) ?? `shipment-${index + 1}`;
+      const label = csvValue(row, ['name', 'label', 'customer', 'shipment', 'vehicle']) ?? `Shipment ${index + 1}`;
+      const notes = csvValue(row, ['notes', 'note', 'instructions']);
+      return [
+        {
+          id: `imported-${index + 1}-pickup`, name: `${label} pickup`, address: pickupAddress,
+          type: 'pickup', referenceId,
+          serviceMinutes: Number(csvValue(row, ['pickupserviceminutes', 'serviceminutes', 'duration']) ?? 15), notes,
+        },
+        {
+          id: `imported-${index + 1}-delivery`, name: `${label} delivery`, address: deliveryAddress,
+          type: 'delivery', referenceId,
+          serviceMinutes: Number(csvValue(row, ['deliveryserviceminutes', 'serviceminutes', 'duration']) ?? 15), notes,
+        },
+      ];
+    }
+
+    const address = csvValue(row, ['address', 'fulladdress', 'location', 'destination']);
+    if (!address) {
+      const columns = Object.keys(row).map(key => key.trim().toLowerCase().replace(/[ _-]+/g, '')).join(', ');
+      throw createError(`Row ${index + 2} is missing an address. Available columns: ${columns || 'none'}`, 400, 'INVALID_IMPORT');
+    }
+    return [{
+      id: `imported-${index + 1}`,
+      name: csvValue(row, ['name', 'label', 'customer', 'stopname']) ?? `Stop ${index + 1}`,
+      address,
+      type: csvValue(row, ['type', 'stoptype']) ?? 'stop',
+      serviceMinutes: Number(csvValue(row, ['serviceminutes', 'duration', 'durationminutes']) ?? 10),
+      notes: csvValue(row, ['notes', 'note', 'instructions']),
+    }];
+  });
+  if (stops.length > MAX_STOPS - 1) {
+    throw createError(`Import can contain at most ${MAX_STOPS - 1} pickup, delivery, and stop records after expansion`, 400, 'INVALID_IMPORT');
+  }
+  return { stops, shipmentCount };
+}
+
 router.get('/shared/:token', asyncHandler(async (req: Request, res: Response) => {
   const { data: share, error: shareError } = await supabaseAdmin
     .from('planner_route_shares')
@@ -480,18 +527,7 @@ router.post('/import', importUpload.single('file'), asyncHandler(async (req: Req
     throw createError(`File must contain between 1 and ${MAX_STOPS} data rows`, 400, 'INVALID_IMPORT');
   }
 
-  const stops = rows.map((row, index) => {
-    const address = csvValue(row, ['address', 'fulladdress', 'location', 'destination']);
-    if (!address) throw createError(`Row ${index + 2} is missing an address`, 400, 'INVALID_IMPORT');
-    return {
-      id: `imported-${index + 1}`,
-      name: csvValue(row, ['name', 'label', 'customer', 'stopname']) ?? `Stop ${index + 1}`,
-      address,
-      type: csvValue(row, ['type', 'stoptype']) ?? 'stop',
-      serviceMinutes: Number(csvValue(row, ['serviceminutes', 'duration', 'durationminutes']) ?? 10),
-      notes: csvValue(row, ['notes', 'note', 'instructions']),
-    };
-  });
+  const { stops, shipmentCount } = buildImportedStops(rows);
 
   if (req.body.saveToAddressBook === true || req.body.saveToAddressBook === 'true') {
     const locations = stops.map(stop => ({
@@ -503,7 +539,7 @@ router.post('/import', importUpload.single('file'), asyncHandler(async (req: Req
     if (error) throw createError(error.message, 500, 'CSV_LOCATION_SAVE_FAILED');
   }
 
-  res.json({ success: true, data: { stops, importedCount: stops.length } });
+  res.json({ success: true, data: { stops, importedCount: stops.length, shipmentCount } });
 }));
 
 router.get('/routes', asyncHandler(async (req: Request, res: Response) => {

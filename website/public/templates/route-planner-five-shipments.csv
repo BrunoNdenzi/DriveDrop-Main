@@ -1,0 +1,6 @@
+reference_id,name,pickup_address,delivery_address,pickup_service_minutes,delivery_service_minutes,notes
+LOAD-1001,2023 Toyota Camry,"400 E Martin Luther King Jr Blvd, Charlotte, NC 28202","5555 Concord Pkwy S, Concord, NC 28027",15,15,Call customer before arrival
+LOAD-1002,2022 Ford F-150,"4400 Sharon Rd, Charlotte, NC 28211","800 S Mint St, Charlotte, NC 28202",20,15,Pickup at service entrance
+LOAD-1003,2024 Honda CR-V,"5501 Josh Birmingham Pkwy, Charlotte, NC 28208","8111 Concord Mills Blvd, Concord, NC 28027",15,20,Keys held at dispatch desk
+LOAD-1004,2021 Chevrolet Tahoe,"9300 JW Clay Blvd, Charlotte, NC 28262","6801 Northlake Mall Dr, Charlotte, NC 28216",15,15,Verify VIN at pickup
+LOAD-1005,2023 Tesla Model 3,"10822 Providence Rd, Charlotte, NC 28277","101 S Tryon St, Charlotte, NC 28280",20,20,Enclosed transport preferred
