@@ -69,7 +69,7 @@ test('route planner operations and billing are usable on desktop and mobile', as
   await expect(page.getByText('Current plan', { exact: true })).toBeVisible()
   await expect(page.getByRole('heading', { name: 'Starter' }).first()).toBeVisible()
   await expect(page.getByText(/Starter trial ends/)).toBeVisible()
-  await expect(page.getByText('Routes this month')).toBeVisible()
+  await expect(page.getByText('Route plans this month')).toBeVisible()
   await expect(page.getByRole('button', { name: 'Choose Pro' })).toBeVisible()
   const billingWidth = await page.evaluate(() => ({ client: document.documentElement.clientWidth, scroll: document.documentElement.scrollWidth }))
   expect(billingWidth.scroll).toBeLessThanOrEqual(billingWidth.client)

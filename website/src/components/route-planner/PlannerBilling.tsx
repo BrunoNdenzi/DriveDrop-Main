@@ -28,9 +28,9 @@ interface BillingStatus {
 }
 
 const planOptions = [
-  { key: 'free' as const, name: 'Free', price: '$0', detail: '5 routes / month', features: ['10 stops per route', 'Core optimization'] },
-  { key: 'starter' as const, name: 'Starter', price: '$29', detail: '100 routes / month', features: ['50 stops per route', 'Recurring routes', 'Live route sharing'] },
-  { key: 'pro' as const, name: 'Pro', price: '$79', detail: 'Unlimited routes', features: ['100 stops per route', 'Recurring routes', 'Live route sharing'] },
+  { key: 'free' as const, name: 'Free', price: '$0', detail: '5 route plans / month', features: ['Up to 10 stops per route plan', 'Core optimization'] },
+  { key: 'starter' as const, name: 'Starter', price: '$29', detail: '100 route plans / month', features: ['Up to 50 stops per route plan', 'Recurring routes', 'Live route sharing'] },
+  { key: 'pro' as const, name: 'Pro', price: '$79', detail: 'Unlimited route plans', features: ['Up to 100 stops per route plan', 'Recurring routes', 'Live route sharing'] },
 ]
 
 export default function PlannerBilling() {
@@ -100,11 +100,13 @@ export default function PlannerBilling() {
           {billing.stripeCustomerId && <button onClick={() => void redirect('/planner-billing/portal')} disabled={busy} className="flex h-10 items-center gap-2 border border-[#008c82] px-3 text-sm font-semibold text-[#00756d] disabled:opacity-50"><CreditCard className="h-4 w-4" />Manage billing</button>}
         </div>
         <div className="mt-5">
-          <div className="flex justify-between text-sm"><span>Routes this month</span><strong>{billing.usage.routesUsed} / {billing.usage.routesLimit ?? 'Unlimited'}</strong></div>
+          <div className="flex justify-between text-sm"><span>Route plans this month</span><strong>{billing.usage.routesUsed} / {billing.usage.routesLimit ?? 'Unlimited'}</strong></div>
           {billing.usage.routesLimit !== null && <div className="mt-2 h-2 bg-[#e1e9e7]"><div className="h-full bg-[#008c82]" style={{ width: `${usagePercent}%` }} /></div>}
           {billing.trialEndsAt && billing.status === 'trialing' && <p className="mt-3 text-xs text-[#667b79]">Starter trial ends {new Date(billing.trialEndsAt).toLocaleDateString()}.</p>}
         </div>
       </section>
+
+      <p className="text-sm text-[#667b79]">A route plan is one saved sequence of stops for one vehicle. Re-optimizing, dispatching, or repeating a saved route does not use another route plan.</p>
 
       <section className="grid gap-4 lg:grid-cols-3">
         {planOptions.map(plan => <article key={plan.key} className={`border bg-white p-5 ${billing.plan.key === plan.key ? 'border-[#008c82]' : 'border-[#c6d4d2]'}`}>

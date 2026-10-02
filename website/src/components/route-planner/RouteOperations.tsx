@@ -3,9 +3,9 @@
 import { useCallback, useEffect, useState } from 'react'
 import { getSupabaseBrowserClient } from '@/lib/supabase-client'
 import { CheckCircle, Download, Navigation, RefreshCw, Share2 } from '@/components/icons/streamline-lucide'
+import { queueAction as saveQueuedAction, replayQueue, type QueuedAction } from '@/lib/planner-sync'
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api/v1'
-const OFFLINE_QUEUE_KEY = 'drivedrop-planner-offline-actions'
 
 type RouteStatus = 'draft' | 'planned' | 'dispatched' | 'in_progress' | 'completed' | 'cancelled'
 
@@ -65,13 +65,6 @@ interface Props {
   onRoutesChanged: () => Promise<void>
 }
 
-interface QueuedAction {
-  path: string
-  method: string
-  body: string
-  queuedAt: string
-}
-
 export default function RouteOperations({ routes, onRoutesChanged }: Props) {
   const supabase = getSupabaseBrowserClient()
   const [routeId, setRouteId] = useState('')
@@ -115,10 +108,7 @@ export default function RouteOperations({ routes, onRoutesChanged }: Props) {
     if ('Notification' in window && Notification.permission === 'granted') new Notification(title, { body })
   }
 
-  const queueAction = (action: QueuedAction) => {
-    const queued = JSON.parse(localStorage.getItem(OFFLINE_QUEUE_KEY) || '[]') as QueuedAction[]
-    localStorage.setItem(OFFLINE_QUEUE_KEY, JSON.stringify([...queued, action]))
-  }
+  const queueAction = (action: QueuedAction) => saveQueuedAction(action)
 
   const mutateOrQueue = async (path: string, init: RequestInit): Promise<boolean> => {
     if (!navigator.onLine) {
@@ -149,18 +139,9 @@ export default function RouteOperations({ routes, onRoutesChanged }: Props) {
     setOnline(navigator.onLine)
     const replay = async () => {
       setOnline(true)
-      const queued = JSON.parse(localStorage.getItem(OFFLINE_QUEUE_KEY) || '[]') as QueuedAction[]
-      const remaining: QueuedAction[] = []
-      for (const action of queued) {
-        try {
-          await api(action.path, { method: action.method, body: action.body })
-        } catch {
-          remaining.push(action)
-        }
-      }
-      localStorage.setItem(OFFLINE_QUEUE_KEY, JSON.stringify(remaining))
-      if (queued.length > remaining.length) {
-        setMessage(`Synced ${queued.length - remaining.length} offline update${queued.length - remaining.length === 1 ? '' : 's'}.`)
+      const synced = await replayQueue(async action => { await api(action.path, { method: action.method, body: action.body }) })
+      if (synced > 0) {
+        setMessage(`Synced ${synced} offline update${synced === 1 ? '' : 's'}.`)
         if (routeId) await refresh(routeId)
       }
     }
@@ -213,7 +194,9 @@ export default function RouteOperations({ routes, onRoutesChanged }: Props) {
   }, action === 'completed' ? 'Stop completed' : action === 'arrived' ? 'Arrival recorded' : 'Stop skipped')
 
   const reoptimize = () => run(async () => {
-    await api(`/executions/${activeExecution!.id}/reoptimize`, { method: 'POST', body: '{}' })
+    const { latitude, longitude } = await currentCoordinates()
+    const currentLocation = latitude !== undefined && longitude !== undefined ? { latitude, longitude } : undefined
+    await api(`/executions/${activeExecution!.id}/reoptimize`, { method: 'POST', body: JSON.stringify(currentLocation ? { currentLocation } : {}) })
     await Promise.all([refresh(routeId), onRoutesChanged()])
   }, 'Remaining route reoptimized')
 

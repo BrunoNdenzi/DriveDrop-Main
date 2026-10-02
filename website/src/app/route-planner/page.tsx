@@ -6,7 +6,9 @@ import { useRouter } from 'next/navigation'
 import { getSupabaseBrowserClient } from '@/lib/supabase-client'
 import RouteOperations from '@/components/route-planner/RouteOperations'
 import PlannerBilling from '@/components/route-planner/PlannerBilling'
-import DriverMapNavigation, { type NavStop } from '@/components/driver/DriverMapNavigation'
+import DriverMapNavigation, { type DriverFix, type NavStop } from '@/components/driver/DriverMapNavigation'
+import { assignStopTags } from '@/lib/stop-tags'
+import { createPingGate, createTravelTracker, queueAction, readQueue, replayQueue } from '@/lib/planner-sync'
 import {
   BookOpen,
   Calendar,
@@ -92,6 +94,7 @@ interface SavedRoute {
 interface OptimizedRoute {
   stops: Array<PlannerStop & {
     order: number
+    shipmentId?: string
     vehicleInfo?: string
     estimatedArrival: string
     distanceFromPrevious: number
@@ -159,6 +162,7 @@ function navigationStops(result: OptimizedRoute): NavStop[] {
     lat: stop.latitude,
     lng: stop.longitude,
     type: stop.type,
+    shipmentId: stop.shipmentId ?? stop.referenceId,
     label: stop.vehicleInfo || stop.name,
     order: stop.order,
     estimatedArrival: stop.estimatedArrival,
@@ -266,6 +270,200 @@ export default function StandaloneRoutePlannerPage() {
   const fail = (caught: unknown) => {
     setError(caught instanceof Error ? caught.message : 'Something went wrong')
     setMessage(null)
+  }
+
+  // ── Tracked run: driving mode saves progress and shares the driver's live position ──
+  const [tracking, setTracking] = useState<{ state: 'off' | 'pending' | 'on' | 'error'; label: string } | null>(null)
+  const trackedExecutionRef = useRef<string | null>(null)
+  const latestFixRef = useRef<DriverFix | null>(null)
+  const pingGateRef = useRef(createPingGate())
+  const travelRef = useRef(createTravelTracker())
+  const pingBusyRef = useRef(false)
+  const pingFailuresRef = useRef(0)
+  const syncChainRef = useRef<Promise<unknown>>(Promise.resolve())
+
+  const runSerial = <T,>(task: () => Promise<T>): Promise<T> => {
+    const next = syncChainRef.current.catch(() => undefined).then(task)
+    syncChainRef.current = next
+    return next
+  }
+
+  const writeProgress = (path: string, method: string, payload: object) => runSerial(async (): Promise<boolean> => {
+    const body = JSON.stringify(payload)
+    const saveLocally = () => {
+      queueAction({ path, method, body, queuedAt: new Date().toISOString() })
+      setTracking({ state: 'pending', label: 'Offline: progress saved on this device' })
+      return false
+    }
+    if (!navigator.onLine) return saveLocally()
+    try {
+      await api(path, { method, body })
+      return true
+    } catch (caught) {
+      if (caught instanceof TypeError) return saveLocally()
+      throw caught
+    }
+  })
+
+  const trackingFailed = (caught: unknown) => {
+    setTracking({ state: 'error', label: `Progress not saved: ${caught instanceof Error ? caught.message : 'try again'}` })
+  }
+
+  useEffect(() => {
+    const flush = () => {
+      void replayQueue(async action => { await api(action.path, { method: action.method, body: action.body }) })
+    }
+    flush()
+    window.addEventListener('online', flush)
+    return () => window.removeEventListener('online', flush)
+  }, [api])
+
+  const startTrackedRun = async () => {
+    if (!currentRouteId) {
+      setTracking({ state: 'off', label: 'Route not saved: progress is not recorded' })
+      return
+    }
+    setTracking({ state: 'pending', label: 'Starting tracked run...' })
+    try {
+      type RunSummary = { id: string; status: string; stop_progress: Array<{ stopId: string; status: string }> }
+      const runs = await api<RunSummary[]>(`/executions?routeId=${currentRouteId}`)
+      let run = runs.find(item => item.status === 'dispatched' || item.status === 'in_progress')
+      if (!run) {
+        const saved = await api<SavedRoute>(`/routes/${currentRouteId}`)
+        if (!saved.last_optimized_result) throw new Error('optimize the saved route first')
+        run = await api<RunSummary>(`/routes/${currentRouteId}/dispatch`, { method: 'POST', body: JSON.stringify({ plannedStartAt: new Date().toISOString() }) })
+      }
+      if (run.status === 'dispatched') run = await api<RunSummary>(`/executions/${run.id}/start`, { method: 'POST', body: '{}' })
+
+      trackedExecutionRef.current = run.id
+      pingGateRef.current.reset()
+      travelRef.current = createTravelTracker()
+
+      const originId = result?.stops[0]?.id
+      const origin = run.stop_progress.find(stop => stop.stopId === originId)
+      if (origin?.status === 'pending') {
+        const fix = latestFixRef.current
+        await writeProgress(`/executions/${run.id}/stops/${encodeURIComponent(origin.stopId)}`, 'PATCH', {
+          action: 'completed',
+          timestamp: new Date().toISOString(),
+          ...(fix && !fix.simulated ? { latitude: fix.lat, longitude: fix.lng } : {}),
+        })
+      }
+      setTracking({ state: 'on', label: 'Tracking on' })
+      void refreshLibrary()
+    } catch (caught) {
+      trackedExecutionRef.current = null
+      setTracking({ state: 'error', label: `Not tracked: ${caught instanceof Error ? caught.message : 'try again'}` })
+    }
+  }
+
+  // A simulated drive only reports position, and only to a run that is already active.
+  const attachActiveRun = async () => {
+    if (!currentRouteId || trackedExecutionRef.current) return
+    const runs = await api<Array<{ id: string; status: string }>>(`/executions?routeId=${currentRouteId}`)
+    const run = runs.find(item => item.status === 'dispatched' || item.status === 'in_progress')
+    if (!run) return
+    trackedExecutionRef.current = run.id
+    pingGateRef.current.reset()
+  }
+
+  const recordStopReached = (index: number) => {
+    const executionId = trackedExecutionRef.current
+    const stop = result?.stops[index]
+    if (!executionId || !stop) return
+    const fix = latestFixRef.current
+    writeProgress(`/executions/${executionId}/stops/${encodeURIComponent(stop.id)}`, 'PATCH', {
+      action: 'completed',
+      timestamp: new Date().toISOString(),
+      ...(fix && !fix.simulated ? { latitude: fix.lat, longitude: fix.lng, ...(fix.accuracyMeters != null ? { gpsAccuracyMeters: fix.accuracyMeters } : {}) } : {}),
+    }).catch(trackingFailed)
+  }
+
+  const finishTrackedRun = () => {
+    const executionId = trackedExecutionRef.current
+    if (!executionId) return
+    const miles = Math.round(travelRef.current.miles * 10) / 10
+    writeProgress(`/executions/${executionId}/complete`, 'POST', {
+      completedAt: new Date().toISOString(),
+      ...(miles > 0 ? { actualDistanceMiles: miles } : {}),
+    })
+      .then(sent => { if (sent) setTracking({ state: 'off', label: 'Run saved' }) })
+      .catch(trackingFailed)
+      .finally(() => {
+        trackedExecutionRef.current = null
+        void refreshLibrary()
+      })
+  }
+
+  const recordPosition = (fix: DriverFix) => {
+    latestFixRef.current = fix
+    if (!fix.simulated) travelRef.current.add({ lat: fix.lat, lng: fix.lng, at: fix.at, accuracyMeters: fix.accuracyMeters })
+
+    const executionId = trackedExecutionRef.current
+    if (!executionId || pingBusyRef.current || !pingGateRef.current.shouldSend({ lat: fix.lat, lng: fix.lng, at: fix.at })) return
+
+    pingBusyRef.current = true
+    api(`/executions/${executionId}/location`, {
+      method: 'POST',
+      body: JSON.stringify({
+        latitude: fix.lat,
+        longitude: fix.lng,
+        recordedAt: new Date(fix.at).toISOString(),
+        simulated: fix.simulated,
+        ...(fix.heading !== null ? { heading: fix.heading } : {}),
+        ...(fix.speedMps !== null ? { speedMps: fix.speedMps } : {}),
+        ...(fix.accuracyMeters !== null ? { accuracyMeters: fix.accuracyMeters } : {}),
+        ...(!fix.simulated ? { actualDistanceMiles: Math.round(travelRef.current.miles * 100) / 100 } : {}),
+      }),
+    })
+      .then(() => {
+        if (pingFailuresRef.current >= 3) setTracking({ state: 'on', label: 'Tracking on' })
+        pingFailuresRef.current = 0
+      })
+      .catch(() => {
+        pingFailuresRef.current += 1
+        if (pingFailuresRef.current === 3) setTracking({ state: 'error', label: 'Live location is not reaching the server' })
+      })
+      .finally(() => { pingBusyRef.current = false })
+  }
+
+  const currentPosition = () => new Promise<{ latitude: number; longitude: number }>((resolve, reject) => {
+    if (!navigator.geolocation) return reject(new Error('This device cannot share its location'))
+    navigator.geolocation.getCurrentPosition(
+      position => resolve({ latitude: position.coords.latitude, longitude: position.coords.longitude }),
+      () => reject(new Error('Allow location access to re-plan from where you are')),
+      { enableHighAccuracy: true, timeout: 8000, maximumAge: 15_000 },
+    )
+  })
+
+  const replanFromHere = async () => {
+    const executionId = trackedExecutionRef.current
+    if (!executionId) throw new Error(currentRouteId ? 'Tap Start Navigation first so finished stops are recorded' : 'Save the route to re-plan from your position')
+
+    await syncChainRef.current.catch(() => undefined)
+    await replayQueue(async action => { await api(action.path, { method: action.method, body: action.body }) })
+    if (readQueue().length > 0) throw new Error('Waiting to sync offline updates. Try again when you have signal')
+
+    const fix = latestFixRef.current
+    const here = fix && !fix.simulated && Date.now() - fix.at < 60_000 ? { latitude: fix.lat, longitude: fix.lng } : await currentPosition()
+    const data = await api<{ optimizedRoute: OptimizedRoute }>(`/executions/${executionId}/reoptimize`, {
+      method: 'POST',
+      body: JSON.stringify({ currentLocation: here }),
+    })
+    setResult(data.optimizedRoute)
+    void refreshLibrary()
+  }
+
+  const trackingProps = {
+    onNavigationStart: startTrackedRun,
+    onSimulationStart: attachActiveRun,
+    onStopReached: recordStopReached,
+    onNavigationComplete: finishTrackedRun,
+    onPosition: recordPosition,
+    onReoptimize: replanFromHere,
+    trackingStatus: tracking ?? (currentRouteId
+      ? { state: 'off' as const, label: 'Tracking starts with Start Navigation' }
+      : { state: 'off' as const, label: 'Route not saved: progress is not recorded' }),
   }
 
   const completeOnboarding = async () => {
@@ -585,6 +783,8 @@ export default function StandaloneRoutePlannerPage() {
     )
   }
 
+  const stopTags = result ? assignStopTags(result.stops.map(stop => ({ ...stop, shipmentId: stop.shipmentId ?? stop.referenceId }))) : null
+
   return (
     <main className="min-h-screen bg-[#eef3f2] text-[#173435]">
       <header className="border-b border-[#bfd0cd] bg-[#123638] text-white">
@@ -604,7 +804,8 @@ export default function StandaloneRoutePlannerPage() {
         benjiTips={result.benjiTips}
         fuelStops={result.fuelStops}
         onClose={() => setDrivingMode(false)}
-        height="h-screen"
+        height="h-[100dvh]"
+        {...trackingProps}
       /></div>}
 
       <div className="mx-auto max-w-[1500px] px-4 py-5 sm:px-6">
@@ -650,7 +851,7 @@ export default function StandaloneRoutePlannerPage() {
                 ))}
               </div>
               <datalist id="saved-locations">{locations.map(location => <option key={location.id} value={location.address}>{location.name}</option>)}</datalist>
-              {result && <div className="border-t border-[#d8e2e0] p-4"><DriverMapNavigation
+              {result && !drivingMode && <div className="border-t border-[#d8e2e0] p-4"><DriverMapNavigation
                 stops={navigationStops(result)}
                 plannedDistance={result.summary.totalDistance}
                 plannedDurationMinutes={result.summary.totalDuration}
@@ -684,7 +885,7 @@ export default function StandaloneRoutePlannerPage() {
                 <p className="mt-3 text-xs leading-5 text-[#718482]">Shipment CSV/XLSX: <strong>reference_id, name, pickup_address, delivery_address</strong>. Generic stop files can use address, name, service_minutes, type, and notes.</p>
               </section>
 
-              {result && <section className="border border-[#9fc7c2] bg-[#f8fbfa] p-5"><div className="flex items-center justify-between"><h2 className="font-semibold">Optimized route</h2><span className="bg-[#dff2ee] px-2 py-1 text-xs font-bold text-[#00756d]">{result.summary.efficiencyScore}/100</span></div><div className="mt-4 grid grid-cols-2 gap-px bg-[#cbd8d6]"><Metric icon={Route} label="Distance" value={`${result.summary.totalDistance} mi`} /><Metric icon={Clock} label="Duration" value={`${Math.round(result.summary.totalDuration / 6) / 10} hr`} /><Metric icon={Fuel} label="Fuel" value={`$${result.summary.totalFuelCost.toFixed(2)}`} /><Metric icon={Navigation} label="Finish" value={new Date(result.summary.estimatedEndTime).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })} /></div>{result.commercialCompliance.status === 'verified' && <p className="mt-3 border border-emerald-200 bg-emerald-50 p-2 text-xs font-semibold text-emerald-800">Commercial route verified by HERE for {result.commercialCompliance.restrictions.join(', ')}.</p>}{result.constraintWarnings.map(warning => <p key={warning} className="mt-2 border border-amber-200 bg-amber-50 p-2 text-xs text-amber-800">{warning}</p>)}<ol className="mt-4 space-y-3">{result.stops.map(stop => <li key={`${stop.order}-${stop.id}`} className="flex gap-3 text-sm"><span className="grid h-6 w-6 shrink-0 place-items-center bg-[#173f40] text-xs font-bold text-white">{stop.order}</span><div><p className="font-semibold">{stop.vehicleInfo || stop.name || stop.address}</p><p className="text-xs text-[#657a78]">{stop.address}</p></div></li>)}</ol></section>}
+              {result && <section className="border border-[#9fc7c2] bg-[#f8fbfa] p-5"><div className="flex items-center justify-between"><h2 className="font-semibold">Optimized route</h2><span className="bg-[#dff2ee] px-2 py-1 text-xs font-bold text-[#00756d]">{result.summary.efficiencyScore}/100</span></div><div className="mt-4 grid grid-cols-2 gap-px bg-[#cbd8d6]"><Metric icon={Route} label="Distance" value={`${result.summary.totalDistance} mi`} /><Metric icon={Clock} label="Duration" value={`${Math.round(result.summary.totalDuration / 6) / 10} hr`} /><Metric icon={Fuel} label="Fuel" value={`$${result.summary.totalFuelCost.toFixed(2)}`} /><Metric icon={Navigation} label="Finish" value={new Date(result.summary.estimatedEndTime).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })} /></div>{result.commercialCompliance.status === 'verified' && <p className="mt-3 border border-emerald-200 bg-emerald-50 p-2 text-xs font-semibold text-emerald-800">Commercial route verified by HERE for {result.commercialCompliance.restrictions.join(', ')}.</p>}{result.constraintWarnings.map(warning => <p key={warning} className="mt-2 border border-amber-200 bg-amber-50 p-2 text-xs text-amber-800">{warning}</p>)}<ol className="mt-4 space-y-3">{result.stops.map(stop => <li key={`${stop.order}-${stop.id}`} className="flex gap-3 text-sm"><span className={`grid h-6 min-w-6 shrink-0 place-items-center px-1 text-xs font-bold text-white ${stop.type === 'pickup' ? 'bg-blue-600' : stop.type === 'delivery' ? 'bg-emerald-600' : 'bg-[#173f40]'}`}>{stopTags?.get(stop.id) ?? stop.order}</span><div><p className="font-semibold">{stop.vehicleInfo || stop.name || stop.address}</p><p className="text-xs text-[#657a78]">{stop.address}</p></div></li>)}</ol></section>}
               {result && <><RouteIntelligence result={result} onDrive={() => setDrivingMode(true)} /><RouteCoach result={result} /></>}
             </aside>
           </div>

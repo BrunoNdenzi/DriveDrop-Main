@@ -8,6 +8,14 @@ import { asyncHandler, createError } from '@utils/error';
 import { routeOptimizationService, RouteStop } from '../services/RouteOptimizationService';
 import { plannerBillingService } from '../services/plannerBilling.service';
 import { pricingLiveEvidenceService } from '../services/pricingLiveEvidence.service';
+import {
+  REOPTIMIZE_ORIGIN_ID,
+  buildReoptimizationStops,
+  parseLocationPing,
+  plannedStopsFromSnapshot,
+  publicLastLocation,
+  type StoredLocation,
+} from '../services/plannerLiveRoute';
 
 const router = Router();
 const MAX_STOPS = 100;
@@ -91,6 +99,9 @@ interface PlannerExecutionRecord {
   stop_progress: ExecutionStopProgress[];
   reoptimizations: Record<string, unknown>[];
   actual_distance_miles: number | null;
+  last_latitude?: number | null;
+  last_longitude?: number | null;
+  last_location_at?: string | null;
 }
 
 function userId(req: Request): string {
@@ -164,6 +175,30 @@ async function ownedExecution(executionId: string, ownerId: string): Promise<Pla
   if (error) throw createError(error.message, 500, 'EXECUTION_READ_FAILED');
   if (!data) throw createError('Route execution not found', 404, 'NOT_FOUND');
   return data as PlannerExecutionRecord;
+}
+
+const EXECUTION_SHARE_COLUMNS = 'id, status, planned_start_at, started_at, completed_at, planned_snapshot, stop_progress, updated_at';
+const EXECUTION_LOCATION_COLUMNS = ['last_latitude', 'last_longitude', 'last_heading', 'last_speed_mps', 'last_accuracy_meters', 'last_location_at', 'last_location_simulated'];
+const UNDEFINED_COLUMN_CODE = '42703';
+
+async function readSharedExecution(routeId: string): Promise<Record<string, unknown> | null> {
+  const latest = (columns: string) => supabaseAdmin
+    .from('planner_route_executions')
+    .select(columns)
+    .eq('route_id', routeId)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  let { data, error } = await latest(`${EXECUTION_SHARE_COLUMNS}, ${EXECUTION_LOCATION_COLUMNS.join(', ')}`);
+  // The live-location columns come from a later migration; keep shared links working until it is applied.
+  if (error?.code === UNDEFINED_COLUMN_CODE) ({ data, error } = await latest(EXECUTION_SHARE_COLUMNS));
+  if (error) throw createError(error.message, 500, 'SHARED_EXECUTION_READ_FAILED');
+  if (!data) return null;
+
+  const row = data as unknown as Record<string, unknown>;
+  const visible = Object.fromEntries(Object.entries(row).filter(([key]) => !EXECUTION_LOCATION_COLUMNS.includes(key)));
+  return { ...visible, last_location: publicLastLocation(row as unknown as StoredLocation) };
 }
 
 function plannedStops(route: PlannerRouteRecord): ExecutionStopProgress[] {
@@ -408,17 +443,7 @@ router.get('/shared/:token', asyncHandler(async (req: Request, res: Response) =>
   if (routeError) throw createError(routeError.message, 500, 'SHARED_ROUTE_READ_FAILED');
 
   let execution = null;
-  if (share.permission === 'track') {
-    const { data, error } = await supabaseAdmin
-      .from('planner_route_executions')
-      .select('id, status, planned_start_at, started_at, completed_at, planned_snapshot, stop_progress, updated_at')
-      .eq('route_id', share.route_id)
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .maybeSingle();
-    if (error) throw createError(error.message, 500, 'SHARED_EXECUTION_READ_FAILED');
-    execution = data;
-  }
+  if (share.permission === 'track') execution = await readSharedExecution(share.route_id);
 
   res.json({ success: true, data: { route, permission: share.permission, execution } });
 }));
@@ -801,6 +826,37 @@ router.patch('/executions/:id/stops/:stopId', asyncHandler(async (req: Request, 
   res.json({ success: true, data });
 }));
 
+router.post('/executions/:id/location', asyncHandler(async (req: Request, res: Response) => {
+  const ownerId = userId(req);
+  const execution = await ownedExecution(req.params['id']!, ownerId);
+  if (execution.status !== 'in_progress' && execution.status !== 'dispatched') {
+    throw createError('Location can only be recorded on an active route', 409, 'INVALID_EXECUTION_STATUS');
+  }
+  const ping = parseLocationPing(req.body);
+
+  const { data, error } = await supabaseAdmin
+    .from('planner_route_executions')
+    .update({
+      last_latitude: ping.latitude,
+      last_longitude: ping.longitude,
+      last_heading: ping.heading,
+      last_speed_mps: ping.speedMps,
+      last_accuracy_meters: ping.accuracyMeters,
+      last_location_at: ping.recordedAt,
+      last_location_simulated: ping.simulated,
+      ...(ping.actualDistanceMiles !== null && !ping.simulated ? { actual_distance_miles: ping.actualDistanceMiles } : {}),
+    })
+    .eq('id', execution.id)
+    .eq('user_id', ownerId)
+    .or(`last_location_at.is.null,last_location_at.lt.${ping.recordedAt}`)
+    .select('id');
+  if (error?.code === UNDEFINED_COLUMN_CODE) throw createError('Live location is not enabled on this server yet', 503, 'LIVE_LOCATION_UNAVAILABLE');
+  if (error) throw createError(error.message, 500, 'LOCATION_SAVE_FAILED');
+
+  // An empty result means a newer fix is already stored, so this late one is dropped.
+  res.json({ success: true, data: { stored: (data ?? []).length > 0 } });
+}));
+
 router.post('/executions/:id/cancel', asyncHandler(async (req: Request, res: Response) => {
   const execution = await ownedExecution(req.params['id']!, userId(req));
   if (execution.status === 'completed') throw createError('Completed routes cannot be cancelled', 409, 'INVALID_EXECUTION_STATUS');
@@ -872,23 +928,46 @@ router.post('/executions/:id/reoptimize', asyncHandler(async (req: Request, res:
     throw createError('Only active routes can be reoptimized', 409, 'INVALID_EXECUTION_STATUS');
   }
   const route = await ownedRoute(execution.route_id, ownerId);
-  const remaining = execution.stop_progress.filter(stop => stop.status !== 'completed' && stop.status !== 'skipped');
-  if (remaining.length < 2) throw createError('At least two unfinished stops are required to reoptimize', 409, 'NOT_ENOUGH_STOPS');
-  await plannerBillingService.assertRouteAllowed(ownerId, remaining.length, route.recurrence !== null);
-
-  const currentLocation = req.body.currentLocation && typeof req.body.currentLocation === 'object'
+  const body = req.body.currentLocation && typeof req.body.currentLocation === 'object'
     ? req.body.currentLocation as Record<string, unknown>
     : null;
-  const stops: RouteStop[] = remaining.map((stop, index) => ({
-    id: stop.stopId,
-    address: index === 0 && currentLocation?.['address'] ? text(currentLocation['address'], 'Current location', 500) : stop.address,
-    type: index === 0 ? 'current_location' : 'stop',
-    estimatedDuration: stop.plannedServiceMinutes,
-    latitude: index === 0 ? optionalCoordinate(currentLocation?.['latitude'], -90, 90, 'Current latitude') : stop.actualLatitude,
-    longitude: index === 0 ? optionalCoordinate(currentLocation?.['longitude'], -180, 180, 'Current longitude') : stop.actualLongitude,
-    vehicleInfo: stop.name,
-  }));
-  const result = await optimizeWithLiveEvidence(stops, route.options);
+  const latitude = optionalCoordinate(body?.['latitude'], -90, 90, 'Current latitude');
+  const longitude = optionalCoordinate(body?.['longitude'], -180, 180, 'Current longitude');
+  if ((latitude === undefined) !== (longitude === undefined)) {
+    throw createError('Current latitude and longitude must be sent together', 400, 'INVALID_INPUT');
+  }
+  const address = typeof body?.['address'] === 'string' && body['address'].trim()
+    ? text(body['address'], 'Current location', 500)
+    : undefined;
+  const currentLocation = latitude !== undefined && longitude !== undefined
+    ? { latitude, longitude, ...(address ? { address } : {}) }
+    : null;
+  const lastKnown = typeof execution.last_latitude === 'number' && typeof execution.last_longitude === 'number' && execution.last_location_at
+    ? { latitude: execution.last_latitude, longitude: execution.last_longitude, recordedAt: execution.last_location_at }
+    : null;
+
+  const now = new Date();
+  const built = buildReoptimizationStops({
+    progress: execution.stop_progress,
+    planned: plannedStopsFromSnapshot(execution.planned_snapshot),
+    currentLocation,
+    lastKnown,
+    now,
+  });
+  const restartsFromDriver = built.originSource !== 'first_remaining';
+  const reorderable = built.stops.length - (restartsFromDriver ? 1 : 0);
+  if (reorderable < 2) throw createError('At least two unfinished stops are required to reoptimize', 409, 'NOT_ENOUGH_STOPS');
+  await plannerBillingService.assertRouteAllowed(ownerId, built.stops.length, route.recurrence !== null);
+
+  // Plan from now, not from the original departure, and from where the driver is.
+  const optimized = await optimizeWithLiveEvidence(built.stops, {
+    ...route.options,
+    departureTime: now.toISOString(),
+    ...(restartsFromDriver ? { returnToOrigin: false } : {}),
+  });
+  const result = restartsFromDriver && route.options['returnToOrigin'] === true
+    ? { ...optimized, constraintWarnings: [...optimized.constraintWarnings, 'Return to origin was skipped because the route restarted from the driver\'s current position.'] }
+    : optimized;
   const nextVersion = route.current_version + 1;
   const { data: updatedRoute, error: routeError } = await supabaseAdmin
     .from('planner_routes')
@@ -900,11 +979,19 @@ router.post('/executions/:id/reoptimize', asyncHandler(async (req: Request, res:
   if (routeError) throw createError(routeError.message, 500, 'REOPTIMIZATION_SAVE_FAILED');
   await recordRouteVersion(updatedRoute as PlannerRouteRecord, 'reoptimized');
 
-  const reordered = result.stops.map((stop, index) => {
+  const nowIso = now.toISOString();
+  const departed = execution.stop_progress
+    .filter(stop => built.departedStopIds.includes(stop.stopId))
+    .map(stop => ({ ...stop, status: 'completed' as const, arrivedAt: stop.arrivedAt ?? nowIso, completedAt: nowIso }));
+  const finished = [
+    ...execution.stop_progress.filter(stop => stop.status === 'completed' || stop.status === 'skipped'),
+    ...departed,
+  ];
+  const reordered = result.stops.filter(stop => stop.id !== REOPTIMIZE_ORIGIN_ID).map((stop, index) => {
     const previous = execution.stop_progress.find(item => item.stopId === stop.id);
     return {
       stopId: stop.id,
-      order: index + 1,
+      order: finished.length + index + 1,
       name: stop.vehicleInfo,
       address: stop.address,
       plannedArrival: stop.estimatedArrival,
@@ -913,11 +1000,11 @@ router.post('/executions/:id/reoptimize', asyncHandler(async (req: Request, res:
       ...(previous?.arrivedAt ? { arrivedAt: previous.arrivedAt } : {}),
     } as ExecutionStopProgress;
   });
-  const finished = execution.stop_progress.filter(stop => stop.status === 'completed' || stop.status === 'skipped');
   const auditEntry = {
     versionNumber: nextVersion,
-    reoptimizedAt: new Date().toISOString(),
-    remainingStops: remaining.length,
+    reoptimizedAt: nowIso,
+    remainingStops: reorderable,
+    originSource: built.originSource,
     previousSummary: (execution.planned_snapshot['optimizedResult'] as Record<string, unknown> | undefined)?.['summary'] ?? null,
     newSummary: result.summary,
   };
