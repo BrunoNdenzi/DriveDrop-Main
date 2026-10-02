@@ -30,6 +30,9 @@ interface SharedStop {
 	stopId?: string
 	id?: string
 	order?: number
+	type?: string
+	shipmentId?: string
+	referenceId?: string
 	name?: string
 	vehicleInfo?: string
 	address: string
@@ -120,12 +123,13 @@ export default function SharedRoutePage({ params }: { params: { token: string } 
 	const stopKey = (stop: SharedStop, index: number) => stop.stopId ?? stop.id ?? `stop-${index}`
 	const stopTags = assignStopTags(stops.map((stop, index) => {
 		const planned = plannedById.get(stopKey(stop, index))
-		return { id: stopKey(stop, index), type: planned?.type ?? 'stop', shipmentId: planned?.shipmentId }
+		// Without a run, the route's own saved stops carry the type and shipment pairing.
+		return { id: stopKey(stop, index), type: planned?.type ?? stop.type ?? 'stop', shipmentId: planned?.shipmentId ?? stop.shipmentId ?? stop.referenceId }
 	}))
 	const mapStops = stops.flatMap((stop, index) => {
 		const id = stopKey(stop, index)
 		const planned = plannedById.get(id)
-		if (planned?.type === 'current_location') return []
+		if ((planned?.type ?? stop.type) === 'current_location') return []
 		return [{ id, address: stop.address, lat: planned?.latitude, lng: planned?.longitude, tag: stopTags.get(id) ?? String(stop.order ?? index + 1), status: stop.status }]
 	})
 
@@ -138,6 +142,13 @@ export default function SharedRoutePage({ params }: { params: { token: string } 
 			<header className="border-b border-[#bfd0cd] bg-[#123638] text-white"><div className="mx-auto flex min-h-16 max-w-5xl items-center gap-3 px-4 sm:px-6"><Route className="h-6 w-6 text-[#66d3c8]" /><div><p className="font-semibold">DriveDrop Route</p><p className="text-xs text-[#a8c7c3]">Shared {data.permission === 'track' ? 'live progress' : 'plan'}</p></div></div></header>
 			<div className="mx-auto max-w-5xl px-4 py-6 sm:px-6">
 				{connectionLost && <p role="status" className="mb-4 border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">Connection lost. Showing the last update and retrying.</p>}
+				{data.permission === 'track' && !live && (
+					<p role="status" className="mb-4 border border-[#c6d4d2] bg-white p-3 text-sm text-[#486361]">
+						{data.execution?.status === 'completed'
+							? 'This run has finished, so the live location is no longer shown.'
+							: 'The live map and driver location appear here once this route is dispatched and started. It has not been started yet.'}
+					</p>
+				)}
 				{live && (
 					<section className="mb-5 border border-[#c6d4d2] bg-white">
 						<div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#d8e2e0] px-5 py-3">
