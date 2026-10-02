@@ -97,7 +97,7 @@ const nextConfig = {
         // HTML pages: no-cache so browsers always fetch the latest HTML after deployments.
         // Fixes ChunkLoadError: stale HTML from the previous deployment references
         // old chunk hashes that no longer exist on the CDN.
-        source: '/((?!_next/static|_next/image|favicon.ico).*)',
+        source: '/((?!_next/static|_next/image|favicon.ico|api/).*)',
         headers: [
           { key: 'Cache-Control',          value: 'no-cache, must-revalidate' },
           { key: 'X-DNS-Prefetch-Control', value: 'on' },

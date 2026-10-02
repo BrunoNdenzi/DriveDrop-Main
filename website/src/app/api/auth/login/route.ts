@@ -4,6 +4,8 @@ import { NextResponse } from 'next/server'
 
 export const dynamic = 'force-dynamic'
 
+const CACHE_RESET_COOKIE = 'dd_cache_reset_1'
+
 export async function POST(request: Request) {
   try {
     const { email, password, role, redirectTo } = await request.json()
@@ -15,6 +17,17 @@ export async function POST(request: Request) {
       pendingCookies.forEach(({ name, value, options }) => {
         response.cookies.set(name, value, options)
       })
+      response.headers.set('Cache-Control', 'private, no-store')
+      // Older deployments let browsers cache the logged-out redirect for a year; clear that once per browser.
+      if ((body as { success?: boolean } | null)?.success === true && !cookieStore.get(CACHE_RESET_COOKIE)) {
+        response.headers.set('Clear-Site-Data', '"cache"')
+        response.cookies.set(CACHE_RESET_COOKIE, '1', {
+          path: '/',
+          maxAge: 60 * 60 * 24 * 365,
+          sameSite: 'lax',
+          secure: process.env.NODE_ENV === 'production',
+        })
+      }
       return response
     }
     

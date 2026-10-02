@@ -56,6 +56,8 @@ export async function middleware(request: NextRequest) {
   const redirectWithAuthCookies = (url: URL) => {
     const redirectResponse = NextResponse.redirect(url)
     response.cookies.getAll().forEach(cookie => redirectResponse.cookies.set(cookie))
+    // Depends on the visitor's session, so a browser or CDN must never reuse it.
+    redirectResponse.headers.set('Cache-Control', 'private, no-store')
     return redirectResponse
   }
 
