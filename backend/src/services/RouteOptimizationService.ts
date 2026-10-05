@@ -33,6 +33,10 @@ export interface RouteStop {
   type: 'pickup' | 'delivery' | 'fuel' | 'rest' | 'current_location' | 'stop';
   shipmentId?: string | undefined;
   vehicleInfo?: string | undefined;
+  // The closing leg of a return-to-origin route: a copy of the origin with its own id.
+  isReturn?: boolean | undefined;
+  // Keeps a stop last when the rest of the route is re-optimized mid-run.
+  pinnedLast?: boolean | undefined;
   timeWindow?: {
     earliest: string; // ISO datetime
     latest: string;
@@ -350,6 +354,12 @@ class RouteOptimizationService {
     );
 
     if (options.returnToOrigin) optimizedOrder.push(optimizedOrder[0]!);
+
+    // A pinned stop (the end of a run being re-planned) always closes the route.
+    const pinned = optimizedOrder.filter((stopIdx, position) => position > 0 && stops[stopIdx]?.pinnedLast);
+    if (pinned.length > 0) {
+      optimizedOrder = [...optimizedOrder.filter((stopIdx, position) => position === 0 || !stops[stopIdx]?.pinnedLast), ...pinned];
+    }
 
     // 7. Build optimized stops with ETAs
     const { optimizedStops, legs } = await this.buildOptimizedRoute(
@@ -917,7 +927,19 @@ class RouteOptimizationService {
 
     for (let i = 0; i < order.length; i++) {
       const stopIdx = order[i]!;
-      const stop = stops[stopIdx]!;
+      const original = stops[stopIdx]!;
+      // Returning to the origin revisits the same stop, so the closing visit needs its own identity.
+      const isReturn = i > 0 && i === order.length - 1 && stopIdx === order[0];
+      const stop: RouteStop = isReturn
+        ? {
+          ...original,
+          id: `${original.id}-end`,
+          type: 'stop',
+          isReturn: true,
+          vehicleInfo: `End: return to ${original.vehicleInfo || 'start'}`,
+          estimatedDuration: 0,
+        }
+        : original;
       const stopDuration = stop.estimatedDuration ?? 15; // default 15 min
 
       let distFromPrev = 0;

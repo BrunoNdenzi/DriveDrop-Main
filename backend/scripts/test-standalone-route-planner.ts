@@ -1,5 +1,7 @@
 import assert from 'node:assert/strict';
 import ExcelJS from 'exceljs';
+import config from '@config';
+import { driverLimitReached, plans, pricePlan } from '../src/services/plannerBilling.service';
 import {
   normalizeRecurrence,
   normalizeStops,
@@ -7,12 +9,93 @@ import {
 } from '../src/routes/standaloneRoutePlanner.routes';
 import {
   REOPTIMIZE_ORIGIN_ID,
+  arrivalBlockMessage,
   buildReoptimizationStops,
+  evaluateArrival,
   parseLocationPing,
   plannedStopsFromSnapshot,
   publicLastLocation,
   type ProgressStop,
 } from '../src/services/plannerLiveRoute';
+
+function checkArrivalVerification(): void {
+  const target = { latitude: 35.2271, longitude: -80.8431 };
+  const northOf = (meters: number) => ({ latitude: target.latitude + meters / 111195, longitude: target.longitude });
+  const body = (extra: Record<string, unknown> = {}) => ({ arrivalTarget: { ...target, radiusMeters: 150 }, ...extra });
+
+  assert.equal(evaluateArrival({}, northOf(10)), null);
+  assert.equal(evaluateArrival(body(), northOf(60))?.verdict, 'verified');
+
+  const far = evaluateArrival(body(), { ...northOf(900), accuracyMeters: 10 });
+  assert.equal(far?.verdict, 'outside');
+  assert.equal(far?.distanceMeters, 900);
+  assert.match(arrivalBlockMessage(far!)!, /0\.6 mi from this stop/);
+
+  const overridden = evaluateArrival(body({ overrideCode: 'gate_or_access', overrideNote: ' Locked gate ' }), { ...northOf(900), accuracyMeters: 10 });
+  assert.equal(overridden?.overrideCode, 'gate_or_access');
+  assert.equal(overridden?.overrideNote, 'Locked gate');
+  assert.equal(arrivalBlockMessage(overridden!), null);
+
+  // Accuracy buys a little leeway, a very poor fix is not trusted either way.
+  assert.equal(evaluateArrival(body(), { ...northOf(220), accuracyMeters: 80 })?.verdict, 'verified');
+  assert.equal(evaluateArrival(body(), { ...northOf(10), accuracyMeters: 500 })?.verdict, 'unreliable');
+  assert.equal(evaluateArrival(body(), {})?.verdict, 'unreliable');
+  assert.equal(arrivalBlockMessage(evaluateArrival(body(), {})!), null);
+
+  // The radius is clamped so a client cannot widen the zone to cover anywhere.
+  const huge = evaluateArrival({ arrivalTarget: { ...target, radiusMeters: 50000 } }, { ...northOf(2000), accuracyMeters: 5 });
+  assert.equal(huge?.radiusMeters, 500);
+  assert.equal(huge?.verdict, 'outside');
+
+  assert.throws(() => evaluateArrival({ arrivalTarget: { latitude: 35 } }, {}), /latitude and longitude/);
+  assert.throws(() => evaluateArrival(body({ overrideCode: 'because' }), northOf(10)), /not recognised/);
+}
+
+function checkPricingTiers(): void {
+  assert.deepEqual(
+    (['free', 'solo', 'team', 'business'] as const).map(key => [plans[key].monthlyRoutes, plans[key].maxDrivers]),
+    [[5, 1], [null, 1], [null, 3], [null, 10]],
+  );
+  assert.equal(plans.free.recurringRoutes, false);
+  assert.equal(plans.free.routeSharing, false);
+  for (const key of ['solo', 'team', 'business'] as const) {
+    assert.equal(plans[key].recurringRoutes, true);
+    assert.equal(plans[key].routeSharing, true);
+  }
+  assert.equal(plans.solo.maxStopsPerRoute, 50);
+  assert.equal(plans.business.maxStopsPerRoute, 100);
+
+  assert.equal(driverLimitReached(plans.solo, 0), false);
+  assert.equal(driverLimitReached(plans.solo, 1), true);
+  assert.equal(driverLimitReached(plans.team, 2), false);
+  assert.equal(driverLimitReached(plans.team, 3), true);
+  assert.equal(driverLimitReached(plans.business, 9), false);
+  assert.equal(driverLimitReached(plans.business, 10), true);
+
+  // Existing Starter and Pro subscribers keep their limits and are never capped on drivers.
+  assert.equal(plans.starter.monthlyRoutes, 100);
+  assert.equal(plans.starter.maxStopsPerRoute, 50);
+  assert.equal(driverLimitReached(plans.starter, 50), false);
+  assert.equal(driverLimitReached(plans.pro, 50), false);
+
+  const original = { ...config.stripe.plannerPriceIds, basic: config.stripe.priceIdBasic, premium: config.stripe.priceIdPremium };
+  Object.assign(config.stripe.plannerPriceIds, { solo: 'price_solo', team: 'price_team', business: 'price_business' });
+  config.stripe.priceIdBasic = 'price_legacy_basic';
+  config.stripe.priceIdPremium = 'price_legacy_premium';
+  try {
+    assert.equal(pricePlan('price_solo'), 'solo');
+    assert.equal(pricePlan('price_team'), 'team');
+    assert.equal(pricePlan('price_business'), 'business');
+    assert.equal(pricePlan('price_legacy_basic'), 'starter');
+    assert.equal(pricePlan('price_legacy_premium'), 'pro');
+    assert.equal(pricePlan('price_unknown'), 'free');
+    assert.equal(pricePlan(null), 'free');
+  } finally {
+    Object.assign(config.stripe.plannerPriceIds, { solo: original.solo, team: original.team, business: original.business });
+    config.stripe.priceIdBasic = original.basic;
+    config.stripe.priceIdPremium = original.premium;
+  }
+}
 
 function checkLiveRoute(): void {
   const now = new Date('2026-10-02T12:00:00.000Z');
@@ -98,6 +181,29 @@ function checkLiveRoute(): void {
   assert.equal(nothingKnown.originSource, 'first_remaining');
   assert.equal(nothingKnown.stops[0]?.type, 'current_location');
   assert.equal(nothingKnown.stops.length, 5);
+
+  // The closing "End" stop of a return trip stays pinned last when the rest is re-planned.
+  const withEnd = plannedStopsFromSnapshot({
+    optimizedResult: {
+      stops: [
+        { id: 'depot', type: 'current_location' },
+        { id: 'p1', type: 'pickup', shipmentId: 'A' },
+        { id: 'd1', type: 'delivery', shipmentId: 'A' },
+        { id: 'depot-end', type: 'stop', isReturn: true },
+      ],
+    },
+  });
+  const endProgress: ProgressStop[] = ['depot', 'p1', 'd1', 'depot-end'].map(stopId => ({
+    stopId,
+    address: `${stopId} address`,
+    plannedServiceMinutes: 0,
+    status: stopId === 'depot' ? 'completed' as const : 'pending' as const,
+  }));
+  const replanned = buildReoptimizationStops({ progress: endProgress, planned: withEnd, currentLocation: location, lastKnown: null, now });
+  const endStop = replanned.stops.find(stop => stop.id === 'depot-end');
+  assert.equal(endStop?.pinnedLast, true);
+  assert.equal(endStop?.isReturn, true);
+  assert.equal(replanned.stops.filter(stop => stop.pinnedLast).length, 1);
 }
 
 async function main(): Promise<void> {
@@ -144,6 +250,10 @@ async function main(): Promise<void> {
   console.log('Standalone planner stop, recurrence, CSV, and XLSX checks passed.');
   checkLiveRoute();
   console.log('Live location and reoptimization checks passed.');
+  checkPricingTiers();
+  console.log('Pricing tier and driver limit checks passed.');
+  checkArrivalVerification();
+  console.log('Arrival verification checks passed.');
 }
 
 main().catch(error => {

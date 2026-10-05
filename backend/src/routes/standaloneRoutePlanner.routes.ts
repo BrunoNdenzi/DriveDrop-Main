@@ -10,10 +10,13 @@ import { plannerBillingService } from '../services/plannerBilling.service';
 import { pricingLiveEvidenceService } from '../services/pricingLiveEvidence.service';
 import {
   REOPTIMIZE_ORIGIN_ID,
+  arrivalBlockMessage,
   buildReoptimizationStops,
+  evaluateArrival,
   parseLocationPing,
   plannedStopsFromSnapshot,
   publicLastLocation,
+  type ArrivalRecord,
   type StoredLocation,
 } from '../services/plannerLiveRoute';
 
@@ -81,6 +84,7 @@ interface ExecutionStopProgress {
   skippedAt?: string;
   actualLatitude?: number;
   actualLongitude?: number;
+  arrival?: ArrivalRecord;
   gpsAccuracyMeters?: number;
   proofOfDeliveryUrls?: string[];
   notes?: string;
@@ -707,6 +711,7 @@ router.post('/routes/:id/dispatch', asyncHandler(async (req: Request, res: Respo
   if (route.status === 'dispatched' || route.status === 'in_progress') {
     throw createError('This route already has an active dispatch', 409, 'ROUTE_ALREADY_DISPATCHED');
   }
+  await plannerBillingService.assertDispatchAllowed(ownerId);
   const plannedStartAt = optionalIsoDate(req.body.plannedStartAt, 'Planned start');
   const progress = plannedStops(route);
   const { data: execution, error } = await supabaseAdmin
@@ -788,6 +793,17 @@ router.patch('/executions/:id/stops/:stopId', asyncHandler(async (req: Request, 
     throw createError('Proof of delivery must contain at most 10 valid URLs', 400, 'INVALID_INPUT');
   }
 
+  // Arrival is judged here from the coordinates, so a client cannot simply claim it was verified.
+  const arrival = action === 'skipped'
+    ? null
+    : evaluateArrival(req.body, {
+      ...(latitude !== undefined ? { latitude } : {}),
+      ...(longitude !== undefined ? { longitude } : {}),
+      ...(accuracy !== undefined ? { accuracyMeters: accuracy } : {}),
+    });
+  const blocked = arrival ? arrivalBlockMessage(arrival) : null;
+  if (blocked) throw createError(blocked, 409, 'ARRIVAL_NOT_VERIFIED');
+
   let found = false;
   const stopProgress = execution.stop_progress.map(stop => {
     if (stop.stopId !== req.params['stopId']) return stop;
@@ -802,6 +818,7 @@ router.patch('/executions/:id/stops/:stopId', asyncHandler(async (req: Request, 
       ...(longitude !== undefined ? { actualLongitude: longitude } : {}),
       ...(accuracy !== undefined ? { gpsAccuracyMeters: accuracy } : {}),
       ...(podUrls !== undefined ? { proofOfDeliveryUrls: podUrls } : {}),
+      ...(arrival ? { arrival } : {}),
       ...(typeof req.body.notes === 'string' ? { notes: req.body.notes.trim().slice(0, 2000) } : {}),
     } as ExecutionStopProgress;
   });
@@ -896,6 +913,11 @@ router.get('/executions/:id/report', asyncHandler(async (req: Request, res: Resp
       actualDurationMinutes,
       completedStops: stopAnalysis.filter(stop => stop.status === 'completed').length,
       skippedStops: stopAnalysis.filter(stop => stop.status === 'skipped').length,
+      arrivals: {
+        verified: stopAnalysis.filter(stop => stop.arrival?.verdict === 'verified').length,
+        overridden: stopAnalysis.filter(stop => stop.arrival?.verdict === 'outside' && stop.arrival.overrideCode).length,
+        unverified: stopAnalysis.filter(stop => stop.status === 'completed' && (!stop.arrival || stop.arrival.verdict === 'unreliable')).length,
+      },
       stopAnalysis,
     },
   });
@@ -965,7 +987,8 @@ router.post('/executions/:id/reoptimize', asyncHandler(async (req: Request, res:
     departureTime: now.toISOString(),
     ...(restartsFromDriver ? { returnToOrigin: false } : {}),
   });
-  const result = restartsFromDriver && route.options['returnToOrigin'] === true
+  const hasReturnStop = built.stops.some(stop => stop.isReturn);
+  const result = restartsFromDriver && route.options['returnToOrigin'] === true && !hasReturnStop
     ? { ...optimized, constraintWarnings: [...optimized.constraintWarnings, 'Return to origin was skipped because the route restarted from the driver\'s current position.'] }
     : optimized;
   const nextVersion = route.current_version + 1;

@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { getSupabaseBrowserClient } from '@/lib/supabase-client'
 import { CheckCircle, Download, Navigation, RefreshCw, Share2 } from '@/components/icons/streamline-lucide'
 import { queueAction as saveQueuedAction, replayQueue, type QueuedAction } from '@/lib/planner-sync'
+import { OVERRIDE_REASONS, describeDistance } from '@/lib/arrival-check'
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api/v1'
 
@@ -35,6 +36,23 @@ interface StopProgress {
   arrivedAt?: string
   completedAt?: string
   proofOfDeliveryUrls?: string[]
+  arrival?: {
+    verdict: 'verified' | 'outside' | 'unreliable'
+    distanceMeters: number | null
+    overrideCode?: string
+    overrideNote?: string
+  }
+}
+
+// How a stop's arrival was checked against its approved location, in words a dispatcher can scan.
+function arrivalBadge(arrival: StopProgress['arrival'], status: StopProgress['status']): { text: string; tone: string } | null {
+  if (status !== 'completed' && status !== 'arrived') return null
+  if (!arrival) return { text: 'Not verified', tone: 'text-[#8a6b1f]' }
+  if (arrival.verdict === 'verified') return { text: 'Location verified', tone: 'text-emerald-700' }
+  if (arrival.verdict === 'unreliable') return { text: 'GPS too weak to verify', tone: 'text-[#8a6b1f]' }
+  const reason = OVERRIDE_REASONS.find(item => item.code === arrival.overrideCode)?.label ?? 'no reason given'
+  const distance = arrival.distanceMeters === null ? '' : ` (${describeDistance(arrival.distanceMeters)} away)`
+  return { text: `Confirmed away from stop${distance}: ${reason}${arrival.overrideNote ? ` — ${arrival.overrideNote}` : ''}`, tone: 'text-red-700' }
 }
 
 interface RouteExecution {
@@ -57,6 +75,7 @@ interface RouteReport {
   actualDurationMinutes: number | null
   completedStops: number
   skippedStops: number
+  arrivals?: { verified: number; overridden: number; unverified: number }
   stopAnalysis: Array<StopProgress & { arrivalVarianceMinutes: number | null; onTime: boolean | null }>
 }
 
@@ -268,7 +287,7 @@ export default function RouteOperations({ routes, onRoutesChanged }: Props) {
         </section>
       )}
 
-      {report && <section className="border border-[#c6d4d2] bg-white p-5"><h2 className="font-semibold">Planned vs actual</h2><div className="mt-4 grid gap-3 sm:grid-cols-4"><ReportMetric label="Planned miles" value={report.plannedDistanceMiles.toFixed(1)} /><ReportMetric label="Actual miles" value={report.actualDistanceMiles?.toFixed(1) ?? 'Pending'} /><ReportMetric label="Planned minutes" value={String(Math.round(report.plannedDurationMinutes))} /><ReportMetric label="Actual minutes" value={report.actualDurationMinutes === null ? 'Pending' : String(report.actualDurationMinutes)} /></div><div className="mt-4 space-y-2">{report.stopAnalysis.map(stop => <div key={stop.stopId} className="flex items-center justify-between border-t border-[#e1e9e7] pt-2 text-sm"><span>{stop.name || stop.address}</span><span className={stop.onTime === false ? 'font-semibold text-red-700' : 'text-[#617775]'}>{stop.arrivalVarianceMinutes === null ? 'No actual arrival' : `${stop.arrivalVarianceMinutes > 0 ? '+' : ''}${stop.arrivalVarianceMinutes} min`}</span></div>)}</div></section>}
+      {report && <section className="border border-[#c6d4d2] bg-white p-5"><h2 className="font-semibold">Planned vs actual</h2><div className="mt-4 grid gap-3 sm:grid-cols-4"><ReportMetric label="Planned miles" value={report.plannedDistanceMiles.toFixed(1)} /><ReportMetric label="Actual miles" value={report.actualDistanceMiles?.toFixed(1) ?? 'Pending'} /><ReportMetric label="Planned minutes" value={String(Math.round(report.plannedDurationMinutes))} /><ReportMetric label="Actual minutes" value={report.actualDurationMinutes === null ? 'Pending' : String(report.actualDurationMinutes)} /></div>{report.arrivals && <p className="mt-3 text-xs text-[#617775]">Arrival checks: <span className="font-semibold text-emerald-700">{report.arrivals.verified} verified</span> · <span className={report.arrivals.overridden ? 'font-semibold text-red-700' : ''}>{report.arrivals.overridden} confirmed away from the stop</span> · {report.arrivals.unverified} not verified</p>}<div className="mt-4 space-y-2">{report.stopAnalysis.map(stop => { const badge = arrivalBadge(stop.arrival, stop.status); return <div key={stop.stopId} className="flex items-center justify-between gap-3 border-t border-[#e1e9e7] pt-2 text-sm"><span className="min-w-0"><span className="block">{stop.name || stop.address}</span>{badge && <span className={`block text-xs ${badge.tone}`}>{badge.text}</span>}</span><span className={stop.onTime === false ? 'shrink-0 font-semibold text-red-700' : 'shrink-0 text-[#617775]'}>{stop.arrivalVarianceMinutes === null ? 'No actual arrival' : `${stop.arrivalVarianceMinutes > 0 ? '+' : ''}${stop.arrivalVarianceMinutes} min`}</span></div> })}</div></section>}
 
       <section className="border border-[#c6d4d2] bg-white"><div className="border-b border-[#d8e2e0] px-5 py-4"><h2 className="font-semibold">Version history</h2></div><div className="divide-y divide-[#e1e9e7]">{versions.map(version => <div key={version.id} className="flex items-center gap-3 px-5 py-3"><CheckCircle className="h-4 w-4 text-[#008c82]" /><div className="flex-1"><p className="text-sm font-semibold">Version {version.version_number} · {version.change_type}</p><p className="text-xs text-[#687d7b]">{new Date(version.created_at).toLocaleString()}</p></div><button onClick={() => restore(version.version_number)} disabled={busy || version.version_number === selectedRoute?.current_version} className="h-8 border border-[#aebfbc] px-2 text-xs font-semibold disabled:opacity-30">Restore</button></div>)}</div></section>
     </div>

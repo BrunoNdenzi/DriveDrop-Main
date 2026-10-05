@@ -3,8 +3,35 @@
 import { useEffect, useMemo, useRef, useState, useCallback } from 'react'
 import { Button } from '@/components/ui/button'
 import { assignStopTags } from '@/lib/stop-tags'
-import { buildSimPath, positionAt, type SimPath } from '@/lib/route-sim'
-import { googleMapsDirectionsUrl } from '@/lib/external-nav'
+import { positionAt } from '@/lib/route-sim'
+import {
+  adaptiveZoom,
+  buildRoutePlan,
+  createOffRouteDetector,
+  headingFromMovement,
+  offsetAhead,
+  progressAlong,
+  projectOnPath,
+  smoothHeading,
+  type RoutePlan,
+} from '@/lib/route-geometry'
+import { arrowRotation, parseManeuver, type ManeuverView } from '@/lib/maneuvers'
+import {
+  OVERRIDE_REASONS,
+  arrivalRadius,
+  checkArrival,
+  createArrivalWatcher,
+  describeDistance,
+  type ArrivalCheck,
+} from '@/lib/arrival-check'
+import {
+  DESKTOP_WAYPOINT_LIMIT,
+  MOBILE_WAYPOINT_LIMIT,
+  googleMapsRouteParts,
+  isMobileBrowser,
+  type ExportPart,
+} from '@/lib/external-nav'
+import StopStrip, { navStopDetails, navStopLabel } from './StopStrip'
 import { toast } from '@/components/ui/toast'
 import {
   Navigation,
@@ -14,11 +41,8 @@ import {
   Coffee,
   ChevronUp,
   ChevronDown,
-  ChevronLeft,
   ChevronRight,
   Locate,
-  CornerUpRight,
-  ArrowUp,
   Clock,
   Route,
   AlertTriangle,
@@ -47,6 +71,21 @@ export interface NavStop {
   vehicleInfo?: string
   order?: number
   estimatedArrival?: string
+  name?: string
+  isReturn?: boolean
+  serviceMinutes?: number
+  distanceFromPrevious?: number
+  durationFromPrevious?: number
+  timeWindow?: { earliest: string; latest: string }
+}
+
+// What the driver confirmed when marking a stop reached, so the server can verify it independently.
+export interface ArrivalReport {
+  target: { lat: number; lng: number }
+  radiusMeters: number
+  fix: { lat: number; lng: number; accuracyMeters: number | null } | null
+  overrideCode?: string
+  overrideNote?: string
 }
 
 export interface NavigationState {
@@ -57,6 +96,8 @@ export interface NavigationState {
   durationRemaining: string
   nextInstruction: string
   nextManeuver: string
+  maneuver: ManeuverView | null
+  thenInstruction: string
   totalDistanceRemaining: string
   totalDurationRemaining: string
   eta: string
@@ -86,12 +127,12 @@ interface DriverMapNavigationProps {
   plannedEndTime?: string
   departureTime?: string
   driverLocation?: { lat: number; lng: number }
-  onStopReached?: (stopIndex: number) => void
+  onStopReached?: (stopIndex: number, arrival?: ArrivalReport) => void
   onNavigationComplete?: () => void
   onPosition?: (fix: DriverFix) => void
   onNavigationStart?: () => void | Promise<void>
   onSimulationStart?: () => void | Promise<void>
-  onReoptimize?: () => Promise<void>
+  onReoptimize?: () => Promise<string | void>
   trackingStatus?: { state: 'off' | 'pending' | 'on' | 'error'; label: string }
   onClose?: () => void
   height?: string
@@ -134,11 +175,33 @@ const MARKER_LABELS: Record<string, string> = {
 type Point = { lat: number; lng: number }
 
 const MARKER_GLIDE_MS = 900
-const STEP_REACHED_METERS = 30
 const SIM_TICK_MS = 1000
 const SIM_BASE_METERS_PER_SECOND = 17.9 // 40 mph
 const SIM_STOP_PAUSE_MS = 2000
 const SIM_SPEEDS = [1, 10, 30] as const
+const SIM_DETOUR_METERS = 450
+const SIM_DETOUR_MS = 12_000
+const FIX_FRESH_MS = 45_000
+const REROUTE_COOLDOWN_MS = 10_000
+const TRAFFIC_REFRESH_MS = 240_000
+const FASTER_ROUTE_MIN_SECONDS = 180
+const USER_ZOOM_HOLD_MS = 15_000
+const ZOOM_CHANGE_GAP_MS = 3_000
+const MAP_ID = process.env.NEXT_PUBLIC_GOOGLE_MAPS_MAP_ID
+
+interface BuiltRoute {
+  result: google.maps.DirectionsResult
+  valid: NavStop[]
+  legBase: number
+  fromHere: boolean
+}
+
+const escapeHtml = (value: string): string =>
+  value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;')
+
+const isPoint = (stop: NavStop | undefined): stop is NavStop & Point => Boolean(stop && stop.lat && stop.lng)
+
+const legSeconds = (leg: google.maps.DirectionsLeg): number => leg.duration_in_traffic?.value ?? leg.duration?.value ?? 0
 
 function metersBetween(a: Point, b: Point | google.maps.LatLng): number {
   const to = b instanceof google.maps.LatLng ? { lat: b.lat(), lng: b.lng() } : b
@@ -181,7 +244,9 @@ export default function DriverMapNavigation({
   // ── Refs ──────────────────────────────────────────────────────────
   const mapRef = useRef<google.maps.Map | null>(null)
   const mapContainerRef = useRef<HTMLDivElement>(null)
-  const directionsRendererRef = useRef<google.maps.DirectionsRenderer | null>(null)
+  const routeLineRef = useRef<google.maps.Polyline | null>(null)
+  const routeCasingRef = useRef<google.maps.Polyline | null>(null)
+  const traveledLineRef = useRef<google.maps.Polyline | null>(null)
   const markersRef = useRef<google.maps.Marker[]>([])
   const driverMarkerRef = useRef<google.maps.Marker | null>(null)
   const watchIdRef = useRef<number | null>(null)
@@ -200,7 +265,17 @@ export default function DriverMapNavigation({
   const [routeSegments, setRouteSegments] = useState<RouteSegment[]>([])
   const [totalDistance, setTotalDistance] = useState('')
   const [totalDuration, setTotalDuration] = useState('')
-  const [legSummaries, setLegSummaries] = useState<Array<{ distance: string; duration: string; from: string; to: string }>>([])
+  const [legSummaries, setLegSummaries] = useState<Array<{ distance: string; duration: string; from: string; to: string; toIndex: number }>>([])
+  const [offRoute, setOffRoute] = useState<'on' | 'suspect' | 'off'>('on')
+  const [rerouting, setRerouting] = useState(false)
+  const [rerouteFailed, setRerouteFailed] = useState(false)
+  const [fasterRoute, setFasterRoute] = useState<{ minutes: number } | null>(null)
+  const [arrivalPrompt, setArrivalPrompt] = useState<{ idx: number; check: ArrivalCheck } | null>(null)
+  const [overrideCode, setOverrideCode] = useState('')
+  const [overrideNote, setOverrideNote] = useState('')
+  const [arrivalSuggestion, setArrivalSuggestion] = useState<number | null>(null)
+  const [exportParts, setExportParts] = useState<ExportPart[] | null>(null)
+  const [liveStats, setLiveStats] = useState<{ speedMph: number | null; accuracy: number | null }>({ speedMph: null, accuracy: null })
 
   const [navState, setNavState] = useState<NavigationState>({
     isNavigating: false,
@@ -210,6 +285,8 @@ export default function DriverMapNavigation({
     durationRemaining: '',
     nextInstruction: '',
     nextManeuver: '',
+    maneuver: null,
+    thenInstruction: '',
     totalDistanceRemaining: '',
     totalDurationRemaining: '',
     eta: '',
@@ -234,8 +311,28 @@ export default function DriverMapNavigation({
   const speakRef = useRef<(text: string) => void>(() => {})
   const onPositionRef = useRef(onPosition)
   const [replanning, setReplanning] = useState(false)
-  const simPathRef = useRef<SimPath | null>(null)
-  const simRef = useRef<{ speed: number; meters: number; pausedUntil: number; pending: boolean } | null>(null)
+  const planRef = useRef<RoutePlan | null>(null)
+  const latestFixRef = useRef<DriverFix | null>(null)
+  const lastRawRef = useRef<Point | null>(null)
+  const lastFixTimeRef = useRef<{ pos: Point; at: number } | null>(null)
+  const headingRef = useRef<number | null>(null)
+  const projHintRef = useRef(0)
+  const traveledIndexRef = useRef(-1)
+  const progressRef = useRef({ remainingMeters: 0, remainingSeconds: 0 })
+  const offRouteDetectorRef = useRef(createOffRouteDetector())
+  const offRouteStateRef = useRef<'on' | 'suspect' | 'off'>('on')
+  const rerouteBusyRef = useRef(false)
+  const lastRerouteAtRef = useRef(0)
+  const rerouteRef = useRef<(from: Point) => Promise<void>>(async () => {})
+  const refreshRef = useRef<() => Promise<void>>(async () => {})
+  const announcedRef = useRef(new Set<string>())
+  const lastZoomRef = useRef<number | null>(null)
+  const lastZoomAtRef = useRef(0)
+  const userZoomUntilRef = useRef(0)
+  const arrivalWatcherRef = useRef(createArrivalWatcher())
+  const suggestedForRef = useRef<number | null>(null)
+  const simPathRef = useRef<RoutePlan | null>(null)
+  const simRef = useRef<{ speed: number; meters: number; pausedUntil: number; pending: boolean; detourUntil: number } | null>(null)
   const simTimerRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const markStopCompletedRef = useRef<(idx: number) => void>(() => {})
   const wakeLockRef = useRef<WakeLockSentinel | null>(null)
@@ -277,33 +374,38 @@ export default function DriverMapNavigation({
       fullscreenControl: false,
       zoomControl: true,
       gestureHandling: 'greedy',
-      styles: [
-        { featureType: 'poi.business', stylers: [{ visibility: 'off' }] },
-        { featureType: 'transit', elementType: 'labels.icon', stylers: [{ visibility: 'off' }] },
-      ],
+      // A Map ID unlocks heading-up rotation and tilt; styling then lives in the Cloud console, so no inline styles.
+      ...(MAP_ID
+        ? { mapId: MAP_ID }
+        : {
+          styles: [
+            { featureType: 'poi.business', stylers: [{ visibility: 'off' }] },
+            { featureType: 'transit', elementType: 'labels.icon', stylers: [{ visibility: 'off' }] },
+          ],
+        }),
     })
 
     mapRef.current = map
 
     // Dragging the map hands control back to the driver until they tap recenter.
     map.addListener('dragstart', () => setFollow(false))
+    // A pinch or button zoom by the driver pauses automatic zoom for a while.
+    map.addListener('zoom_changed', () => {
+      const zoom = map.getZoom()
+      if (zoom === undefined || zoom === lastZoomRef.current) return
+      lastZoomRef.current = zoom
+      userZoomUntilRef.current = Date.now() + USER_ZOOM_HOLD_MS
+    })
 
     // Traffic layer
     const traffic = new google.maps.TrafficLayer()
     if (trafficOn) traffic.setMap(map)
     trafficLayerRef.current = traffic
 
-    // Directions renderer
-    const renderer = new google.maps.DirectionsRenderer({
-      map,
-      suppressMarkers: true, // We use custom markers
-      polylineOptions: {
-        strokeColor: '#F59E0B',
-        strokeWeight: 5,
-        strokeOpacity: 0.85,
-      },
-    })
-    directionsRendererRef.current = renderer
+    // The route is drawn by hand (not DirectionsRenderer) so the part already driven can be greyed out.
+    routeCasingRef.current = new google.maps.Polyline({ map, strokeColor: '#FFFFFF', strokeWeight: 9, strokeOpacity: 0.95, zIndex: 1 })
+    routeLineRef.current = new google.maps.Polyline({ map, strokeColor: '#F59E0B', strokeWeight: 5.5, strokeOpacity: 1, zIndex: 2 })
+    traveledLineRef.current = new google.maps.Polyline({ map, strokeColor: '#9CA3AF', strokeWeight: 5.5, strokeOpacity: 0.95, zIndex: 3 })
 
     setMapReady(true)
   }, [setFollow])
@@ -326,84 +428,90 @@ export default function DriverMapNavigation({
   }, [initMap])
 
   // ── Build Route with Directions API ───────────────────────────────
-  const buildRoute = useCallback(async () => {
-    const stops = stopsRef.current
-    if (!mapRef.current || !window.google || stops.length < 2) return
+  // With `from`, the route starts at the driver's position and runs through the stops not yet reached.
+  const requestRoute = async (from: Point | null, startIndex: number): Promise<BuiltRoute | null> => {
+    if (!window.google) return null
+    const valid = stopsRef.current.filter(s => s.address && s.address.trim().length > 0)
+    const targets = from ? valid.slice(startIndex) : valid
+    if (targets.length < (from ? 1 : 2)) return null
 
-    const directionsService = new google.maps.DirectionsService()
+    const asLocation = (stop: NavStop): string | google.maps.LatLngLiteral =>
+      stop.lat && stop.lng ? { lat: stop.lat, lng: stop.lng } : stop.address
+    const rest = from ? targets : targets.slice(1)
+    const departure = !from && departureTime && new Date(departureTime).getTime() > Date.now() ? new Date(departureTime) : new Date()
 
-    // Build origin, destination, waypoints
-    const validStops = stops.filter(s => s.address && s.address.trim().length > 0)
-    if (validStops.length < 2) return
+    const result = await new google.maps.DirectionsService().route({
+      origin: from ?? asLocation(targets[0]!),
+      destination: asLocation(rest[rest.length - 1]!),
+      waypoints: rest.slice(0, -1).map(stop => ({ location: asLocation(stop), stopover: true })),
+      optimizeWaypoints: false, // Already optimized by our engine
+      travelMode: google.maps.TravelMode.DRIVING,
+      drivingOptions: { departureTime: departure, trafficModel: google.maps.TrafficModel.BEST_GUESS },
+    })
+    return { result, valid, legBase: from ? startIndex : 1, fromHere: Boolean(from) }
+  }
 
-    const origin = validStops[0]!.lat && validStops[0]!.lng
-      ? { lat: validStops[0]!.lat, lng: validStops[0]!.lng }
-      : validStops[0]!.address
+  const applyRoute = ({ result, valid, legBase, fromHere }: BuiltRoute, { silent = false }: { silent?: boolean } = {}) => {
+    const legs = result.routes[0]?.legs || []
+    if (!legs.length) return
 
-    const lastStop = validStops[validStops.length - 1]!
-    const destination = lastStop.lat && lastStop.lng
-      ? { lat: lastStop.lat, lng: lastStop.lng }
-      : lastStop.address
-
-    const waypoints = validStops.slice(1, -1).map(stop => ({
-      location: stop.lat && stop.lng
-        ? new google.maps.LatLng(stop.lat, stop.lng)
-        : stop.address,
-      stopover: true,
+    const segments: RouteSegment[] = legs.map(leg => ({
+      distance: leg.distance?.text || '',
+      duration: leg.duration_in_traffic?.text || leg.duration?.text || '',
+      steps: leg.steps || [],
     }))
+    setRouteSegments(segments)
+    routeSegmentsRef.current = segments
+    stepIndexRef.current = 0
+    projHintRef.current = 0
+    traveledIndexRef.current = -1
 
-    try {
-      const result = await directionsService.route({
-        origin: origin as string | google.maps.LatLng | google.maps.LatLngLiteral | google.maps.Place,
-        destination: destination as string | google.maps.LatLng | google.maps.LatLngLiteral | google.maps.Place,
-        waypoints: waypoints as google.maps.DirectionsWaypoint[],
-        optimizeWaypoints: false, // Already optimized by our engine
-        travelMode: google.maps.TravelMode.DRIVING,
-        drivingOptions: {
-          departureTime: departureTime && new Date(departureTime).getTime() > Date.now()
-            ? new Date(departureTime)
-            : new Date(),
-          trafficModel: google.maps.TrafficModel.BEST_GUESS,
-        },
-      })
+    const plan = buildRoutePlan(
+      legs.map(leg => ({
+        durationSeconds: legSeconds(leg),
+        steps: (leg.steps || []).map(step => ({ points: (step.path || []).map(point => ({ lat: point.lat(), lng: point.lng() })) })),
+      })),
+    )
+    planRef.current = plan
+    simPathRef.current = plan
+    routeLineRef.current?.setPath(plan.points)
+    routeCasingRef.current?.setPath(plan.points)
+    traveledLineRef.current?.setPath([])
+    if (simRef.current) {
+      simRef.current.meters = 0
+      simRef.current.pausedUntil = Date.now() + 1500
+      simRef.current.pending = false
+      simRef.current.detourUntil = 0
+    }
 
-      if (directionsRendererRef.current) {
-        directionsRendererRef.current.setDirections(result)
-      }
-
-      // Parse legs
-      const legs = result.routes[0]?.legs || []
-      const segments: RouteSegment[] = legs.map(leg => ({
+    let totalDist = 0
+    let totalDur = 0
+    const summaries = legs.map((leg, i) => {
+      totalDist += leg.distance?.value || 0
+      totalDur += legSeconds(leg)
+      return {
         distance: leg.distance?.text || '',
         duration: leg.duration_in_traffic?.text || leg.duration?.text || '',
-        steps: leg.steps || [],
+        from: i === 0 && fromHere ? 'Your position' : valid[legBase + i - 1]?.address || '',
+        to: valid[legBase + i]?.address || '',
+        toIndex: legBase + i,
+      }
+    })
+    setLegSummaries(summaries)
+    progressRef.current = { remainingMeters: totalDist, remainingSeconds: totalDur }
+
+    if (fromHere) {
+      // Re-routing keeps the planned totals and the stops already driven; only the road ahead changes.
+      setNavState(prev => ({
+        ...prev,
+        currentLeg: 0,
+        totalDistanceRemaining: `${(totalDist / 1609.34).toFixed(1)} mi`,
+        totalDurationRemaining: formatDuration(totalDur),
+        eta: new Date(Date.now() + totalDur * 1000).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }),
       }))
-
-      setRouteSegments(segments)
-      stepIndexRef.current = 0
-      simPathRef.current = buildSimPath(
-        legs.map(leg => (leg.steps || []).flatMap(step => (step.path || []).map(point => ({ lat: point.lat(), lng: point.lng() })))),
-      )
-
-      // Calculate totals
-      let totalDist = 0
-      let totalDur = 0
-      const summaries = legs.map((leg, i) => {
-        totalDist += leg.distance?.value || 0
-        totalDur += (leg.duration_in_traffic?.value || leg.duration?.value || 0)
-        return {
-          distance: leg.distance?.text || '',
-          duration: leg.duration_in_traffic?.text || leg.duration?.text || '',
-          from: validStops[i]?.address || '',
-          to: validStops[i + 1]?.address || '',
-        }
-      })
-
+    } else {
       setTotalDistance(plannedDistance !== undefined ? `${plannedDistance.toFixed(1)} mi` : `${(totalDist / 1609.34).toFixed(1)} mi`)
       setTotalDuration(plannedDurationMinutes !== undefined ? formatDuration(plannedDurationMinutes * 60) : formatDuration(totalDur))
-      setLegSummaries(summaries)
-
-      // Compute ETA
       const eta = plannedEndTime ? new Date(plannedEndTime) : new Date(Date.now() + totalDur * 1000)
       setNavState(prev => ({
         ...prev,
@@ -411,35 +519,55 @@ export default function DriverMapNavigation({
         totalDurationRemaining: formatDuration(totalDur),
         eta: eta.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }),
       }))
+    }
 
-      // Place custom markers
-      const resolvedStops = validStops.map((stop, index) => {
-        const location = index === 0 ? legs[0]?.start_location : legs[index - 1]?.end_location
-        return location
-          ? { ...stop, lat: location.lat(), lng: location.lng() }
-          : stop
-      })
-      resolvedStopsRef.current = resolvedStops
-      placeMarkers(resolvedStops)
-      setRouteLoaded(true)
+    // Stops keep the coordinates Google resolved for them; re-routing only refreshes the ones still ahead.
+    const resolved = fromHere && resolvedStopsRef.current.length === valid.length ? [...resolvedStopsRef.current] : valid.map(stop => ({ ...stop }))
+    if (!fromHere && legs[0]?.start_location) resolved[0] = { ...valid[0]!, lat: legs[0].start_location.lat(), lng: legs[0].start_location.lng() }
+    legs.forEach((leg, i) => {
+      const index = legBase + i
+      if (valid[index] && leg.end_location) resolved[index] = { ...valid[index]!, lat: leg.end_location.lat(), lng: leg.end_location.lng() }
+    })
+    resolvedStopsRef.current = resolved
+    placeMarkers(resolved)
+    setRouteLoaded(true)
+    setFasterRoute(null)
 
-      // Set first navigation instruction
-      if (segments[0]?.steps[0]) {
-        setNavState(prev => ({
-          ...prev,
-          nextInstruction: stripHtml(segments[0]!.steps[0]!.instructions),
-          distanceRemaining: segments[0]!.distance,
-          durationRemaining: segments[0]!.duration,
-        }))
-      }
+    if (!fromHere && mapRef.current && result.routes[0]?.bounds && !navStateRef.current.isNavigating) {
+      mapRef.current.fitBounds(result.routes[0].bounds, 60)
+    }
+
+    if (!silent && segments[0]?.steps[0]) {
+      const firstStep = segments[0].steps[0]
+      setNavState(prev => ({
+        ...prev,
+        nextInstruction: stripHtml(firstStep.instructions),
+        maneuver: parseManeuver(firstStep.maneuver, stripHtml(firstStep.instructions)),
+        distanceRemaining: segments[0]!.distance,
+        durationRemaining: segments[0]!.duration,
+      }))
+    }
+  }
+
+  const buildRoute = useCallback(async () => {
+    const stops = stopsRef.current
+    if (!mapRef.current || !window.google || stops.length < 2) return
+
+    try {
+      const built = await requestRoute(null, 1)
+      if (built) applyRoute(built)
     } catch (err: any) {
       console.error('Directions error:', err)
       toast('Could not calculate route — check addresses', 'error')
       // Fallback: place markers and draw polyline
+      const validStops = stops.filter(s => s.address && s.address.trim().length > 0)
+      planRef.current = null
+      simPathRef.current = null
       resolvedStopsRef.current = validStops
       placeMarkers(validStops)
       drawFallbackPolyline(validStops)
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [stopsKey, departureTime, plannedDistance, plannedDurationMinutes, plannedEndTime])
 
   useEffect(() => {
@@ -491,13 +619,14 @@ export default function DriverMapNavigation({
         zIndex: isCurrent ? 100 : 50 - idx,
       })
 
-      // Info window
+      // Info window: the same details the stop strip shows, escaped because addresses are user text.
+      const details = navStopDetails(stop, idx, stopsToMark, isCompleted)
       const infoContent = `
-        <div style="font-family:system-ui;max-width:240px;">
-          <p style="font-weight:600;margin:0 0 4px;">${tag ? `${tag} · ` : ''}${stop.label || stop.type.replace('_', ' ')}</p>
-          <p style="font-size:13px;color:#555;margin:0 0 4px;">${stop.address}</p>
-          ${stop.vehicleInfo ? `<p style="font-size:12px;color:#888;margin:0;">${stop.vehicleInfo}</p>` : ''}
-          ${stop.estimatedArrival ? `<p style="font-size:12px;color:#F59E0B;margin:4px 0 0;">ETA: ${new Date(stop.estimatedArrival).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}</p>` : ''}
+        <div style="font-family:system-ui;max-width:260px;">
+          <p style="font-size:10px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:#008c82;margin:0;">${escapeHtml(tag ? `${tag} · ${details.kind}` : details.kind)}</p>
+          <p style="font-weight:600;margin:2px 0 6px;">${escapeHtml(details.title)}</p>
+          ${details.rows.map(row => `<p style="font-size:12px;margin:2px 0;"><span style="color:#6b807e;">${escapeHtml(row.label)}:</span> ${escapeHtml(row.value)}</p>`).join('')}
+          ${details.warning ? `<p style="font-size:12px;margin:6px 0 0;padding:6px;background:#fffbeb;border:1px solid #fde68a;color:#92400e;">${escapeHtml(details.warning)}</p>` : ''}
         </div>
       `
 
@@ -566,44 +695,138 @@ export default function DriverMapNavigation({
     driverAnimRef.current = requestAnimationFrame(tick)
   }, [])
 
-  // Shows the upcoming maneuver and the distance to it, advancing as the driver passes each step.
-  const updateGuidance = useCallback((pos: Point) => {
-    const steps = routeSegmentsRef.current[navStateRef.current.currentLeg]?.steps
-    if (!steps?.length) return
+  const spokenDistance = (meters: number): string => {
+    if (meters < 305) return `${Math.max(50, Math.round((meters * 3.28084) / 50) * 50)} feet`
+    const miles = meters / 1609.344
+    return miles < 1 ? `${(Math.round(miles * 4) / 4).toFixed(2).replace(/0$/, '')} miles` : `${miles.toFixed(1)} miles`
+  }
 
-    let idx = Math.min(stepIndexRef.current, steps.length - 1)
-    while (idx < steps.length - 1 && metersBetween(pos, steps[idx]!.end_location) < STEP_REACHED_METERS) idx++
+  // Turns a position along the route into guidance: the next maneuver, what follows it, remaining distance and time.
+  // Returns the metres to the next maneuver, which also drives the zoom level.
+  const updateGuidance = useCallback((along: number, speedMps: number | null): number | null => {
+    const plan = planRef.current
+    const nav = navStateRef.current
+    const steps = routeSegmentsRef.current[nav.currentLeg]?.steps
+    if (!plan || !steps?.length) return null
 
+    const ends = plan.stepEnds[nav.currentLeg] ?? []
+    let idx = ends.findIndex(end => end > along + 0.5)
+    if (idx === -1) idx = ends.length - 1
+    idx = Math.min(Math.max(0, idx), steps.length - 1)
+    if (idx !== stepIndexRef.current) stepIndexRef.current = idx
+
+    const metersToManeuver = Math.max(0, (ends[idx] ?? along) - along)
     const upcoming = steps[idx + 1]
-    const meters = metersBetween(pos, steps[idx]!.end_location)
     const instruction = upcoming ? htmlToText(upcoming.instructions) : 'Arrive at your stop'
-    const distance = meters < 300 ? `${Math.max(10, Math.round(meters * 3.28084 / 10) * 10)} ft` : `${(meters / 1609.34).toFixed(1)} mi`
+    const maneuver: ManeuverView = upcoming ? parseManeuver(upcoming.maneuver, instruction) : { glyph: 'arrive', side: null }
+    const afterwards = steps[idx + 2]
+    const then = afterwards ? htmlToText(afterwards.instructions) : ''
+    const distance = describeDistance(metersToManeuver)
 
-    if (idx !== stepIndexRef.current) {
-      stepIndexRef.current = idx
-      if ((simRef.current?.speed ?? 1) <= 1) speakRef.current(instruction)
+    const legStart = nav.currentLeg === 0 ? 0 : plan.legEnds[nav.currentLeg - 1] ?? 0
+    const legEnd = plan.legEnds[nav.currentLeg] ?? plan.total
+    const legFraction = Math.min(1, Math.max(0, (legEnd - along) / Math.max(1, legEnd - legStart)))
+    const legSecondsLeft = legFraction * (plan.legDurations[nav.currentLeg] ?? 0)
+    const progress = progressAlong(plan, along)
+    progressRef.current = { remainingMeters: progress.remainingMeters, remainingSeconds: progress.remainingSeconds }
+
+    // Heads-up before the turn, once per maneuver and distance band. Fast-forwarded simulations stay quiet.
+    if ((simRef.current?.speed ?? 1) <= 1) {
+      const key = `${steps[idx]!.end_location.lat().toFixed(5)},${steps[idx]!.end_location.lng().toFixed(5)}`
+      const farAt = (speedMps ?? 0) > 20 ? 1600 : (speedMps ?? 0) > 11 ? 800 : 450
+      const stepLength = (ends[idx] ?? 0) - (idx === 0 ? legStart : ends[idx - 1] ?? 0)
+      const band = metersToManeuver <= 220 ? 'near' : metersToManeuver <= farAt && stepLength > farAt * 1.2 ? 'far' : null
+      if (band && !announcedRef.current.has(`${key}|${band}`)) {
+        announcedRef.current.add(`${key}|${band}`)
+        const spoken = instruction.charAt(0).toLowerCase() + instruction.slice(1)
+        speakRef.current(upcoming ? `In ${spokenDistance(metersToManeuver)}, ${spoken}` : 'You are arriving at your stop')
+      }
     }
+
+    const remainingMiles = `${(progress.remainingMeters / 1609.34).toFixed(1)} mi`
+    const remainingTime = formatDuration(progress.remainingSeconds)
+    const eta = new Date(Date.now() + progress.remainingSeconds * 1000).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
+    const legTime = formatDuration(legSecondsLeft)
+
     setNavState(prev =>
-      prev.nextInstruction === instruction && prev.distanceRemaining === distance
+      prev.nextInstruction === instruction &&
+      prev.distanceRemaining === distance &&
+      prev.durationRemaining === legTime &&
+      prev.thenInstruction === then &&
+      prev.totalDistanceRemaining === remainingMiles &&
+      prev.totalDurationRemaining === remainingTime &&
+      prev.eta === eta &&
+      prev.maneuver?.glyph === maneuver.glyph &&
+      prev.maneuver?.side === maneuver.side
         ? prev
-        : { ...prev, nextInstruction: instruction, distanceRemaining: distance }
+        : {
+          ...prev,
+          nextInstruction: instruction,
+          distanceRemaining: distance,
+          durationRemaining: legTime,
+          thenInstruction: then,
+          maneuver,
+          totalDistanceRemaining: remainingMiles,
+          totalDurationRemaining: remainingTime,
+          eta,
+        }
     )
+    return metersToManeuver
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   // Single entry point for a driver position, whether it came from real GPS or the simulator.
   const applyPosition = useCallback((
-    newPos: Point,
-    heading: number | null,
+    rawPos: Point,
+    reportedHeading: number | null,
     extra: { speedMps?: number | null; accuracyMeters?: number | null; simulated?: boolean } = {},
   ) => {
-    setCurrentDriverPos(newPos)
+    const nav = navStateRef.current
+    const plan = planRef.current
+    const map = mapRef.current
+    const now = Date.now()
+    const accuracy = extra.accuracyMeters ?? null
 
+    // Some browsers never report speed, so fall back to distance over time between fixes.
+    let speed = extra.speedMps ?? null
+    const previousFix = lastFixTimeRef.current
+    if (speed === null && previousFix && now - previousFix.at > 0 && now - previousFix.at < 10_000) {
+      speed = metersBetween(previousFix.pos, rawPos) / ((now - previousFix.at) / 1000)
+    }
+    lastFixTimeRef.current = { pos: rawPos, at: now }
+
+    const moved = headingFromMovement(lastRawRef.current, rawPos)
+    if (!lastRawRef.current || moved !== null) lastRawRef.current = rawPos
+    const heading = reportedHeading ?? moved
+    if (heading !== null && (speed ?? 1) > 0.5) headingRef.current = smoothHeading(headingRef.current, heading)
+
+    // Where the driver is on the planned route, so the marker sits on the road and progress is exact.
+    let pos = rawPos
+    let along: number | null = null
+    let distanceFromPath = 0
+    if (plan && nav.isNavigating) {
+      const projection = projectOnPath(plan, rawPos, projHintRef.current)
+      if (projection) {
+        projHintRef.current = projection.index
+        along = projection.alongMeters
+        distanceFromPath = projection.distanceFromPath
+        if (projection.distanceFromPath <= Math.max(30, accuracy ?? 0)) pos = projection.snapped
+        if (projection.index !== traveledIndexRef.current) {
+          traveledIndexRef.current = projection.index
+          traveledLineRef.current?.setPath([...plan.points.slice(0, projection.index + 1), projection.snapped])
+        }
+      }
+    }
+    setCurrentDriverPos(pos)
+
+    const headingUp = Boolean(MAP_ID) && followRef.current && nav.isNavigating
+    const rotation = headingUp ? 0 : headingRef.current ?? 0
     if (driverMarkerRef.current) {
-      moveDriverMarker(newPos)
-    } else if (mapRef.current) {
+      moveDriverMarker(pos)
+    } else if (map) {
       driverMarkerRef.current = new google.maps.Marker({
-        position: newPos,
-        map: mapRef.current,
+        position: pos,
+        map,
         title: 'Your Location',
         icon: {
           path: google.maps.SymbolPath.FORWARD_CLOSED_ARROW,
@@ -612,32 +835,92 @@ export default function DriverMapNavigation({
           fillOpacity: 1,
           strokeWeight: 2,
           strokeColor: '#FFFFFF',
-          rotation: heading ?? 0,
+          rotation,
         },
         zIndex: 200,
       })
-      if (followRef.current) mapRef.current.setZoom(16)
     }
-
-    if (heading !== null && driverMarkerRef.current) {
+    if (driverMarkerRef.current) {
       const icon = driverMarkerRef.current.getIcon() as google.maps.Symbol
-      if (icon) {
-        icon.rotation = heading
+      if (icon && icon.rotation !== rotation) {
+        icon.rotation = rotation
         driverMarkerRef.current.setIcon(icon)
       }
     }
 
-    if (followRef.current) mapRef.current?.panTo(newPos)
-    updateGuidance(newPos)
-    onPositionRef.current?.({
-      lat: newPos.lat,
-      lng: newPos.lng,
+    let metersToManeuver: number | null = null
+    if (along !== null) {
+      metersToManeuver = updateGuidance(along, speed)
+
+      // A single stray fix never counts: the detector needs several, or one clear departure.
+      // Standing still or parking at the stop is never "off route".
+      const target = resolvedStopsRef.current[nav.currentStopIndex]
+      const atStop = isPoint(target) && metersBetween(rawPos, target) < arrivalRadius(target.type)
+      const moving = speed === null || speed > 2
+      let state: 'on' | 'suspect' | 'off' = 'on'
+      if (moving && !atStop) {
+        state = offRouteDetectorRef.current.update({ distanceFromPath, accuracyMeters: accuracy, at: now })
+      } else {
+        offRouteDetectorRef.current.reset()
+      }
+      if (state !== offRouteStateRef.current) {
+        offRouteStateRef.current = state
+        setOffRoute(state)
+        if (state === 'on') setRerouteFailed(false)
+      }
+      if (state === 'off') void rerouteRef.current(rawPos)
+    }
+
+    // Suggest "you have arrived" once the driver has been inside the stop's zone and slow for a few seconds.
+    if (nav.isNavigating && !extra.simulated) {
+      const target = resolvedStopsRef.current[nav.currentStopIndex]
+      if (isPoint(target)) {
+        const check = checkArrival({ lat: rawPos.lat, lng: rawPos.lng, accuracyMeters: accuracy }, target, arrivalRadius(target.type))
+        const ready = arrivalWatcherRef.current.update({ inside: check.verdict === 'verified', speedMps: speed, at: now })
+        if (ready && suggestedForRef.current !== nav.currentStopIndex) {
+          suggestedForRef.current = nav.currentStopIndex
+          setArrivalSuggestion(nav.currentStopIndex)
+          speakRef.current('You have arrived. Confirm when you are ready.')
+        }
+      }
+    }
+
+    if (nav.isNavigating) {
+      const mph = speed === null ? null : Math.round(speed * 2.23694)
+      const acc = accuracy === null ? null : Math.round(accuracy)
+      setLiveStats(prev => (prev.speedMph === mph && prev.accuracy === acc ? prev : { speedMph: mph, accuracy: acc }))
+    }
+
+    // Camera: zoom to what the driver needs to read, and look ahead of the car instead of centring on it.
+    if (map && followRef.current) {
+      const target = nav.isNavigating ? adaptiveZoom({ speedMps: speed ?? 0, metersToManeuver }) : 16
+      const current = lastZoomRef.current ?? map.getZoom() ?? 10
+      if (target !== current && now >= userZoomUntilRef.current && (lastZoomRef.current === null || now - lastZoomAtRef.current > ZOOM_CHANGE_GAP_MS)) {
+        lastZoomRef.current = target
+        lastZoomAtRef.current = now
+        map.setZoom(target)
+      }
+      const zoom = lastZoomRef.current ?? current
+      const bearing = headingRef.current
+      const lookAhead = nav.isNavigating && bearing !== null && (speed ?? 0) > 1.5 ? (zoom >= 18 ? 40 : zoom >= 17 ? 90 : zoom >= 16 ? 180 : 350) : 0
+      map.panTo(lookAhead && bearing !== null ? offsetAhead(pos, bearing, lookAhead) : pos)
+      if (MAP_ID && nav.isNavigating && bearing !== null) {
+        map.setHeading(bearing)
+        map.setTilt(45)
+      }
+    }
+
+    const fix: DriverFix = {
+      lat: rawPos.lat,
+      lng: rawPos.lng,
       heading,
       speedMps: extra.speedMps ?? null,
-      accuracyMeters: extra.accuracyMeters ?? null,
-      at: Date.now(),
+      accuracyMeters: accuracy,
+      at: now,
       simulated: extra.simulated === true,
-    })
+    }
+    latestFixRef.current = fix
+    onPositionRef.current?.(fix)
   }, [moveDriverMarker, updateGuidance])
 
   const startGPSTracking = useCallback(() => {
@@ -735,7 +1018,12 @@ export default function DriverMapNavigation({
     if (arrived) sim.meters = legEnd
 
     const position = positionAt(path, sim.meters)
-    if (position) applyPosition(position, position.heading, { speedMps: SIM_BASE_METERS_PER_SECOND * sim.speed, simulated: true })
+    if (position) {
+      // The detour demo reports a position well off the road, as if the driver missed a turn.
+      const detouring = Date.now() < sim.detourUntil
+      const reported = detouring ? offsetAhead(position, (position.heading + 90) % 360, SIM_DETOUR_METERS) : position
+      applyPosition(reported, position.heading, { speedMps: SIM_BASE_METERS_PER_SECOND * sim.speed, simulated: true })
+    }
     if (arrived) {
       sim.pending = true
       sim.pausedUntil = Date.now() + SIM_STOP_PAUSE_MS
@@ -745,6 +1033,11 @@ export default function DriverMapNavigation({
   const setSimulationSpeed = (speed: number) => {
     if (simRef.current) simRef.current.speed = speed
     setSimulation({ speed })
+  }
+
+  const simulateDetour = () => {
+    if (simRef.current) simRef.current.detourUntil = Date.now() + SIM_DETOUR_MS
+    toast('Simulated wrong turn. Watch the off-route alert and the recalculation.', 'info')
   }
 
   useEffect(() => {
@@ -785,8 +1078,26 @@ export default function DriverMapNavigation({
   }, [stopSimulation, releaseWakeLock])
 
   // ── Navigation Controls ───────────────────────────────────────────
-  const beginNavState = () => {
+  const resetGuidance = () => {
     stepIndexRef.current = 0
+    projHintRef.current = 0
+    traveledIndexRef.current = -1
+    announcedRef.current.clear()
+    userZoomUntilRef.current = 0
+    offRouteDetectorRef.current.reset()
+    offRouteStateRef.current = 'on'
+    arrivalWatcherRef.current.reset()
+    suggestedForRef.current = null
+    setOffRoute('on')
+    setRerouteFailed(false)
+    setFasterRoute(null)
+    setArrivalPrompt(null)
+    setArrivalSuggestion(null)
+    traveledLineRef.current?.setPath([])
+  }
+
+  const beginNavState = () => {
+    resetGuidance()
     setFollow(true)
     // Leg 0 runs stop 0 to stop 1, so the origin is already done and stop 1 is the first target.
     const hasOrigin = stops.length > 1
@@ -821,7 +1132,7 @@ export default function DriverMapNavigation({
     beginNavState()
     Promise.resolve(onSimulationStart?.()).catch(() => {})
 
-    simRef.current = { speed: 10, meters: 0, pausedUntil: 0, pending: false }
+    simRef.current = { speed: 10, meters: 0, pausedUntil: 0, pending: false, detourUntil: 0 }
     setSimulation({ speed: 10 })
     applyPosition(first, first.heading, { speedMps: SIM_BASE_METERS_PER_SECOND * 10, simulated: true })
     if (simTimerRef.current) clearInterval(simTimerRef.current)
@@ -829,17 +1140,28 @@ export default function DriverMapNavigation({
     toast('Simulated drive started. This is not real GPS.', 'info')
   }
 
+  // Google Maps links hold only a few stops, so a long route is split into parts that chain end to start.
   const openInGoogleMaps = () => {
     const route = resolvedStopsRef.current.length ? resolvedStopsRef.current : stops
-    const from = navState.isNavigating ? navState.currentStopIndex : route.length > 1 ? 1 : 0
-    const remaining = route.slice(from)
-    const url = googleMapsDirectionsUrl(remaining.map(stop => ({ address: stop.address, lat: stop.lat, lng: stop.lng })))
-    if (!url) {
+    const navigating = navState.isNavigating
+    const mobile = isMobileBrowser(navigator.userAgent)
+    const from = navigating ? navState.currentStopIndex : route.length > 1 ? 1 : 0
+    const targets = route.slice(from).map(stop => ({ address: stop.address, lat: stop.lat, lng: stop.lng, label: stop.label }))
+    // Phones start from the device's own location; a computer needs an explicit start.
+    const origin = navigating
+      ? currentDriverPos ? { address: '', lat: currentDriverPos.lat, lng: currentDriverPos.lng } : null
+      : !mobile && route.length > 1 ? { address: route[0]!.address, lat: route[0]!.lat, lng: route[0]!.lng } : null
+
+    const parts = googleMapsRouteParts(targets, { maxWaypoints: mobile ? MOBILE_WAYPOINT_LIMIT : DESKTOP_WAYPOINT_LIMIT, origin })
+    if (parts.length === 0) {
       toast('No stops left to navigate to', 'info')
       return
     }
-    window.open(url, '_blank', 'noopener')
-    if (remaining.length > 10) toast('Google Maps takes 10 stops at a time. Opened the next 10.', 'info')
+    if (parts.length === 1) {
+      window.open(parts[0]!.url, '_blank', 'noopener')
+      return
+    }
+    setExportParts(parts)
   }
 
   const stopNavigation = () => {
@@ -849,21 +1171,31 @@ export default function DriverMapNavigation({
       isNavigating: false,
     }))
     stopGPSTracking()
+    setArrivalPrompt(null)
+    setArrivalSuggestion(null)
+    setOffRoute('on')
+    setFasterRoute(null)
+    mapRef.current?.setTilt(0)
+    mapRef.current?.setHeading(0)
     toast('Navigation stopped', 'info')
   }
 
   // Handlers run outside state updaters so a double-invoked updater can never record a stop twice.
-  const markStopCompleted = (idx: number) => {
+  const markStopCompleted = (idx: number, arrival?: ArrivalReport) => {
     const prev = navStateRef.current
     if (prev.completedStops.includes(idx)) return
     stepIndexRef.current = 0
+    projHintRef.current = 0
+    arrivalWatcherRef.current.reset()
+    setArrivalPrompt(null)
+    setArrivalSuggestion(null)
 
     const completed = [...prev.completedStops, idx]
     const nextLeg = Math.min(prev.currentLeg + 1, routeSegments.length - 1)
     const nextStop = idx + 1
     const recordProgress = !simRef.current // A simulated drive never writes real progress.
 
-    if (recordProgress) onStopReached?.(idx)
+    if (recordProgress) onStopReached?.(idx, arrival)
 
     if (nextStop >= stops.length) {
       if (recordProgress) onNavigationComplete?.()
@@ -892,6 +1224,127 @@ export default function DriverMapNavigation({
 
   markStopCompletedRef.current = markStopCompleted
 
+  // "Arrived" or "Done": the driver's position is checked against the approved stop before it is recorded.
+  // Outside the zone, a reason is required, and it is stored with the stop for the dispatcher.
+  const requestStopCompletion = (idx: number) => {
+    if (simRef.current) {
+      markStopCompleted(idx)
+      return
+    }
+    const stop = stops[idx]
+    const resolved = resolvedStopsRef.current[idx]
+    const target = isPoint(resolved) ? { lat: resolved.lat, lng: resolved.lng } : null
+    const radius = arrivalRadius(stop?.type ?? 'stop')
+    const latest = latestFixRef.current
+    const fix = latest && !latest.simulated && Date.now() - latest.at < FIX_FRESH_MS ? latest : null
+    const check = checkArrival(fix ? { lat: fix.lat, lng: fix.lng, accuracyMeters: fix.accuracyMeters } : null, target, radius)
+
+    if (check.verdict === 'verified' || check.verdict === 'unknown_target') {
+      markStopCompleted(idx, target ? { target, radiusMeters: radius, fix: fix ? { lat: fix.lat, lng: fix.lng, accuracyMeters: fix.accuracyMeters } : null } : undefined)
+      return
+    }
+    setOverrideCode('')
+    setOverrideNote('')
+    setArrivalPrompt({ idx, check })
+  }
+
+  const confirmArrivalPrompt = () => {
+    if (!arrivalPrompt) return
+    const { idx, check } = arrivalPrompt
+    const resolved = resolvedStopsRef.current[idx]
+    if (!isPoint(resolved)) return
+    const latest = latestFixRef.current
+    const fix = latest && !latest.simulated && Date.now() - latest.at < FIX_FRESH_MS ? latest : null
+    markStopCompleted(idx, {
+      target: { lat: resolved.lat, lng: resolved.lng },
+      radiusMeters: check.radiusMeters,
+      fix: fix ? { lat: fix.lat, lng: fix.lng, accuracyMeters: fix.accuracyMeters } : null,
+      ...(check.verdict === 'outside' && overrideCode ? { overrideCode } : {}),
+      ...(check.verdict === 'outside' && overrideCode && overrideNote.trim() ? { overrideNote: overrideNote.trim() } : {}),
+    })
+  }
+
+  const resetGuidanceAfterReroute = () => {
+    offRouteDetectorRef.current.reset()
+    offRouteStateRef.current = 'on'
+    setOffRoute('on')
+    setRerouteFailed(false)
+  }
+
+  // Re-routing keeps the same stops in the same order and recalculates only the road from where the driver is now.
+  const rerouteFromHere = async (from: Point, reason: 'off_route' | 'faster' = 'off_route') => {
+    if (rerouteBusyRef.current || !navStateRef.current.isNavigating) return
+    const now = Date.now()
+    if (now - lastRerouteAtRef.current < REROUTE_COOLDOWN_MS) return
+    lastRerouteAtRef.current = now
+    rerouteBusyRef.current = true
+    setRerouting(true)
+    if (!rerouteFailed && reason === 'off_route') speakRef.current('Off route. Recalculating.')
+    try {
+      const built = await requestRoute(from, navStateRef.current.currentStopIndex)
+      if (!built) throw new Error('No route found')
+      applyRoute(built)
+      resetGuidanceAfterReroute()
+      speakRef.current(reason === 'faster' ? 'Switched to the faster route.' : 'New route found.')
+      toast(reason === 'faster' ? 'Switched to the faster route' : 'Route recalculated from your position', 'success')
+    } catch (error) {
+      console.error('Re-route failed:', error)
+      setRerouteFailed(true)
+    } finally {
+      rerouteBusyRef.current = false
+      setRerouting(false)
+    }
+  }
+  rerouteRef.current = (from: Point) => rerouteFromHere(from)
+
+  const recalculateNow = (reason: 'off_route' | 'faster' = 'off_route') => {
+    const latest = latestFixRef.current
+    if (!latest) return
+    lastRerouteAtRef.current = 0
+    void rerouteFromHere({ lat: latest.lat, lng: latest.lng }, reason)
+  }
+
+  // Every few minutes, check whether traffic made a quicker way. Nothing changes unless the driver accepts.
+  refreshRef.current = async () => {
+    const nav = navStateRef.current
+    const latest = latestFixRef.current
+    if (!nav.isNavigating || simRef.current || rerouteBusyRef.current || offRouteStateRef.current !== 'on' || document.hidden) return
+    if (!latest || latest.simulated || Date.now() - latest.at > FIX_FRESH_MS) return
+    try {
+      const built = await requestRoute({ lat: latest.lat, lng: latest.lng }, nav.currentStopIndex)
+      const legs = built?.result.routes[0]?.legs ?? []
+      if (!built || legs.length === 0 || !navStateRef.current.isNavigating) return
+      const newSeconds = legs.reduce((sum, leg) => sum + legSeconds(leg), 0)
+      const newMeters = legs.reduce((sum, leg) => sum + (leg.distance?.value ?? 0), 0)
+      const { remainingSeconds, remainingMeters } = progressRef.current
+      const saved = remainingSeconds - newSeconds
+      if (saved >= FASTER_ROUTE_MIN_SECONDS && newSeconds < remainingSeconds * 0.9) {
+        setFasterRoute({ minutes: Math.round(saved / 60) })
+      } else if (remainingMeters > 0 && Math.abs(newMeters - remainingMeters) / remainingMeters < 0.03) {
+        // Same road, fresher traffic: update the times without touching what the driver sees.
+        applyRoute(built, { silent: true })
+      }
+    } catch {
+      // A failed refresh just means the current route keeps going.
+    }
+  }
+
+  useEffect(() => {
+    if (!navState.isNavigating) return
+    const timer = setInterval(() => { void refreshRef.current() }, TRAFFIC_REFRESH_MS)
+    return () => clearInterval(timer)
+  }, [navState.isNavigating])
+
+  // Fly the map to a stop picked on the strip, and stop following the car so it stays there.
+  const focusStop = (index: number) => {
+    const resolved = resolvedStopsRef.current[index] ?? stops[index]
+    if (!mapRef.current || !isPoint(resolved)) return
+    setFollow(false)
+    mapRef.current.panTo({ lat: resolved.lat, lng: resolved.lng })
+    mapRef.current.setZoom(15)
+    lastZoomRef.current = 15
+  }
+
   // A re-plan replaces the stop list, so progress restarts from the new first leg.
   const previousStopsKeyRef = useRef(stopsKey)
   useEffect(() => {
@@ -903,16 +1356,17 @@ export default function DriverMapNavigation({
       return
     }
     beginNavState()
-    toast('Route re-planned from your position', 'success')
     if (voiceEnabled) speak('Route updated from your position.')
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [stopsKey])
 
+  // Re-plan reorders the stops still ahead (and may change what comes next); re-route keeps the order and only fixes the road.
   const replan = async () => {
     if (!onReoptimize || replanning) return
     setReplanning(true)
     try {
-      await onReoptimize()
+      const summary = await onReoptimize()
+      toast(summary || 'Route re-planned from your position', 'success')
     } catch (error) {
       toast(error instanceof Error ? error.message : 'Could not re-plan the route', 'error')
     } finally {
@@ -920,31 +1374,34 @@ export default function DriverMapNavigation({
     }
   }
 
-  const goToNextStep = () => {
-    setNavState(prev => {
-      const currentSegment = routeSegments[prev.currentLeg]
-      if (!currentSegment) return prev
-
-      // We're abstracting "step" to mean the leg/stop level for simplicity
-      // The actual turn-by-turn is shown per-leg
-      return prev
-    })
-  }
+  // Nudge to re-plan once the stop being driven to is well past its expected time.
+  const [clock, setClock] = useState(() => Date.now())
+  useEffect(() => {
+    if (!navState.isNavigating) return
+    const timer = setInterval(() => setClock(Date.now()), 60_000)
+    return () => clearInterval(timer)
+  }, [navState.isNavigating])
+  const expectedAt = navState.isNavigating ? stops[navState.currentStopIndex]?.estimatedArrival : undefined
+  const minutesBehind = expectedAt ? Math.round((clock - new Date(expectedAt).getTime()) / 60_000) : 0
+  const behindSchedule = Boolean(onReoptimize) && !simulation && minutesBehind >= 15
 
   // ── Recenter Map ─────────────────────────────────────────────────
   const recenterMap = () => {
     if (!mapRef.current) return
     setFollow(true)
+    userZoomUntilRef.current = 0
     if (currentDriverPos) {
       mapRef.current.panTo(currentDriverPos)
-      mapRef.current.setZoom(15)
+      mapRef.current.setZoom(16)
+      lastZoomRef.current = 16
     } else if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         (pos) => {
           const loc = { lat: pos.coords.latitude, lng: pos.coords.longitude }
           setCurrentDriverPos(loc)
           mapRef.current?.panTo(loc)
-          mapRef.current?.setZoom(15)
+          mapRef.current?.setZoom(16)
+          lastZoomRef.current = 16
         },
         () => toast('Could not get location', 'warning')
       )
@@ -1051,20 +1508,55 @@ export default function DriverMapNavigation({
             >
               {/* Navigation Instruction Banner */}
               {navState.isNavigating && navState.nextInstruction && (
-                <div className="bg-gray-900 text-white rounded-lg px-4 py-3 mb-2 shadow-lg">
-                  <div className="flex items-start gap-3">
-                    <div className="shrink-0 mt-0.5">
-                      <CornerUpRight className="h-6 w-6 text-amber-400" />
+                <div className="bg-gray-900 text-white rounded-lg px-3 py-3 mb-2 shadow-lg">
+                  <div className="flex items-center gap-3">
+                    <div className="grid h-14 w-14 shrink-0 place-items-center rounded-lg bg-white/10">
+                      <ManeuverIcon view={navState.maneuver} className="h-9 w-9 text-amber-400" />
                     </div>
-                    <div className="flex-1">
-                      <p className="text-sm font-medium">{navState.nextInstruction}</p>
-                      <div className="flex items-center gap-3 mt-1 text-xs text-gray-300">
-                        <span>{navState.distanceRemaining}</span>
-                        <span>·</span>
-                        <span>{navState.durationRemaining}</span>
-                      </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-2xl font-bold leading-none tabular-nums">{navState.distanceRemaining}</p>
+                      <p className="mt-1 text-sm font-medium leading-snug">{navState.nextInstruction}</p>
+                      <p className="mt-1 text-xs text-gray-300">{navState.durationRemaining} to this stop</p>
                     </div>
                   </div>
+                  {navState.thenInstruction && (
+                    <p className="mt-2 truncate border-t border-white/10 pt-2 text-xs text-gray-300">Then: {navState.thenInstruction}</p>
+                  )}
+                </div>
+              )}
+
+              {/* Off route: the driver is told straight away, and the route is rebuilt from where they are */}
+              {navState.isNavigating && offRoute === 'off' && (
+                <div role="alert" className="mb-2 flex items-center gap-2 rounded-lg bg-red-600 px-3 py-2.5 text-white shadow-lg">
+                  <AlertTriangle className="h-5 w-5 shrink-0" />
+                  <p className="min-w-0 flex-1 text-sm font-semibold">
+                    {rerouting ? 'Off route. Recalculating...' : rerouteFailed ? 'You are off the planned route. Could not recalculate.' : 'Off route.'}
+                  </p>
+                  {!rerouting && (
+                    <button type="button" onClick={() => recalculateNow()} className="h-9 shrink-0 rounded-md bg-white px-3 text-xs font-bold text-red-700">
+                      {rerouteFailed ? 'Try again' : 'Recalculate'}
+                    </button>
+                  )}
+                </div>
+              )}
+
+              {navState.isNavigating && offRoute !== 'off' && fasterRoute && (
+                <div className="mb-2 flex items-center gap-2 rounded-lg bg-emerald-600 px-3 py-2.5 text-white shadow-lg">
+                  <Zap className="h-5 w-5 shrink-0" />
+                  <p className="min-w-0 flex-1 text-sm font-semibold">Faster route found: saves about {fasterRoute.minutes} min</p>
+                  <button type="button" onClick={() => { setFasterRoute(null); recalculateNow('faster') }} className="h-9 shrink-0 rounded-md bg-white px-3 text-xs font-bold text-emerald-700">Switch</button>
+                  <button type="button" onClick={() => setFasterRoute(null)} aria-label="Keep current route" className="grid h-9 w-9 shrink-0 place-items-center rounded-md bg-emerald-700"><X className="h-4 w-4" /></button>
+                </div>
+              )}
+
+              {/* Behind-schedule nudge */}
+              {navState.isNavigating && behindSchedule && offRoute !== 'off' && (
+                <div className="mb-2 flex items-center gap-2 rounded-lg bg-amber-500 px-3 py-2.5 text-gray-900 shadow-lg">
+                  <Clock className="h-5 w-5 shrink-0" />
+                  <p className="min-w-0 flex-1 text-sm font-semibold">About {minutesBehind} min behind schedule for the next stop</p>
+                  <button type="button" onClick={() => void replan()} disabled={replanning} className="h-9 shrink-0 rounded-md bg-gray-900 px-3 text-xs font-bold text-white disabled:opacity-50">
+                    {replanning ? 'Re-planning...' : 'Re-plan'}
+                  </button>
                 </div>
               )}
 
@@ -1073,11 +1565,11 @@ export default function DriverMapNavigation({
                 <div className="flex items-center gap-4">
                   <div className="flex items-center gap-1.5 text-sm">
                     <Route className="h-4 w-4 text-amber-500" />
-                    <span className="font-semibold text-gray-900">{totalDistance}</span>
+                    <span className="font-semibold text-gray-900">{navState.isNavigating && navState.totalDistanceRemaining ? navState.totalDistanceRemaining : totalDistance}</span>
                   </div>
                   <div className="flex items-center gap-1.5 text-sm">
                     <Clock className="h-4 w-4 text-blue-500" />
-                    <span className="font-medium text-gray-700">{totalDuration}</span>
+                    <span className="font-medium text-gray-700">{navState.isNavigating && navState.totalDurationRemaining ? navState.totalDurationRemaining : totalDuration}</span>
                   </div>
                   {navState.eta && (
                     <div className="flex items-center gap-1.5 text-sm">
@@ -1087,6 +1579,14 @@ export default function DriverMapNavigation({
                   )}
                 </div>
                 <div className="flex items-center gap-2">
+                  {navState.isNavigating && liveStats.speedMph !== null && (
+                    <span className="text-xs font-bold tabular-nums text-gray-900">{liveStats.speedMph} mph</span>
+                  )}
+                  {navState.isNavigating && !simulation && liveStats.accuracy !== null && (
+                    <span className={`text-[11px] font-semibold ${liveStats.accuracy <= 25 ? 'text-green-600' : liveStats.accuracy <= 75 ? 'text-amber-600' : 'text-red-600'}`}>
+                      GPS {liveStats.accuracy <= 25 ? 'good' : liveStats.accuracy <= 75 ? 'fair' : 'weak'}
+                    </span>
+                  )}
                   {trackingStatus && !simulation && (
                     <span
                       className={`text-[11px] font-semibold ${
@@ -1203,11 +1703,114 @@ export default function DriverMapNavigation({
                 ))}
                 <button
                   type="button"
+                  onClick={simulateDetour}
+                  className="h-8 rounded-md bg-amber-400 px-2.5 text-xs font-bold text-gray-900"
+                >
+                  Wrong turn
+                </button>
+                <button
+                  type="button"
                   onClick={stopNavigation}
                   className="h-8 rounded-md bg-violet-900 px-3 text-xs font-bold text-white"
                 >
                   End
                 </button>
+              </div>
+            )}
+
+            {/* Auto-detected arrival: a suggestion only, the driver confirms */}
+            {navState.isNavigating && !arrivalPrompt && arrivalSuggestion === navState.currentStopIndex && (
+              <div className="mb-2 flex items-center gap-2 rounded-lg bg-green-600 px-3 py-2.5 text-white shadow-lg">
+                <MapPin className="h-5 w-5 shrink-0" />
+                <p className="min-w-0 flex-1 text-sm font-semibold">You are at {navStopLabel(stops[navState.currentStopIndex]!, navState.currentStopIndex, stops)}</p>
+                <button type="button" onClick={() => requestStopCompletion(navState.currentStopIndex)} className="h-9 shrink-0 rounded-md bg-white px-3 text-xs font-bold text-green-700">Confirm arrival</button>
+                <button type="button" onClick={() => setArrivalSuggestion(null)} aria-label="Dismiss" className="grid h-9 w-9 shrink-0 place-items-center rounded-md bg-green-700"><X className="h-4 w-4" /></button>
+              </div>
+            )}
+
+            {/* Arrival check: shown when the driver is not at the approved stop */}
+            {arrivalPrompt && (() => {
+              const { idx, check } = arrivalPrompt
+              const stop = stops[idx]
+              const name = stop ? navStopLabel(stop, idx, stops) : 'this stop'
+              const outside = check.verdict === 'outside'
+              return (
+                <div role="dialog" aria-label="Confirm arrival" className="mb-2 max-h-[60vh] overflow-y-auto rounded-lg border border-amber-300 bg-white p-3 shadow-xl">
+                  <p className="text-sm font-bold text-gray-900">
+                    {outside ? `You are not at ${name}` : "Your position can't be checked"}
+                  </p>
+                  <p className="mt-1 text-xs text-gray-600">
+                    {outside
+                      ? `You are ${describeDistance(check.distanceMeters ?? 0)} from the approved stop. Arrivals count within ${describeDistance(check.radiusMeters)}.`
+                      : check.distanceMeters === null
+                        ? 'There is no recent GPS position, so this arrival cannot be verified. It will be saved as unverified.'
+                        : `GPS accuracy is only about ${Math.round(check.accuracyMeters ?? 0)} m, so this arrival cannot be verified. It will be saved as unverified.`}
+                  </p>
+                  {outside && (
+                    <>
+                      <fieldset className="mt-2 space-y-1">
+                        <legend className="text-[11px] font-bold uppercase tracking-wide text-gray-500">Why are you confirming here?</legend>
+                        {OVERRIDE_REASONS.map(reason => (
+                          <label key={reason.code} className={`flex min-h-10 cursor-pointer items-center gap-2 rounded-md border px-2.5 text-xs ${overrideCode === reason.code ? 'border-amber-400 bg-amber-50 font-semibold' : 'border-gray-200'}`}>
+                            <input type="radio" name="arrival-reason" value={reason.code} checked={overrideCode === reason.code} onChange={() => setOverrideCode(reason.code)} className="accent-amber-500" />
+                            {reason.label}
+                          </label>
+                        ))}
+                      </fieldset>
+                      <input
+                        value={overrideNote}
+                        onChange={event => setOverrideNote(event.target.value)}
+                        maxLength={300}
+                        placeholder="Add a note (optional)"
+                        aria-label="Note about this arrival"
+                        className="mt-2 h-10 w-full rounded-md border border-gray-300 px-2.5 text-sm"
+                      />
+                    </>
+                  )}
+                  <div className="mt-3 flex gap-2">
+                    <button type="button" onClick={() => setArrivalPrompt(null)} className="h-11 flex-1 rounded-md border border-gray-300 text-sm font-semibold text-gray-700">Keep driving</button>
+                    <button
+                      type="button"
+                      onClick={confirmArrivalPrompt}
+                      disabled={outside && !overrideCode}
+                      className="h-11 flex-1 rounded-md bg-green-600 text-sm font-bold text-white disabled:opacity-40"
+                    >
+                      Confirm arrival
+                    </button>
+                  </div>
+                </div>
+              )
+            })()}
+
+            {/* Export to Google Maps: split into links Google will accept */}
+            {exportParts && (
+              <div role="dialog" aria-label="Open in Google Maps" className="mb-2 max-h-[55vh] overflow-y-auto rounded-lg border border-gray-200 bg-white/95 p-3 shadow-xl backdrop-blur">
+                <div className="flex items-start justify-between gap-2">
+                  <p className="text-sm font-bold text-gray-900">Open in Google Maps</p>
+                  <button type="button" onClick={() => setExportParts(null)} aria-label="Close" className="grid h-8 w-8 place-items-center text-gray-500"><X className="h-4 w-4" /></button>
+                </div>
+                <p className="mt-1 text-xs text-gray-600">
+                  Google Maps only accepts a few stops per link, so this route is split into {exportParts.length} parts. Open them in order: each one starts where the last one ended.
+                </p>
+                <ol className="mt-2 space-y-1.5">
+                  {exportParts.map(part => (
+                    <li key={part.index}>
+                      <a
+                        href={part.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex min-h-11 items-center gap-2 rounded-md border border-gray-200 px-3 py-1.5 hover:bg-gray-50"
+                      >
+                        <span className="grid h-6 min-w-6 shrink-0 place-items-center rounded-full bg-gray-800 px-1 text-[11px] font-bold text-white">{part.index}</span>
+                        <span className="min-w-0 flex-1">
+                          <span className="block text-xs font-semibold text-gray-900">Part {part.index} of {part.total} · {part.stops.length} stop{part.stops.length === 1 ? '' : 's'}</span>
+                          <span className="block truncate text-[11px] text-gray-500">Ends at {part.stops[part.stops.length - 1]?.address || 'the last stop'}</span>
+                        </span>
+                        <ChevronRight className="h-4 w-4 shrink-0 text-gray-400" />
+                      </a>
+                    </li>
+                  ))}
+                </ol>
               </div>
             )}
 
@@ -1245,12 +1848,13 @@ export default function DriverMapNavigation({
                             <p className="text-[11px] text-gray-500 mt-0.5 truncate">{stop.vehicleInfo}</p>
                           )}
                         </div>
-                        {legSummaries[idx] && !isCompleted && (
-                          <span className="text-[11px] text-gray-500 shrink-0">{legSummaries[idx]!.distance}</span>
-                        )}
+                        {(() => {
+                          const leg = legSummaries.find(summary => summary.toIndex === idx)
+                          return leg && !isCompleted ? <span className="text-[11px] text-gray-500 shrink-0">{leg.distance}</span> : null
+                        })()}
                         {navState.isNavigating && isCurrent && (
                           <button
-                            onClick={() => markStopCompleted(idx)}
+                            onClick={() => requestStopCompletion(idx)}
                             className="text-[11px] font-semibold text-green-600 hover:text-green-700 bg-green-50 px-2 py-1 rounded shrink-0"
                           >
                             Done
@@ -1265,6 +1869,13 @@ export default function DriverMapNavigation({
 
             {/* Action Bar */}
             <div className="bg-white/95 backdrop-blur rounded-lg shadow-md border border-gray-200 overflow-hidden">
+              <StopStrip
+                stops={stops}
+                tags={stopTags}
+                completed={navState.completedStops}
+                currentIndex={navState.isNavigating ? navState.currentStopIndex : null}
+                onSelect={focusStop}
+              />
               <div className="flex flex-wrap items-center gap-1 p-2">
                 {/* Toggle Stops List */}
                 <button
@@ -1315,6 +1926,7 @@ export default function DriverMapNavigation({
                     type="button"
                     onClick={() => void replan()}
                     disabled={replanning}
+                    title="Re-plan: reorder the stops still ahead, starting from where you are now"
                     className="flex items-center gap-1.5 px-3 py-2 rounded-md text-xs font-medium text-gray-600 hover:bg-gray-100 transition-colors disabled:opacity-50"
                   >
                     <Zap className="h-3.5 w-3.5" />
@@ -1350,7 +1962,7 @@ export default function DriverMapNavigation({
                   <div className="flex items-center gap-2">
                     {/* Mark current stop done */}
                     <Button
-                      onClick={() => markStopCompleted(navState.currentStopIndex)}
+                      onClick={() => requestStopCompletion(navState.currentStopIndex)}
                       className="bg-green-500 hover:bg-green-600 text-white text-xs px-3 py-2 h-auto"
                     >
                       Arrived
@@ -1393,6 +2005,35 @@ export default function DriverMapNavigation({
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // Sub-components
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+// Large turn arrows read at a glance; Google's maneuver names choose the shape and the rotation.
+function ManeuverIcon({ view, className }: { view: ManeuverView | null; className?: string }) {
+  const glyph = view?.glyph ?? 'straight'
+  const stroke = { fill: 'none', stroke: 'currentColor', strokeWidth: 2.5, strokeLinecap: 'round', strokeLinejoin: 'round' } as const
+  return (
+    <svg viewBox="0 0 24 24" className={className} aria-hidden="true">
+      {glyph === 'uturn' ? (
+        <path {...stroke} d="M8 21V9a4 4 0 0 1 8 0v6M13 12l3 3 3-3" transform={view?.side === 'right' ? 'translate(24 0) scale(-1 1)' : undefined} />
+      ) : glyph === 'roundabout' ? (
+        <g {...stroke}>
+          <circle cx="12" cy="15" r="5" />
+          <path d="M12 10V3M9 6l3-3 3 3" transform={`rotate(${view?.side === 'left' ? -90 : 90} 12 15)`} />
+        </g>
+      ) : glyph === 'arrive' ? (
+        <g {...stroke}>
+          <path d="M12 22s7-6.2 7-12a7 7 0 1 0-14 0c0 5.8 7 12 7 12z" />
+          <circle cx="12" cy="10" r="2.5" />
+        </g>
+      ) : (
+        <path
+          d="M12 2.5 20 12h-5v9.5H9V12H4z"
+          fill="currentColor"
+          transform={`rotate(${view ? arrowRotation(view) : 0} 12 12)`}
+        />
+      )}
+    </svg>
+  )
+}
 
 function MapControlButton({
   icon,

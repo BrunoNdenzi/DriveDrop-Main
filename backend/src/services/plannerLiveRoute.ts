@@ -106,6 +106,7 @@ export interface PlannedStop {
   timeWindow?: RouteStop['timeWindow'];
   priority?: RouteStop['priority'];
   vehicleInfo?: string;
+  isReturn?: boolean;
 }
 
 const STOP_TYPES = new Set<string>(['pickup', 'delivery', 'fuel', 'rest', 'current_location', 'stop']);
@@ -131,6 +132,7 @@ export function plannedStopsFromSnapshot(snapshot: Record<string, unknown> | nul
       ...(window && typeof window.earliest === 'string' && typeof window.latest === 'string' ? { timeWindow: window } : {}),
       ...(priority ? { priority } : {}),
       ...(typeof stop['vehicleInfo'] === 'string' ? { vehicleInfo: stop['vehicleInfo'] } : {}),
+      ...(stop['isReturn'] === true ? { isReturn: true } : {}),
     }];
   });
 }
@@ -192,6 +194,7 @@ export function buildReoptimizationStops(input: ReoptimizationInput): {
       estimatedDuration: stop.plannedServiceMinutes,
       timeWindow: definition?.timeWindow,
       priority: definition?.priority,
+      ...(definition?.isReturn ? { isReturn: true, pinnedLast: true } : {}),
     };
   });
 
@@ -242,4 +245,92 @@ export function buildReoptimizationStops(input: ReoptimizationInput): {
     originSource: 'first_remaining',
     departedStopIds,
   };
+}
+
+// ── Arrival verification ───────────────────────────────────────────────
+
+export const ARRIVAL_OVERRIDE_CODES = ['customer_elsewhere', 'gate_or_access', 'address_wrong', 'gps_inaccurate', 'other'] as const;
+export type ArrivalOverrideCode = typeof ARRIVAL_OVERRIDE_CODES[number];
+export type ArrivalVerdict = 'verified' | 'outside' | 'unreliable';
+
+export interface ArrivalRecord {
+  verdict: ArrivalVerdict;
+  distanceMeters: number | null;
+  accuracyMeters: number | null;
+  radiusMeters: number;
+  targetLatitude: number;
+  targetLongitude: number;
+  overrideCode?: ArrivalOverrideCode;
+  overrideNote?: string;
+  checkedAt: string;
+}
+
+const MIN_RADIUS_METERS = 50;
+const MAX_RADIUS_METERS = 500;
+const DEFAULT_RADIUS_METERS = 150;
+const UNRELIABLE_ACCURACY_METERS = 200;
+const MAX_ACCURACY_CREDIT_METERS = 100;
+
+export function haversineMeters(a: { latitude: number; longitude: number }, b: { latitude: number; longitude: number }): number {
+  const toRad = (degrees: number) => (degrees * Math.PI) / 180;
+  const dLat = toRad(b.latitude - a.latitude);
+  const dLng = toRad(b.longitude - a.longitude);
+  const h = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(a.latitude)) * Math.cos(toRad(b.latitude)) * Math.sin(dLng / 2) ** 2;
+  return 2 * 6371000 * Math.asin(Math.min(1, Math.sqrt(h)));
+}
+
+// The server decides the verdict from the coordinates; the client's own opinion is never trusted.
+export function evaluateArrival(
+  body: unknown,
+  fix: { latitude?: number | undefined; longitude?: number | undefined; accuracyMeters?: number | undefined },
+  now: Date = new Date(),
+): ArrivalRecord | null {
+  const input = (body && typeof body === 'object' ? body : {}) as Record<string, unknown>;
+  const target = input['arrivalTarget'];
+  if (!target || typeof target !== 'object') return null;
+  const targetInput = target as Record<string, unknown>;
+
+  const targetLatitude = numberField(targetInput['latitude'], 'Target latitude', -90, 90);
+  const targetLongitude = numberField(targetInput['longitude'], 'Target longitude', -180, 180);
+  if (targetLatitude === null || targetLongitude === null) {
+    throw createError('Arrival target needs a latitude and longitude', 400, 'INVALID_INPUT');
+  }
+  const requestedRadius = numberField(targetInput['radiusMeters'], 'Arrival radius', 1, 100000) ?? DEFAULT_RADIUS_METERS;
+  const radiusMeters = Math.min(MAX_RADIUS_METERS, Math.max(MIN_RADIUS_METERS, requestedRadius));
+  const accuracyMeters = fix.accuracyMeters ?? null;
+
+  let verdict: ArrivalVerdict = 'unreliable';
+  let distanceMeters: number | null = null;
+  if (typeof fix.latitude === 'number' && typeof fix.longitude === 'number') {
+    distanceMeters = haversineMeters({ latitude: fix.latitude, longitude: fix.longitude }, { latitude: targetLatitude, longitude: targetLongitude });
+    if (accuracyMeters === null || accuracyMeters <= UNRELIABLE_ACCURACY_METERS) {
+      const credit = Math.min(accuracyMeters ?? 0, MAX_ACCURACY_CREDIT_METERS);
+      verdict = distanceMeters - credit <= radiusMeters ? 'verified' : 'outside';
+    }
+  }
+
+  const code = input['overrideCode'];
+  if (code !== undefined && code !== null && code !== '' && !(ARRIVAL_OVERRIDE_CODES as readonly string[]).includes(String(code))) {
+    throw createError('Override reason is not recognised', 400, 'INVALID_INPUT');
+  }
+  const note = typeof input['overrideNote'] === 'string' ? input['overrideNote'].trim().slice(0, 300) : '';
+
+  return {
+    verdict,
+    distanceMeters: distanceMeters === null ? null : Math.round(distanceMeters),
+    accuracyMeters: accuracyMeters === null ? null : Math.round(accuracyMeters),
+    radiusMeters,
+    targetLatitude,
+    targetLongitude,
+    ...(code ? { overrideCode: String(code) as ArrivalOverrideCode } : {}),
+    ...(note ? { overrideNote: note } : {}),
+    checkedAt: now.toISOString(),
+  };
+}
+
+export function arrivalBlockMessage(record: ArrivalRecord): string | null {
+  if (record.verdict !== 'outside' || record.overrideCode) return null;
+  const miles = (record.distanceMeters ?? 0) / 1609.344;
+  const distance = miles < 0.19 ? `${Math.round((record.distanceMeters ?? 0) * 3.28084)} ft` : `${miles.toFixed(1)} mi`;
+  return `You are ${distance} from this stop. Move closer, or choose a reason to confirm the arrival anyway.`;
 }

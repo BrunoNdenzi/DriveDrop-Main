@@ -6,8 +6,12 @@ import { useRouter } from 'next/navigation'
 import { getSupabaseBrowserClient } from '@/lib/supabase-client'
 import RouteOperations from '@/components/route-planner/RouteOperations'
 import PlannerBilling from '@/components/route-planner/PlannerBilling'
-import DriverMapNavigation, { type DriverFix, type NavStop } from '@/components/driver/DriverMapNavigation'
+import DriverMapNavigation, { type ArrivalReport, type DriverFix, type NavStop } from '@/components/driver/DriverMapNavigation'
+import { describeReplan } from '@/lib/replan-summary'
 import { assignStopTags } from '@/lib/stop-tags'
+import NumericInput from '@/components/route-planner/NumericInput'
+import CollapsibleSection from '@/components/route-planner/CollapsibleSection'
+import OptimizedStopList from '@/components/route-planner/OptimizedStopList'
 import { createPingGate, createTravelTracker, queueAction, readQueue, replayQueue } from '@/lib/planner-sync'
 import {
   BookOpen,
@@ -96,6 +100,8 @@ interface OptimizedRoute {
     order: number
     shipmentId?: string
     vehicleInfo?: string
+    isReturn?: boolean
+    estimatedDuration?: number
     estimatedArrival: string
     distanceFromPrevious: number
     durationFromPrevious: number
@@ -166,6 +172,12 @@ function navigationStops(result: OptimizedRoute): NavStop[] {
     label: stop.vehicleInfo || stop.name,
     order: stop.order,
     estimatedArrival: stop.estimatedArrival,
+    ...(stop.name ? { name: stop.name } : {}),
+    ...(stop.isReturn ? { isReturn: true } : {}),
+    ...(stop.estimatedDuration !== undefined ? { serviceMinutes: stop.estimatedDuration } : {}),
+    distanceFromPrevious: stop.distanceFromPrevious,
+    durationFromPrevious: stop.durationFromPrevious,
+    ...(stop.timeWindow ? { timeWindow: stop.timeWindow } : {}),
   }))
 }
 
@@ -367,15 +379,21 @@ export default function StandaloneRoutePlannerPage() {
     pingGateRef.current.reset()
   }
 
-  const recordStopReached = (index: number) => {
+  const recordStopReached = (index: number, arrival?: ArrivalReport) => {
     const executionId = trackedExecutionRef.current
     const stop = result?.stops[index]
     if (!executionId || !stop) return
-    const fix = latestFixRef.current
+    // The position the driver confirmed from travels with the arrival so the server can check it itself.
+    const fix = arrival ? arrival.fix : (() => { const latest = latestFixRef.current; return latest && !latest.simulated ? { lat: latest.lat, lng: latest.lng, accuracyMeters: latest.accuracyMeters } : null })()
     writeProgress(`/executions/${executionId}/stops/${encodeURIComponent(stop.id)}`, 'PATCH', {
       action: 'completed',
       timestamp: new Date().toISOString(),
-      ...(fix && !fix.simulated ? { latitude: fix.lat, longitude: fix.lng, ...(fix.accuracyMeters != null ? { gpsAccuracyMeters: fix.accuracyMeters } : {}) } : {}),
+      ...(fix ? { latitude: fix.lat, longitude: fix.lng, ...(fix.accuracyMeters != null ? { gpsAccuracyMeters: fix.accuracyMeters } : {}) } : {}),
+      ...(arrival ? {
+        arrivalTarget: { latitude: arrival.target.lat, longitude: arrival.target.lng, radiusMeters: arrival.radiusMeters },
+        ...(arrival.overrideCode ? { overrideCode: arrival.overrideCode } : {}),
+        ...(arrival.overrideNote ? { overrideNote: arrival.overrideNote } : {}),
+      } : {}),
     }).catch(trackingFailed)
   }
 
@@ -446,12 +464,14 @@ export default function StandaloneRoutePlannerPage() {
 
     const fix = latestFixRef.current
     const here = fix && !fix.simulated && Date.now() - fix.at < 60_000 ? { latitude: fix.lat, longitude: fix.lng } : await currentPosition()
+    const previous = { stops: result?.stops ?? [], endTime: result?.summary.estimatedEndTime }
     const data = await api<{ optimizedRoute: OptimizedRoute }>(`/executions/${executionId}/reoptimize`, {
       method: 'POST',
       body: JSON.stringify({ currentLocation: here }),
     })
     setResult(data.optimizedRoute)
     void refreshLibrary()
+    return describeReplan(previous, { stops: data.optimizedRoute.stops, endTime: data.optimizedRoute.summary.estimatedEndTime })
   }
 
   const trackingProps = {
@@ -771,7 +791,7 @@ export default function StandaloneRoutePlannerPage() {
             </label>
             <label>
               <span className="mb-2 block text-sm font-semibold">Vehicle capacity</span>
-              <input type="number" min={1} max={100} value={vehicleSlots} onChange={event => setVehicleSlots(Number(event.target.value))} className="h-11 w-full border border-[#b9c9c7] px-3 outline-none focus:border-[#008c82]" />
+              <NumericInput aria-label="Vehicle capacity" min={1} max={100} value={vehicleSlots} onCommit={setVehicleSlots} className="h-11 w-full border border-[#b9c9c7] px-3 outline-none focus:border-[#008c82]" />
             </label>
           </div>
           {error && <p className="mt-5 border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</p>}
@@ -840,7 +860,7 @@ export default function StandaloneRoutePlannerPage() {
                       <span className="grid h-8 w-8 place-items-center bg-[#e4f3f1] text-sm font-bold text-[#00756d]">{index + 1}</span>
                       <div><span className="mb-1 block text-[10px] font-bold uppercase text-[#64807d]">{index === 0 ? 'Origin' : stop.type}</span><input aria-label={`Stop ${index + 1} name`} value={stop.name} onChange={event => updateStop(stop.id, { name: event.target.value })} placeholder="Stop name" className="h-10 w-full border border-[#c6d4d2] px-3 text-sm outline-none focus:border-[#008c82]" /></div>
                       <div className="relative"><MapPin className="absolute left-3 top-3 h-4 w-4 text-[#708482]" /><input ref={element => { if (element) stopInputRefs.current.set(stop.id, element); else stopInputRefs.current.delete(stop.id) }} aria-label={`Stop ${index + 1} address`} list="saved-locations" value={stop.address} onChange={event => updateStop(stop.id, { address: event.target.value, latitude: undefined, longitude: undefined })} placeholder={index === 0 ? 'Starting address' : 'Street, city, state'} className="h-10 w-full border border-[#c6d4d2] pl-9 pr-3 text-sm outline-none focus:border-[#008c82]" /></div>
-                      <label className="flex items-center gap-2 text-xs text-[#617775]"><input aria-label={`Stop ${index + 1} service minutes`} type="number" min={0} max={1440} value={stop.serviceMinutes} onChange={event => updateStop(stop.id, { serviceMinutes: Number(event.target.value) })} className="h-10 w-16 border border-[#c6d4d2] px-2 text-sm" /> min</label>
+                      <label className="flex items-center gap-2 text-xs text-[#617775]"><NumericInput aria-label={`Stop ${index + 1} service minutes`} min={0} max={1440} value={stop.serviceMinutes} onCommit={minutes => updateStop(stop.id, { serviceMinutes: minutes })} className="h-10 w-16 border border-[#c6d4d2] px-2 text-sm" /> min</label>
                       <button onClick={() => removeStop(stop.id)} disabled={stops.length <= 2 || index === 0} title="Remove stop" className="grid h-9 w-9 place-items-center text-[#8a5c58] hover:bg-red-50 disabled:opacity-25"><Trash2 className="h-4 w-4" /></button>
                     </div>
                     <div className="mt-3 flex flex-wrap items-center gap-3 pl-0 md:pl-[46px]">
@@ -870,7 +890,7 @@ export default function StandaloneRoutePlannerPage() {
                 <label className="mt-4 block"><span className="mb-1 block text-xs font-semibold text-[#617775]">Route name</span><input value={routeName} onChange={event => setRouteName(event.target.value)} placeholder="Monday deliveries" className="h-10 w-full border border-[#c6d4d2] px-3 text-sm outline-none focus:border-[#008c82]" /></label>
                 <div className="mt-4 grid grid-cols-2 gap-3">
                   <label><span className="mb-1 block text-xs font-semibold text-[#617775]">Vehicle</span><select value={vehicleType} onChange={event => setVehicleType(event.target.value)} className="h-10 w-full border border-[#c6d4d2] bg-white px-2 text-sm"><option value="default">Standard</option><option value="car_hauler_loaded">Car hauler</option><option value="pickup_with_trailer">Pickup + trailer</option><option value="flatbed_loaded">Flatbed</option><option value="enclosed_loaded">Enclosed</option></select></label>
-                  <label><span className="mb-1 block text-xs font-semibold text-[#617775]">Capacity</span><input type="number" min={1} max={100} value={vehicleSlots} onChange={event => setVehicleSlots(Number(event.target.value))} className="h-10 w-full border border-[#c6d4d2] px-3 text-sm" /></label>
+                  <label><span className="mb-1 block text-xs font-semibold text-[#617775]">Capacity</span><NumericInput aria-label="Vehicle capacity" min={1} max={100} value={vehicleSlots} onCommit={setVehicleSlots} className="h-10 w-full border border-[#c6d4d2] px-3 text-sm" /></label>
                 </div>
                 <label className="mt-4 block"><span className="mb-1 block text-xs font-semibold text-[#617775]">Routing mode</span><select value={routingPreference} onChange={event => setRoutingPreference(event.target.value as typeof routingPreference)} className="h-10 w-full border border-[#c6d4d2] bg-white px-2 text-sm"><option value="fastest">Fastest available</option><option value="preferHighway">Prefer highways</option><option value="avoidHighways">Avoid highways</option></select></label>
                 <label className="mt-3 block"><span className="mb-1 block text-xs font-semibold text-[#617775]">Departure time</span><input type="datetime-local" value={departureTime} onChange={event => setDepartureTime(event.target.value)} className="h-10 w-full border border-[#c6d4d2] px-2 text-sm" /></label>
@@ -885,7 +905,7 @@ export default function StandaloneRoutePlannerPage() {
                 <p className="mt-3 text-xs leading-5 text-[#718482]">Shipment CSV/XLSX: <strong>reference_id, name, pickup_address, delivery_address</strong>. Generic stop files can use address, name, service_minutes, type, and notes.</p>
               </section>
 
-              {result && <section className="border border-[#9fc7c2] bg-[#f8fbfa] p-5"><div className="flex items-center justify-between"><h2 className="font-semibold">Optimized route</h2><span className="bg-[#dff2ee] px-2 py-1 text-xs font-bold text-[#00756d]">{result.summary.efficiencyScore}/100</span></div><div className="mt-4 grid grid-cols-2 gap-px bg-[#cbd8d6]"><Metric icon={Route} label="Distance" value={`${result.summary.totalDistance} mi`} /><Metric icon={Clock} label="Duration" value={`${Math.round(result.summary.totalDuration / 6) / 10} hr`} /><Metric icon={Fuel} label="Fuel" value={`$${result.summary.totalFuelCost.toFixed(2)}`} /><Metric icon={Navigation} label="Finish" value={new Date(result.summary.estimatedEndTime).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })} /></div>{result.commercialCompliance.status === 'verified' && <p className="mt-3 border border-emerald-200 bg-emerald-50 p-2 text-xs font-semibold text-emerald-800">Commercial route verified by HERE for {result.commercialCompliance.restrictions.join(', ')}.</p>}{result.constraintWarnings.map(warning => <p key={warning} className="mt-2 border border-amber-200 bg-amber-50 p-2 text-xs text-amber-800">{warning}</p>)}<ol className="mt-4 space-y-3">{result.stops.map(stop => <li key={`${stop.order}-${stop.id}`} className="flex gap-3 text-sm"><span className={`grid h-6 min-w-6 shrink-0 place-items-center px-1 text-xs font-bold text-white ${stop.type === 'pickup' ? 'bg-blue-600' : stop.type === 'delivery' ? 'bg-emerald-600' : 'bg-[#173f40]'}`}>{stopTags?.get(stop.id) ?? stop.order}</span><div><p className="font-semibold">{stop.vehicleInfo || stop.name || stop.address}</p><p className="text-xs text-[#657a78]">{stop.address}</p></div></li>)}</ol></section>}
+              {result && <section className="border border-[#9fc7c2] bg-[#f8fbfa] p-5"><div className="flex items-center justify-between"><h2 className="font-semibold">Optimized route</h2><span className="bg-[#dff2ee] px-2 py-1 text-xs font-bold text-[#00756d]">{result.summary.efficiencyScore}/100</span></div><div className="mt-4 grid grid-cols-2 gap-px bg-[#cbd8d6]"><Metric icon={Route} label="Distance" value={`${result.summary.totalDistance} mi`} /><Metric icon={Clock} label="Duration" value={`${Math.round(result.summary.totalDuration / 6) / 10} hr`} /><Metric icon={Fuel} label="Fuel" value={`$${result.summary.totalFuelCost.toFixed(2)}`} /><Metric icon={Navigation} label="Finish" value={new Date(result.summary.estimatedEndTime).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })} /></div>{result.commercialCompliance.status === 'verified' && <p className="mt-3 border border-emerald-200 bg-emerald-50 p-2 text-xs font-semibold text-emerald-800">Commercial route verified by HERE for {result.commercialCompliance.restrictions.join(', ')}.</p>}{result.constraintWarnings.map(warning => <p key={warning} className="mt-2 border border-amber-200 bg-amber-50 p-2 text-xs text-amber-800">{warning}</p>)}<OptimizedStopList stops={result.stops} tags={stopTags} /></section>}
               {result && <><RouteIntelligence result={result} onDrive={() => setDrivingMode(true)} /><RouteCoach result={result} /></>}
             </aside>
           </div>
@@ -934,9 +954,9 @@ function RouteIntelligence({ result, onDrive }: { result: OptimizedRoute; onDriv
         <p>Diesel: {fuel ? `$${fuel.pricePerGallon.toFixed(2)}/gal${fuel.stationName ? ` - ${fuel.stationName}` : ''}` : result.liveEvidence?.fuel.errorCode || 'Unavailable'}</p>
       </div>
     </div>
-    {result.carolinaInsights.length > 0 && <div className="mt-3 border border-[#d6e1df] p-3"><p className="font-bold text-[#254947]">Regional route intelligence</p>{result.carolinaInsights.map(insight => <div key={`${insight.title}-${insight.affectedSegment || ''}`} className="mt-2"><p className="font-semibold">{insight.title}</p><p className="text-[#617775]">{insight.description}</p></div>)}</div>}
-    {result.fuelStops.length > 0 && <div className="mt-3 border border-[#d6e1df] p-3"><p className="font-bold text-[#254947]">Recommended fuel stops</p>{result.fuelStops.map(stop => <div key={`${stop.name}-${stop.address}`} className="mt-2"><p className="font-semibold">{stop.name} - ${stop.estimatedPrice.toFixed(2)}/gal</p><p className="text-[#617775]">{stop.reason}</p></div>)}</div>}
-    {result.benjiTips.length > 0 && <div className="mt-3 border border-[#b9d8d4] bg-[#edf8f6] p-3"><p className="font-bold text-[#254947]">Route guidance</p><ul className="mt-2 space-y-1 text-[#496764]">{result.benjiTips.map(tip => <li key={tip}>- {tip}</li>)}</ul></div>}
+    {result.carolinaInsights.length > 0 && <CollapsibleSection storageKey="regional-intelligence" title="Regional route intelligence" count={result.carolinaInsights.length} className="mt-3 border border-[#d6e1df] p-3">{result.carolinaInsights.map(insight => <div key={`${insight.title}-${insight.affectedSegment || ''}`} className="mt-2"><p className="font-semibold">{insight.title}</p><p className="text-[#617775]">{insight.description}</p></div>)}</CollapsibleSection>}
+    {result.fuelStops.length > 0 && <CollapsibleSection storageKey="fuel-stops" title="Recommended fuel stops" count={result.fuelStops.length} className="mt-3 border border-[#d6e1df] p-3">{result.fuelStops.map(stop => <div key={`${stop.name}-${stop.address}`} className="mt-2"><p className="font-semibold">{stop.name} - ${stop.estimatedPrice.toFixed(2)}/gal</p><p className="text-[#617775]">{stop.reason}</p></div>)}</CollapsibleSection>}
+    {result.benjiTips.length > 0 && <CollapsibleSection storageKey="route-guidance" title="Route guidance" count={result.benjiTips.length} className="mt-3 border border-[#b9d8d4] bg-[#edf8f6] p-3"><ul className="space-y-1 text-[#496764]">{result.benjiTips.map(tip => <li key={tip}>- {tip}</li>)}</ul></CollapsibleSection>}
   </section>
 }
 
