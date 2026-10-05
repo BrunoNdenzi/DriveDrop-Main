@@ -71,7 +71,7 @@ export const googleMapsService = {
   /**
    * Geocode an address to get coordinates
    */
-  async geocodeAddress(address: string): Promise<GeocodingResult> {
+  async geocodeAddress(address: string, options: { country?: string } = {}): Promise<GeocodingResult> {
     try {
       if (!config.googleMaps.apiKey) {
         throw createError('Google Maps API key not configured', 500, 'MAPS_CONFIG_ERROR');
@@ -81,6 +81,7 @@ export const googleMapsService = {
         params: {
           address,
           key: config.googleMaps.apiKey,
+          ...(options.country ? { components: `country:${options.country}`, region: options.country.toLowerCase() } : {}),
         },
       });
 

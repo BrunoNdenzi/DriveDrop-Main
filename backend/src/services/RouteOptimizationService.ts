@@ -1295,7 +1295,7 @@ class RouteOptimizationService {
       return { lat: stop.latitude!, lng: stop.longitude! };
     }
 
-    const geocoded = await googleMapsService.geocodeAddress(stop.address);
+    const geocoded = await googleMapsService.geocodeAddress(stop.address, { country: 'US' });
     return { lat: geocoded.latitude, lng: geocoded.longitude };
   }
 

@@ -8,6 +8,7 @@ import RouteOperations from '@/components/route-planner/RouteOperations'
 import PlannerBilling from '@/components/route-planner/PlannerBilling'
 import DriverMapNavigation, { type ArrivalReport, type DriverFix, type NavStop } from '@/components/driver/DriverMapNavigation'
 import { describeReplan } from '@/lib/replan-summary'
+import { geocodeUsAddress } from '@/lib/address-resolve'
 import { assignStopTags } from '@/lib/stop-tags'
 import NumericInput from '@/components/route-planner/NumericInput'
 import CollapsibleSection from '@/components/route-planner/CollapsibleSection'
@@ -72,6 +73,8 @@ interface SavedLocation {
   id: string
   name: string
   address: string
+  latitude?: number | null
+  longitude?: number | null
   notes: string | null
 }
 
@@ -146,6 +149,12 @@ interface EvidenceSource<T> {
   errorCode?: string
 }
 
+function withoutKey<T>(record: Record<string, T>, key: string): Record<string, T> {
+  if (!(key in record)) return record
+  const { [key]: _removed, ...rest } = record
+  return rest
+}
+
 function newStop(index: number, id = crypto.randomUUID()): PlannerStop {
   return {
     id,
@@ -186,7 +195,9 @@ export default function StandaloneRoutePlannerPage() {
   const supabase = getSupabaseBrowserClient()
   const fileInputRef = useRef<HTMLInputElement>(null)
   const stopInputRefs = useRef(new Map<string, HTMLInputElement>())
-  const stopAutocompleteRefs = useRef(new Map<string, google.maps.places.Autocomplete>())
+  const stopAutocompleteRefs = useRef(new Map<string, { autocomplete: google.maps.places.Autocomplete; input: HTMLInputElement }>())
+  const locationInputRef = useRef<HTMLInputElement>(null)
+  const [addressNotes, setAddressNotes] = useState<Record<string, string>>({})
   const [tab, setTab] = useState<PlannerTab>('plan')
   const [profileLoaded, setProfileLoaded] = useState(false)
   const [onboarded, setOnboarded] = useState(false)
@@ -204,6 +215,8 @@ export default function StandaloneRoutePlannerPage() {
     heightFeet: '13.5', widthFeet: '8.5', lengthFeet: '75', grossWeightPounds: '80000', axleCount: '5', hazmatTypes: '',
   })
   const [stops, setStops] = useState<PlannerStop[]>([newStop(0, 'draft-origin'), newStop(1, 'draft-stop-2')])
+  const stopsRef = useRef(stops)
+  stopsRef.current = stops
   const [routeName, setRouteName] = useState('')
   const [currentRouteId, setCurrentRouteId] = useState<string | null>(null)
   const [recurring, setRecurring] = useState(false)
@@ -211,7 +224,7 @@ export default function StandaloneRoutePlannerPage() {
   const [recurrenceStart, setRecurrenceStart] = useState('')
   const [savedRoutes, setSavedRoutes] = useState<SavedRoute[]>([])
   const [locations, setLocations] = useState<SavedLocation[]>([])
-  const [locationForm, setLocationForm] = useState({ name: '', address: '', notes: '' })
+  const [locationForm, setLocationForm] = useState<{ name: string; address: string; notes: string; latitude?: number; longitude?: number }>({ name: '', address: '', notes: '' })
   const [result, setResult] = useState<OptimizedRoute | null>(null)
   const [busy, setBusy] = useState(false)
   const [detectingOrigin, setDetectingOrigin] = useState(false)
@@ -504,21 +517,56 @@ export default function StandaloneRoutePlannerPage() {
 
   const updateStop = (id: string, patch: Partial<PlannerStop>) => {
     setStops(current => current.map(stop => stop.id === id ? { ...stop, ...patch } : stop))
+    if (patch.address !== undefined) setAddressNotes(current => withoutKey(current, id))
     setResult(null)
   }
 
+  // Typed or saved addresses without coordinates are looked up here, so the route never depends on ambiguous text like "charlotte".
+  const resolveStopAddress = async (id: string) => {
+    const stop = stopsRef.current.find(item => item.id === id)
+    if (!stop || !stop.address.trim() || stop.latitude !== undefined || !window.google?.maps) return null
+    const typed = stop.address
+    try {
+      const found = await geocodeUsAddress(typed)
+      const current = stopsRef.current.find(item => item.id === id)
+      if (!current || current.address !== typed || current.latitude !== undefined) return null
+      if (!found) {
+        setAddressNotes(notes => ({ ...notes, [id]: 'We could not find this address. Pick one of the suggestions.' }))
+        return null
+      }
+      const patch = { address: found.address, latitude: found.latitude, longitude: found.longitude }
+      stopsRef.current = stopsRef.current.map(item => item.id === id ? { ...item, ...patch } : item)
+      setStops(list => list.map(item => item.id === id && item.address === typed ? { ...item, ...patch } : item))
+      setAddressNotes(notes => found.approximate
+        ? { ...notes, [id]: 'Only the area was found. Add a street address for accurate routing.' }
+        : withoutKey(notes, id))
+      return found
+    } catch {
+      // The backend geocodes any stop still without coordinates.
+      return null
+    }
+  }
+
+  const resolveMissingAddresses = async () => {
+    const missing = stopsRef.current.filter(stop => stop.address.trim() && stop.latitude === undefined).map(stop => stop.id)
+    for (let index = 0; index < missing.length; index += 5) {
+      await Promise.all(missing.slice(index, index + 5).map(resolveStopAddress))
+    }
+  }
+
+  // Autocomplete is bound to a specific input element, so it must be re-attached whenever the inputs are re-created (tab switches).
   useEffect(() => {
     const initialize = () => {
       if (!window.google?.maps?.places) return false
-      const activeIds = new Set(stops.map(stop => stop.id))
-      for (const [stopId, autocomplete] of stopAutocompleteRefs.current) {
-        if (activeIds.has(stopId)) continue
-        google.maps.event.clearInstanceListeners(autocomplete)
+      const activeIds = new Set(tab === 'plan' ? stops.map(stop => stop.id) : [])
+      for (const [stopId, entry] of stopAutocompleteRefs.current) {
+        if (activeIds.has(stopId) && stopInputRefs.current.get(stopId) === entry.input) continue
+        google.maps.event.clearInstanceListeners(entry.autocomplete)
         stopAutocompleteRefs.current.delete(stopId)
       }
       for (const stop of stops) {
         const input = stopInputRefs.current.get(stop.id)
-        if (!input || stopAutocompleteRefs.current.has(stop.id)) continue
+        if (tab !== 'plan' || !input || stopAutocompleteRefs.current.has(stop.id)) continue
         const autocomplete = new google.maps.places.Autocomplete(input, {
           types: ['geocode', 'establishment'],
           componentRestrictions: { country: 'us' },
@@ -533,11 +581,12 @@ export default function StandaloneRoutePlannerPage() {
             address: place.formatted_address!,
             ...(location ? { latitude: location.lat(), longitude: location.lng() } : {}),
           } : item))
+          setAddressNotes(current => withoutKey(current, stop.id))
           setResult(null)
         })
-        stopAutocompleteRefs.current.set(stop.id, autocomplete)
+        stopAutocompleteRefs.current.set(stop.id, { autocomplete, input })
       }
-      return stops.every(stop => stopAutocompleteRefs.current.has(stop.id))
+      return tab !== 'plan' || stops.every(stop => stopAutocompleteRefs.current.has(stop.id))
     }
 
     if (initialize()) return
@@ -545,7 +594,35 @@ export default function StandaloneRoutePlannerPage() {
       if (initialize()) window.clearInterval(interval)
     }, 250)
     return () => window.clearInterval(interval)
-  }, [stops])
+  }, [stops, tab])
+
+  // The address book gets the same suggestions so saved locations carry real coordinates.
+  useEffect(() => {
+    if (tab !== 'locations') return
+    let autocomplete: google.maps.places.Autocomplete | null = null
+    const attach = () => {
+      const input = locationInputRef.current
+      if (!window.google?.maps?.places || !input) return false
+      autocomplete = new google.maps.places.Autocomplete(input, {
+        types: ['geocode', 'establishment'],
+        componentRestrictions: { country: 'us' },
+        fields: ['formatted_address', 'geometry'],
+      })
+      autocomplete.addListener('place_changed', () => {
+        const place = autocomplete!.getPlace()
+        const location = place.geometry?.location
+        if (!place.formatted_address || !location) return
+        setLocationForm(current => ({ ...current, address: place.formatted_address!, latitude: location.lat(), longitude: location.lng() }))
+      })
+      return true
+    }
+    let interval: number | undefined
+    if (!attach()) interval = window.setInterval(() => { if (attach()) window.clearInterval(interval) }, 250)
+    return () => {
+      window.clearInterval(interval)
+      if (autocomplete) google.maps.event.clearInstanceListeners(autocomplete)
+    }
+  }, [tab])
 
   const detectCurrentOrigin = () => {
     if (!navigator.geolocation) return fail(new Error('Geolocation is unavailable in this browser'))
@@ -573,9 +650,25 @@ export default function StandaloneRoutePlannerPage() {
 
   const addStop = (location?: SavedLocation) => {
     const stop = newStop(stops.length)
-    setStops(current => [...current, location ? { ...stop, name: location.name, address: location.address } : stop])
+    const hasCoordinates = typeof location?.latitude === 'number' && typeof location.longitude === 'number'
+    const added: PlannerStop = location
+      ? {
+        ...stop,
+        name: location.name,
+        address: location.address,
+        ...(hasCoordinates ? { latitude: location.latitude!, longitude: location.longitude! } : {}),
+      }
+      : stop
+    stopsRef.current = [...stopsRef.current, added]
+    setStops(current => [...current, added])
     setTab('plan')
     setResult(null)
+    // Older saved locations have no coordinates: look them up once and save them back to the address book.
+    if (location && !hasCoordinates) {
+      void resolveStopAddress(added.id).then(found => {
+        if (found) void api(`/locations/${location.id}`, { method: 'PATCH', body: JSON.stringify({ latitude: found.latitude, longitude: found.longitude }) }).then(refreshLibrary).catch(() => undefined)
+      })
+    }
   }
 
   const removeStop = (id: string) => {
@@ -610,7 +703,7 @@ export default function StandaloneRoutePlannerPage() {
 
   const routePayload = () => ({
     name: routeName.trim(),
-    stops,
+    stops: stopsRef.current,
     options: routeOptions(),
     recurrence: recurring ? {
       frequency,
@@ -636,9 +729,10 @@ export default function StandaloneRoutePlannerPage() {
     setBusy(true)
     try {
       validateRoute()
+      await resolveMissingAddresses()
       const data = await api<OptimizedRoute>('/optimize', {
         method: 'POST',
-        body: JSON.stringify({ stops, options: routeOptions(), routeId: currentRouteId }),
+        body: JSON.stringify({ stops: stopsRef.current, options: routeOptions(), routeId: currentRouteId }),
       })
       setResult(data)
       flash('Route optimized')
@@ -653,6 +747,7 @@ export default function StandaloneRoutePlannerPage() {
     setBusy(true)
     try {
       validateRoute(true)
+      await resolveMissingAddresses()
       const saved = await api<SavedRoute>(currentRouteId ? `/routes/${currentRouteId}` : '/routes', {
         method: currentRouteId ? 'PATCH' : 'POST',
         body: JSON.stringify(routePayload()),
@@ -738,7 +833,15 @@ export default function StandaloneRoutePlannerPage() {
 
   const saveLocation = async () => {
     try {
-      await api('/locations', { method: 'POST', body: JSON.stringify(locationForm) })
+      let { latitude, longitude } = locationForm
+      if (latitude === undefined || longitude === undefined) {
+        const found = window.google?.maps ? await geocodeUsAddress(locationForm.address).catch(() => null) : null
+        if (found) ({ latitude, longitude } = found)
+      }
+      await api('/locations', {
+        method: 'POST',
+        body: JSON.stringify({ ...locationForm, ...(latitude !== undefined && longitude !== undefined ? { latitude, longitude } : {}) }),
+      })
       setLocationForm({ name: '', address: '', notes: '' })
       await refreshLibrary()
       flash('Location saved')
@@ -859,7 +962,7 @@ export default function StandaloneRoutePlannerPage() {
                     <div className="grid gap-3 md:grid-cols-[34px_minmax(120px,.45fr)_minmax(220px,1fr)_110px_36px] md:items-center">
                       <span className="grid h-8 w-8 place-items-center bg-[#e4f3f1] text-sm font-bold text-[#00756d]">{index + 1}</span>
                       <div><span className="mb-1 block text-[10px] font-bold uppercase text-[#64807d]">{index === 0 ? 'Origin' : stop.type}</span><input aria-label={`Stop ${index + 1} name`} value={stop.name} onChange={event => updateStop(stop.id, { name: event.target.value })} placeholder="Stop name" className="h-10 w-full border border-[#c6d4d2] px-3 text-sm outline-none focus:border-[#008c82]" /></div>
-                      <div className="relative"><MapPin className="absolute left-3 top-3 h-4 w-4 text-[#708482]" /><input ref={element => { if (element) stopInputRefs.current.set(stop.id, element); else stopInputRefs.current.delete(stop.id) }} aria-label={`Stop ${index + 1} address`} list="saved-locations" value={stop.address} onChange={event => updateStop(stop.id, { address: event.target.value, latitude: undefined, longitude: undefined })} placeholder={index === 0 ? 'Starting address' : 'Street, city, state'} className="h-10 w-full border border-[#c6d4d2] pl-9 pr-3 text-sm outline-none focus:border-[#008c82]" /></div>
+                      <div className="relative"><MapPin className="absolute left-3 top-3 h-4 w-4 text-[#708482]" /><input ref={element => { if (element) stopInputRefs.current.set(stop.id, element); else stopInputRefs.current.delete(stop.id) }} aria-label={`Stop ${index + 1} address`} list="saved-locations" value={stop.address} onChange={event => { const typed = event.target.value; const saved = locations.find(location => location.address === typed && typeof location.latitude === 'number' && typeof location.longitude === 'number'); updateStop(stop.id, { address: typed, latitude: saved?.latitude ?? undefined, longitude: saved?.longitude ?? undefined }) }} onBlur={() => window.setTimeout(() => void resolveStopAddress(stop.id), 250)} placeholder={index === 0 ? 'Starting address' : 'Street, city, state'} className="h-10 w-full border border-[#c6d4d2] pl-9 pr-3 text-sm outline-none focus:border-[#008c82]" />{addressNotes[stop.id] && <p className="mt-1 text-xs font-medium text-amber-700">{addressNotes[stop.id]}</p>}</div>
                       <label className="flex items-center gap-2 text-xs text-[#617775]"><NumericInput aria-label={`Stop ${index + 1} service minutes`} min={0} max={1440} value={stop.serviceMinutes} onCommit={minutes => updateStop(stop.id, { serviceMinutes: minutes })} className="h-10 w-16 border border-[#c6d4d2] px-2 text-sm" /> min</label>
                       <button onClick={() => removeStop(stop.id)} disabled={stops.length <= 2 || index === 0} title="Remove stop" className="grid h-9 w-9 place-items-center text-[#8a5c58] hover:bg-red-50 disabled:opacity-25"><Trash2 className="h-4 w-4" /></button>
                     </div>
@@ -917,7 +1020,7 @@ export default function StandaloneRoutePlannerPage() {
 
         {tab === 'billing' && <PlannerBilling />}
 
-        {tab === 'locations' && <div className="mt-5 grid gap-5 lg:grid-cols-[380px_1fr]"><section className="border border-[#c6d4d2] bg-white p-5"><h2 className="font-semibold">Save a location</h2><div className="mt-4 space-y-3"><input value={locationForm.name} onChange={event => setLocationForm(current => ({ ...current, name: event.target.value }))} placeholder="Location name" className="h-10 w-full border border-[#c6d4d2] px-3 text-sm" /><input value={locationForm.address} onChange={event => setLocationForm(current => ({ ...current, address: event.target.value }))} placeholder="Full address" className="h-10 w-full border border-[#c6d4d2] px-3 text-sm" /><textarea value={locationForm.notes} onChange={event => setLocationForm(current => ({ ...current, notes: event.target.value }))} placeholder="Access notes (optional)" className="min-h-24 w-full border border-[#c6d4d2] p-3 text-sm" /><button onClick={saveLocation} disabled={!locationForm.name.trim() || !locationForm.address.trim()} className="flex h-10 items-center gap-2 bg-[#008c82] px-4 text-sm font-bold text-white disabled:opacity-40"><Save className="h-4 w-4" />Save location</button></div></section><section className="border border-[#c6d4d2] bg-white"><div className="border-b border-[#d8e2e0] px-5 py-4"><h2 className="font-semibold">Address book</h2></div>{locations.length === 0 ? <EmptyState icon={MapPin} text="No saved locations yet" /> : <div className="divide-y divide-[#e1e9e7]">{locations.map(location => <div key={location.id} className="flex items-center gap-4 px-5 py-4"><MapPin className="h-5 w-5 shrink-0 text-[#008c82]" /><div className="min-w-0 flex-1"><p className="font-semibold">{location.name}</p><p className="truncate text-sm text-[#667b79]">{location.address}</p></div><button onClick={() => addStop(location)} className="flex h-9 items-center gap-2 border border-[#aebfbc] px-3 text-sm font-semibold"><Plus className="h-4 w-4" />Add to route</button><button onClick={() => void deleteLocation(location.id)} title="Delete location" className="grid h-9 w-9 place-items-center text-[#9f4740] hover:bg-red-50"><Trash2 className="h-4 w-4" /></button></div>)}</div>}</section></div>}
+        {tab === 'locations' && <div className="mt-5 grid gap-5 lg:grid-cols-[380px_1fr]"><section className="border border-[#c6d4d2] bg-white p-5"><h2 className="font-semibold">Save a location</h2><div className="mt-4 space-y-3"><input value={locationForm.name} onChange={event => setLocationForm(current => ({ ...current, name: event.target.value }))} placeholder="Location name" className="h-10 w-full border border-[#c6d4d2] px-3 text-sm" /><input ref={locationInputRef} value={locationForm.address} onChange={event => setLocationForm(current => { const { latitude: _lat, longitude: _lng, ...rest } = current; return { ...rest, address: event.target.value } })} placeholder="Full address" className="h-10 w-full border border-[#c6d4d2] px-3 text-sm" /><textarea value={locationForm.notes} onChange={event => setLocationForm(current => ({ ...current, notes: event.target.value }))} placeholder="Access notes (optional)" className="min-h-24 w-full border border-[#c6d4d2] p-3 text-sm" /><button onClick={saveLocation} disabled={!locationForm.name.trim() || !locationForm.address.trim()} className="flex h-10 items-center gap-2 bg-[#008c82] px-4 text-sm font-bold text-white disabled:opacity-40"><Save className="h-4 w-4" />Save location</button></div></section><section className="border border-[#c6d4d2] bg-white"><div className="border-b border-[#d8e2e0] px-5 py-4"><h2 className="font-semibold">Address book</h2></div>{locations.length === 0 ? <EmptyState icon={MapPin} text="No saved locations yet" /> : <div className="divide-y divide-[#e1e9e7]">{locations.map(location => <div key={location.id} className="flex items-center gap-4 px-5 py-4"><MapPin className="h-5 w-5 shrink-0 text-[#008c82]" /><div className="min-w-0 flex-1"><p className="font-semibold">{location.name}</p><p className="truncate text-sm text-[#667b79]">{location.address}</p></div><button onClick={() => addStop(location)} className="flex h-9 items-center gap-2 border border-[#aebfbc] px-3 text-sm font-semibold"><Plus className="h-4 w-4" />Add to route</button><button onClick={() => void deleteLocation(location.id)} title="Delete location" className="grid h-9 w-9 place-items-center text-[#9f4740] hover:bg-red-50"><Trash2 className="h-4 w-4" /></button></div>)}</div>}</section></div>}
       </div>
     </main>
   )
