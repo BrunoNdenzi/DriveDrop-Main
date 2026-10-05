@@ -1327,8 +1327,12 @@ export const stripeService = {
     });
   },
 
-  async createBillingPortalSession(customerId: string, returnUrl: string): Promise<Stripe.BillingPortal.Session> {
-    return stripe.billingPortal.sessions.create({ customer: customerId, return_url: returnUrl });
+  async createBillingPortalSession(customerId: string, returnUrl: string, configurationId?: string): Promise<Stripe.BillingPortal.Session> {
+    return stripe.billingPortal.sessions.create({
+      customer: customerId,
+      return_url: returnUrl,
+      ...(configurationId ? { configuration: configurationId } : {}),
+    });
   },
 
   /**

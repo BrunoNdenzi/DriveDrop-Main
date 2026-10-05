@@ -598,9 +598,9 @@ export const getPlannerBilling = asyncHandler(async (req: Request, res: Response
 
 export const createPlannerCheckout = asyncHandler(async (req: Request, res: Response) => {
   if (!req.user?.id || !req.user.email) throw createError('Authentication required', 401, 'UNAUTHORIZED');
-  const planKey = req.body.planKey as 'starter' | 'pro';
-  if (!['starter', 'pro'].includes(planKey)) throw createError('Select Starter or Pro', 400, 'INVALID_PLAN');
-  const priceId = planKey === 'starter' ? config.stripe.priceIdBasic : config.stripe.priceIdPremium;
+  const planKey = req.body.planKey as 'solo' | 'team' | 'business';
+  if (!['solo', 'team', 'business'].includes(planKey)) throw createError('Select Solo, Team or Business', 400, 'INVALID_PLAN');
+  const priceId = config.stripe.plannerPriceIds[planKey];
   if (!priceId || /your-|placeholder|replace/i.test(priceId)) throw createError(`${planKey} Stripe price is not configured`, 503, 'BILLING_NOT_CONFIGURED');
 
   let status = await plannerBillingService.getStatus(req.user.id);
@@ -635,7 +635,11 @@ export const createPlannerPortal = asyncHandler(async (req: Request, res: Respon
   const status = await plannerBillingService.getStatus(req.user.id);
   if (!status.stripeCustomerId) throw createError('No billing account exists yet', 404, 'BILLING_ACCOUNT_NOT_FOUND');
   const appUrl = process.env['WEBSITE_URL'] || process.env['FRONTEND_URL'] || 'http://localhost:3000';
-  const session = await stripeService.createBillingPortalSession(status.stripeCustomerId, `${appUrl}/route-planner`);
+  const session = await stripeService.createBillingPortalSession(
+    status.stripeCustomerId,
+    `${appUrl}/route-planner`,
+    config.stripe.plannerPortalConfiguration || undefined,
+  );
   res.status(201).json(successResponse({ url: session.url }));
 });
 

@@ -40,6 +40,12 @@ const config = {
     publishableKey: process.env['STRIPE_PUBLISHABLE_KEY'] || '',
     priceIdBasic: process.env['STRIPE_PRICE_ID_BASIC'] || '',
     priceIdPremium: process.env['STRIPE_PRICE_ID_PREMIUM'] || '',
+    plannerPriceIds: {
+      solo: process.env['STRIPE_PRICE_ID_PLANNER_SOLO'] || '',
+      team: process.env['STRIPE_PRICE_ID_PLANNER_TEAM'] || '',
+      business: process.env['STRIPE_PRICE_ID_PLANNER_BUSINESS'] || '',
+    },
+    plannerPortalConfiguration: process.env['STRIPE_PORTAL_CONFIGURATION_PLANNER'] || '',
     webhookTolerance: parseInt(process.env['STRIPE_WEBHOOK_TOLERANCE'] || '300', 10),
   },
 

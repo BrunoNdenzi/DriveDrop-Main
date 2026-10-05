@@ -3,13 +3,15 @@ import config from '@config';
 import { supabaseAdmin } from '@lib/supabase';
 import { createError } from '@utils/error';
 
-export type PlannerPlanKey = 'free' | 'starter' | 'pro';
+export type PlannerPlanKey = 'free' | 'solo' | 'team' | 'business' | 'starter' | 'pro';
 
 export interface PlannerPlan {
   key: PlannerPlanKey;
   name: string;
   monthlyRoutes: number | null;
   maxStopsPerRoute: number;
+  // A driver is one route running at the same time; null means no cap.
+  maxDrivers: number | null;
   recurringRoutes: boolean;
   routeSharing: boolean;
 }
@@ -31,19 +33,34 @@ interface BillingRecord {
 }
 
 const TRIAL_DAYS = 14;
-const plans: Record<PlannerPlanKey, PlannerPlan> = {
-  free: { key: 'free', name: 'Free', monthlyRoutes: 5, maxStopsPerRoute: 10, recurringRoutes: false, routeSharing: false },
-  starter: { key: 'starter', name: 'Starter', monthlyRoutes: 100, maxStopsPerRoute: 50, recurringRoutes: true, routeSharing: true },
-  pro: { key: 'pro', name: 'Pro', monthlyRoutes: null, maxStopsPerRoute: 100, recurringRoutes: true, routeSharing: true },
+// New accounts trial the mid tier so a team can try several drivers, then fall back to Free.
+const TRIAL_PLAN: PlannerPlanKey = 'team';
+export const plans: Record<PlannerPlanKey, PlannerPlan> = {
+  free: { key: 'free', name: 'Free', monthlyRoutes: 5, maxStopsPerRoute: 10, maxDrivers: 1, recurringRoutes: false, routeSharing: false },
+  solo: { key: 'solo', name: 'Solo', monthlyRoutes: null, maxStopsPerRoute: 50, maxDrivers: 1, recurringRoutes: true, routeSharing: true },
+  team: { key: 'team', name: 'Team', monthlyRoutes: null, maxStopsPerRoute: 100, maxDrivers: 3, recurringRoutes: true, routeSharing: true },
+  business: { key: 'business', name: 'Business', monthlyRoutes: null, maxStopsPerRoute: 100, maxDrivers: 10, recurringRoutes: true, routeSharing: true },
+  // Legacy plans keep their original limits and price for existing subscribers and are no longer sold.
+  starter: { key: 'starter', name: 'Starter', monthlyRoutes: 100, maxStopsPerRoute: 50, maxDrivers: null, recurringRoutes: true, routeSharing: true },
+  pro: { key: 'pro', name: 'Pro', monthlyRoutes: null, maxStopsPerRoute: 100, maxDrivers: null, recurringRoutes: true, routeSharing: true },
 };
+
+export function driverLimitReached(plan: PlannerPlan, activeRuns: number): boolean {
+  return plan.maxDrivers !== null && activeRuns >= plan.maxDrivers;
+}
 
 function isoFromEpoch(value: number | null | undefined): string | null {
   return typeof value === 'number' ? new Date(value * 1000).toISOString() : null;
 }
 
-function pricePlan(priceId: string | null | undefined): PlannerPlanKey {
-  if (priceId && priceId === config.stripe.priceIdPremium) return 'pro';
-  if (priceId && priceId === config.stripe.priceIdBasic) return 'starter';
+export function pricePlan(priceId: string | null | undefined): PlannerPlanKey {
+  if (!priceId) return 'free';
+  const { plannerPriceIds, priceIdPremium, priceIdBasic } = config.stripe;
+  if (priceId === plannerPriceIds.solo) return 'solo';
+  if (priceId === plannerPriceIds.team) return 'team';
+  if (priceId === plannerPriceIds.business) return 'business';
+  if (priceId === priceIdPremium) return 'pro';
+  if (priceId === priceIdBasic) return 'starter';
   return 'free';
 }
 
@@ -76,7 +93,7 @@ async function ensureAccount(userId: string): Promise<BillingRecord> {
   const ends = new Date(started.getTime() + TRIAL_DAYS * 24 * 60 * 60 * 1000);
   const { data, error } = await supabaseAdmin.from('planner_subscriptions').insert({
     user_id: userId,
-    plan_key: 'starter',
+    plan_key: TRIAL_PLAN,
     status: 'trialing',
     trial_started_at: started.toISOString(),
     trial_ends_at: ends.toISOString(),
@@ -103,10 +120,20 @@ async function monthlyUsage(userId: string, metric: string): Promise<number> {
 export const plannerBillingService = {
   plans,
 
+  async activeRuns(userId: string): Promise<number> {
+    const { count, error } = await supabaseAdmin
+      .from('planner_route_executions')
+      .select('id', { count: 'exact', head: true })
+      .eq('user_id', userId)
+      .in('status', ['dispatched', 'in_progress']);
+    if (error) throw createError(error.message, 500, 'ACTIVE_RUNS_READ_FAILED');
+    return count ?? 0;
+  },
+
   async getStatus(userId: string) {
     const billing = await ensureAccount(userId);
     const plan = plans[effectivePlan(billing)];
-    const routesUsed = await monthlyUsage(userId, 'route_created');
+    const [routesUsed, activeRuns] = await Promise.all([monthlyUsage(userId, 'route_created'), this.activeRuns(userId)]);
     return {
       plan,
       status: billing.status,
@@ -116,7 +143,7 @@ export const plannerBillingService = {
       cancelAtPeriodEnd: billing.cancel_at_period_end,
       stripeCustomerId: billing.stripe_customer_id,
       stripeSubscriptionId: billing.stripe_subscription_id,
-      usage: { routesUsed, routesLimit: plan.monthlyRoutes },
+      usage: { routesUsed, routesLimit: plan.monthlyRoutes, activeRuns, driversLimit: plan.maxDrivers },
     };
   },
 
@@ -142,7 +169,19 @@ export const plannerBillingService = {
     if (stopCount !== undefined && stopCount > status.plan.maxStopsPerRoute) {
       throw createError(`${status.plan.name} supports up to ${status.plan.maxStopsPerRoute} stops per route`, 402, 'PLAN_LIMIT_EXCEEDED');
     }
-    if (recurring && !status.plan.recurringRoutes) throw createError('Recurring routes require Starter or Pro', 402, 'UPGRADE_REQUIRED');
+    if (recurring && !status.plan.recurringRoutes) throw createError('Recurring routes require a paid plan', 402, 'UPGRADE_REQUIRED');
+  },
+
+  async assertDispatchAllowed(userId: string): Promise<void> {
+    const status = await this.getStatus(userId);
+    if (status.isLocked) throw createError('Billing is past due. Update payment details to continue.', 402, 'BILLING_LOCKED');
+    if (driverLimitReached(status.plan, status.usage.activeRuns)) {
+      throw createError(
+        `${status.plan.name} allows ${status.plan.maxDrivers} driver${status.plan.maxDrivers === 1 ? '' : 's'} on the road at a time. Finish or cancel a running route, or upgrade your plan.`,
+        402,
+        'DRIVER_LIMIT_REACHED',
+      );
+    }
   },
 
   async assertRouteCreationAllowed(userId: string, stopCount: number, recurring: boolean): Promise<void> {
@@ -156,7 +195,7 @@ export const plannerBillingService = {
   async assertSharingAllowed(userId: string): Promise<void> {
     const status = await this.getStatus(userId);
     if (status.isLocked) throw createError('Billing is past due. Update payment details to continue.', 402, 'BILLING_LOCKED');
-    if (!status.plan.routeSharing) throw createError('Route sharing requires Starter or Pro', 402, 'UPGRADE_REQUIRED');
+    if (!status.plan.routeSharing) throw createError('Route sharing requires a paid plan', 402, 'UPGRADE_REQUIRED');
   },
 
   async recordUsage(userId: string, metric: 'route_created' | 'route_optimized' | 'route_dispatched', routeId: string, idempotencyKey: string): Promise<void> {
