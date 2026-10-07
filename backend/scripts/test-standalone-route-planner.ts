@@ -3,6 +3,7 @@ import ExcelJS from 'exceljs';
 import config from '@config';
 import { driverLimitReached, plans, pricePlan } from '../src/services/plannerBilling.service';
 import {
+  normalizeAddedStops,
   normalizeRecurrence,
   normalizeStops,
   parseImportRows,
@@ -10,11 +11,14 @@ import {
 import {
   REOPTIMIZE_ORIGIN_ID,
   arrivalBlockMessage,
+  buildAddedStops,
   buildReoptimizationStops,
   evaluateArrival,
   parseLocationPing,
   plannedStopsFromSnapshot,
   publicLastLocation,
+  summarizeDeviations,
+  upsertDeviation,
   type ProgressStop,
 } from '../src/services/plannerLiveRoute';
 
@@ -49,6 +53,86 @@ function checkArrivalVerification(): void {
 
   assert.throws(() => evaluateArrival({ arrivalTarget: { latitude: 35 } }, {}), /latitude and longitude/);
   assert.throws(() => evaluateArrival(body({ overrideCode: 'because' }), northOf(10)), /not recognised/);
+}
+
+function checkAddedShipment(): void {
+  const now = new Date('2026-10-02T12:00:00.000Z');
+  const planned = plannedStopsFromSnapshot({
+    optimizedResult: {
+      stops: [
+        { id: 'depot', type: 'current_location' },
+        { id: 'p1', type: 'pickup', shipmentId: 'A' },
+        { id: 'd1', type: 'delivery', shipmentId: 'A' },
+      ],
+    },
+  });
+  const progress: ProgressStop[] = ['depot', 'p1', 'd1'].map(stopId => ({
+    stopId,
+    address: `${stopId} address`,
+    plannedServiceMinutes: 10,
+    status: stopId === 'depot' || stopId === 'p1' ? 'completed' as const : 'pending' as const,
+  }));
+
+  // The first added stop is a real pickup, not coerced into a depot like the first stop of a new route.
+  const added = normalizeAddedStops([
+    { id: 'np', type: 'pickup', address: '1 Pickup St', referenceId: 'NEW', serviceMinutes: 15, latitude: 35.1, longitude: -80.8 },
+    { id: 'nd', type: 'delivery', address: '2 Drop Ave', referenceId: 'NEW' },
+  ]);
+  assert.equal(added[0]?.type, 'pickup');
+  assert.equal(added[1]?.estimatedDuration, 10);
+
+  const extra = buildAddedStops({ added, progress, planned, now });
+  assert.deepEqual(extra.progress.map(stop => [stop.stopId, stop.status, stop.plannedServiceMinutes]), [['np', 'pending', 15], ['nd', 'pending', 10]]);
+
+  // One re-plan covers the old unfinished stop and the whole new shipment, pickup before its delivery pairing intact.
+  const rebuilt = buildReoptimizationStops({
+    progress: [...progress, ...extra.progress],
+    planned: [...planned, ...extra.planned],
+    currentLocation: { latitude: 35.3, longitude: -80.7 },
+    lastKnown: null,
+    now,
+  });
+  assert.deepEqual(rebuilt.stops.slice(1).map(stop => stop.id), ['d1', 'np', 'nd']);
+  assert.deepEqual(rebuilt.stops.slice(1).map(stop => [stop.type, stop.shipmentId]), [['delivery', 'A'], ['pickup', 'NEW'], ['delivery', 'NEW']]);
+  assert.equal(rebuilt.stops[2]?.latitude, 35.1);
+
+  // A pair without a reference is matched automatically; a lone delivery (already loaded) is allowed.
+  const auto = buildAddedStops({ added: normalizeAddedStops([{ type: 'pickup', address: 'a' }, { type: 'delivery', address: 'b' }]), progress, planned, now });
+  assert.equal(auto.planned[0]?.shipmentId, auto.planned[1]?.shipmentId);
+  assert.ok(auto.planned[0]?.shipmentId);
+  assert.equal(buildAddedStops({ added: normalizeAddedStops([{ type: 'delivery', address: 'only drop' }]), progress, planned, now }).planned[0]?.shipmentId, undefined);
+
+  assert.throws(() => buildAddedStops({ added: normalizeAddedStops([{ type: 'pickup', address: 'a', referenceId: 'LONE' }]), progress, planned, now }), /has no delivery/);
+  assert.throws(() => buildAddedStops({ added: normalizeAddedStops([{ type: 'pickup', address: 'a' }, { type: 'pickup', address: 'b' }]), progress, planned, now }), /reference/);
+  assert.throws(() => buildAddedStops({ added: normalizeAddedStops([{ type: 'delivery', address: 'a', referenceId: 'A' }]), progress, planned, now }), /already used/);
+  assert.throws(() => buildAddedStops({ added: normalizeAddedStops([{ id: 'd1', type: 'stop', address: 'a' }]), progress, planned, now }), /already exists/);
+  assert.throws(() => normalizeAddedStops([]), /between 1 and 10/);
+  assert.throws(() => buildAddedStops({ added: normalizeAddedStops([{ type: 'fuel', address: 'a' }]), progress, planned, now }), /pickup, a delivery, or a plain stop/);
+}
+
+function checkDeviations(): void {
+  const now = new Date('2026-10-07T12:00:00.000Z');
+  const started = upsertDeviation([], 'dev-1', { startedAt: '2026-10-07T11:50:00.000Z', maxDistanceMeters: 180, latitude: 35.2, longitude: -80.8 }, now);
+  assert.equal(started.length, 1);
+  assert.equal(started[0]?.reason, 'unspecified');
+
+  // Updates merge by id, keep the farthest distance, and never duplicate on a retry.
+  const reasoned = upsertDeviation(started, 'dev-1', { reason: 'road_blocked', maxDistanceMeters: 90 }, now);
+  assert.equal(reasoned.length, 1);
+  assert.equal(reasoned[0]?.reason, 'road_blocked');
+  assert.equal(reasoned[0]?.maxDistanceMeters, 180);
+  assert.equal(reasoned[0]?.latitude, 35.2);
+  const ended = upsertDeviation(reasoned, 'dev-1', { endedAt: '2026-10-07T11:56:00.000Z', resolution: 'rerouted', addedMinutes: 4.4 }, now);
+  assert.deepEqual(ended, upsertDeviation(ended, 'dev-1', { endedAt: '2026-10-07T11:56:00.000Z', resolution: 'rerouted', addedMinutes: 4.4 }, now));
+  assert.equal(ended[0]?.addedMinutes, 4);
+
+  const two = upsertDeviation(ended, 'dev-2', { startedAt: '2026-10-07T11:58:00.000Z', reason: 'personal_stop', endedAt: '2026-10-07T11:59:00.000Z', resolution: 'break_ended' }, now);
+  assert.deepEqual(summarizeDeviations(two), { count: 2, totalMinutes: 7, byReason: { road_blocked: 1, personal_stop: 1 } });
+
+  assert.throws(() => upsertDeviation([], 'bad id!', {}, now), /id is invalid/);
+  assert.throws(() => upsertDeviation([], 'x', {}, now), /Start time is required/);
+  assert.throws(() => upsertDeviation([], 'x', { startedAt: now.toISOString(), reason: 'because' }, now), /not recognised/);
+  assert.throws(() => upsertDeviation([], 'x', { startedAt: '2026-10-08T12:00:00.000Z' }, now), /future/);
 }
 
 function checkPricingTiers(): void {
@@ -254,6 +338,10 @@ async function main(): Promise<void> {
   console.log('Pricing tier and driver limit checks passed.');
   checkArrivalVerification();
   console.log('Arrival verification checks passed.');
+  checkAddedShipment();
+  console.log('Added shipment checks passed.');
+  checkDeviations();
+  console.log('Deviation checks passed.');
 }
 
 main().catch(error => {

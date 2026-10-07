@@ -1,4 +1,5 @@
 import { Router, Request, Response } from 'express';
+import { randomUUID } from 'crypto';
 import { parse } from 'csv-parse/sync';
 import ExcelJS from 'exceljs';
 import multer from 'multer';
@@ -11,12 +12,16 @@ import { pricingLiveEvidenceService } from '../services/pricingLiveEvidence.serv
 import {
   REOPTIMIZE_ORIGIN_ID,
   arrivalBlockMessage,
+  buildAddedStops,
   buildReoptimizationStops,
   evaluateArrival,
   parseLocationPing,
   plannedStopsFromSnapshot,
   publicLastLocation,
+  summarizeDeviations,
+  upsertDeviation,
   type ArrivalRecord,
+  type DeviationRecord,
   type StoredLocation,
 } from '../services/plannerLiveRoute';
 
@@ -102,6 +107,7 @@ interface PlannerExecutionRecord {
   planned_snapshot: Record<string, unknown>;
   stop_progress: ExecutionStopProgress[];
   reoptimizations: Record<string, unknown>[];
+  deviations?: DeviationRecord[];
   actual_distance_miles: number | null;
   last_latitude?: number | null;
   last_longitude?: number | null;
@@ -263,6 +269,35 @@ export function normalizeStops(value: unknown): RouteStop[] {
       type: index === 0 ? 'current_location' : type,
       latitude: optionalCoordinate(input.latitude, -90, 90, `Stop ${index + 1} latitude`),
       longitude: optionalCoordinate(input.longitude, -180, 180, `Stop ${index + 1} longitude`),
+      shipmentId: typeof input.referenceId === 'string' ? input.referenceId.trim() || undefined : undefined,
+      vehicleInfo: typeof input.name === 'string' ? input.name.trim().slice(0, 160) || undefined : undefined,
+      estimatedDuration: serviceMinutes,
+      priority: input.priority,
+      timeWindow: input.timeWindow,
+    };
+  });
+}
+
+const MAX_ADDED_STOPS = 10;
+
+// Stops added during a run; unlike a new route, the first one is not a depot.
+export function normalizeAddedStops(value: unknown): RouteStop[] {
+  if (!Array.isArray(value) || value.length < 1 || value.length > MAX_ADDED_STOPS) {
+    throw createError(`Add between 1 and ${MAX_ADDED_STOPS} stops at a time`, 400, 'INVALID_STOPS');
+  }
+  return value.map((raw, index) => {
+    const input = (raw && typeof raw === 'object' ? raw : {}) as PlannerStopInput;
+    const type = input.type ?? 'stop';
+    const serviceMinutes = input.serviceMinutes === undefined ? 10 : Number(input.serviceMinutes);
+    if (!Number.isFinite(serviceMinutes) || serviceMinutes < 0 || serviceMinutes > 1440) {
+      throw createError(`Added stop ${index + 1} has invalid service minutes`, 400, 'INVALID_STOPS');
+    }
+    return {
+      id: typeof input.id === 'string' && input.id.trim() ? input.id.trim() : randomUUID(),
+      address: text(input.address, `Added stop ${index + 1} address`, 500),
+      type,
+      latitude: optionalCoordinate(input.latitude, -90, 90, `Added stop ${index + 1} latitude`),
+      longitude: optionalCoordinate(input.longitude, -180, 180, `Added stop ${index + 1} longitude`),
       shipmentId: typeof input.referenceId === 'string' ? input.referenceId.trim() || undefined : undefined,
       vehicleInfo: typeof input.name === 'string' ? input.name.trim().slice(0, 160) || undefined : undefined,
       estimatedDuration: serviceMinutes,
@@ -874,6 +909,21 @@ router.post('/executions/:id/location', asyncHandler(async (req: Request, res: R
   res.json({ success: true, data: { stored: (data ?? []).length > 0 } });
 }));
 
+// Idempotent by deviation id, so offline retries can replay it safely.
+router.put('/executions/:id/deviations/:deviationId', asyncHandler(async (req: Request, res: Response) => {
+  const ownerId = userId(req);
+  const execution = await ownedExecution(req.params['id']!, ownerId);
+  const deviations = upsertDeviation(execution.deviations ?? [], req.params['deviationId']!, req.body);
+  const { error } = await supabaseAdmin
+    .from('planner_route_executions')
+    .update({ deviations })
+    .eq('id', execution.id)
+    .eq('user_id', ownerId);
+  if (error?.code === UNDEFINED_COLUMN_CODE) throw createError('Route deviations are not enabled on this server yet', 503, 'DEVIATIONS_UNAVAILABLE');
+  if (error) throw createError(error.message, 500, 'DEVIATION_SAVE_FAILED');
+  res.json({ success: true, data: { count: deviations.length } });
+}));
+
 router.post('/executions/:id/cancel', asyncHandler(async (req: Request, res: Response) => {
   const execution = await ownedExecution(req.params['id']!, userId(req));
   if (execution.status === 'completed') throw createError('Completed routes cannot be cancelled', 409, 'INVALID_EXECUTION_STATUS');
@@ -919,6 +969,8 @@ router.get('/executions/:id/report', asyncHandler(async (req: Request, res: Resp
         unverified: stopAnalysis.filter(stop => stop.status === 'completed' && (!stop.arrival || stop.arrival.verdict === 'unreliable')).length,
       },
       stopAnalysis,
+      deviations: execution.deviations ?? [],
+      deviationSummary: summarizeDeviations(execution.deviations ?? []),
     },
   });
 }));
@@ -969,9 +1021,14 @@ router.post('/executions/:id/reoptimize', asyncHandler(async (req: Request, res:
     : null;
 
   const now = new Date();
+  const planned = plannedStopsFromSnapshot(execution.planned_snapshot);
+  // A shipment picked up on the road joins the unfinished stops before the plan is rebuilt, so one pass covers everything.
+  const extra = req.body.addStops === undefined
+    ? null
+    : buildAddedStops({ added: normalizeAddedStops(req.body.addStops), progress: execution.stop_progress, planned, now });
   const built = buildReoptimizationStops({
-    progress: execution.stop_progress,
-    planned: plannedStopsFromSnapshot(execution.planned_snapshot),
+    progress: [...execution.stop_progress, ...(extra?.progress ?? [])],
+    planned: [...planned, ...(extra?.planned ?? [])],
     currentLocation,
     lastKnown,
     now,
@@ -1027,6 +1084,7 @@ router.post('/executions/:id/reoptimize', asyncHandler(async (req: Request, res:
     versionNumber: nextVersion,
     reoptimizedAt: nowIso,
     remainingStops: reorderable,
+    ...(extra ? { addedStops: extra.progress.length } : {}),
     originSource: built.originSource,
     previousSummary: (execution.planned_snapshot['optimizedResult'] as Record<string, unknown> | undefined)?.['summary'] ?? null,
     newSummary: result.summary,

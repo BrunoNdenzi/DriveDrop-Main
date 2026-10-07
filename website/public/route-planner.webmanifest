@@ -1,0 +1,14 @@
+{
+  "name": "DriveDrop Route Planner",
+  "short_name": "Route Planner",
+  "description": "Plan, drive and track multi-stop routes.",
+  "start_url": "/route-planner",
+  "scope": "/route-planner",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#101d1e",
+  "theme_color": "#123638",
+  "icons": [
+    { "src": "/favicon.png", "sizes": "512x512", "type": "image/png", "purpose": "any" }
+  ]
+}

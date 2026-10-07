@@ -2,6 +2,13 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Driving mode owns the screen: the page behind it must not scroll or bounce. */
+html.driving-lock,
+html.driving-lock body {
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+
 @layer base {
   :root {
     /* DriveDrop Brand Colors */

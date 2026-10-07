@@ -12,9 +12,19 @@ import {
   offsetAhead,
   progressAlong,
   projectOnPath,
-  smoothHeading,
   type RoutePlan,
 } from '@/lib/route-geometry'
+import { createZoomGovernor, metersPerPixel, routeHeadingAt, stepCamera, type CameraState } from '@/lib/camera'
+import {
+  BREAK_MAX_MS,
+  CLOSURE_MS,
+  activeClosures,
+  decideOffRoute,
+  describeDetour,
+  pickAvoidingRoute,
+  type ClosureMark,
+  type DeviationReason,
+} from '@/lib/off-route-policy'
 import { arrowRotation, parseManeuver, type ManeuverView } from '@/lib/maneuvers'
 import {
   OVERRIDE_REASONS,
@@ -32,6 +42,8 @@ import {
   type ExportPart,
 } from '@/lib/external-nav'
 import StopStrip, { navStopDetails, navStopLabel } from './StopStrip'
+import AddShipmentSheet, { type AddedStopDraft } from '@/components/route-planner/AddShipmentSheet'
+import { canFullscreen, enterFullscreen, exitFullscreen, isFullscreen as isDeviceFullscreen, isIphoneBrowser } from '@/lib/fullscreen'
 import { toast } from '@/components/ui/toast'
 import {
   Navigation,
@@ -133,6 +145,8 @@ interface DriverMapNavigationProps {
   onNavigationStart?: () => void | Promise<void>
   onSimulationStart?: () => void | Promise<void>
   onReoptimize?: () => Promise<string | void>
+  onAddShipment?: (stops: AddedStopDraft[]) => Promise<string | void>
+  onDeviation?: (event: DeviationEvent) => void
   trackingStatus?: { state: 'off' | 'pending' | 'on' | 'error'; label: string }
   onClose?: () => void
   height?: string
@@ -174,7 +188,9 @@ const MARKER_LABELS: Record<string, string> = {
 
 type Point = { lat: number; lng: number }
 
-const MARKER_GLIDE_MS = 900
+const FRAME_MS = 33
+const MAX_PREDICT_MS = 1500
+const FOLLOW_RESUME_MS = 12_000
 const SIM_TICK_MS = 1000
 const SIM_BASE_METERS_PER_SECOND = 17.9 // 40 mph
 const SIM_STOP_PAUSE_MS = 2000
@@ -186,7 +202,6 @@ const REROUTE_COOLDOWN_MS = 10_000
 const TRAFFIC_REFRESH_MS = 240_000
 const FASTER_ROUTE_MIN_SECONDS = 180
 const USER_ZOOM_HOLD_MS = 15_000
-const ZOOM_CHANGE_GAP_MS = 3_000
 const MAP_ID = process.env.NEXT_PUBLIC_GOOGLE_MAPS_MAP_ID
 
 interface BuiltRoute {
@@ -194,6 +209,20 @@ interface BuiltRoute {
   valid: NavStop[]
   legBase: number
   fromHere: boolean
+  // Set only when closures were given: whether the route found stays clear of them.
+  avoided?: boolean
+}
+
+export interface DeviationEvent {
+  id: string
+  startedAt: number
+  endedAt?: number
+  reason: DeviationReason
+  resolution?: 'returned' | 'rerouted' | 'break_ended' | 'still_off'
+  maxDistanceMeters: number
+  addedMinutes?: number
+  lat: number
+  lng: number
 }
 
 const escapeHtml = (value: string): string =>
@@ -233,6 +262,8 @@ export default function DriverMapNavigation({
   onNavigationStart,
   onSimulationStart,
   onReoptimize,
+  onAddShipment,
+  onDeviation,
   trackingStatus,
   onClose,
   height = 'h-[600px]',
@@ -266,9 +297,10 @@ export default function DriverMapNavigation({
   const [totalDistance, setTotalDistance] = useState('')
   const [totalDuration, setTotalDuration] = useState('')
   const [legSummaries, setLegSummaries] = useState<Array<{ distance: string; duration: string; from: string; to: string; toIndex: number }>>([])
-  const [offRoute, setOffRoute] = useState<'on' | 'suspect' | 'off'>('on')
   const [rerouting, setRerouting] = useState(false)
   const [rerouteFailed, setRerouteFailed] = useState(false)
+  const [deviation, setDeviation] = useState<{ reason: DeviationReason; distance: number } | null>(null)
+  const [breakMode, setBreakMode] = useState(false)
   const [fasterRoute, setFasterRoute] = useState<{ minutes: number } | null>(null)
   const [arrivalPrompt, setArrivalPrompt] = useState<{ idx: number; check: ArrivalCheck } | null>(null)
   const [overrideCode, setOverrideCode] = useState('')
@@ -307,27 +339,37 @@ export default function DriverMapNavigation({
   const resolvedStopsRef = useRef<NavStop[]>([])
   const followRef = useRef(true)
   const stepIndexRef = useRef(0)
-  const driverAnimRef = useRef<number | null>(null)
   const speakRef = useRef<(text: string) => void>(() => {})
   const onPositionRef = useRef(onPosition)
   const [replanning, setReplanning] = useState(false)
+  const [addingShipment, setAddingShipment] = useState(false)
   const planRef = useRef<RoutePlan | null>(null)
   const latestFixRef = useRef<DriverFix | null>(null)
   const lastRawRef = useRef<Point | null>(null)
   const lastFixTimeRef = useRef<{ pos: Point; at: number } | null>(null)
-  const headingRef = useRef<number | null>(null)
+  const fixStateRef = useRef<{ pos: Point; along: number | null; speed: number; heading: number | null; at: number } | null>(null)
+  const cameraRef = useRef<CameraState | null>(null)
+  const headingTargetRef = useRef<number | null>(null)
+  const zoomTargetRef = useRef(16)
+  const zoomGovernorRef = useRef(createZoomGovernor())
+  const viewportHeightRef = useRef(600)
+  const resumeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const projHintRef = useRef(0)
   const traveledIndexRef = useRef(-1)
   const progressRef = useRef({ remainingMeters: 0, remainingSeconds: 0 })
   const offRouteDetectorRef = useRef(createOffRouteDetector())
   const offRouteStateRef = useRef<'on' | 'suspect' | 'off'>('on')
   const rerouteBusyRef = useRef(false)
+  const deviationRef = useRef<{ id: string; startedAt: number; reason: DeviationReason; maxDistance: number; lat: number; lng: number } | null>(null)
+  const breakUntilRef = useRef<number | null>(null)
+  const closuresRef = useRef<ClosureMark[]>([])
+  const alongRef = useRef<number | null>(null)
+  const onDeviationRef = useRef(onDeviation)
+  const offRouteHandlerRef = useRef<(pos: Point, distance: number, speed: number | null, now: number, state: 'on' | 'suspect' | 'off') => void>(() => {})
   const lastRerouteAtRef = useRef(0)
   const rerouteRef = useRef<(from: Point) => Promise<void>>(async () => {})
   const refreshRef = useRef<() => Promise<void>>(async () => {})
   const announcedRef = useRef(new Set<string>())
-  const lastZoomRef = useRef<number | null>(null)
-  const lastZoomAtRef = useRef(0)
   const userZoomUntilRef = useRef(0)
   const arrivalWatcherRef = useRef(createArrivalWatcher())
   const suggestedForRef = useRef<number | null>(null)
@@ -346,13 +388,48 @@ export default function DriverMapNavigation({
   routeSegmentsRef.current = routeSegments
   stopTagsRef.current = stopTags
   onPositionRef.current = onPosition
+  onDeviationRef.current = onDeviation
 
   const setFollow = useCallback((value: boolean) => {
     followRef.current = value
     setFollowing(value)
+    if (value && resumeTimerRef.current) {
+      clearTimeout(resumeTimerRef.current)
+      resumeTimerRef.current = null
+    }
   }, [])
 
+  // While driving, a look around the map ends by itself and the camera returns to the car.
+  const holdFollowOff = useCallback((ms: number) => {
+    setFollow(false)
+    if (resumeTimerRef.current) clearTimeout(resumeTimerRef.current)
+    resumeTimerRef.current = setTimeout(() => {
+      resumeTimerRef.current = null
+      if (navStateRef.current.isNavigating) setFollow(true)
+    }, ms)
+  }, [setFollow])
+
   const exitAction = onClose ?? (isFullscreen ? () => setIsFullscreen(false) : undefined)
+
+  // The browser's own fullscreen is separate from the on-page overlay, and the driver can leave it with a system gesture.
+  const [fullscreenSupported, setFullscreenSupported] = useState(false)
+  const [deviceFullscreen, setDeviceFullscreen] = useState(false)
+  useEffect(() => {
+    if (!onClose) return
+    setFullscreenSupported(canFullscreen())
+    const sync = () => setDeviceFullscreen(isDeviceFullscreen())
+    sync()
+    document.addEventListener('fullscreenchange', sync)
+    document.addEventListener('webkitfullscreenchange', sync)
+    if (isIphoneBrowser() && !sessionStorage.getItem('planner-iphone-tip')) {
+      sessionStorage.setItem('planner-iphone-tip', '1')
+      toast('For true full screen on iPhone: tap Share, Add to Home Screen, then open the planner from that icon.', 'info')
+    }
+    return () => {
+      document.removeEventListener('fullscreenchange', sync)
+      document.removeEventListener('webkitfullscreenchange', sync)
+    }
+  }, [onClose])
 
   // ── Initialize Google Map ─────────────────────────────────────────
   const initMap = useCallback(() => {
@@ -387,15 +464,14 @@ export default function DriverMapNavigation({
 
     mapRef.current = map
 
-    // Dragging the map hands control back to the driver until they tap recenter.
-    map.addListener('dragstart', () => setFollow(false))
-    // A pinch or button zoom by the driver pauses automatic zoom for a while.
-    map.addListener('zoom_changed', () => {
-      const zoom = map.getZoom()
-      if (zoom === undefined || zoom === lastZoomRef.current) return
-      lastZoomRef.current = zoom
-      userZoomUntilRef.current = Date.now() + USER_ZOOM_HOLD_MS
-    })
+    // Dragging the map hands control back to the driver for a moment.
+    map.addListener('dragstart', () => holdFollowOff(FOLLOW_RESUME_MS))
+    // Pinching, the wheel or the zoom buttons pause automatic zoom for a while.
+    const container = mapContainerRef.current
+    const holdZoom = () => { userZoomUntilRef.current = Date.now() + USER_ZOOM_HOLD_MS }
+    container.addEventListener('wheel', holdZoom, { passive: true })
+    container.addEventListener('touchstart', event => { if (event.touches.length > 1) holdZoom() }, { passive: true })
+    container.addEventListener('pointerdown', event => { if ((event.target as HTMLElement).closest('button[title*="oom"]')) holdZoom() })
 
     // Traffic layer
     const traffic = new google.maps.TrafficLayer()
@@ -408,7 +484,7 @@ export default function DriverMapNavigation({
     traveledLineRef.current = new google.maps.Polyline({ map, strokeColor: '#9CA3AF', strokeWeight: 5.5, strokeOpacity: 0.95, zIndex: 3 })
 
     setMapReady(true)
-  }, [setFollow])
+  }, [holdFollowOff])
 
   useEffect(() => {
     const checkGoogleMaps = () => {
@@ -429,7 +505,7 @@ export default function DriverMapNavigation({
 
   // ── Build Route with Directions API ───────────────────────────────
   // With `from`, the route starts at the driver's position and runs through the stops not yet reached.
-  const requestRoute = async (from: Point | null, startIndex: number): Promise<BuiltRoute | null> => {
+  const requestRoute = async (from: Point | null, startIndex: number, avoid: Point[] = []): Promise<BuiltRoute | null> => {
     if (!window.google) return null
     const valid = stopsRef.current.filter(s => s.address && s.address.trim().length > 0)
     const targets = from ? valid.slice(startIndex) : valid
@@ -439,16 +515,42 @@ export default function DriverMapNavigation({
       stop.lat && stop.lng ? { lat: stop.lat, lng: stop.lng } : stop.address
     const rest = from ? targets : targets.slice(1)
     const departure = !from && departureTime && new Date(departureTime).getTime() > Date.now() ? new Date(departureTime) : new Date()
+    const service = new google.maps.DirectionsService()
+    const drivingOptions = { departureTime: departure, trafficModel: google.maps.TrafficModel.BEST_GUESS }
 
-    const result = await new google.maps.DirectionsService().route({
+    // A reported closure: ask for alternatives to the next stop and take the first that stays clear of it.
+    if (from && avoid.length > 0) {
+      const first = targets[0]!
+      const alternatives = await service.route({ origin: from, destination: asLocation(first), provideRouteAlternatives: true, travelMode: google.maps.TravelMode.DRIVING, drivingOptions })
+      const paths = alternatives.routes.map(route => route.legs.flatMap(leg => leg.steps.flatMap(step => step.path.map(point => ({ lat: point.lat(), lng: point.lng() })))))
+      const index = pickAvoidingRoute(paths, avoid)
+      if (index >= 0) {
+        const chosen = alternatives.routes[index]!
+        const later = targets.slice(1)
+        const onward = later.length > 0
+          ? await service.route({
+            origin: asLocation(first),
+            destination: asLocation(later[later.length - 1]!),
+            waypoints: later.slice(0, -1).map(stop => ({ location: asLocation(stop), stopover: true })),
+            optimizeWaypoints: false,
+            travelMode: google.maps.TravelMode.DRIVING,
+            drivingOptions,
+          })
+          : null
+        const legs = [chosen.legs[0]!, ...(onward?.routes[0]?.legs ?? [])]
+        return { result: { ...alternatives, routes: [{ ...chosen, legs }] }, valid, legBase: startIndex, fromHere: true, avoided: true }
+      }
+    }
+
+    const result = await service.route({
       origin: from ?? asLocation(targets[0]!),
       destination: asLocation(rest[rest.length - 1]!),
       waypoints: rest.slice(0, -1).map(stop => ({ location: asLocation(stop), stopover: true })),
       optimizeWaypoints: false, // Already optimized by our engine
       travelMode: google.maps.TravelMode.DRIVING,
-      drivingOptions: { departureTime: departure, trafficModel: google.maps.TrafficModel.BEST_GUESS },
+      drivingOptions,
     })
-    return { result, valid, legBase: from ? startIndex : 1, fromHere: Boolean(from) }
+    return { result, valid, legBase: from ? startIndex : 1, fromHere: Boolean(from), ...(from && avoid.length > 0 ? { avoided: false } : {}) }
   }
 
   const applyRoute = ({ result, valid, legBase, fromHere }: BuiltRoute, { silent = false }: { silent?: boolean } = {}) => {
@@ -678,23 +780,6 @@ export default function DriverMapNavigation({
     return () => window.removeEventListener('keydown', onKey)
   }, [exitAction])
 
-  const moveDriverMarker = useCallback((to: Point) => {
-    const marker = driverMarkerRef.current
-    const from = marker?.getPosition()
-    if (!marker || !from) return
-    if (driverAnimRef.current !== null) cancelAnimationFrame(driverAnimRef.current)
-
-    const startLat = from.lat()
-    const startLng = from.lng()
-    const startedAt = performance.now()
-    const tick = (now: number) => {
-      const t = Math.min(1, (now - startedAt) / MARKER_GLIDE_MS)
-      marker.setPosition({ lat: startLat + (to.lat - startLat) * t, lng: startLng + (to.lng - startLng) * t })
-      driverAnimRef.current = t < 1 ? requestAnimationFrame(tick) : null
-    }
-    driverAnimRef.current = requestAnimationFrame(tick)
-  }, [])
-
   const spokenDistance = (meters: number): string => {
     if (meters < 305) return `${Math.max(50, Math.round((meters * 3.28084) / 50) * 50)} feet`
     const miles = meters / 1609.344
@@ -797,8 +882,6 @@ export default function DriverMapNavigation({
 
     const moved = headingFromMovement(lastRawRef.current, rawPos)
     if (!lastRawRef.current || moved !== null) lastRawRef.current = rawPos
-    const heading = reportedHeading ?? moved
-    if (heading !== null && (speed ?? 1) > 0.5) headingRef.current = smoothHeading(headingRef.current, heading)
 
     // Where the driver is on the planned route, so the marker sits on the road and progress is exact.
     let pos = rawPos
@@ -819,11 +902,17 @@ export default function DriverMapNavigation({
     }
     setCurrentDriverPos(pos)
 
-    const headingUp = Boolean(MAP_ID) && followRef.current && nav.isNavigating
-    const rotation = headingUp ? 0 : headingRef.current ?? 0
-    if (driverMarkerRef.current) {
-      moveDriverMarker(pos)
-    } else if (map) {
+    // The camera loop animates the marker and the map; this only tells it where the car is and which way the road points.
+    const speedValue = speed ?? 0
+    const onRoute = along !== null && distanceFromPath <= Math.max(30, accuracy ?? 0)
+    if (speedValue > 1) {
+      const roadHeading = onRoute && plan && along !== null ? routeHeadingAt(plan, along) : null
+      headingTargetRef.current = roadHeading ?? reportedHeading ?? moved ?? headingTargetRef.current
+    }
+    const heading = headingTargetRef.current
+    fixStateRef.current = { pos, along: onRoute ? along : null, speed: extra.simulated ? 0 : speedValue, heading, at: now }
+
+    if (!driverMarkerRef.current && map) {
       driverMarkerRef.current = new google.maps.Marker({
         position: pos,
         map,
@@ -835,40 +924,32 @@ export default function DriverMapNavigation({
           fillOpacity: 1,
           strokeWeight: 2,
           strokeColor: '#FFFFFF',
-          rotation,
+          rotation: heading ?? 0,
         },
         zIndex: 200,
       })
     }
-    if (driverMarkerRef.current) {
-      const icon = driverMarkerRef.current.getIcon() as google.maps.Symbol
-      if (icon && icon.rotation !== rotation) {
-        icon.rotation = rotation
-        driverMarkerRef.current.setIcon(icon)
-      }
-    }
 
     let metersToManeuver: number | null = null
+    alongRef.current = onRoute ? along : null
     if (along !== null) {
       metersToManeuver = updateGuidance(along, speed)
 
       // A single stray fix never counts: the detector needs several, or one clear departure.
-      // Standing still or parking at the stop is never "off route".
+      // Standing still or parking at a stop says nothing about the route, so those fixes leave the state alone.
       const target = resolvedStopsRef.current[nav.currentStopIndex]
       const atStop = isPoint(target) && metersBetween(rawPos, target) < arrivalRadius(target.type)
       const moving = speed === null || speed > 2
-      let state: 'on' | 'suspect' | 'off' = 'on'
       if (moving && !atStop) {
-        state = offRouteDetectorRef.current.update({ distanceFromPath, accuracyMeters: accuracy, at: now })
+        const state = offRouteDetectorRef.current.update({ distanceFromPath, accuracyMeters: accuracy, at: now })
+        if (state !== offRouteStateRef.current) {
+          offRouteStateRef.current = state
+          if (state === 'on') setRerouteFailed(false)
+        }
+        offRouteHandlerRef.current(rawPos, distanceFromPath, speed, now, state)
       } else {
         offRouteDetectorRef.current.reset()
       }
-      if (state !== offRouteStateRef.current) {
-        offRouteStateRef.current = state
-        setOffRoute(state)
-        if (state === 'on') setRerouteFailed(false)
-      }
-      if (state === 'off') void rerouteRef.current(rawPos)
     }
 
     // Suggest "you have arrived" once the driver has been inside the stop's zone and slow for a few seconds.
@@ -891,29 +972,16 @@ export default function DriverMapNavigation({
       setLiveStats(prev => (prev.speedMph === mph && prev.accuracy === acc ? prev : { speedMph: mph, accuracy: acc }))
     }
 
-    // Camera: zoom to what the driver needs to read, and look ahead of the car instead of centring on it.
-    if (map && followRef.current) {
-      const target = nav.isNavigating ? adaptiveZoom({ speedMps: speed ?? 0, metersToManeuver }) : 16
-      const current = lastZoomRef.current ?? map.getZoom() ?? 10
-      if (target !== current && now >= userZoomUntilRef.current && (lastZoomRef.current === null || now - lastZoomAtRef.current > ZOOM_CHANGE_GAP_MS)) {
-        lastZoomRef.current = target
-        lastZoomAtRef.current = now
-        map.setZoom(target)
-      }
-      const zoom = lastZoomRef.current ?? current
-      const bearing = headingRef.current
-      const lookAhead = nav.isNavigating && bearing !== null && (speed ?? 0) > 1.5 ? (zoom >= 18 ? 40 : zoom >= 17 ? 90 : zoom >= 16 ? 180 : 350) : 0
-      map.panTo(lookAhead && bearing !== null ? offsetAhead(pos, bearing, lookAhead) : pos)
-      if (MAP_ID && nav.isNavigating && bearing !== null) {
-        map.setHeading(bearing)
-        map.setTilt(45)
-      }
-    }
+    // Zoom for what the driver needs to read; the governor stops speed wobble from pumping the map in and out.
+    zoomTargetRef.current = zoomGovernorRef.current.update(
+      nav.isNavigating ? adaptiveZoom({ speedMps: speedValue, metersToManeuver }) : 16,
+      now,
+    )
 
     const fix: DriverFix = {
       lat: rawPos.lat,
       lng: rawPos.lng,
-      heading,
+      heading: reportedHeading ?? moved,
       speedMps: extra.speedMps ?? null,
       accuracyMeters: accuracy,
       at: now,
@@ -921,7 +989,70 @@ export default function DriverMapNavigation({
     }
     latestFixRef.current = fix
     onPositionRef.current?.(fix)
-  }, [moveDriverMarker, updateGuidance])
+  }, [updateGuidance])
+
+  // One animation loop moves the marker and the camera together, so the car stays put on screen while the map turns under it.
+  useEffect(() => {
+    if (!mapReady || !mapContainerRef.current) return
+    const container = mapContainerRef.current
+    viewportHeightRef.current = container.clientHeight || 600
+    const observer = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(() => { viewportHeightRef.current = container.clientHeight || 600 }) : null
+    observer?.observe(container)
+
+    let frame = 0
+    let last = performance.now()
+    const tick = (now: number) => {
+      frame = requestAnimationFrame(tick)
+      const dt = now - last
+      if (dt < FRAME_MS) return
+      last = now
+
+      const map = mapRef.current
+      const marker = driverMarkerRef.current
+      const fix = fixStateRef.current
+      if (!map || !marker || !fix) return
+
+      // Between one-second GPS fixes, keep moving along the road at the last known speed.
+      const plan = planRef.current
+      let predicted: Point = fix.pos
+      if (fix.speed > 1) {
+        const ahead = (fix.speed * Math.min(Date.now() - fix.at, MAX_PREDICT_MS)) / 1000
+        const onPlan = fix.along !== null && plan ? positionAt(plan, fix.along + ahead) : null
+        predicted = onPlan ?? (fix.heading !== null ? offsetAhead(fix.pos, fix.heading, ahead) : fix.pos)
+      }
+
+      const heading = fix.heading ?? cameraRef.current?.heading ?? 0
+      const target: CameraState = { lat: predicted.lat, lng: predicted.lng, heading, zoom: zoomTargetRef.current }
+      const zoomHeld = Date.now() < userZoomUntilRef.current
+      const previous = cameraRef.current ?? target
+      const next = stepCamera(zoomHeld ? { ...previous, zoom: map.getZoom() ?? previous.zoom } : previous, target, Math.min(dt, 200))
+      cameraRef.current = next
+      marker.setPosition({ lat: next.lat, lng: next.lng })
+
+      const mapHeading = MAP_ID ? map.getHeading() ?? 0 : 0
+      const rotation = Math.round(((next.heading - mapHeading) % 360 + 360) % 360)
+      const icon = marker.getIcon() as google.maps.Symbol | null
+      if (icon && Math.abs(((icon.rotation ?? 0) - rotation + 540) % 360 - 180) >= 2) {
+        icon.rotation = rotation
+        marker.setIcon(icon)
+      }
+
+      if (followRef.current && navStateRef.current.isNavigating) {
+        const zoom = zoomHeld ? map.getZoom() ?? next.zoom : next.zoom
+        const ahead = metersPerPixel(next.lat, zoom) * viewportHeightRef.current * (MAP_ID ? 0.18 : 0.1)
+        map.moveCamera({
+          center: offsetAhead(next, next.heading, ahead),
+          ...(zoomHeld ? {} : { zoom: MAP_ID ? zoom : Math.round(zoom) }),
+          ...(MAP_ID ? { heading: next.heading, tilt: 45 } : {}),
+        })
+      }
+    }
+    frame = requestAnimationFrame(tick)
+    return () => {
+      cancelAnimationFrame(frame)
+      observer?.disconnect()
+    }
+  }, [mapReady])
 
   const startGPSTracking = useCallback(() => {
     if (!navigator.geolocation) {
@@ -947,10 +1078,6 @@ export default function DriverMapNavigation({
     if (watchIdRef.current !== null) {
       navigator.geolocation.clearWatch(watchIdRef.current)
       watchIdRef.current = null
-    }
-    if (driverAnimRef.current !== null) {
-      cancelAnimationFrame(driverAnimRef.current)
-      driverAnimRef.current = null
     }
   }, [])
 
@@ -1084,15 +1211,22 @@ export default function DriverMapNavigation({
     traveledIndexRef.current = -1
     announcedRef.current.clear()
     userZoomUntilRef.current = 0
+    zoomGovernorRef.current.reset()
+    cameraRef.current = null
+    fixStateRef.current = null
     offRouteDetectorRef.current.reset()
     offRouteStateRef.current = 'on'
     arrivalWatcherRef.current.reset()
     suggestedForRef.current = null
-    setOffRoute('on')
     setRerouteFailed(false)
     setFasterRoute(null)
     setArrivalPrompt(null)
     setArrivalSuggestion(null)
+    deviationRef.current = null
+    breakUntilRef.current = null
+    closuresRef.current = []
+    setDeviation(null)
+    setBreakMode(false)
     traveledLineRef.current?.setPath([])
   }
 
@@ -1173,10 +1307,13 @@ export default function DriverMapNavigation({
     stopGPSTracking()
     setArrivalPrompt(null)
     setArrivalSuggestion(null)
-    setOffRoute('on')
     setFasterRoute(null)
+    finishDeviation('still_off')
+    endBreak()
+    closuresRef.current = []
     mapRef.current?.setTilt(0)
     mapRef.current?.setHeading(0)
+    if (resumeTimerRef.current) clearTimeout(resumeTimerRef.current)
     toast('Navigation stopped', 'info')
   }
 
@@ -1189,6 +1326,9 @@ export default function DriverMapNavigation({
     arrivalWatcherRef.current.reset()
     setArrivalPrompt(null)
     setArrivalSuggestion(null)
+    // Reaching a stop closes any open departure from the route.
+    finishDeviation('returned')
+    endBreak()
 
     const completed = [...prev.completedStops, idx]
     const nextLeg = Math.min(prev.currentLeg + 1, routeSegments.length - 1)
@@ -1267,26 +1407,112 @@ export default function DriverMapNavigation({
   const resetGuidanceAfterReroute = () => {
     offRouteDetectorRef.current.reset()
     offRouteStateRef.current = 'on'
-    setOffRoute('on')
     setRerouteFailed(false)
   }
 
+  // Every departure from the planned route is recorded with its reason, so a dispatcher can tell a closed road from a lunch stop.
+  const emitDeviation = (event: DeviationEvent) => {
+    if (!simRef.current) onDeviationRef.current?.(event)
+  }
+
+  const startDeviation = (pos: Point, distance: number, now: number) => {
+    const record = { id: crypto.randomUUID(), startedAt: now, reason: 'unspecified' as DeviationReason, maxDistance: distance, lat: pos.lat, lng: pos.lng }
+    deviationRef.current = record
+    setDeviation({ reason: record.reason, distance })
+    emitDeviation({ id: record.id, startedAt: now, reason: record.reason, maxDistanceMeters: Math.round(distance), lat: pos.lat, lng: pos.lng })
+    speakRef.current('You have left the planned route.')
+    return record
+  }
+
+  const finishDeviation = (resolution: NonNullable<DeviationEvent['resolution']>, addedMinutes?: number) => {
+    const record = deviationRef.current
+    if (!record) return
+    deviationRef.current = null
+    setDeviation(null)
+    emitDeviation({
+      id: record.id,
+      startedAt: record.startedAt,
+      endedAt: Date.now(),
+      reason: record.reason,
+      resolution,
+      maxDistanceMeters: Math.round(record.maxDistance),
+      ...(addedMinutes !== undefined ? { addedMinutes } : {}),
+      lat: record.lat,
+      lng: record.lng,
+    })
+  }
+
+  const setDeviationReason = (reason: DeviationReason) => {
+    const record = deviationRef.current
+    if (!record) return
+    record.reason = reason
+    setDeviation(current => (current ? { ...current, reason } : current))
+    emitDeviation({ id: record.id, startedAt: record.startedAt, reason, maxDistanceMeters: Math.round(record.maxDistance), lat: record.lat, lng: record.lng })
+  }
+
+  const endBreak = () => {
+    breakUntilRef.current = null
+    setBreakMode(false)
+  }
+
+  // Called for each confirmed fix while the car is moving: decides whether to wait, hold, or rebuild the route.
+  offRouteHandlerRef.current = (pos, distance, speed, now, state) => {
+    if (state === 'off') {
+      const record = deviationRef.current ?? startDeviation(pos, distance, now)
+      record.maxDistance = Math.max(record.maxDistance, distance)
+      setDeviation(current => (current && Math.abs(current.distance - distance) < 50 ? current : { reason: record.reason, distance }))
+      const action = decideOffRoute({ now, startedAt: record.startedAt, distanceMeters: distance, speedMps: speed, breakUntil: breakUntilRef.current, reason: record.reason })
+      if (action === 'reroute') {
+        const resuming = breakUntilRef.current !== null
+        if (resuming) endBreak()
+        void rerouteFromHere(pos, resuming ? 'resume' : 'off_route')
+      }
+      return
+    }
+    if (state === 'on' && deviationRef.current) {
+      const wasBreak = breakUntilRef.current !== null
+      if (wasBreak) endBreak()
+      finishDeviation(wasBreak ? 'break_ended' : 'returned')
+      toast('Back on the optimized route', 'success')
+    }
+  }
+
   // Re-routing keeps the same stops in the same order and recalculates only the road from where the driver is now.
-  const rerouteFromHere = async (from: Point, reason: 'off_route' | 'faster' = 'off_route') => {
+  const rerouteFromHere = async (from: Point, reason: 'off_route' | 'faster' | 'blocked' | 'resume' = 'off_route') => {
     if (rerouteBusyRef.current || !navStateRef.current.isNavigating) return
     const now = Date.now()
     if (now - lastRerouteAtRef.current < REROUTE_COOLDOWN_MS) return
     lastRerouteAtRef.current = now
     rerouteBusyRef.current = true
     setRerouting(true)
-    if (!rerouteFailed && reason === 'off_route') speakRef.current('Off route. Recalculating.')
     try {
-      const built = await requestRoute(from, navStateRef.current.currentStopIndex)
+      const built = await requestRoute(from, navStateRef.current.currentStopIndex, activeClosures(closuresRef.current, Date.now()))
       if (!built) throw new Error('No route found')
+
+      if (reason === 'blocked' && built.avoided === false) {
+        toast('No other road around the closure was found. The route is unchanged.', 'warning')
+        speakRef.current('No way around the closure was found.')
+        setRerouteFailed(false)
+        if (offRouteStateRef.current !== 'off') finishDeviation('still_off')
+        return
+      }
+
+      const legs = built.result.routes[0]?.legs ?? []
+      const newSeconds = legs.reduce((sum, leg) => sum + legSeconds(leg), 0)
+      const detour = describeDetour(newSeconds, progressRef.current.remainingSeconds)
+      const addedMinutes = Math.round((newSeconds - progressRef.current.remainingSeconds) / 60)
       applyRoute(built)
       resetGuidanceAfterReroute()
-      speakRef.current(reason === 'faster' ? 'Switched to the faster route.' : 'New route found.')
-      toast(reason === 'faster' ? 'Switched to the faster route' : 'Route recalculated from your position', 'success')
+
+      if (reason === 'faster') {
+        speakRef.current('Switched to the faster route.')
+        toast('Switched to the faster route', 'success')
+      } else {
+        const lead = reason === 'blocked' ? 'Found a way around the closure' : 'New route found'
+        speakRef.current(`${lead}. It ${detour.replace(/ min$/, ' minutes')}.`)
+        toast(`${lead}: ${detour}`, 'success')
+        finishDeviation(reason === 'resume' ? 'break_ended' : 'rerouted', addedMinutes)
+      }
     } catch (error) {
       console.error('Re-route failed:', error)
       setRerouteFailed(true)
@@ -1297,11 +1523,44 @@ export default function DriverMapNavigation({
   }
   rerouteRef.current = (from: Point) => rerouteFromHere(from)
 
-  const recalculateNow = (reason: 'off_route' | 'faster' = 'off_route') => {
+  const recalculateNow = (reason: 'off_route' | 'faster' | 'blocked' | 'resume' = 'off_route') => {
     const latest = latestFixRef.current
     if (!latest) return
     lastRerouteAtRef.current = 0
     void rerouteFromHere({ lat: latest.lat, lng: latest.lng }, reason)
+  }
+
+  // "Personal stop": the driver is choosing to go elsewhere for a while, so guidance and alerts pause instead of nagging.
+  const startBreak = () => {
+    if (!deviationRef.current) return
+    breakUntilRef.current = Date.now() + BREAK_MAX_MS
+    setBreakMode(true)
+    setDeviationReason('personal_stop')
+    speakRef.current('Guidance paused for your stop.')
+  }
+
+  const resumeFromBreak = () => {
+    endBreak()
+    recalculateNow('resume')
+  }
+
+  // "Road blocked": remembers the closure ahead and finds another way to the next stop that avoids it.
+  const reportBlocked = () => {
+    const latest = latestFixRef.current
+    const fix = fixStateRef.current
+    if (!latest || !fix) {
+      toast('Waiting for a GPS position', 'warning')
+      return
+    }
+    const plan = planRef.current
+    const along = alongRef.current
+    const ahead = along !== null && plan ? positionAt(plan, along + 300) : null
+    const point: Point = ahead ?? offsetAhead({ lat: latest.lat, lng: latest.lng }, fix.heading ?? 0, 300)
+    closuresRef.current = [...closuresRef.current, { point, until: Date.now() + CLOSURE_MS }]
+    if (breakUntilRef.current !== null) endBreak()
+    if (!deviationRef.current) startDeviation({ lat: latest.lat, lng: latest.lng }, 0, Date.now())
+    setDeviationReason('road_blocked')
+    recalculateNow('blocked')
   }
 
   // Every few minutes, check whether traffic made a quicker way. Nothing changes unless the driver accepts.
@@ -1311,7 +1570,7 @@ export default function DriverMapNavigation({
     if (!nav.isNavigating || simRef.current || rerouteBusyRef.current || offRouteStateRef.current !== 'on' || document.hidden) return
     if (!latest || latest.simulated || Date.now() - latest.at > FIX_FRESH_MS) return
     try {
-      const built = await requestRoute({ lat: latest.lat, lng: latest.lng }, nav.currentStopIndex)
+      const built = await requestRoute({ lat: latest.lat, lng: latest.lng }, nav.currentStopIndex, activeClosures(closuresRef.current, Date.now()))
       const legs = built?.result.routes[0]?.legs ?? []
       if (!built || legs.length === 0 || !navStateRef.current.isNavigating) return
       const newSeconds = legs.reduce((sum, leg) => sum + legSeconds(leg), 0)
@@ -1339,10 +1598,10 @@ export default function DriverMapNavigation({
   const focusStop = (index: number) => {
     const resolved = resolvedStopsRef.current[index] ?? stops[index]
     if (!mapRef.current || !isPoint(resolved)) return
-    setFollow(false)
+    if (navStateRef.current.isNavigating) holdFollowOff(20_000)
+    else setFollow(false)
     mapRef.current.panTo({ lat: resolved.lat, lng: resolved.lng })
     mapRef.current.setZoom(15)
-    lastZoomRef.current = 15
   }
 
   // A re-plan replaces the stop list, so progress restarts from the new first leg.
@@ -1390,10 +1649,11 @@ export default function DriverMapNavigation({
     if (!mapRef.current) return
     setFollow(true)
     userZoomUntilRef.current = 0
+    // While driving the camera loop takes the map back to the car by itself.
+    if (navStateRef.current.isNavigating && fixStateRef.current) return
     if (currentDriverPos) {
       mapRef.current.panTo(currentDriverPos)
       mapRef.current.setZoom(16)
-      lastZoomRef.current = 16
     } else if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         (pos) => {
@@ -1401,7 +1661,6 @@ export default function DriverMapNavigation({
           setCurrentDriverPos(loc)
           mapRef.current?.panTo(loc)
           mapRef.current?.setZoom(16)
-          lastZoomRef.current = 16
         },
         () => toast('Could not get location', 'warning')
       )
@@ -1471,7 +1730,7 @@ export default function DriverMapNavigation({
       {/* ── Map Container ───────────────────────────────────────── */}
       <div
         ref={mapContainerRef}
-        className={`w-full ${isFullscreen ? 'h-full' : height} rounded-lg overflow-hidden border border-gray-200`}
+        className={`w-full ${isFullscreen ? 'h-full' : height} ${onClose ? '' : 'rounded-lg border border-gray-200'} overflow-hidden`}
       />
 
       {/* ── Map Loading ─────────────────────────────────────────── */}
@@ -1503,8 +1762,8 @@ export default function DriverMapNavigation({
           {/* ── Top Bar: Route Summary ──────────────────────────── */}
           {routeLoaded && (
             <div
-              className={`absolute left-3 z-10 ${exitAction ? 'right-[5.5rem]' : 'right-3'}`}
-              style={{ top: 'calc(0.75rem + env(safe-area-inset-top))' }}
+              className={`absolute z-10 ${exitAction ? 'right-[5.5rem]' : 'right-3'}`}
+              style={{ top: 'calc(0.75rem + env(safe-area-inset-top))', left: 'calc(0.75rem + env(safe-area-inset-left))', ...(exitAction ? {} : { right: 'calc(0.75rem + env(safe-area-inset-right))' }) }}
             >
               {/* Navigation Instruction Banner */}
               {navState.isNavigating && navState.nextInstruction && (
@@ -1525,22 +1784,42 @@ export default function DriverMapNavigation({
                 </div>
               )}
 
-              {/* Off route: the driver is told straight away, and the route is rebuilt from where they are */}
-              {navState.isNavigating && offRoute === 'off' && (
-                <div role="alert" className="mb-2 flex items-center gap-2 rounded-lg bg-red-600 px-3 py-2.5 text-white shadow-lg">
-                  <AlertTriangle className="h-5 w-5 shrink-0" />
-                  <p className="min-w-0 flex-1 text-sm font-semibold">
-                    {rerouting ? 'Off route. Recalculating...' : rerouteFailed ? 'You are off the planned route. Could not recalculate.' : 'Off route.'}
-                  </p>
+              {/* Paused for a personal stop: no alerts, no rerouting, until the driver resumes or rejoins the route */}
+              {navState.isNavigating && breakMode && (
+                <div className="mb-2 flex items-center gap-2 rounded-lg bg-slate-700 px-3 py-2.5 text-white shadow-lg">
+                  <Coffee className="h-5 w-5 shrink-0" />
+                  <p className="min-w-0 flex-1 text-sm font-semibold">Guidance paused for your stop.{trackingStatus?.state === 'on' ? ' Your dispatcher can see this.' : ''}</p>
+                  <button type="button" onClick={resumeFromBreak} className="h-9 shrink-0 rounded-md bg-white px-3 text-xs font-bold text-slate-800">Resume route</button>
+                </div>
+              )}
+
+              {/* Off the optimized route: say so plainly, then let the driver say why instead of guessing */}
+              {navState.isNavigating && !breakMode && deviation && (
+                <div role="alert" className={`mb-2 rounded-lg px-3 py-2.5 text-white shadow-lg ${rerouting || rerouteFailed ? 'bg-red-600' : 'bg-amber-600'}`}>
+                  <div className="flex items-start gap-2">
+                    <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0" />
+                    <p className="min-w-0 flex-1 text-sm font-semibold">
+                      {rerouting
+                        ? 'Recalculating your route...'
+                        : rerouteFailed
+                          ? `Could not recalculate. You are ${describeDistance(deviation.distance)} off the optimized route.`
+                          : deviation.reason === 'road_blocked'
+                            ? 'Closure noted. Looking for another way...'
+                            : `You are ${describeDistance(deviation.distance)} off the optimized route. A new route follows if you keep going.`}
+                      {!rerouting && trackingStatus?.state === 'on' ? ' Your dispatcher can see this.' : ''}
+                    </p>
+                  </div>
                   {!rerouting && (
-                    <button type="button" onClick={() => recalculateNow()} className="h-9 shrink-0 rounded-md bg-white px-3 text-xs font-bold text-red-700">
-                      {rerouteFailed ? 'Try again' : 'Recalculate'}
-                    </button>
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      <button type="button" onClick={() => recalculateNow()} className="h-9 rounded-md bg-white px-3 text-xs font-bold text-gray-900">{rerouteFailed ? 'Try again' : 'Recalculate now'}</button>
+                      <button type="button" onClick={reportBlocked} className="h-9 rounded-md bg-white/20 px-3 text-xs font-bold">Road blocked</button>
+                      <button type="button" onClick={startBreak} className="h-9 rounded-md bg-white/20 px-3 text-xs font-bold">Personal stop</button>
+                    </div>
                   )}
                 </div>
               )}
 
-              {navState.isNavigating && offRoute !== 'off' && fasterRoute && (
+              {navState.isNavigating && !deviation && !breakMode && fasterRoute && (
                 <div className="mb-2 flex items-center gap-2 rounded-lg bg-emerald-600 px-3 py-2.5 text-white shadow-lg">
                   <Zap className="h-5 w-5 shrink-0" />
                   <p className="min-w-0 flex-1 text-sm font-semibold">Faster route found: saves about {fasterRoute.minutes} min</p>
@@ -1550,7 +1829,7 @@ export default function DriverMapNavigation({
               )}
 
               {/* Behind-schedule nudge */}
-              {navState.isNavigating && behindSchedule && offRoute !== 'off' && (
+              {navState.isNavigating && behindSchedule && !deviation && (
                 <div className="mb-2 flex items-center gap-2 rounded-lg bg-amber-500 px-3 py-2.5 text-gray-900 shadow-lg">
                   <Clock className="h-5 w-5 shrink-0" />
                   <p className="min-w-0 flex-1 text-sm font-semibold">About {minutesBehind} min behind schedule for the next stop</p>
@@ -1647,13 +1926,31 @@ export default function DriverMapNavigation({
                 onClick={() => setIsFullscreen(p => !p)}
               />
             )}
+            {onClose && fullscreenSupported && (
+              <MapControlButton
+                icon={deviceFullscreen ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
+                title={deviceFullscreen ? 'Leave full screen' : 'Hide the browser bars'}
+                onClick={() => void (deviceFullscreen ? exitFullscreen() : enterFullscreen())}
+                active={deviceFullscreen}
+              />
+            )}
           </div>
 
           {/* ── Bottom Panel ────────────────────────────────────── */}
           <div
-            className="absolute left-3 right-3 z-10"
-            style={{ bottom: 'calc(0.75rem + env(safe-area-inset-bottom))' }}
+            className="absolute z-10"
+            style={{ bottom: 'calc(0.75rem + env(safe-area-inset-bottom))', left: 'calc(0.75rem + env(safe-area-inset-left))', right: 'calc(0.75rem + env(safe-area-inset-right))' }}
           >
+            {/* Back to the car after looking around the map */}
+            {navState.isNavigating && !following && (
+              <div className="mb-2 flex justify-end">
+                <button type="button" onClick={recenterMap} className="flex h-11 items-center gap-2 rounded-full bg-gray-900 px-4 text-sm font-bold text-white shadow-lg ring-1 ring-white/30">
+                  <Locate className="h-4 w-4 text-amber-400" />
+                  Re-center
+                </button>
+              </div>
+            )}
+
             {/* Benji Tip (floating) */}
             {showBenjiPanel && benjiTips.length > 0 && (
               <div className="bg-amber-50/95 backdrop-blur border border-amber-200 rounded-lg p-3 mb-2 shadow-md">
@@ -1781,6 +2078,17 @@ export default function DriverMapNavigation({
                 </div>
               )
             })()}
+
+            {/* Add a shipment on the road */}
+            {addingShipment && onAddShipment && (
+              <AddShipmentSheet
+                onClose={() => setAddingShipment(false)}
+                onSubmit={async drafts => {
+                  const summary = await onAddShipment(drafts)
+                  toast(summary || 'Shipment added', 'success')
+                }}
+              />
+            )}
 
             {/* Export to Google Maps: split into links Google will accept */}
             {exportParts && (
@@ -1931,6 +2239,29 @@ export default function DriverMapNavigation({
                   >
                     <Zap className="h-3.5 w-3.5" />
                     {replanning ? 'Re-planning...' : 'Re-plan'}
+                  </button>
+                )}
+
+                {navState.isNavigating && !simulation && !deviation && (
+                  <button
+                    type="button"
+                    onClick={reportBlocked}
+                    title="Report a closure ahead and find another way"
+                    className="flex items-center gap-1.5 px-3 py-2 rounded-md text-xs font-medium text-gray-600 hover:bg-gray-100 transition-colors"
+                  >
+                    <AlertTriangle className="h-3.5 w-3.5" />
+                    Road blocked
+                  </button>
+                )}
+
+                {onAddShipment && navState.isNavigating && !simulation && (
+                  <button
+                    type="button"
+                    onClick={() => setAddingShipment(open => !open)}
+                    className={`flex items-center gap-1.5 px-3 py-2 rounded-md text-xs font-medium transition-colors ${addingShipment ? 'bg-amber-50 text-amber-700' : 'text-gray-600 hover:bg-gray-100'}`}
+                  >
+                    <Package className="h-3.5 w-3.5" />
+                    Add shipment
                   </button>
                 )}
 

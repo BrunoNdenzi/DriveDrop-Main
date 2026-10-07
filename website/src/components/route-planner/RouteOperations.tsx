@@ -55,6 +55,22 @@ function arrivalBadge(arrival: StopProgress['arrival'], status: StopProgress['st
   return { text: `Confirmed away from stop${distance}: ${reason}${arrival.overrideNote ? ` — ${arrival.overrideNote}` : ''}`, tone: 'text-red-700' }
 }
 
+const DEVIATION_LABELS: Record<string, string> = {
+  unspecified: 'No reason given',
+  road_blocked: 'Road blocked',
+  personal_stop: 'Personal stop',
+  traffic: 'Traffic',
+  customer_request: 'Customer request',
+  other: 'Other',
+}
+
+const RESOLUTION_LABELS: Record<string, string> = {
+  returned: 'Rejoined the route',
+  rerouted: 'Route recalculated',
+  break_ended: 'Resumed after a stop',
+  still_off: 'Run ended off route',
+}
+
 interface RouteExecution {
   id: string
   route_id: string
@@ -76,6 +92,8 @@ interface RouteReport {
   completedStops: number
   skippedStops: number
   arrivals?: { verified: number; overridden: number; unverified: number }
+  deviations?: Array<{ id: string; startedAt: string; endedAt?: string; reason: string; resolution?: string; maxDistanceMeters?: number; addedMinutes?: number }>
+  deviationSummary?: { count: number; totalMinutes: number }
   stopAnalysis: Array<StopProgress & { arrivalVarianceMinutes: number | null; onTime: boolean | null }>
 }
 
@@ -287,7 +305,7 @@ export default function RouteOperations({ routes, onRoutesChanged }: Props) {
         </section>
       )}
 
-      {report && <section className="border border-[#c6d4d2] bg-white p-5"><h2 className="font-semibold">Planned vs actual</h2><div className="mt-4 grid gap-3 sm:grid-cols-4"><ReportMetric label="Planned miles" value={report.plannedDistanceMiles.toFixed(1)} /><ReportMetric label="Actual miles" value={report.actualDistanceMiles?.toFixed(1) ?? 'Pending'} /><ReportMetric label="Planned minutes" value={String(Math.round(report.plannedDurationMinutes))} /><ReportMetric label="Actual minutes" value={report.actualDurationMinutes === null ? 'Pending' : String(report.actualDurationMinutes)} /></div>{report.arrivals && <p className="mt-3 text-xs text-[#617775]">Arrival checks: <span className="font-semibold text-emerald-700">{report.arrivals.verified} verified</span> · <span className={report.arrivals.overridden ? 'font-semibold text-red-700' : ''}>{report.arrivals.overridden} confirmed away from the stop</span> · {report.arrivals.unverified} not verified</p>}<div className="mt-4 space-y-2">{report.stopAnalysis.map(stop => { const badge = arrivalBadge(stop.arrival, stop.status); return <div key={stop.stopId} className="flex items-center justify-between gap-3 border-t border-[#e1e9e7] pt-2 text-sm"><span className="min-w-0"><span className="block">{stop.name || stop.address}</span>{badge && <span className={`block text-xs ${badge.tone}`}>{badge.text}</span>}</span><span className={stop.onTime === false ? 'shrink-0 font-semibold text-red-700' : 'shrink-0 text-[#617775]'}>{stop.arrivalVarianceMinutes === null ? 'No actual arrival' : `${stop.arrivalVarianceMinutes > 0 ? '+' : ''}${stop.arrivalVarianceMinutes} min`}</span></div> })}</div></section>}
+      {report && <section className="border border-[#c6d4d2] bg-white p-5"><h2 className="font-semibold">Planned vs actual</h2><div className="mt-4 grid gap-3 sm:grid-cols-4"><ReportMetric label="Planned miles" value={report.plannedDistanceMiles.toFixed(1)} /><ReportMetric label="Actual miles" value={report.actualDistanceMiles?.toFixed(1) ?? 'Pending'} /><ReportMetric label="Planned minutes" value={String(Math.round(report.plannedDurationMinutes))} /><ReportMetric label="Actual minutes" value={report.actualDurationMinutes === null ? 'Pending' : String(report.actualDurationMinutes)} /></div>{report.arrivals && <p className="mt-3 text-xs text-[#617775]">Arrival checks: <span className="font-semibold text-emerald-700">{report.arrivals.verified} verified</span> · <span className={report.arrivals.overridden ? 'font-semibold text-red-700' : ''}>{report.arrivals.overridden} confirmed away from the stop</span> · {report.arrivals.unverified} not verified</p>}{report.deviations && report.deviations.length > 0 && <div className="mt-4 border-t border-[#e1e9e7] pt-3"><p className="text-xs font-semibold text-[#173435]">Left the planned route {report.deviationSummary?.count ?? report.deviations.length} time{(report.deviationSummary?.count ?? report.deviations.length) === 1 ? '' : 's'}{report.deviationSummary ? `, ${report.deviationSummary.totalMinutes} min in total` : ''}</p><ul className="mt-2 space-y-1">{report.deviations.map(item => <li key={item.id} className="text-xs text-[#617775]"><span className="font-semibold text-[#173435]">{new Date(item.startedAt).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}</span> · {DEVIATION_LABELS[item.reason] ?? item.reason}{item.maxDistanceMeters !== undefined ? ` · up to ${describeDistance(item.maxDistanceMeters)} away` : ''}{item.resolution ? ` · ${RESOLUTION_LABELS[item.resolution] ?? item.resolution}` : ' · still open'}{item.addedMinutes !== undefined && item.addedMinutes !== 0 ? ` (${item.addedMinutes > 0 ? '+' : ''}${item.addedMinutes} min)` : ''}</li>)}</ul></div>}<div className="mt-4 space-y-2">{report.stopAnalysis.map(stop => { const badge = arrivalBadge(stop.arrival, stop.status); return <div key={stop.stopId} className="flex items-center justify-between gap-3 border-t border-[#e1e9e7] pt-2 text-sm"><span className="min-w-0"><span className="block">{stop.name || stop.address}</span>{badge && <span className={`block text-xs ${badge.tone}`}>{badge.text}</span>}</span><span className={stop.onTime === false ? 'shrink-0 font-semibold text-red-700' : 'shrink-0 text-[#617775]'}>{stop.arrivalVarianceMinutes === null ? 'No actual arrival' : `${stop.arrivalVarianceMinutes > 0 ? '+' : ''}${stop.arrivalVarianceMinutes} min`}</span></div> })}</div></section>}
 
       <section className="border border-[#c6d4d2] bg-white"><div className="border-b border-[#d8e2e0] px-5 py-4"><h2 className="font-semibold">Version history</h2></div><div className="divide-y divide-[#e1e9e7]">{versions.map(version => <div key={version.id} className="flex items-center gap-3 px-5 py-3"><CheckCircle className="h-4 w-4 text-[#008c82]" /><div className="flex-1"><p className="text-sm font-semibold">Version {version.version_number} · {version.change_type}</p><p className="text-xs text-[#687d7b]">{new Date(version.created_at).toLocaleString()}</p></div><button onClick={() => restore(version.version_number)} disabled={busy || version.version_number === selectedRoute?.current_version} className="h-8 border border-[#aebfbc] px-2 text-xs font-semibold disabled:opacity-30">Restore</button></div>)}</div></section>
     </div>

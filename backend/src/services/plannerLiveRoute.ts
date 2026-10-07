@@ -334,3 +334,141 @@ export function arrivalBlockMessage(record: ArrivalRecord): string | null {
   const distance = miles < 0.19 ? `${Math.round((record.distanceMeters ?? 0) * 3.28084)} ft` : `${miles.toFixed(1)} mi`;
   return `You are ${distance} from this stop. Move closer, or choose a reason to confirm the arrival anyway.`;
 }
+
+const ADDABLE_TYPES = new Set<string>(['pickup', 'delivery', 'stop']);
+
+export const DEVIATION_REASONS = ['unspecified', 'road_blocked', 'personal_stop', 'traffic', 'customer_request', 'other'] as const;
+export const DEVIATION_RESOLUTIONS = ['returned', 'rerouted', 'break_ended', 'still_off'] as const;
+export type DeviationReason = typeof DEVIATION_REASONS[number];
+export type DeviationResolution = typeof DEVIATION_RESOLUTIONS[number];
+
+export interface DeviationRecord {
+  id: string;
+  startedAt: string;
+  endedAt?: string;
+  reason: DeviationReason;
+  resolution?: DeviationResolution;
+  maxDistanceMeters?: number;
+  addedMinutes?: number;
+  latitude?: number;
+  longitude?: number;
+}
+
+const MAX_DEVIATIONS = 100;
+
+// Creates or updates one deviation by its client-chosen id, so a retried or queued request never duplicates it.
+export function upsertDeviation(existing: DeviationRecord[], id: string, body: unknown, now: Date = new Date()): DeviationRecord[] {
+  if (!/^[\w-]{1,64}$/.test(id)) throw createError('Deviation id is invalid', 400, 'INVALID_INPUT');
+  const input = (body && typeof body === 'object' ? body : {}) as Record<string, unknown>;
+  const previous = existing.find(item => item.id === id);
+
+  const date = (value: unknown, field: string): string | undefined => {
+    if (value === undefined || value === null || value === '') return undefined;
+    const parsed = new Date(String(value));
+    if (Number.isNaN(parsed.getTime())) throw createError(`${field} must be a valid date`, 400, 'INVALID_INPUT');
+    if (parsed.getTime() > now.getTime() + MAX_FUTURE_SKEW_MS) throw createError(`${field} is in the future`, 400, 'INVALID_INPUT');
+    return parsed.toISOString();
+  };
+  const choice = <T extends string>(value: unknown, allowed: readonly T[], field: string): T | undefined => {
+    if (value === undefined || value === null || value === '') return undefined;
+    if (typeof value !== 'string' || !(allowed as readonly string[]).includes(value)) throw createError(`${field} is not recognised`, 400, 'INVALID_INPUT');
+    return value as T;
+  };
+
+  const startedAt = date(input['startedAt'], 'Start time') ?? previous?.startedAt;
+  if (!startedAt) throw createError('Start time is required', 400, 'INVALID_INPUT');
+  const endedAt = date(input['endedAt'], 'End time') ?? previous?.endedAt;
+  const reason = choice(input['reason'], DEVIATION_REASONS, 'Reason') ?? previous?.reason ?? 'unspecified';
+  const resolution = choice(input['resolution'], DEVIATION_RESOLUTIONS, 'Resolution') ?? previous?.resolution;
+  const maxDistance = numberField(input['maxDistanceMeters'], 'Distance', 0, 1_000_000);
+  const added = numberField(input['addedMinutes'], 'Added minutes', -1440, 1440);
+  const latitude = numberField(input['latitude'], 'Latitude', -90, 90);
+  const longitude = numberField(input['longitude'], 'Longitude', -180, 180);
+
+  const record: DeviationRecord = {
+    id,
+    startedAt,
+    reason,
+    ...(endedAt ? { endedAt } : {}),
+    ...(resolution ? { resolution } : {}),
+    // The farthest point reached only ever grows, even if updates arrive out of order.
+    ...(maxDistance !== null || previous?.maxDistanceMeters !== undefined ? { maxDistanceMeters: Math.round(Math.max(maxDistance ?? 0, previous?.maxDistanceMeters ?? 0)) } : {}),
+    ...(added !== null ? { addedMinutes: Math.round(added) } : previous?.addedMinutes !== undefined ? { addedMinutes: previous.addedMinutes } : {}),
+    ...(latitude !== null && longitude !== null ? { latitude, longitude } : previous?.latitude !== undefined && previous.longitude !== undefined ? { latitude: previous.latitude, longitude: previous.longitude } : {}),
+  };
+  return [...existing.filter(item => item.id !== id), record].slice(-MAX_DEVIATIONS);
+}
+
+export function summarizeDeviations(deviations: DeviationRecord[]): { count: number; totalMinutes: number; byReason: Record<string, number> } {
+  const byReason: Record<string, number> = {};
+  let totalMs = 0;
+  for (const item of deviations) {
+    byReason[item.reason] = (byReason[item.reason] ?? 0) + 1;
+    if (item.endedAt) totalMs += Math.max(0, new Date(item.endedAt).getTime() - new Date(item.startedAt).getTime());
+  }
+  return { count: deviations.length, totalMinutes: Math.round(totalMs / 60_000), byReason };
+}
+
+// Turns stops added mid-run into pending progress entries and definitions, keeping each pickup tied to its delivery.
+export function buildAddedStops(input: {
+  added: RouteStop[];
+  progress: ProgressStop[];
+  planned: PlannedStop[];
+  now?: Date;
+}): { progress: ProgressStop[]; planned: PlannedStop[] } {
+  const { added, progress, planned } = input;
+  if (added.length === 0) throw createError('Add at least one stop', 400, 'INVALID_STOPS');
+
+  const takenIds = new Set([...progress.map(stop => stop.stopId), ...planned.map(stop => stop.id)]);
+  const takenShipments = new Set(planned.flatMap(stop => (stop.shipmentId ? [stop.shipmentId] : [])));
+
+  const stops = added.map(stop => ({ ...stop }));
+  for (const stop of stops) {
+    if (!ADDABLE_TYPES.has(stop.type)) throw createError('Added stops must be a pickup, a delivery, or a plain stop', 400, 'INVALID_STOPS');
+    if (takenIds.has(stop.id)) throw createError('One of the added stops already exists on this route', 409, 'DUPLICATE_STOP');
+    takenIds.add(stop.id);
+    if (stop.shipmentId && takenShipments.has(stop.shipmentId)) {
+      throw createError(`Reference ${stop.shipmentId} is already used on this route`, 409, 'DUPLICATE_REFERENCE');
+    }
+  }
+
+  // A lone pickup + delivery pair without a reference is matched automatically.
+  const unreferenced = stops.filter(stop => (stop.type === 'pickup' || stop.type === 'delivery') && !stop.shipmentId);
+  const pickups = unreferenced.filter(stop => stop.type === 'pickup');
+  const deliveries = unreferenced.filter(stop => stop.type === 'delivery');
+  if (pickups.length === 1 && deliveries.length === 1) {
+    const generated = `added-${(input.now ?? new Date()).getTime().toString(36)}`;
+    pickups[0]!.shipmentId = generated;
+    deliveries[0]!.shipmentId = generated;
+  } else if (pickups.length > 0) {
+    throw createError('Give each pickup a reference so its delivery can be matched', 400, 'INVALID_STOPS');
+  }
+
+  // Every pickup needs a delivery; a delivery alone is fine (the load is already on board).
+  const delivered = new Set(stops.filter(stop => stop.type === 'delivery' && stop.shipmentId).map(stop => stop.shipmentId));
+  for (const stop of stops) {
+    if (stop.type === 'pickup' && stop.shipmentId && !delivered.has(stop.shipmentId)) {
+      throw createError(`Pickup ${stop.shipmentId} has no delivery`, 400, 'INVALID_STOPS');
+    }
+  }
+
+  return {
+    progress: stops.map(stop => ({
+      stopId: stop.id,
+      address: stop.address,
+      ...(stop.vehicleInfo ? { name: stop.vehicleInfo } : {}),
+      plannedServiceMinutes: stop.estimatedDuration ?? 10,
+      status: 'pending' as const,
+    })),
+    planned: stops.map(stop => ({
+      id: stop.id,
+      type: stop.type,
+      ...(stop.shipmentId ? { shipmentId: stop.shipmentId } : {}),
+      ...(stop.latitude !== undefined ? { latitude: stop.latitude } : {}),
+      ...(stop.longitude !== undefined ? { longitude: stop.longitude } : {}),
+      ...(stop.timeWindow ? { timeWindow: stop.timeWindow } : {}),
+      ...(stop.priority ? { priority: stop.priority } : {}),
+      ...(stop.vehicleInfo ? { vehicleInfo: stop.vehicleInfo } : {}),
+    })),
+  };
+}
