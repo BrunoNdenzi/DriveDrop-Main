@@ -21,7 +21,12 @@ import {
   activeClosures,
   decideOffRoute,
   describeDetour,
+  isConverging,
+  isRerouteLoop,
   pickAvoidingRoute,
+  recentReroutes,
+  rerouteCooldownMs,
+  startsAgainstHeading,
   type ClosureMark,
   type DeviationReason,
 } from '@/lib/off-route-policy'
@@ -43,6 +48,9 @@ import {
 } from '@/lib/external-nav'
 import StopStrip, { navStopDetails, navStopLabel } from './StopStrip'
 import AddShipmentSheet, { type AddedStopDraft } from '@/components/route-planner/AddShipmentSheet'
+import ProofSheet, { type ProofData } from '@/components/route-planner/ProofSheet'
+import VoiceSettingsSheet from './VoiceSettingsSheet'
+import { DEFAULT_VOICE_SETTINGS, createVoicePlayer, loadVoiceSettings, saveVoiceSettings, type VoiceSettings } from '@/lib/voice'
 import { canFullscreen, enterFullscreen, exitFullscreen, isFullscreen as isDeviceFullscreen, isIphoneBrowser } from '@/lib/fullscreen'
 import { toast } from '@/components/ui/toast'
 import {
@@ -89,6 +97,11 @@ export interface NavStop {
   distanceFromPrevious?: number
   durationFromPrevious?: number
   timeWindow?: { earliest: string; latest: string }
+  customerName?: string
+  customerPhone?: string
+  customerEmail?: string
+  doFirst?: boolean
+  priority?: string
 }
 
 // What the driver confirmed when marking a stop reached, so the server can verify it independently.
@@ -144,7 +157,9 @@ interface DriverMapNavigationProps {
   onPosition?: (fix: DriverFix) => void
   onNavigationStart?: () => void | Promise<void>
   onSimulationStart?: () => void | Promise<void>
-  onReoptimize?: () => Promise<string | void>
+  onReoptimize?: (options?: { urgentStopIds?: string[] }) => Promise<string | void>
+  onCaptureProof?: (stopIndex: number, data: ProofData) => Promise<void>
+  onShareStop?: (stopIndex: number) => Promise<{ url: string; message: string }>
   onAddShipment?: (stops: AddedStopDraft[]) => Promise<string | void>
   onDeviation?: (event: DeviationEvent) => void
   trackingStatus?: { state: 'off' | 'pending' | 'on' | 'error'; label: string }
@@ -199,6 +214,7 @@ const SIM_DETOUR_METERS = 450
 const SIM_DETOUR_MS = 12_000
 const FIX_FRESH_MS = 45_000
 const REROUTE_COOLDOWN_MS = 10_000
+const SETTLE_MS = 15_000
 const TRAFFIC_REFRESH_MS = 240_000
 const FASTER_ROUTE_MIN_SECONDS = 180
 const USER_ZOOM_HOLD_MS = 15_000
@@ -211,6 +227,8 @@ interface BuiltRoute {
   fromHere: boolean
   // Set only when closures were given: whether the route found stays clear of them.
   avoided?: boolean
+  // Where the driver actually was, so the new route can start exactly there.
+  origin?: Point
 }
 
 export interface DeviationEvent {
@@ -262,6 +280,8 @@ export default function DriverMapNavigation({
   onNavigationStart,
   onSimulationStart,
   onReoptimize,
+  onCaptureProof,
+  onShareStop,
   onAddShipment,
   onDeviation,
   trackingStatus,
@@ -290,6 +310,23 @@ export default function DriverMapNavigation({
   const [showTraffic, setShowTraffic] = useState(true)
   const [mapType, setMapType] = useState<'roadmap' | 'satellite' | 'hybrid'>('roadmap')
   const [voiceEnabled, setVoiceEnabled] = useState(true)
+  const [voiceSettings, setVoiceSettings] = useState<VoiceSettings>(DEFAULT_VOICE_SETTINGS)
+  const [showVoiceSettings, setShowVoiceSettings] = useState(false)
+  const voiceSettingsRef = useRef(voiceSettings)
+  voiceSettingsRef.current = voiceSettings
+  const voicePlayerRef = useRef<ReturnType<typeof createVoicePlayer> | null>(null)
+
+  useEffect(() => {
+    setVoiceSettings(loadVoiceSettings())
+    const player = createVoicePlayer(() => voiceSettingsRef.current)
+    voicePlayerRef.current = player
+    return () => { player.stop() }
+  }, [])
+
+  const changeVoiceSettings = (next: VoiceSettings) => {
+    setVoiceSettings(next)
+    saveVoiceSettings(next)
+  }
   const [showStopsList, setShowStopsList] = useState(false)
   const [showBenjiPanel, setShowBenjiPanel] = useState(false)
   const [currentDriverPos, setCurrentDriverPos] = useState(driverLocation || null)
@@ -299,7 +336,7 @@ export default function DriverMapNavigation({
   const [legSummaries, setLegSummaries] = useState<Array<{ distance: string; duration: string; from: string; to: string; toIndex: number }>>([])
   const [rerouting, setRerouting] = useState(false)
   const [rerouteFailed, setRerouteFailed] = useState(false)
-  const [deviation, setDeviation] = useState<{ reason: DeviationReason; distance: number } | null>(null)
+  const [deviation, setDeviation] = useState<{ reason: DeviationReason; distance: number; hint?: string } | null>(null)
   const [breakMode, setBreakMode] = useState(false)
   const [fasterRoute, setFasterRoute] = useState<{ minutes: number } | null>(null)
   const [arrivalPrompt, setArrivalPrompt] = useState<{ idx: number; check: ArrivalCheck } | null>(null)
@@ -343,11 +380,19 @@ export default function DriverMapNavigation({
   const onPositionRef = useRef(onPosition)
   const [replanning, setReplanning] = useState(false)
   const [addingShipment, setAddingShipment] = useState(false)
+  const [proofPrompt, setProofPrompt] = useState<{ idx: number; arrival?: ArrivalReport } | null>(null)
+  const [sharePrompt, setSharePrompt] = useState<number | null>(null)
   const planRef = useRef<RoutePlan | null>(null)
   const latestFixRef = useRef<DriverFix | null>(null)
   const lastRawRef = useRef<Point | null>(null)
   const lastFixTimeRef = useRef<{ pos: Point; at: number } | null>(null)
-  const fixStateRef = useRef<{ pos: Point; along: number | null; speed: number; heading: number | null; at: number } | null>(null)
+  const fixStateRef = useRef<{ pos: Point; along: number | null; speed: number; heading: number | null; at: number; accuracy: number | null } | null>(null)
+  const viewRef = useRef<CameraState | null>(null)
+  const flyingRef = useRef(true)
+  const settleUntilRef = useRef(0)
+  const rerouteTimesRef = useRef<number[]>([])
+  const [hasFix, setHasFix] = useState(false)
+  const [breakKind, setBreakKind] = useState<'personal' | 'loop'>('personal')
   const cameraRef = useRef<CameraState | null>(null)
   const headingTargetRef = useRef<number | null>(null)
   const zoomTargetRef = useRef(16)
@@ -360,7 +405,17 @@ export default function DriverMapNavigation({
   const offRouteDetectorRef = useRef(createOffRouteDetector())
   const offRouteStateRef = useRef<'on' | 'suspect' | 'off'>('on')
   const rerouteBusyRef = useRef(false)
-  const deviationRef = useRef<{ id: string; startedAt: number; reason: DeviationReason; maxDistance: number; lat: number; lng: number } | null>(null)
+  const deviationRef = useRef<{
+    id: string
+    startedAt: number
+    reason: DeviationReason
+    maxDistance: number
+    lat: number
+    lng: number
+    recent: number[]
+    startDistances: Array<{ index: number; label: string; meters: number }>
+    hinted: boolean
+  } | null>(null)
   const breakUntilRef = useRef<number | null>(null)
   const closuresRef = useRef<ClosureMark[]>([])
   const alongRef = useRef<number | null>(null)
@@ -505,7 +560,7 @@ export default function DriverMapNavigation({
 
   // ── Build Route with Directions API ───────────────────────────────
   // With `from`, the route starts at the driver's position and runs through the stops not yet reached.
-  const requestRoute = async (from: Point | null, startIndex: number, avoid: Point[] = []): Promise<BuiltRoute | null> => {
+  const requestRoute = async (from: Point | null, startIndex: number, avoid: Point[] = [], bias?: { heading: number }): Promise<BuiltRoute | null> => {
     if (!window.google) return null
     const valid = stopsRef.current.filter(s => s.address && s.address.trim().length > 0)
     const targets = from ? valid.slice(startIndex) : valid
@@ -538,22 +593,45 @@ export default function DriverMapNavigation({
           })
           : null
         const legs = [chosen.legs[0]!, ...(onward?.routes[0]?.legs ?? [])]
-        return { result: { ...alternatives, routes: [{ ...chosen, legs }] }, valid, legBase: startIndex, fromHere: true, avoided: true }
+        return { result: { ...alternatives, routes: [{ ...chosen, legs }] }, valid, legBase: startIndex, fromHere: true, avoided: true, origin: from }
       }
     }
 
+    const stopovers = rest.slice(0, -1).map(stop => ({ location: asLocation(stop), stopover: true }))
     const result = await service.route({
       origin: from ?? asLocation(targets[0]!),
       destination: asLocation(rest[rest.length - 1]!),
-      waypoints: rest.slice(0, -1).map(stop => ({ location: asLocation(stop), stopover: true })),
+      waypoints: stopovers,
       optimizeWaypoints: false, // Already optimized by our engine
       travelMode: google.maps.TravelMode.DRIVING,
       drivingOptions,
     })
-    return { result, valid, legBase: from ? startIndex : 1, fromHere: Boolean(from), ...(from && avoid.length > 0 ? { avoided: false } : {}) }
+    const built: BuiltRoute = { result, valid, legBase: from ? startIndex : 1, fromHere: Boolean(from), ...(from && avoid.length > 0 ? { avoided: false } : {}), ...(from ? { origin: from } : {}) }
+
+    // Google does not know which way the car is facing, so it may open with "turn around". At speed, try a route that carries on forward instead.
+    if (from && bias) {
+      const pathOf = (route: google.maps.DirectionsResult) => (route.routes[0]?.legs[0]?.steps ?? []).flatMap(step => step.path.map(point => ({ lat: point.lat(), lng: point.lng() })))
+      const seconds = (route: google.maps.DirectionsResult) => (route.routes[0]?.legs ?? []).reduce((sum, leg) => sum + legSeconds(leg), 0)
+      if (startsAgainstHeading(pathOf(result), bias.heading)) {
+        try {
+          const forward = await service.route({
+            origin: from,
+            destination: asLocation(rest[rest.length - 1]!),
+            waypoints: [{ location: offsetAhead(from, bias.heading, 350), stopover: false }, ...stopovers],
+            optimizeWaypoints: false,
+            travelMode: google.maps.TravelMode.DRIVING,
+            drivingOptions,
+          })
+          if (!startsAgainstHeading(pathOf(forward), bias.heading) && seconds(forward) <= seconds(result) + 600) return { ...built, result: forward }
+        } catch {
+          // Keep the plain route if the forward-biased request fails.
+        }
+      }
+    }
+    return built
   }
 
-  const applyRoute = ({ result, valid, legBase, fromHere }: BuiltRoute, { silent = false }: { silent?: boolean } = {}) => {
+  const applyRoute = ({ result, valid, legBase, fromHere, origin }: BuiltRoute, { silent = false }: { silent?: boolean } = {}) => {
     const legs = result.routes[0]?.legs || []
     if (!legs.length) return
 
@@ -569,9 +647,14 @@ export default function DriverMapNavigation({
     traveledIndexRef.current = -1
 
     const plan = buildRoutePlan(
-      legs.map(leg => ({
+      legs.map((leg, legIndex) => ({
         durationSeconds: legSeconds(leg),
-        steps: (leg.steps || []).map(step => ({ points: (step.path || []).map(point => ({ lat: point.lat(), lng: point.lng() })) })),
+        steps: (leg.steps || []).map((step, stepIndex) => {
+          const points = (step.path || []).map(point => ({ lat: point.lat(), lng: point.lng() }))
+          // Begin the route at the driver's own position so being on it is never judged against a point down the road.
+          const first = points[0]
+          return { points: legIndex === 0 && stepIndex === 0 && origin && first && metersBetween(origin, first) < 300 ? [origin, ...points] : points }
+        }),
       })),
     )
     planRef.current = plan
@@ -908,9 +991,13 @@ export default function DriverMapNavigation({
     if (speedValue > 1) {
       const roadHeading = onRoute && plan && along !== null ? routeHeadingAt(plan, along) : null
       headingTargetRef.current = roadHeading ?? reportedHeading ?? moved ?? headingTargetRef.current
+    } else if (headingTargetRef.current === null && onRoute && plan && along !== null) {
+      // Before the car moves, face the way the road goes instead of north.
+      headingTargetRef.current = routeHeadingAt(plan, along)
     }
     const heading = headingTargetRef.current
-    fixStateRef.current = { pos, along: onRoute ? along : null, speed: extra.simulated ? 0 : speedValue, heading, at: now }
+    fixStateRef.current = { pos, along: onRoute ? along : null, speed: extra.simulated ? 0 : speedValue, heading, at: now, accuracy }
+    setHasFix(true)
 
     if (!driverMarkerRef.current && map) {
       driverMarkerRef.current = new google.maps.Marker({
@@ -940,7 +1027,9 @@ export default function DriverMapNavigation({
       const target = resolvedStopsRef.current[nav.currentStopIndex]
       const atStop = isPoint(target) && metersBetween(rawPos, target) < arrivalRadius(target.type)
       const moving = speed === null || speed > 2
-      if (moving && !atStop) {
+      // Just after a new route the driver is still reacting to it; only a large departure counts as off route.
+      const settling = now < settleUntilRef.current && distanceFromPath < 250
+      if (moving && !atStop && !settling) {
         const state = offRouteDetectorRef.current.update({ distanceFromPath, accuracyMeters: accuracy, at: now })
         if (state !== offRouteStateRef.current) {
           offRouteStateRef.current = state
@@ -1025,7 +1114,8 @@ export default function DriverMapNavigation({
       const target: CameraState = { lat: predicted.lat, lng: predicted.lng, heading, zoom: zoomTargetRef.current }
       const zoomHeld = Date.now() < userZoomUntilRef.current
       const previous = cameraRef.current ?? target
-      const next = stepCamera(zoomHeld ? { ...previous, zoom: map.getZoom() ?? previous.zoom } : previous, target, Math.min(dt, 200))
+      // A noisy fix is eased in more slowly so the car does not jitter.
+      const next = stepCamera(zoomHeld ? { ...previous, zoom: map.getZoom() ?? previous.zoom } : previous, target, Math.min(dt, 200), { positionTauMs: (fix.accuracy ?? 0) > 50 ? 450 : 220 })
       cameraRef.current = next
       marker.setPosition({ lat: next.lat, lng: next.lng })
 
@@ -1040,11 +1130,31 @@ export default function DriverMapNavigation({
       if (followRef.current && navStateRef.current.isNavigating) {
         const zoom = zoomHeld ? map.getZoom() ?? next.zoom : next.zoom
         const ahead = metersPerPixel(next.lat, zoom) * viewportHeightRef.current * (MAP_ID ? 0.18 : 0.1)
+        const center = offsetAhead(next, next.heading, ahead)
+        const desired: CameraState = { lat: center.lat, lng: center.lng, heading: MAP_ID ? next.heading : 0, zoom: MAP_ID ? zoom : Math.round(zoom) }
+
+        // Starting or resuming to follow: glide from wherever the map is to the car, then stay locked to it.
+        if (!viewRef.current) {
+          const at = map.getCenter()
+          viewRef.current = at ? { lat: at.lat(), lng: at.lng(), heading: map.getHeading() ?? 0, zoom: map.getZoom() ?? desired.zoom } : desired
+          flyingRef.current = true
+        }
+        if (flyingRef.current) {
+          const view = stepCamera(viewRef.current, desired, Math.min(dt, 200), { positionTauMs: 320, headingTauMs: 450, zoomTauMs: 500 })
+          viewRef.current = view
+          const arrived = Math.abs(view.lat - desired.lat) < 0.00005 && Math.abs(view.lng - desired.lng) < 0.00005 && Math.abs(view.zoom - desired.zoom) < 0.15
+          if (arrived) flyingRef.current = false
+        } else {
+          viewRef.current = desired
+        }
+        const view = viewRef.current
         map.moveCamera({
-          center: offsetAhead(next, next.heading, ahead),
-          ...(zoomHeld ? {} : { zoom: MAP_ID ? zoom : Math.round(zoom) }),
-          ...(MAP_ID ? { heading: next.heading, tilt: 45 } : {}),
+          center: { lat: view.lat, lng: view.lng },
+          ...(zoomHeld ? {} : { zoom: view.zoom }),
+          ...(MAP_ID ? { heading: view.heading, tilt: 45 } : {}),
         })
+      } else {
+        viewRef.current = null
       }
     }
     frame = requestAnimationFrame(tick)
@@ -1060,12 +1170,16 @@ export default function DriverMapNavigation({
       return
     }
 
+    const onFix = (pos: GeolocationPosition) => {
+      const heading = typeof pos.coords.heading === 'number' && Number.isFinite(pos.coords.heading) ? pos.coords.heading : null
+      const speed = typeof pos.coords.speed === 'number' && Number.isFinite(pos.coords.speed) ? pos.coords.speed : null
+      applyPosition({ lat: pos.coords.latitude, lng: pos.coords.longitude }, heading, { speedMps: speed, accuracyMeters: pos.coords.accuracy })
+    }
+
+    // The watch can take several seconds to deliver; ask once for a quick fix so the map moves to the car right away.
+    navigator.geolocation.getCurrentPosition(onFix, () => undefined, { enableHighAccuracy: true, maximumAge: 15_000, timeout: 8000 })
     watchIdRef.current = navigator.geolocation.watchPosition(
-      (pos) => {
-        const heading = typeof pos.coords.heading === 'number' && Number.isFinite(pos.coords.heading) ? pos.coords.heading : null
-        const speed = typeof pos.coords.speed === 'number' && Number.isFinite(pos.coords.speed) ? pos.coords.speed : null
-        applyPosition({ lat: pos.coords.latitude, lng: pos.coords.longitude }, heading, { speedMps: speed, accuracyMeters: pos.coords.accuracy })
-      },
+      onFix,
       (err) => {
         console.error('GPS error:', err)
         toast('Could not get GPS position', 'warning')
@@ -1206,6 +1320,12 @@ export default function DriverMapNavigation({
 
   // ── Navigation Controls ───────────────────────────────────────────
   const resetGuidance = () => {
+    viewRef.current = null
+    flyingRef.current = true
+    headingTargetRef.current = null
+    settleUntilRef.current = 0
+    rerouteTimesRef.current = []
+    setHasFix(false)
     stepIndexRef.current = 0
     projHintRef.current = 0
     traveledIndexRef.current = -1
@@ -1245,6 +1365,7 @@ export default function DriverMapNavigation({
   }
 
   const startNavigation = () => {
+    voicePlayerRef.current?.unlock()
     beginNavState()
     startGPSTracking()
     Promise.resolve(onNavigationStart?.()).catch(() => {})
@@ -1263,6 +1384,7 @@ export default function DriverMapNavigation({
     stopGPSTracking()
     driverMarkerRef.current?.setMap(null)
     driverMarkerRef.current = null
+    voicePlayerRef.current?.unlock()
     beginNavState()
     Promise.resolve(onSimulationStart?.()).catch(() => {})
 
@@ -1299,6 +1421,7 @@ export default function DriverMapNavigation({
   }
 
   const stopNavigation = () => {
+    setHasFix(false)
     stopSimulation()
     setNavState(prev => ({
       ...prev,
@@ -1307,6 +1430,8 @@ export default function DriverMapNavigation({
     stopGPSTracking()
     setArrivalPrompt(null)
     setArrivalSuggestion(null)
+    setProofPrompt(null)
+    setSharePrompt(null)
     setFasterRoute(null)
     finishDeviation('still_off')
     endBreak()
@@ -1326,6 +1451,8 @@ export default function DriverMapNavigation({
     arrivalWatcherRef.current.reset()
     setArrivalPrompt(null)
     setArrivalSuggestion(null)
+    setProofPrompt(null)
+    setSharePrompt(null)
     // Reaching a stop closes any open departure from the route.
     finishDeviation('returned')
     endBreak()
@@ -1350,6 +1477,9 @@ export default function DriverMapNavigation({
     if (voiceEnabled) {
       speak(`${stopTags.get(stops[idx]?.id ?? '') ?? `Stop ${idx + 1}`} complete. Next: ${stops[nextStop]?.address || 'next stop'}`)
     }
+    // The next customer can be told the ETA right away, if we know how to reach them.
+    const upcoming = stops[nextStop]
+    if (recordProgress && onShareStop && upcoming && (upcoming.customerPhone || upcoming.customerEmail || upcoming.customerName)) setSharePrompt(nextStop)
 
     setNavState(current => ({
       ...current,
@@ -1363,6 +1493,39 @@ export default function DriverMapNavigation({
   }
 
   markStopCompletedRef.current = markStopCompleted
+
+  // Pickups and deliveries offer a proof sheet (photos, signature, notes) before the stop is recorded.
+  const finishStop = (idx: number, arrival?: ArrivalReport) => {
+    const stop = stops[idx]
+    if (!simRef.current && onCaptureProof && stop && (stop.type === 'pickup' || stop.type === 'delivery')) {
+      setArrivalPrompt(null)
+      setArrivalSuggestion(null)
+      setProofPrompt({ idx, ...(arrival ? { arrival } : {}) })
+      return
+    }
+    markStopCompleted(idx, arrival)
+  }
+
+  // Tells the customer where the driver is: a text on a phone, the share sheet where there is one, otherwise a copied link.
+  const shareStop = async (idx: number) => {
+    if (!onShareStop) return
+    try {
+      const { url, message } = await onShareStop(idx)
+      const phone = stops[idx]?.customerPhone?.replace(/[^\d+]/g, '')
+      const ua = navigator.userAgent
+      if (phone && isMobileBrowser(ua)) {
+        window.location.href = `sms:${phone}${/iphone|ipad|ipod/i.test(ua) ? '&' : '?'}body=${encodeURIComponent(message)}`
+      } else if (navigator.share) {
+        await navigator.share({ text: message, url }).catch(() => undefined)
+      } else {
+        await navigator.clipboard.writeText(message)
+        toast('Tracking link copied. Paste it into a message.', 'success')
+      }
+      setSharePrompt(current => (current === idx ? null : current))
+    } catch (error) {
+      toast(error instanceof Error ? error.message : 'Could not create the tracking link', 'error')
+    }
+  }
 
   // "Arrived" or "Done": the driver's position is checked against the approved stop before it is recorded.
   // Outside the zone, a reason is required, and it is stored with the stop for the dispatcher.
@@ -1380,7 +1543,7 @@ export default function DriverMapNavigation({
     const check = checkArrival(fix ? { lat: fix.lat, lng: fix.lng, accuracyMeters: fix.accuracyMeters } : null, target, radius)
 
     if (check.verdict === 'verified' || check.verdict === 'unknown_target') {
-      markStopCompleted(idx, target ? { target, radiusMeters: radius, fix: fix ? { lat: fix.lat, lng: fix.lng, accuracyMeters: fix.accuracyMeters } : null } : undefined)
+      finishStop(idx, target ? { target, radiusMeters: radius, fix: fix ? { lat: fix.lat, lng: fix.lng, accuracyMeters: fix.accuracyMeters } : null } : undefined)
       return
     }
     setOverrideCode('')
@@ -1395,7 +1558,7 @@ export default function DriverMapNavigation({
     if (!isPoint(resolved)) return
     const latest = latestFixRef.current
     const fix = latest && !latest.simulated && Date.now() - latest.at < FIX_FRESH_MS ? latest : null
-    markStopCompleted(idx, {
+    finishStop(idx, {
       target: { lat: resolved.lat, lng: resolved.lng },
       radiusMeters: check.radiusMeters,
       fix: fix ? { lat: fix.lat, lng: fix.lng, accuracyMeters: fix.accuracyMeters } : null,
@@ -1416,11 +1579,16 @@ export default function DriverMapNavigation({
   }
 
   const startDeviation = (pos: Point, distance: number, now: number) => {
-    const record = { id: crypto.randomUUID(), startedAt: now, reason: 'unspecified' as DeviationReason, maxDistance: distance, lat: pos.lat, lng: pos.lng }
+    // Remember how far every later stop was, to notice if the driver is actually heading for one of them.
+    const startDistances = resolvedStopsRef.current
+      .map((stop, index) => ({ stop, index }))
+      .filter(({ stop, index }) => index > navStateRef.current.currentStopIndex && isPoint(stop))
+      .map(({ stop, index }) => ({ index, label: navStopLabel(stop, index, resolvedStopsRef.current), meters: metersBetween(pos, stop as Point) }))
+    const record = { id: crypto.randomUUID(), startedAt: now, reason: 'unspecified' as DeviationReason, maxDistance: distance, lat: pos.lat, lng: pos.lng, recent: [distance], startDistances, hinted: false }
     deviationRef.current = record
     setDeviation({ reason: record.reason, distance })
     emitDeviation({ id: record.id, startedAt: now, reason: record.reason, maxDistanceMeters: Math.round(distance), lat: pos.lat, lng: pos.lng })
-    speakRef.current('You have left the planned route.')
+    speakRef.current('You have left the planned route. I will find a new way in a moment. Tap Personal stop if this is on purpose.')
     return record
   }
 
@@ -1460,8 +1628,34 @@ export default function DriverMapNavigation({
     if (state === 'off') {
       const record = deviationRef.current ?? startDeviation(pos, distance, now)
       record.maxDistance = Math.max(record.maxDistance, distance)
-      setDeviation(current => (current && Math.abs(current.distance - distance) < 50 ? current : { reason: record.reason, distance }))
-      const action = decideOffRoute({ now, startedAt: record.startedAt, distanceMeters: distance, speedMps: speed, breakUntil: breakUntilRef.current, reason: record.reason })
+      record.recent = [...record.recent, distance].slice(-5)
+
+      // Notice when the driver is clearly making for a different stop, and offer to re-plan around it.
+      let hint = deviation?.hint
+      if (!record.hinted && now - record.startedAt > 25_000) {
+        const target = resolvedStopsRef.current[navStateRef.current.currentStopIndex]
+        const toCurrent = isPoint(target) ? metersBetween(pos, target) : Number.POSITIVE_INFINITY
+        const closing = record.startDistances
+          .map(item => ({ item, meters: metersBetween(pos, resolvedStopsRef.current[item.index] as Point) }))
+          .filter(({ item, meters }) => item.meters - meters >= 300 && meters < toCurrent)
+          .sort((a, b) => a.meters - b.meters)[0]
+        if (closing) {
+          record.hinted = true
+          hint = `Heading to ${closing.item.label}? Re-plan to make it next.`
+          speakRef.current(`It looks like you are heading to ${closing.item.label}. Tap Re-plan stops to make it your next stop.`)
+        }
+      }
+      setDeviation(current => (current && Math.abs(current.distance - distance) < 50 && current.hint === hint ? current : { reason: record.reason, distance, ...(hint ? { hint } : {}) }))
+
+      const action = decideOffRoute({
+        now,
+        startedAt: record.startedAt,
+        distanceMeters: distance,
+        speedMps: speed,
+        breakUntil: breakUntilRef.current,
+        reason: record.reason,
+        converging: isConverging(record.recent),
+      })
       if (action === 'reroute') {
         const resuming = breakUntilRef.current !== null
         if (resuming) endBreak()
@@ -1478,15 +1672,28 @@ export default function DriverMapNavigation({
   }
 
   // Re-routing keeps the same stops in the same order and recalculates only the road from where the driver is now.
-  const rerouteFromHere = async (from: Point, reason: 'off_route' | 'faster' | 'blocked' | 'resume' = 'off_route') => {
+  const rerouteFromHere = async (from: Point, reason: 'off_route' | 'faster' | 'blocked' | 'resume' = 'off_route', force = false) => {
     if (rerouteBusyRef.current || !navStateRef.current.isNavigating) return
     const now = Date.now()
-    if (now - lastRerouteAtRef.current < REROUTE_COOLDOWN_MS) return
+    const recent = recentReroutes(rerouteTimesRef.current, now)
+    if (reason === 'off_route' && !force) {
+      // A driver who keeps ignoring new routes is choosing their own way: stop interrupting and say so.
+      if (isRerouteLoop(recent, now)) {
+        startBreak('loop')
+        return
+      }
+      if (now - lastRerouteAtRef.current < rerouteCooldownMs(recent.length)) return
+    } else if (now - lastRerouteAtRef.current < REROUTE_COOLDOWN_MS && !force) {
+      return
+    }
     lastRerouteAtRef.current = now
+    if (reason === 'off_route' && !force) rerouteTimesRef.current = [...recent, now]
     rerouteBusyRef.current = true
     setRerouting(true)
     try {
-      const built = await requestRoute(from, navStateRef.current.currentStopIndex, activeClosures(closuresRef.current, Date.now()))
+      const fix = fixStateRef.current
+      const bias = fix && fix.speed > 5 && fix.heading !== null ? { heading: fix.heading } : undefined
+      const built = await requestRoute(from, navStateRef.current.currentStopIndex, activeClosures(closuresRef.current, Date.now()), bias)
       if (!built) throw new Error('No route found')
 
       if (reason === 'blocked' && built.avoided === false) {
@@ -1503,6 +1710,8 @@ export default function DriverMapNavigation({
       const addedMinutes = Math.round((newSeconds - progressRef.current.remainingSeconds) / 60)
       applyRoute(built)
       resetGuidanceAfterReroute()
+      // The new route starts at the driver, so give them a moment to react before judging them off it again.
+      settleUntilRef.current = Date.now() + SETTLE_MS
 
       if (reason === 'faster') {
         speakRef.current('Switched to the faster route.')
@@ -1527,16 +1736,20 @@ export default function DriverMapNavigation({
     const latest = latestFixRef.current
     if (!latest) return
     lastRerouteAtRef.current = 0
-    void rerouteFromHere({ lat: latest.lat, lng: latest.lng }, reason)
+    void rerouteFromHere({ lat: latest.lat, lng: latest.lng }, reason, true)
   }
 
   // "Personal stop": the driver is choosing to go elsewhere for a while, so guidance and alerts pause instead of nagging.
-  const startBreak = () => {
+  // The same pause is used when the driver keeps ignoring new routes.
+  const startBreak = (kind: 'personal' | 'loop' = 'personal') => {
     if (!deviationRef.current) return
     breakUntilRef.current = Date.now() + BREAK_MAX_MS
+    setBreakKind(kind)
     setBreakMode(true)
-    setDeviationReason('personal_stop')
-    speakRef.current('Guidance paused for your stop.')
+    if (kind === 'personal') setDeviationReason('personal_stop')
+    speakRef.current(kind === 'personal'
+      ? 'Guidance paused for your stop.'
+      : 'You keep leaving the route, so I have paused directions. Tap Resume when you want them back, or Re-plan stops.')
   }
 
   const resumeFromBreak = () => {
@@ -1620,11 +1833,11 @@ export default function DriverMapNavigation({
   }, [stopsKey])
 
   // Re-plan reorders the stops still ahead (and may change what comes next); re-route keeps the order and only fixes the road.
-  const replan = async () => {
+  const replan = async (options?: { urgentStopIds?: string[] }) => {
     if (!onReoptimize || replanning) return
     setReplanning(true)
     try {
-      const summary = await onReoptimize()
+      const summary = await onReoptimize(options)
       toast(summary || 'Route re-planned from your position', 'success')
     } catch (error) {
       toast(error instanceof Error ? error.message : 'Could not re-plan the route', 'error')
@@ -1688,13 +1901,8 @@ export default function DriverMapNavigation({
 
   // ── Voice ─────────────────────────────────────────────────────────
   const speak = (text: string) => {
-    if (!voiceEnabled || typeof window === 'undefined' || !window.speechSynthesis) return
-    window.speechSynthesis.cancel()
-    const utterance = new SpeechSynthesisUtterance(text)
-    utterance.rate = 0.95
-    utterance.pitch = 1
-    utterance.volume = 0.9
-    window.speechSynthesis.speak(utterance)
+    if (!voiceEnabled) return
+    voicePlayerRef.current?.speak(text)
   }
   speakRef.current = speak
 
@@ -1788,7 +1996,13 @@ export default function DriverMapNavigation({
               {navState.isNavigating && breakMode && (
                 <div className="mb-2 flex items-center gap-2 rounded-lg bg-slate-700 px-3 py-2.5 text-white shadow-lg">
                   <Coffee className="h-5 w-5 shrink-0" />
-                  <p className="min-w-0 flex-1 text-sm font-semibold">Guidance paused for your stop.{trackingStatus?.state === 'on' ? ' Your dispatcher can see this.' : ''}</p>
+                  <p className="min-w-0 flex-1 text-sm font-semibold">
+                    {breakKind === 'loop' ? 'Directions paused because you keep leaving the route.' : 'Guidance paused for your stop.'}
+                    {trackingStatus?.state === 'on' ? ' Your dispatcher can see this.' : ''}
+                  </p>
+                  {onReoptimize && !simulation && (
+                    <button type="button" onClick={() => void replan()} disabled={replanning} className="h-9 shrink-0 rounded-md bg-white/20 px-3 text-xs font-bold disabled:opacity-50">Re-plan stops</button>
+                  )}
                   <button type="button" onClick={resumeFromBreak} className="h-9 shrink-0 rounded-md bg-white px-3 text-xs font-bold text-slate-800">Resume route</button>
                 </div>
               )}
@@ -1806,6 +2020,7 @@ export default function DriverMapNavigation({
                           : deviation.reason === 'road_blocked'
                             ? 'Closure noted. Looking for another way...'
                             : `You are ${describeDistance(deviation.distance)} off the optimized route. A new route follows if you keep going.`}
+                      {!rerouting && deviation.hint ? ` ${deviation.hint}` : ''}
                       {!rerouting && trackingStatus?.state === 'on' ? ' Your dispatcher can see this.' : ''}
                     </p>
                   </div>
@@ -1813,7 +2028,10 @@ export default function DriverMapNavigation({
                     <div className="mt-2 flex flex-wrap gap-2">
                       <button type="button" onClick={() => recalculateNow()} className="h-9 rounded-md bg-white px-3 text-xs font-bold text-gray-900">{rerouteFailed ? 'Try again' : 'Recalculate now'}</button>
                       <button type="button" onClick={reportBlocked} className="h-9 rounded-md bg-white/20 px-3 text-xs font-bold">Road blocked</button>
-                      <button type="button" onClick={startBreak} className="h-9 rounded-md bg-white/20 px-3 text-xs font-bold">Personal stop</button>
+                      <button type="button" onClick={() => startBreak('personal')} className="h-9 rounded-md bg-white/20 px-3 text-xs font-bold">Personal stop</button>
+                      {onReoptimize && !simulation && (
+                        <button type="button" onClick={() => void replan()} disabled={replanning} className={`h-9 rounded-md px-3 text-xs font-bold disabled:opacity-50 ${deviation.hint ? 'bg-white text-gray-900' : 'bg-white/20'}`}>Re-plan stops</button>
+                      )}
                     </div>
                   )}
                 </div>
@@ -1858,6 +2076,9 @@ export default function DriverMapNavigation({
                   )}
                 </div>
                 <div className="flex items-center gap-2">
+                  {navState.isNavigating && !simulation && !hasFix && (
+                    <span className="text-[11px] font-semibold text-amber-600">Finding GPS...</span>
+                  )}
                   {navState.isNavigating && liveStats.speedMph !== null && (
                     <span className="text-xs font-bold tabular-nums text-gray-900">{liveStats.speedMph} mph</span>
                   )}
@@ -2079,6 +2300,46 @@ export default function DriverMapNavigation({
               )
             })()}
 
+            {/* Voice choices */}
+            {showVoiceSettings && (
+              <VoiceSettingsSheet
+                settings={voiceSettings}
+                onChange={changeVoiceSettings}
+                onTest={() => { voicePlayerRef.current?.unlock(); voicePlayerRef.current?.speak('In five hundred feet, turn left onto Main Street.') }}
+                onClose={() => setShowVoiceSettings(false)}
+              />
+            )}
+
+            {/* Proof of delivery before the stop is recorded */}
+            {proofPrompt && onCaptureProof && (() => {
+              const stop = stops[proofPrompt.idx]
+              if (!stop) return null
+              const finish = () => markStopCompleted(proofPrompt.idx, proofPrompt.arrival)
+              return (
+                <ProofSheet
+                  kind={stop.type === 'pickup' ? 'pickup' : stop.type === 'delivery' ? 'delivery' : 'stop'}
+                  title={navStopLabel(stop, proofPrompt.idx, stops)}
+                  customerName={stop.customerName}
+                  onClose={() => setProofPrompt(null)}
+                  onSkip={finish}
+                  onSubmit={async data => {
+                    await onCaptureProof(proofPrompt.idx, data)
+                    finish()
+                  }}
+                />
+              )
+            })()}
+
+            {/* Tell the next customer when to expect the driver */}
+            {navState.isNavigating && sharePrompt !== null && !proofPrompt && onShareStop && stops[sharePrompt] && (
+              <div className="mb-2 flex items-center gap-2 rounded-lg bg-blue-600 px-3 py-2.5 text-white shadow-lg">
+                <Navigation className="h-5 w-5 shrink-0" />
+                <p className="min-w-0 flex-1 text-sm font-semibold">Share your ETA with {stops[sharePrompt]!.customerName || navStopLabel(stops[sharePrompt]!, sharePrompt, stops)}?</p>
+                <button type="button" onClick={() => void shareStop(sharePrompt)} className="h-9 shrink-0 rounded-md bg-white px-3 text-xs font-bold text-blue-700">Share ETA</button>
+                <button type="button" onClick={() => setSharePrompt(null)} aria-label="Dismiss" className="grid h-9 w-9 shrink-0 place-items-center rounded-md bg-blue-700"><X className="h-4 w-4" /></button>
+              </div>
+            )}
+
             {/* Add a shipment on the road */}
             {addingShipment && onAddShipment && (
               <AddShipmentSheet
@@ -2168,6 +2429,25 @@ export default function DriverMapNavigation({
                             Done
                           </button>
                         )}
+                        {navState.isNavigating && !isCompleted && idx > 0 && onShareStop && (
+                          <button
+                            onClick={() => void shareStop(idx)}
+                            title="Send this stop's customer a live ETA link"
+                            className="text-[11px] font-semibold text-blue-700 bg-blue-50 px-2 py-1 rounded shrink-0"
+                          >
+                            Share ETA
+                          </button>
+                        )}
+                        {navState.isNavigating && !isCompleted && !isCurrent && idx > navState.currentStopIndex && onReoptimize && !simulation && (
+                          <button
+                            onClick={() => void replan({ urgentStopIds: [stop.id] })}
+                            disabled={replanning}
+                            title="Make this the next stop and re-plan the rest"
+                            className="text-[11px] font-semibold text-amber-800 bg-amber-100 px-2 py-1 rounded shrink-0 disabled:opacity-50"
+                          >
+                            Do next
+                          </button>
+                        )}
                       </div>
                     )
                   })}
@@ -2216,6 +2496,16 @@ export default function DriverMapNavigation({
                     {fuelStops.length} fuel
                   </div>
                 )}
+
+                {/* Voice settings */}
+                <button
+                  type="button"
+                  onClick={() => setShowVoiceSettings(open => !open)}
+                  className={`flex items-center gap-1.5 px-3 py-2 rounded-md text-xs font-medium transition-colors ${showVoiceSettings ? 'bg-amber-50 text-amber-700' : 'text-gray-600 hover:bg-gray-100'}`}
+                >
+                  <Volume2 className="h-3.5 w-3.5" />
+                  Voice
+                </button>
 
                 {/* Hand off to Google Maps: keeps guiding when this page is backgrounded or the screen locks */}
                 {routeLoaded && (

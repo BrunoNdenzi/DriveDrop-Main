@@ -62,6 +62,11 @@ const config = {
     apiKey: process.env['GOOGLE_MAPS_API_KEY'] || '',
   },
 
+  // Google Cloud Text-to-Speech for navigation voice. Needs its own key, or a key with the Text-to-Speech API enabled.
+  googleTts: {
+    apiKey: process.env['GOOGLE_TTS_API_KEY'] || '',
+  },
+
   eia: {
     apiKey: process.env['EIA_API_KEY'] || '',
     baseUrl: process.env['EIA_API_BASE_URL'] || 'https://api.eia.gov/v2',

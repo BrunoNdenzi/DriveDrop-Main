@@ -3,11 +3,17 @@ import ExcelJS from 'exceljs';
 import config from '@config';
 import { driverLimitReached, plans, pricePlan } from '../src/services/plannerBilling.service';
 import {
+  buildImportedStops,
+  contactFields,
   normalizeAddedStops,
   normalizeRecurrence,
   normalizeStops,
   parseImportRows,
 } from '../src/routes/standaloneRoutePlanner.routes';
+import { routeOptimizationService, type RouteStop } from '../src/services/RouteOptimizationService';
+import { buildPriorityPrefix, describePriorityCost } from '../src/services/routePriority';
+import { detectImageType, estimateStopEta, mergeProof, safePathPart, stopsAhead } from '../src/services/plannerProof';
+import { DEFAULT_VOICE, buildSynthesisBody, createRateLimiter, parseVoiceRequest } from '../src/services/plannerVoice';
 import {
   REOPTIMIZE_ORIGIN_ID,
   arrivalBlockMessage,
@@ -108,6 +114,140 @@ function checkAddedShipment(): void {
   assert.throws(() => buildAddedStops({ added: normalizeAddedStops([{ id: 'd1', type: 'stop', address: 'a' }]), progress, planned, now }), /already exists/);
   assert.throws(() => normalizeAddedStops([]), /between 1 and 10/);
   assert.throws(() => buildAddedStops({ added: normalizeAddedStops([{ type: 'fuel', address: 'a' }]), progress, planned, now }), /pickup, a delivery, or a plain stop/);
+}
+
+function checkVoice(): void {
+  assert.deepEqual(parseVoiceRequest({ text: '  Turn <b>left</b>\n onto Main St ', voice: 'en-US-Neural2-D', rate: 1.1 }), { text: 'Turn b left /b onto Main St', voice: 'en-US-Neural2-D', rate: 1.1 });
+  assert.equal(parseVoiceRequest({ text: 'Go', voice: 'not-a-voice' }).voice, DEFAULT_VOICE);
+  assert.equal(parseVoiceRequest({ text: 'Go', rate: 9 }).rate, 1.3);
+  assert.equal(parseVoiceRequest({ text: 'Go', rate: 0.1 }).rate, 0.8);
+  assert.equal(parseVoiceRequest({ text: 'Go' }).rate, 1);
+  assert.throws(() => parseVoiceRequest({}), /required/);
+  assert.throws(() => parseVoiceRequest({ text: 'x'.repeat(241) }), /240 characters/);
+  assert.deepEqual(buildSynthesisBody({ text: 'Go', voice: DEFAULT_VOICE, rate: 1 }).voice, { languageCode: 'en-US', name: DEFAULT_VOICE });
+
+  const limiter = createRateLimiter(2, 1000);
+  assert.equal(limiter.allow('a', 0), true);
+  assert.equal(limiter.allow('a', 100), true);
+  assert.equal(limiter.allow('a', 200), false);
+  assert.equal(limiter.allow('b', 200), true);
+  assert.equal(limiter.allow('a', 1100), true);
+}
+
+function checkProofAndEta(): void {
+  const jpeg = Buffer.from([0xff, 0xd8, 0xff, 0xe0, 0, 0x10]);
+  const png = Buffer.concat([Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]), Buffer.alloc(8)]);
+  const webp = Buffer.concat([Buffer.from('RIFF'), Buffer.alloc(4), Buffer.from('WEBP')]);
+  assert.equal(detectImageType(jpeg)?.contentType, 'image/jpeg');
+  assert.equal(detectImageType(png)?.extension, 'png');
+  assert.equal(detectImageType(webp)?.extension, 'webp');
+  assert.equal(detectImageType(Buffer.from('<svg onload=alert(1)>')), null);
+  assert.equal(detectImageType(Buffer.from('GIF89a')), null);
+  assert.equal(safePathPart('../stop 1/x'), '___stop_1_x');
+
+  const now = new Date('2026-10-11T12:00:00.000Z');
+  const first = mergeProof(undefined, { photos: ['a.jpg'], signature: 's.png' }, { receiverName: '  Sam  ', notes: 'Left with neighbour' }, now);
+  assert.deepEqual([first.photos, first.signature, first.receiverName, first.notes], [['a.jpg'], 's.png', 'Sam', 'Left with neighbour']);
+  const second = mergeProof(first, { photos: ['b.jpg'] }, {}, now);
+  assert.deepEqual([second.photos, second.signature, second.receiverName], [['a.jpg', 'b.jpg'], 's.png', 'Sam']);
+  const many = mergeProof(undefined, { photos: Array.from({ length: 14 }, (_, i) => `p${i}.jpg`) }, {}, now);
+  assert.equal(many.photos.length, 10);
+  assert.equal(many.photos[0], 'p4.jpg');
+
+  // The customer's ETA moves with the driver: 20 minutes late at the last stop means 20 minutes late here, and never in the past.
+  const stops = [
+    { status: 'completed' as const, plannedArrival: '2026-10-11T10:00:00.000Z', plannedServiceMinutes: 10, completedAt: '2026-10-11T10:30:00.000Z' },
+    { status: 'pending' as const, plannedArrival: '2026-10-11T12:30:00.000Z' },
+  ];
+  const late = estimateStopEta(stops[1]!, stops, now);
+  assert.equal(late.estimatedArrival, '2026-10-11T12:50:00.000Z');
+  assert.equal(late.delayMinutes, 20);
+  const early = estimateStopEta({ status: 'pending', plannedArrival: '2026-10-11T12:05:00.000Z' }, [{ status: 'completed', plannedArrival: '2026-10-11T09:00:00.000Z', plannedServiceMinutes: 10, completedAt: '2026-10-11T09:00:00.000Z' }], now);
+  assert.equal(early.estimatedArrival, now.toISOString());
+  assert.equal(estimateStopEta({ status: 'pending' }, [], now).estimatedArrival, null);
+  assert.equal(estimateStopEta({ status: 'completed', completedAt: '2026-10-11T11:00:00.000Z' }, [], now).estimatedArrival, '2026-10-11T11:00:00.000Z');
+  assert.equal(stopsAhead({ order: 4 }, [{ order: 1, status: 'completed' }, { order: 2, status: 'pending' }, { order: 3, status: 'arrived' }, { order: 5, status: 'pending' }]), 2);
+
+  assert.deepEqual(contactFields({ customerName: ' Dana ', customerPhone: '(704) 555-0100', customerEmail: 'dana@example.com' }), { customerName: 'Dana', customerPhone: '(704) 555-0100', customerEmail: 'dana@example.com' });
+  assert.deepEqual(contactFields({ customerPhone: 'call me', customerEmail: 'not an email' }), {});
+  assert.equal(normalizeStops([{ address: 'a', type: 'current_location' }, { address: 'b', customerName: 'Dana' }])[1]?.customerName, 'Dana');
+  const imported = buildImportedStops([{ pickup_address: '1 A St', delivery_address: '2 B St', phone: '+1 704 555 0100', email: 'x@y.co' }]).stops;
+  assert.equal(imported[1]?.customerPhone, '+1 704 555 0100');
+  assert.equal(imported[0]?.customerPhone, undefined);
+}
+
+function checkPriority(): void {
+  // Stops sit on a line, so distance is simply how far apart they are.
+  const at = (id: string, x: number, extra: Partial<RouteStop> = {}): RouteStop => ({ id, address: id, type: 'stop', latitude: 35, longitude: -80 + x / 1000, ...extra });
+  const matrixOf = (stops: RouteStop[]) => stops.map(a => stops.map(b => Math.abs(a.longitude! - b.longitude!) * 1_000_000));
+  const service = routeOptimizationService as unknown as {
+    nearestNeighborTSP(m: number[][], s: RouteStop[], start: number, slots: number): number[];
+    twoOptImprovement(m: number[][], o: number[], s: RouteStop[], slots: number): number[];
+    applyPriorityConstraints(s: RouteStop[], o: number[], m: number[][], slots: number, d: Date): number[];
+  };
+  const solve = (stops: RouteStop[]) => {
+    const matrix = matrixOf(stops);
+    return service.twoOptImprovement(matrix, service.nearestNeighborTSP(matrix, stops, 0, 8), stops, 8);
+  };
+
+  // Without priorities the far stop is visited last.
+  const plain = [at('O', 0, { type: 'current_location' }), at('A', 1), at('B', 2), at('C', 3), at('FAR', 10)];
+  assert.deepEqual(solve(plain).map(i => plain[i]!.id), ['O', 'A', 'B', 'C', 'FAR']);
+
+  // Marked "do first", it opens the route and the rest is optimized from there.
+  const urgent = plain.map(stop => (stop.id === 'FAR' ? { ...stop, doFirst: true } : stop));
+  assert.deepEqual(buildPriorityPrefix(urgent), [4]);
+  assert.deepEqual(solve(urgent).map(i => urgent[i]!.id), ['O', 'FAR', 'C', 'B', 'A']);
+
+  // Several "do first" stops keep their list order, wherever they sit.
+  const two = plain.map(stop => (stop.id === 'FAR' || stop.id === 'A' ? { ...stop, doFirst: true } : stop));
+  assert.deepEqual(solve(two).slice(0, 3).map(i => two[i]!.id), ['O', 'A', 'FAR']);
+
+  // An urgent delivery brings its own pickup in ahead of it.
+  const shipment = [
+    at('O', 0, { type: 'current_location' }), at('X', 1), at('PICK', 8, { type: 'pickup', shipmentId: 'S' }),
+    at('DROP', 9, { type: 'delivery', shipmentId: 'S', doFirst: true }), at('Y', 2),
+  ];
+  assert.deepEqual(buildPriorityPrefix(shipment), [2, 3]);
+  assert.deepEqual(solve(shipment).slice(0, 3).map(i => shipment[i]!.id), ['O', 'PICK', 'DROP']);
+  assert.deepEqual(buildPriorityPrefix([at('O', 0), at('Z', 1, { doFirst: true })].map((s, i) => (i === 0 ? { ...s, doFirst: true } : s))), [1]);
+
+  // "High" brings a stop forward only while the extra driving stays small.
+  const highNear = [at('O', 0, { type: 'current_location' }), at('A', 1), at('B', 2), at('C', 3, { priority: 'high' }), at('D', 4)];
+  const near = service.applyPriorityConstraints(highNear, [0, 1, 2, 3, 4], matrixOf(highNear), 8, new Date());
+  assert.equal(highNear[near[1]!]!.id, 'C');
+  const highFar = [at('O', 0, { type: 'current_location' }), at('A', 1), at('B', 2), at('C', 3), at('D', 40, { priority: 'high' })];
+  assert.deepEqual(service.applyPriorityConstraints(highFar, [0, 1, 2, 3, 4], matrixOf(highFar), 8, new Date()), [0, 1, 2, 3, 4]);
+
+  // A do-first set that needs more room than the vehicle has is refused plainly.
+  const crowded = [
+    at('O', 0, { type: 'current_location' }),
+    at('P1', 1, { type: 'pickup', shipmentId: 'A', doFirst: true }), at('P2', 2, { type: 'pickup', shipmentId: 'B', doFirst: true }),
+    at('D1', 3, { type: 'delivery', shipmentId: 'A' }), at('D2', 4, { type: 'delivery', shipmentId: 'B' }),
+  ];
+  assert.equal((routeOptimizationService as unknown as { isRouteFeasible(s: RouteStop[], o: number[], slots: number): boolean }).isRouteFeasible(crowded, [0, 1, 2], 1), false);
+  assert.match(describePriorityCost(2.4, ['Car A'])!, /adds about 2\.4 mi/);
+  assert.match(describePriorityCost(0.1, ['Car A'])!, /almost no extra driving/);
+  assert.equal(describePriorityCost(3, []), null);
+
+  // Mid-run, the driver can push stops to the front of what is left.
+  const planned = plannedStopsFromSnapshot({ optimizedResult: { stops: [{ id: 'a' }, { id: 'b' }, { id: 'c' }].map(stop => ({ ...stop, type: 'stop' })) } });
+  const progress: ProgressStop[] = ['a', 'b', 'c'].map(stopId => ({ stopId, address: stopId, plannedServiceMinutes: 5, status: 'pending' as const }));
+  const rebuilt = buildReoptimizationStops({ progress, planned, currentLocation: { latitude: 35, longitude: -80 }, lastKnown: null, urgentStopIds: ['c', 'b'], now: new Date() });
+  assert.deepEqual(rebuilt.stops.slice(1).map(stop => [stop.id, stop.doFirst === true]), [['c', true], ['b', true], ['a', false]]);
+
+  // Imports understand a priority column; on a shipment, "first" lands on the delivery.
+  const imported = buildImportedStops([
+    { pickup_address: '1 A St', delivery_address: '2 B St', priority: 'First' },
+    { address: '3 C St', priority: 'high' },
+    { address: '4 D St' },
+  ]).stops as unknown as Array<Record<string, unknown>>;
+  assert.equal(imported[0]?.['doFirst'], undefined);
+  assert.equal(imported[1]?.['doFirst'], true);
+  assert.equal(imported[2]?.['priority'], 'high');
+  assert.equal(imported[2]?.['doFirst'], undefined);
+  assert.equal(imported[3]?.['priority'], undefined);
+  assert.equal(normalizeStops([{ address: 'a', type: 'current_location' }, { address: 'b', doFirst: true, priority: 'high' }])[1]?.doFirst, true);
 }
 
 function checkDeviations(): void {
@@ -342,6 +482,12 @@ async function main(): Promise<void> {
   console.log('Added shipment checks passed.');
   checkDeviations();
   console.log('Deviation checks passed.');
+  checkPriority();
+  console.log('Priority checks passed.');
+  checkProofAndEta();
+  console.log('Proof and ETA checks passed.');
+  checkVoice();
+  console.log('Voice checks passed.');
 }
 
 main().catch(error => {

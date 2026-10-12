@@ -90,7 +90,7 @@ export async function middleware(request: NextRequest) {
   console.log('[MIDDLEWARE] Path:', pathname)
   console.log('[MIDDLEWARE] Has user:', !!user)
   
-  const isPublicPlannerPath = pathname === '/route-planner/signup' || pathname.startsWith('/route-planner/shared/')
+  const isPublicPlannerPath = pathname === '/route-planner/signup' || pathname.startsWith('/route-planner/shared/') || pathname.startsWith('/route-planner/track/')
   const isPlannerWorkspace = (pathname === '/route-planner' || pathname.startsWith('/route-planner/')) && !isPublicPlannerPath
 
   // Protect dashboard routes and the standalone planner workspace

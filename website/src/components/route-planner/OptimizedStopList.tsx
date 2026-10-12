@@ -20,6 +20,8 @@ export interface ListedStop {
   latitude?: number | undefined
   longitude?: number | undefined
   isReturn?: boolean | undefined
+  doFirst?: boolean | undefined
+  priority?: string | undefined
 }
 
 // Older saved results repeat the start stop at the end instead of flagging it as the return.
@@ -62,7 +64,7 @@ export default function OptimizedStopList({ stops, tags }: { stops: ListedStop[]
             <StopPopover details={details} className="flex w-full gap-3 p-1.5 text-left text-sm hover:bg-[#edf3f2] focus:bg-[#edf3f2] focus:outline-none">
               <span className={`grid h-6 min-w-6 shrink-0 place-items-center px-1 text-xs font-bold text-white ${tone}`}>{badge}</span>
               <span className="min-w-0">
-                <span className="block font-semibold">{label}</span>
+                <span className="block font-semibold">{label}{stop.doFirst ? <span className="ml-2 bg-amber-100 px-1.5 py-0.5 text-[10px] font-bold uppercase text-amber-800">Do first</span> : stop.priority === 'high' ? <span className="ml-2 bg-[#dff2ee] px-1.5 py-0.5 text-[10px] font-bold uppercase text-[#00756d]">High</span> : null}</span>
                 <span className="block truncate text-xs text-[#657a78]">{stop.address}</span>
               </span>
             </StopPopover>

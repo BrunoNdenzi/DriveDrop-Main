@@ -18,6 +18,7 @@ import {
   CommercialVehicleProfile,
 } from './commercial-routing.service';
 import { logger } from '@utils/logger';
+import { buildPriorityPrefix, describePriorityCost } from './routePriority';
 
 export type { CommercialVehicleProfile } from './commercial-routing.service';
 
@@ -37,6 +38,12 @@ export interface RouteStop {
   isReturn?: boolean | undefined;
   // Keeps a stop last when the rest of the route is re-optimized mid-run.
   pinnedLast?: boolean | undefined;
+  // A hard rule: the stop is done before everything else (after the origin), in list order among such stops.
+  doFirst?: boolean | undefined;
+  // Who is receiving at this stop, for ETA messages and delivery receipts.
+  customerName?: string | undefined;
+  customerPhone?: string | undefined;
+  customerEmail?: string | undefined;
   timeWindow?: {
     earliest: string; // ISO datetime
     latest: string;
@@ -337,11 +344,24 @@ class RouteOptimizationService {
     if (options.returnToOrigin) baselineOrder.push(baselineOrder[0]!);
     const baselineDistance = this.calculateRouteDistance(distanceMatrix, baselineOrder);
 
+    const priorityPrefix = buildPriorityPrefix(stops);
+    if (priorityPrefix.length > 0 && !this.isRouteFeasible(stops, [0, ...priorityPrefix], vehicleSlots)) {
+      throw new Error('The stops marked "Do first" cannot all be done first: they need more space than the vehicle has.');
+    }
+
     // 3. Solve TSP with nearest-neighbor heuristic
     let optimizedOrder = this.nearestNeighborTSP(optimizationMatrix, stops, 0, vehicleSlots);
 
     // 4. Improve with 2-opt local search
     optimizedOrder = this.twoOptImprovement(optimizationMatrix, optimizedOrder, stops, vehicleSlots);
+
+    // What the same stops would cost with no priorities, so the dispatcher can see the price of doing some first.
+    let priorityExtraMiles = 0;
+    if (priorityPrefix.length > 0) {
+      const relaxed = stops.map(stop => ({ ...stop, doFirst: false }));
+      const relaxedOrder = this.twoOptImprovement(optimizationMatrix, this.nearestNeighborTSP(optimizationMatrix, relaxed, 0, vehicleSlots), relaxed, vehicleSlots);
+      priorityExtraMiles = Math.max(0, this.calculateRouteDistance(optimizationMatrix, optimizedOrder) - this.calculateRouteDistance(optimizationMatrix, relaxedOrder)) / 1609.34;
+    }
 
     // 5. Apply time-window constraints (shift stops if needed)
     optimizedOrder = this.applyTimeWindowConstraints(
@@ -440,6 +460,11 @@ class RouteOptimizationService {
     if (!commercialVehicle && commercialVehicleTypes.has(vehicleType)) {
       constraintWarnings.push('Commercial road restrictions are not verified until vehicle dimensions and weight are provided.');
     }
+    const priorityNote = describePriorityCost(
+      priorityExtraMiles,
+      priorityPrefix.map(index => stops[index]?.vehicleInfo || stops[index]?.address || 'a stop'),
+    );
+    if (priorityNote) constraintWarnings.push(priorityNote);
     const result: OptimizedRoute = {
       stops: optimizedStops,
       legs,
@@ -823,9 +848,10 @@ class RouteOptimizationService {
     if (this.isScheduleFeasible(stops, order, distanceMatrix, departureTime)) return order;
 
     const result = [...order];
-    // Sort by urgency of time window (earliest deadline first) while keeping first stop fixed
-    const fixed = result[0]!;
-    const rest = result.slice(1);
+    // Sort by urgency of time window (earliest deadline first); the origin and any "do first" stops stay where they are
+    const lockedCount = 1 + buildPriorityPrefix(stops).length;
+    const fixed = result.slice(0, lockedCount);
+    const rest = result.slice(lockedCount);
 
     rest.sort((a, b) => {
       const windowA = stops[a]?.timeWindow;
@@ -839,7 +865,7 @@ class RouteOptimizationService {
       return 0;
     });
 
-    const candidate = [fixed, ...rest];
+    const candidate = [...fixed, ...rest];
     if (
       this.isRouteFeasible(stops, candidate, vehicleSlots) &&
       this.isScheduleFeasible(stops, candidate, distanceMatrix, departureTime)
@@ -849,7 +875,10 @@ class RouteOptimizationService {
     throw new Error('No feasible route satisfies all stop time windows');
   }
 
-  /** Apply priority constraints: high-priority stops get moved earlier */
+  /**
+   * "High" priority stops are brought forward only while the extra driving stays small (about 12% of the route),
+   * so a few urgent stops never turn the whole route into a zig-zag. Hard "do first" stops are handled separately.
+   */
   private applyPriorityConstraints(
     stops: RouteStop[],
     order: number[],
@@ -857,27 +886,29 @@ class RouteOptimizationService {
     vehicleSlots: number,
     departureTime: Date
   ): number[] {
-    const priorityWeight = { high: 0, medium: 1, low: 2 };
-    
-    // Only re-sort if there are priority differences
-    const hasPriorities = stops.some(s => s.priority && s.priority !== 'medium');
-    if (!hasPriorities) return order;
+    const highs = order.filter((stopIndex, position) => position > 0 && stops[stopIndex]?.priority === 'high' && !stops[stopIndex]?.doFirst);
+    if (highs.length === 0) return order;
 
-    const fixed = order[0]!;
-    const rest = order.slice(1);
+    const locked = 1 + buildPriorityPrefix(stops).length;
+    const budget = Math.max(5000, this.calculateRouteDistance(distanceMatrix, order) * 0.12);
+    let best = [...order];
+    let spent = 0;
 
-    // Stable sort — only move high-priority significantly
-    rest.sort((a, b) => {
-      const pA = priorityWeight[stops[a]?.priority || 'medium'];
-      const pB = priorityWeight[stops[b]?.priority || 'medium'];
-      return pA - pB;
-    });
-
-    const candidate = [fixed, ...rest];
-    return this.isRouteFeasible(stops, candidate, vehicleSlots) &&
-      this.isScheduleFeasible(stops, candidate, distanceMatrix, departureTime)
-      ? candidate
-      : order;
+    for (const high of highs) {
+      const from = best.indexOf(high);
+      for (let to = locked; to < from; to++) {
+        const candidate = [...best];
+        candidate.splice(from, 1);
+        candidate.splice(to, 0, high);
+        if (!this.isRouteFeasible(stops, candidate, vehicleSlots) || !this.isScheduleFeasible(stops, candidate, distanceMatrix, departureTime)) continue;
+        const extra = Math.max(0, this.calculateRouteDistance(distanceMatrix, candidate) - this.calculateRouteDistance(distanceMatrix, best));
+        if (spent + extra > budget) continue;
+        best = candidate;
+        spent += extra;
+        break;
+      }
+    }
+    return best;
   }
 
   // ── Route Building ────────────────────────────────────────────────────
@@ -1189,6 +1220,17 @@ class RouteOptimizationService {
 
   // ── Helper Methods ────────────────────────────────────────────────────
 
+  private readonly prefixCache = new WeakMap<RouteStop[], number[]>();
+
+  private priorityPrefix(stops: RouteStop[]): number[] {
+    let prefix = this.prefixCache.get(stops);
+    if (!prefix) {
+      prefix = buildPriorityPrefix(stops);
+      this.prefixCache.set(stops, prefix);
+    }
+    return prefix;
+  }
+
   private normalizeVehicleSlots(vehicleSlots?: number): number {
     if (vehicleSlots === undefined) return DEFAULT_VEHICLE_SLOTS;
     if (!Number.isInteger(vehicleSlots) || vehicleSlots < 1) {
@@ -1258,6 +1300,12 @@ class RouteOptimizationService {
   }
 
   private isRouteFeasible(stops: RouteStop[], order: number[], vehicleSlots: number): boolean {
+    // "Do first" stops must open the route in exactly their required order.
+    const prefix = this.priorityPrefix(stops);
+    for (let k = 0; k < prefix.length && 1 + k < order.length; k++) {
+      if (order[1 + k] !== prefix[k]) return false;
+    }
+
     const pairedShipments = new Set(
       stops
         .filter(stop => stop.type === 'pickup' && stop.shipmentId)

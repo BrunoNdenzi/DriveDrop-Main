@@ -1,10 +1,11 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { getSupabaseBrowserClient } from '@/lib/supabase-client'
 import { CheckCircle, Download, Navigation, RefreshCw, Share2 } from '@/components/icons/streamline-lucide'
 import { queueAction as saveQueuedAction, replayQueue, type QueuedAction } from '@/lib/planner-sync'
 import { OVERRIDE_REASONS, describeDistance } from '@/lib/arrival-check'
+import { jumpTo } from '@/lib/scroll'
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api/v1'
 
@@ -71,6 +72,14 @@ const RESOLUTION_LABELS: Record<string, string> = {
   still_off: 'Run ended off route',
 }
 
+interface ProofView {
+  photos: string[]
+  signature: string | null
+  receiverName: string | null
+  notes: string | null
+  capturedAt: string
+}
+
 interface RouteExecution {
   id: string
   route_id: string
@@ -108,6 +117,8 @@ export default function RouteOperations({ routes, onRoutesChanged }: Props) {
   const [versions, setVersions] = useState<RouteVersion[]>([])
   const [executions, setExecutions] = useState<RouteExecution[]>([])
   const [report, setReport] = useState<RouteReport | null>(null)
+  const [proofByStop, setProofByStop] = useState<Record<string, ProofView>>({})
+  const messageRef = useRef<HTMLDivElement>(null)
   const [shareUrl, setShareUrl] = useState('')
   const [podUrl, setPodUrl] = useState<Record<string, string>>({})
   const [busy, setBusy] = useState(false)
@@ -248,8 +259,18 @@ export default function RouteOperations({ routes, onRoutesChanged }: Props) {
   }, `Version ${version} restored as a new draft`)
 
   const loadReport = () => run(async () => {
-    setReport(await api<RouteReport>(`/executions/${displayedExecution!.id}/report`))
+    const executionId = displayedExecution!.id
+    const [loaded, proofs] = await Promise.all([
+      api<RouteReport>(`/executions/${executionId}/report`),
+      api<Record<string, ProofView>>(`/executions/${executionId}/proof`).catch(() => ({} as Record<string, ProofView>)),
+    ])
+    setReport(loaded)
+    setProofByStop(proofs)
   }, 'Report refreshed')
+
+  useEffect(() => {
+    if (message || error) jumpTo(messageRef.current)
+  }, [message, error])
 
   const createShare = () => run(async () => {
     const share = await api<{ token: string }>(`/routes/${routeId}/shares`, { method: 'POST', body: JSON.stringify({ permission: 'track' }) })
@@ -285,7 +306,7 @@ export default function RouteOperations({ routes, onRoutesChanged }: Props) {
 
   return (
     <div className="mt-5 space-y-5">
-      {(message || error) && <div className={`border p-3 text-sm ${error ? 'border-red-200 bg-red-50 text-red-700' : 'border-emerald-200 bg-emerald-50 text-emerald-700'}`}>{error || message}</div>}
+      {(message || error) && <div ref={messageRef} role={error ? 'alert' : 'status'} className={`border p-3 text-sm ${error ? 'border-red-200 bg-red-50 text-red-700' : 'border-emerald-200 bg-emerald-50 text-emerald-700'}`}>{error || message}</div>}
       <section className="border border-[#c6d4d2] bg-white p-5">
         <div className="flex flex-wrap items-end gap-3">
           <label className="min-w-64 flex-1"><span className="mb-1 flex items-center justify-between text-xs font-semibold text-[#617775]"><span>Operational route</span><span className={online ? 'text-emerald-700' : 'text-amber-700'}>{online ? 'Online' : 'Offline queue active'}</span></span><select value={routeId} onChange={event => { setRouteId(event.target.value); setReport(null); void refresh(event.target.value) }} className="h-10 w-full border border-[#c6d4d2] bg-white px-3 text-sm">{routes.map(route => <option key={route.id} value={route.id}>{route.name} · {route.status} · v{route.current_version}</option>)}</select></label>
@@ -305,7 +326,7 @@ export default function RouteOperations({ routes, onRoutesChanged }: Props) {
         </section>
       )}
 
-      {report && <section className="border border-[#c6d4d2] bg-white p-5"><h2 className="font-semibold">Planned vs actual</h2><div className="mt-4 grid gap-3 sm:grid-cols-4"><ReportMetric label="Planned miles" value={report.plannedDistanceMiles.toFixed(1)} /><ReportMetric label="Actual miles" value={report.actualDistanceMiles?.toFixed(1) ?? 'Pending'} /><ReportMetric label="Planned minutes" value={String(Math.round(report.plannedDurationMinutes))} /><ReportMetric label="Actual minutes" value={report.actualDurationMinutes === null ? 'Pending' : String(report.actualDurationMinutes)} /></div>{report.arrivals && <p className="mt-3 text-xs text-[#617775]">Arrival checks: <span className="font-semibold text-emerald-700">{report.arrivals.verified} verified</span> · <span className={report.arrivals.overridden ? 'font-semibold text-red-700' : ''}>{report.arrivals.overridden} confirmed away from the stop</span> · {report.arrivals.unverified} not verified</p>}{report.deviations && report.deviations.length > 0 && <div className="mt-4 border-t border-[#e1e9e7] pt-3"><p className="text-xs font-semibold text-[#173435]">Left the planned route {report.deviationSummary?.count ?? report.deviations.length} time{(report.deviationSummary?.count ?? report.deviations.length) === 1 ? '' : 's'}{report.deviationSummary ? `, ${report.deviationSummary.totalMinutes} min in total` : ''}</p><ul className="mt-2 space-y-1">{report.deviations.map(item => <li key={item.id} className="text-xs text-[#617775]"><span className="font-semibold text-[#173435]">{new Date(item.startedAt).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}</span> · {DEVIATION_LABELS[item.reason] ?? item.reason}{item.maxDistanceMeters !== undefined ? ` · up to ${describeDistance(item.maxDistanceMeters)} away` : ''}{item.resolution ? ` · ${RESOLUTION_LABELS[item.resolution] ?? item.resolution}` : ' · still open'}{item.addedMinutes !== undefined && item.addedMinutes !== 0 ? ` (${item.addedMinutes > 0 ? '+' : ''}${item.addedMinutes} min)` : ''}</li>)}</ul></div>}<div className="mt-4 space-y-2">{report.stopAnalysis.map(stop => { const badge = arrivalBadge(stop.arrival, stop.status); return <div key={stop.stopId} className="flex items-center justify-between gap-3 border-t border-[#e1e9e7] pt-2 text-sm"><span className="min-w-0"><span className="block">{stop.name || stop.address}</span>{badge && <span className={`block text-xs ${badge.tone}`}>{badge.text}</span>}</span><span className={stop.onTime === false ? 'shrink-0 font-semibold text-red-700' : 'shrink-0 text-[#617775]'}>{stop.arrivalVarianceMinutes === null ? 'No actual arrival' : `${stop.arrivalVarianceMinutes > 0 ? '+' : ''}${stop.arrivalVarianceMinutes} min`}</span></div> })}</div></section>}
+      {report && <section id="pod-report" className="border border-[#c6d4d2] bg-white p-5"><div className="flex items-center justify-between gap-3"><h2 className="font-semibold">Planned vs actual</h2><button type="button" onClick={() => window.print()} className="h-8 border border-[#aebfbc] px-3 text-xs font-semibold text-[#486361] print:hidden">Print or save as PDF</button></div><div className="mt-4 grid gap-3 sm:grid-cols-4"><ReportMetric label="Planned miles" value={report.plannedDistanceMiles.toFixed(1)} /><ReportMetric label="Actual miles" value={report.actualDistanceMiles?.toFixed(1) ?? 'Pending'} /><ReportMetric label="Planned minutes" value={String(Math.round(report.plannedDurationMinutes))} /><ReportMetric label="Actual minutes" value={report.actualDurationMinutes === null ? 'Pending' : String(report.actualDurationMinutes)} /></div>{report.arrivals && <p className="mt-3 text-xs text-[#617775]">Arrival checks: <span className="font-semibold text-emerald-700">{report.arrivals.verified} verified</span> · <span className={report.arrivals.overridden ? 'font-semibold text-red-700' : ''}>{report.arrivals.overridden} confirmed away from the stop</span> · {report.arrivals.unverified} not verified</p>}{report.deviations && report.deviations.length > 0 && <div className="mt-4 border-t border-[#e1e9e7] pt-3"><p className="text-xs font-semibold text-[#173435]">Left the planned route {report.deviationSummary?.count ?? report.deviations.length} time{(report.deviationSummary?.count ?? report.deviations.length) === 1 ? '' : 's'}{report.deviationSummary ? `, ${report.deviationSummary.totalMinutes} min in total` : ''}</p><ul className="mt-2 space-y-1">{report.deviations.map(item => <li key={item.id} className="text-xs text-[#617775]"><span className="font-semibold text-[#173435]">{new Date(item.startedAt).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}</span> · {DEVIATION_LABELS[item.reason] ?? item.reason}{item.maxDistanceMeters !== undefined ? ` · up to ${describeDistance(item.maxDistanceMeters)} away` : ''}{item.resolution ? ` · ${RESOLUTION_LABELS[item.resolution] ?? item.resolution}` : ' · still open'}{item.addedMinutes !== undefined && item.addedMinutes !== 0 ? ` (${item.addedMinutes > 0 ? '+' : ''}${item.addedMinutes} min)` : ''}</li>)}</ul></div>}<div className="mt-4 space-y-2">{report.stopAnalysis.map(stop => { const badge = arrivalBadge(stop.arrival, stop.status); const proof = proofByStop[stop.stopId]; return <div key={stop.stopId} className="border-t border-[#e1e9e7] pt-2 text-sm"><div className="flex items-center justify-between gap-3"><span className="min-w-0"><span className="block">{stop.name || stop.address}</span>{badge && <span className={`block text-xs ${badge.tone}`}>{badge.text}</span>}</span><span className={stop.onTime === false ? 'shrink-0 font-semibold text-red-700' : 'shrink-0 text-[#617775]'}>{stop.arrivalVarianceMinutes === null ? 'No actual arrival' : `${stop.arrivalVarianceMinutes > 0 ? '+' : ''}${stop.arrivalVarianceMinutes} min`}</span></div>{proof && <div className="mt-2 border border-[#e1e9e7] bg-[#f8fbfa] p-3 text-xs text-[#486361]"><p className="font-semibold text-[#173435]">Proof captured {new Date(proof.capturedAt).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}{proof.receiverName ? ` \u00b7 received by ${proof.receiverName}` : ''}</p>{proof.notes && <p className="mt-1 whitespace-pre-wrap">{proof.notes}</p>}{(proof.photos.length > 0 || proof.signature) && <div className="mt-2 flex flex-wrap gap-2">{proof.photos.map((url, index) => <a key={url} href={url} target="_blank" rel="noopener noreferrer">{/* eslint-disable-next-line @next/next/no-img-element */}<img src={url} alt={`Proof photo ${index + 1}`} className="h-20 w-20 object-cover" /></a>)}{proof.signature && /* eslint-disable-next-line @next/next/no-img-element */ <img src={proof.signature} alt="Signature" className="h-20 border border-[#e1e9e7] bg-white object-contain px-2" />}</div>}</div>}</div> })}</div></section>}
 
       <section className="border border-[#c6d4d2] bg-white"><div className="border-b border-[#d8e2e0] px-5 py-4"><h2 className="font-semibold">Version history</h2></div><div className="divide-y divide-[#e1e9e7]">{versions.map(version => <div key={version.id} className="flex items-center gap-3 px-5 py-3"><CheckCircle className="h-4 w-4 text-[#008c82]" /><div className="flex-1"><p className="text-sm font-semibold">Version {version.version_number} · {version.change_type}</p><p className="text-xs text-[#687d7b]">{new Date(version.created_at).toLocaleString()}</p></div><button onClick={() => restore(version.version_number)} disabled={busy || version.version_number === selectedRoute?.current_version} className="h-8 border border-[#aebfbc] px-2 text-xs font-semibold disabled:opacity-30">Restore</button></div>)}</div></section>
     </div>

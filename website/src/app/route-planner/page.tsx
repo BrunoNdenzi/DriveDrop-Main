@@ -10,7 +10,9 @@ import DriverMapNavigation, { type ArrivalReport, type DeviationEvent, type Driv
 import { describeReplan } from '@/lib/replan-summary'
 import { geocodeUsAddress } from '@/lib/address-resolve'
 import { enterFullscreen, exitFullscreen } from '@/lib/fullscreen'
+import { jumpTo } from '@/lib/scroll'
 import type { AddedStopDraft } from '@/components/route-planner/AddShipmentSheet'
+import type { ProofData } from '@/components/route-planner/ProofSheet'
 import { assignStopTags } from '@/lib/stop-tags'
 import NumericInput from '@/components/route-planner/NumericInput'
 import CollapsibleSection from '@/components/route-planner/CollapsibleSection'
@@ -48,6 +50,11 @@ interface PlannerStop {
   serviceMinutes: number
   latitude?: number
   longitude?: number
+  priority?: 'high' | 'medium' | 'low'
+  doFirst?: boolean
+  customerName?: string
+  customerPhone?: string
+  customerEmail?: string
   timeWindow?: { earliest: string; latest: string }
 }
 
@@ -189,6 +196,10 @@ function navigationStops(result: OptimizedRoute): NavStop[] {
     distanceFromPrevious: stop.distanceFromPrevious,
     durationFromPrevious: stop.durationFromPrevious,
     ...(stop.timeWindow ? { timeWindow: stop.timeWindow } : {}),
+    ...(stop.customerName ? { customerName: stop.customerName } : {}),
+    ...(stop.customerPhone ? { customerPhone: stop.customerPhone } : {}),
+    ...(stop.customerEmail ? { customerEmail: stop.customerEmail } : {}),
+    ...(stop.doFirst ? { doFirst: true } : {}),
   }))
 }
 
@@ -245,6 +256,40 @@ export default function StandaloneRoutePlannerPage() {
   }, [drivingMode])
   const [message, setMessage] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
+
+  // What the driver just did decides where the page should take them next.
+  const workspaceRef = useRef<HTMLDivElement>(null)
+  const messageRef = useRef<HTMLDivElement>(null)
+  const mapSectionRef = useRef<HTMLDivElement>(null)
+  const stopsTopRef = useRef<HTMLElement>(null)
+  const pendingJumpRef = useRef<{ kind: 'map' | 'stops' | 'stop'; stopId?: string } | null>(null)
+  const firstTabRender = useRef(true)
+
+  useEffect(() => {
+    if (message || error) jumpTo(messageRef.current)
+  }, [message, error])
+
+  useEffect(() => {
+    if (firstTabRender.current) { firstTabRender.current = false; return }
+    jumpTo(workspaceRef.current, { always: true })
+  }, [tab])
+
+  useEffect(() => {
+    const pending = pendingJumpRef.current
+    if (!pending) return
+    if (pending.kind === 'map' && result) {
+      pendingJumpRef.current = null
+      jumpTo(mapSectionRef.current, { always: true })
+    } else if (pending.kind === 'stops') {
+      pendingJumpRef.current = null
+      jumpTo(stopsTopRef.current, { always: true })
+    } else if (pending.kind === 'stop' && pending.stopId) {
+      const input = stopInputRefs.current.get(pending.stopId)
+      if (!input) return
+      pendingJumpRef.current = null
+      jumpTo(input.closest('[data-stop-row]'), { always: true, focus: input })
+    }
+  }, [result, stops, tab])
 
   const api = useCallback(async <T,>(path: string, init?: RequestInit): Promise<T> => {
     const { data: { session } } = await supabase.auth.getSession()
@@ -481,7 +526,7 @@ export default function StandaloneRoutePlannerPage() {
     )
   })
 
-  const replanFromHere = async (addStops?: AddedStopDraft[]) => {
+  const replanFromHere = async (addStops?: AddedStopDraft[], urgentStopIds?: string[]) => {
     const executionId = trackedExecutionRef.current
     if (!executionId) throw new Error(currentRouteId ? 'Tap Start Navigation first so finished stops are recorded' : 'Save the route to re-plan from your position')
 
@@ -494,12 +539,41 @@ export default function StandaloneRoutePlannerPage() {
     const previous = { stops: result?.stops ?? [], endTime: result?.summary.estimatedEndTime }
     const data = await api<{ optimizedRoute: OptimizedRoute }>(`/executions/${executionId}/reoptimize`, {
       method: 'POST',
-      body: JSON.stringify({ currentLocation: here, ...(addStops?.length ? { addStops } : {}) }),
+      body: JSON.stringify({ currentLocation: here, ...(addStops?.length ? { addStops } : {}), ...(urgentStopIds?.length ? { urgentStopIds } : {}) }),
     })
     setResult(data.optimizedRoute)
     void refreshLibrary()
     const summary = describeReplan(previous, { stops: data.optimizedRoute.stops, endTime: data.optimizedRoute.summary.estimatedEndTime })
-    return addStops?.length ? `Shipment added. ${summary.replace('Re-planned from your position. ', '')}` : summary
+    return addStops?.length ? `Shipment added. ${summary.replace('Re-planned from your position. ', '')}` : urgentStopIds?.length ? `Next stop updated. ${summary.replace('Re-planned from your position. ', '')}` : summary
+  }
+
+  // Photos, signature and notes for a stop are stored on the server and shown to the dispatcher (and the customer once delivered).
+  const uploadProof = async (index: number, data: ProofData) => {
+    const executionId = trackedExecutionRef.current
+    const stop = result?.stops[index]
+    if (!executionId || !stop) throw new Error('Proof is saved on a tracked run. Start navigation from a saved route first.')
+    await syncChainRef.current.catch(() => undefined)
+    const form = new FormData()
+    data.photos.forEach(file => form.append('photos', file))
+    if (data.signature) form.append('signature', data.signature, 'signature.png')
+    if (data.receiverName.trim()) form.append('receiverName', data.receiverName.trim())
+    if (data.notes.trim()) form.append('notes', data.notes.trim())
+    try {
+      await api(`/executions/${executionId}/stops/${encodeURIComponent(stop.id)}/proof`, { method: 'POST', body: form })
+    } catch (caught) {
+      if (caught instanceof TypeError) throw new Error('No connection. Try again with signal, or complete without proof.')
+      throw caught
+    }
+  }
+
+  const createStopLink = async (index: number) => {
+    const executionId = trackedExecutionRef.current
+    const stop = result?.stops[index]
+    if (!executionId || !stop) throw new Error('ETA links work on a tracked run. Start navigation from a saved route first.')
+    const link = await api<{ token: string }>(`/executions/${executionId}/stops/${encodeURIComponent(stop.id)}/link`, { method: 'POST', body: '{}' })
+    const url = `${window.location.origin}/route-planner/track/${link.token}`
+    const lead = stop.customerName ? `Hi ${stop.customerName}, follow` : 'Follow'
+    return { url, message: `${lead} your delivery and see the driver's ETA here: ${url}` }
   }
 
   // Idempotent by id, so the start, the reason and the end of one departure all update the same record.
@@ -525,7 +599,9 @@ export default function StandaloneRoutePlannerPage() {
     onStopReached: recordStopReached,
     onNavigationComplete: finishTrackedRun,
     onPosition: recordPosition,
-    onReoptimize: () => replanFromHere(),
+    onReoptimize: (options?: { urgentStopIds?: string[] }) => replanFromHere(undefined, options?.urgentStopIds),
+    onCaptureProof: uploadProof,
+    onShareStop: createStopLink,
     onAddShipment: (added: AddedStopDraft[]) => replanFromHere(added),
     trackingStatus: tracking ?? (currentRouteId
       ? { state: 'off' as const, label: 'Tracking starts with Start Navigation' }
@@ -692,6 +768,7 @@ export default function StandaloneRoutePlannerPage() {
     stopsRef.current = [...stopsRef.current, pickup, delivery]
     setStops(current => [...current, pickup, delivery])
     setResult(null)
+    pendingJumpRef.current = { kind: 'stop', stopId: pickup.id }
   }
 
   const addStop = (location?: SavedLocation) => {
@@ -709,6 +786,7 @@ export default function StandaloneRoutePlannerPage() {
     setStops(current => [...current, added])
     setTab('plan')
     setResult(null)
+    pendingJumpRef.current = { kind: 'stop', stopId: added.id }
     // Older saved locations have no coordinates: look them up once and save them back to the address book.
     if (location && !hasCoordinates) {
       void resolveStopAddress(added.id).then(found => {
@@ -787,6 +865,7 @@ export default function StandaloneRoutePlannerPage() {
         body: JSON.stringify({ stops: stopsRef.current, options: routeOptions(), routeId: currentRouteId }),
       })
       setResult(data)
+      pendingJumpRef.current = { kind: 'map' }
       flash('Route optimized')
     } catch (caught) {
       fail(caught)
@@ -841,6 +920,7 @@ export default function StandaloneRoutePlannerPage() {
     setFrequency(route.recurrence?.frequency ?? 'weekly')
     setRecurrenceStart(route.recurrence?.startsAt ? localDateTime(new Date(route.recurrence.startsAt)) : localDateTime())
     setResult(route.last_optimized_result)
+    pendingJumpRef.current = { kind: 'stops' }
     setTab('plan')
   }
 
@@ -872,6 +952,7 @@ export default function StandaloneRoutePlannerPage() {
       const origin = stops[0] ?? newStop(0, 'draft-origin')
       setStops([{ ...origin, type: 'current_location' }, ...importedStops])
       setResult(null)
+      pendingJumpRef.current = { kind: 'stops' }
       flash(imported.shipmentCount > 0
         ? `Imported ${imported.shipmentCount} shipments as ${imported.importedCount} pickup and delivery stops`
         : `Imported ${imported.importedCount} stops`)
@@ -984,7 +1065,7 @@ export default function StandaloneRoutePlannerPage() {
       /></div>}
 
       <div className="mx-auto max-w-[1500px] px-4 py-5 sm:px-6">
-        <div className="flex flex-wrap items-end justify-between gap-4 border-b border-[#bfd0cd]">
+        <div ref={workspaceRef} className="flex flex-wrap items-end justify-between gap-4 border-b border-[#bfd0cd]">
           <div><p className="text-xs font-bold uppercase tracking-[0.14em] text-[#008c82]">Planning workspace</p><h1 className="mt-1 text-2xl font-semibold">Build today&apos;s route</h1></div>
           <nav className="flex w-full max-w-full overflow-x-auto sm:w-auto" aria-label="Planner views">
             {([['plan', Navigation, 'Plan'], ['routes', Calendar, 'Saved routes'], ['operations', RefreshCw, 'Operations'], ['locations', BookOpen, 'Address book'], ['billing', CreditCard, 'Billing']] as const).map(([key, Icon, label]) => (
@@ -993,13 +1074,15 @@ export default function StandaloneRoutePlannerPage() {
           </nav>
         </div>
 
-        {(message || error) && <div className={`mt-4 border p-3 text-sm ${error ? 'border-red-200 bg-red-50 text-red-700' : 'border-emerald-200 bg-emerald-50 text-emerald-700'}`}>{error || message}</div>}
+        {(message || error) && <div ref={messageRef} role={error ? 'alert' : 'status'} className={`mt-4 border p-3 text-sm ${error ? 'border-red-200 bg-red-50 text-red-700' : 'border-emerald-200 bg-emerald-50 text-emerald-700'}`}>{error || message}</div>}
+
+        {tab === 'plan' && <BenjiPanel result={result} />}
 
         {tab === 'plan' && (
           <div className="mt-5 grid gap-5 xl:grid-cols-[minmax(0,1.25fr)_minmax(380px,.75fr)]">
-            <section className="border border-[#c6d4d2] bg-white">
+            <section ref={stopsTopRef} className="scroll-mt-3 border border-[#c6d4d2] bg-white">
               <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#d8e2e0] px-5 py-4">
-                <div><h2 className="font-semibold">Origin and shipments</h2><p className="text-xs text-[#6b807e]">Start with where your truck is now, then add or import each load&apos;s pickup and delivery.</p></div>
+                <div><h2 className="font-semibold">Origin and shipments</h2><p className="text-xs text-[#6b807e]">Start with where your truck is now, then add or import each load&apos;s pickup and delivery. Stops set to <strong>Do first</strong> are visited before everything else, in list order.</p></div>
                 <div className="flex flex-wrap gap-2">
                   <input ref={fileInputRef} type="file" accept=".csv,.xlsx,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" className="hidden" onChange={event => { const file = event.target.files?.[0]; if (file) void importCsv(file) }} />
                   <button onClick={detectCurrentOrigin} disabled={detectingOrigin} title="Use current GPS location as the origin" className="flex h-9 items-center gap-2 border border-[#b9c9c7] px-3 text-sm font-semibold hover:bg-[#f3f7f6] disabled:opacity-50"><Crosshair className={`h-4 w-4 ${detectingOrigin ? 'animate-spin' : ''}`} />{detectingOrigin ? 'Locating...' : 'Use my location'}</button>
@@ -1011,7 +1094,7 @@ export default function StandaloneRoutePlannerPage() {
               </div>
               <div className="divide-y divide-[#e4ebe9]">
                 {stops.map((stop, index) => (
-                  <div key={stop.id} className="px-5 py-4">
+                  <div key={stop.id} data-stop-row className="px-5 py-4">
                     <div className="grid gap-3 md:grid-cols-[34px_minmax(120px,.45fr)_minmax(220px,1fr)_110px_36px] md:items-center">
                       <span className="grid h-8 w-8 place-items-center bg-[#e4f3f1] text-sm font-bold text-[#00756d]">{index + 1}</span>
                       <div>{index === 0 ? <span className="mb-1 block text-[10px] font-bold uppercase text-[#64807d]">Origin</span> : <select aria-label={`Stop ${index + 1} type`} value={stop.type} onChange={event => updateStop(stop.id, { type: event.target.value as StopType })} className="mb-1 block h-5 border-0 bg-transparent p-0 text-[10px] font-bold uppercase text-[#64807d]"><option value="stop">Stop</option><option value="pickup">Pickup</option><option value="delivery">Delivery</option><option value="fuel">Fuel</option><option value="rest">Rest</option></select>}<input aria-label={`Stop ${index + 1} name`} value={stop.name} onChange={event => updateStop(stop.id, { name: event.target.value })} placeholder="Stop name" className="h-10 w-full border border-[#c6d4d2] px-3 text-sm outline-none focus:border-[#008c82]" /></div>
@@ -1021,6 +1104,8 @@ export default function StandaloneRoutePlannerPage() {
                     </div>
                     <div className="mt-3 flex flex-wrap items-center gap-3 pl-0 md:pl-[46px]">
                       {(stop.type === 'pickup' || stop.type === 'delivery') && <input aria-label={`Stop ${index + 1} shipment reference`} value={stop.referenceId ?? ''} onChange={event => updateStop(stop.id, { referenceId: event.target.value })} placeholder="Shipment reference (pairs pickup and delivery)" className="h-9 w-64 border border-[#c6d4d2] px-2 text-xs" />}
+                      {index > 0 && <label className="flex items-center gap-1.5 text-xs font-semibold text-[#617775]">Priority<select aria-label={`Stop ${index + 1} priority`} value={stop.doFirst ? 'first' : stop.priority === 'high' ? 'high' : 'normal'} onChange={event => updateStop(stop.id, { doFirst: event.target.value === 'first' ? true : undefined, priority: event.target.value === 'normal' ? undefined : 'high' })} className={`h-9 border bg-white px-2 text-xs ${stop.doFirst ? 'border-amber-500 font-bold text-amber-800' : stop.priority === 'high' ? 'border-[#008c82] font-semibold' : 'border-[#c6d4d2]'}`}><option value="normal">Normal</option><option value="high">High (sooner if cheap)</option><option value="first">Do first</option></select></label>}
+                      {index > 0 && <details className="w-full text-xs text-[#617775]"><summary className="cursor-pointer font-semibold">Customer details{stop.customerName || stop.customerPhone || stop.customerEmail ? ` \u00b7 ${stop.customerName || stop.customerPhone || stop.customerEmail}` : ' (optional, used for ETA links)'}</summary><div className="mt-2 grid gap-2 sm:grid-cols-3"><input aria-label={`Stop ${index + 1} customer name`} value={stop.customerName ?? ''} onChange={event => updateStop(stop.id, { customerName: event.target.value || undefined })} placeholder="Name" maxLength={120} className="h-9 border border-[#c6d4d2] px-2 text-xs" /><input aria-label={`Stop ${index + 1} customer phone`} type="tel" value={stop.customerPhone ?? ''} onChange={event => updateStop(stop.id, { customerPhone: event.target.value || undefined })} placeholder="Phone" maxLength={32} className="h-9 border border-[#c6d4d2] px-2 text-xs" /><input aria-label={`Stop ${index + 1} customer email`} type="email" value={stop.customerEmail ?? ''} onChange={event => updateStop(stop.id, { customerEmail: event.target.value || undefined })} placeholder="Email" maxLength={200} className="h-9 border border-[#c6d4d2] px-2 text-xs" /></div></details>}
                       <label className="flex items-center gap-2 text-xs font-semibold text-[#617775]"><input type="checkbox" checked={Boolean(stop.timeWindow)} onChange={event => updateStop(stop.id, { timeWindow: event.target.checked ? { earliest: new Date().toISOString(), latest: new Date(Date.now() + 2 * 60 * 60_000).toISOString() } : undefined })} className="h-4 w-4 accent-[#008c82]" />Time window</label>
                       {stop.timeWindow && <><input aria-label={`Stop ${index + 1} earliest time`} type="datetime-local" value={localDateTime(new Date(stop.timeWindow.earliest))} onChange={event => updateStop(stop.id, { timeWindow: { ...stop.timeWindow!, earliest: new Date(event.target.value).toISOString() } })} className="h-9 border border-[#c6d4d2] px-2 text-xs" /><span className="text-xs text-[#718482]">to</span><input aria-label={`Stop ${index + 1} latest time`} type="datetime-local" value={localDateTime(new Date(stop.timeWindow.latest))} onChange={event => updateStop(stop.id, { timeWindow: { ...stop.timeWindow!, latest: new Date(event.target.value).toISOString() } })} className="h-9 border border-[#c6d4d2] px-2 text-xs" /></>}
                     </div>
@@ -1028,7 +1113,7 @@ export default function StandaloneRoutePlannerPage() {
                 ))}
               </div>
               <datalist id="saved-locations">{locations.map(location => <option key={location.id} value={location.address}>{location.name}</option>)}</datalist>
-              {result && !drivingMode && <div className="border-t border-[#d8e2e0] p-4"><DriverMapNavigation
+              {result && !drivingMode && <div ref={mapSectionRef} className="scroll-mt-3 border-t border-[#d8e2e0] p-4"><DriverMapNavigation
                 stops={navigationStops(result)}
                 plannedDistance={result.summary.totalDistance}
                 plannedDurationMinutes={result.summary.totalDuration}
@@ -1063,7 +1148,7 @@ export default function StandaloneRoutePlannerPage() {
               </section>
 
               {result && <section className="border border-[#9fc7c2] bg-[#f8fbfa] p-5"><div className="flex items-center justify-between"><h2 className="font-semibold">Optimized route</h2><span className="bg-[#dff2ee] px-2 py-1 text-xs font-bold text-[#00756d]">{result.summary.efficiencyScore}/100</span></div><div className="mt-4 grid grid-cols-2 gap-px bg-[#cbd8d6]"><Metric icon={Route} label="Distance" value={`${result.summary.totalDistance} mi`} /><Metric icon={Clock} label="Duration" value={`${Math.round(result.summary.totalDuration / 6) / 10} hr`} /><Metric icon={Fuel} label="Fuel" value={`$${result.summary.totalFuelCost.toFixed(2)}`} /><Metric icon={Navigation} label="Finish" value={new Date(result.summary.estimatedEndTime).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })} /></div>{result.commercialCompliance.status === 'verified' && <p className="mt-3 border border-emerald-200 bg-emerald-50 p-2 text-xs font-semibold text-emerald-800">Commercial route verified by HERE for {result.commercialCompliance.restrictions.join(', ')}.</p>}{result.constraintWarnings.map(warning => <p key={warning} className="mt-2 border border-amber-200 bg-amber-50 p-2 text-xs text-amber-800">{warning}</p>)}<OptimizedStopList stops={result.stops} tags={stopTags} /></section>}
-              {result && <><RouteIntelligence result={result} onDrive={startDriving} /><RouteCoach result={result} /></>}
+              {result && <RouteIntelligence result={result} onDrive={startDriving} />}
             </aside>
           </div>
         )}
@@ -1113,7 +1198,6 @@ function RouteIntelligence({ result, onDrive }: { result: OptimizedRoute; onDriv
     </div>
     {result.carolinaInsights.length > 0 && <CollapsibleSection storageKey="regional-intelligence" title="Regional route intelligence" count={result.carolinaInsights.length} className="mt-3 border border-[#d6e1df] p-3">{result.carolinaInsights.map(insight => <div key={`${insight.title}-${insight.affectedSegment || ''}`} className="mt-2"><p className="font-semibold">{insight.title}</p><p className="text-[#617775]">{insight.description}</p></div>)}</CollapsibleSection>}
     {result.fuelStops.length > 0 && <CollapsibleSection storageKey="fuel-stops" title="Recommended fuel stops" count={result.fuelStops.length} className="mt-3 border border-[#d6e1df] p-3">{result.fuelStops.map(stop => <div key={`${stop.name}-${stop.address}`} className="mt-2"><p className="font-semibold">{stop.name} - ${stop.estimatedPrice.toFixed(2)}/gal</p><p className="text-[#617775]">{stop.reason}</p></div>)}</CollapsibleSection>}
-    {result.benjiTips.length > 0 && <CollapsibleSection storageKey="route-guidance" title="Route guidance" count={result.benjiTips.length} className="mt-3 border border-[#b9d8d4] bg-[#edf8f6] p-3"><ul className="space-y-1 text-[#496764]">{result.benjiTips.map(tip => <li key={tip}>- {tip}</li>)}</ul></CollapsibleSection>}
   </section>
 }
 
@@ -1121,12 +1205,28 @@ function IntelligenceMetric({ label, value }: { label: string; value: string }) 
   return <div className="border border-[#d6e1df] bg-[#f8fbfa] p-2"><p className="text-[#6b807e]">{label}</p><p className="mt-1 font-bold text-[#254947]">{value}</p></div>
 }
 
-function RouteCoach({ result }: { result: OptimizedRoute }) {
+function BenjiPanel({ result }: { result: OptimizedRoute | null }) {
   const supabase = getSupabaseBrowserClient()
   const sessionId = useRef(`standalone-route-${crypto.randomUUID()}`)
+  const [open, setOpen] = useState(true)
   const [question, setQuestion] = useState('')
   const [answer, setAnswer] = useState('')
   const [loading, setLoading] = useState(false)
+  const tips = result?.benjiTips ?? []
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem('planner-benji-open')
+      if (saved !== null) setOpen(saved === '1')
+    } catch {
+      // Storage can be unavailable in private mode; the panel stays open.
+    }
+  }, [])
+
+  const toggle = () => setOpen(current => {
+    try { localStorage.setItem('planner-benji-open', current ? '0' : '1') } catch { /* see above */ }
+    return !current
+  })
 
   const ask = async () => {
     if (!question.trim()) return
@@ -1134,30 +1234,39 @@ function RouteCoach({ result }: { result: OptimizedRoute }) {
     try {
       const { data: { session } } = await supabase.auth.getSession()
       if (!session?.access_token) throw new Error('Your session expired. Sign in again.')
-      const routeContext = result.stops.map(stop => `${stop.order}. ${stop.address}`).join('\n')
+      const routeContext = result
+        ? `\nOptimized standalone route:\n${result.stops.map(stop => `${stop.order}. ${stop.address}`).join('\n')}\nDistance: ${result.summary.totalDistance} miles. Duration: ${result.summary.totalDuration} minutes.`
+        : ''
       const response = await fetch(`${API_BASE_URL}/benji-v3/chat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
-        body: JSON.stringify({
-          sessionId: sessionId.current,
-          message: `${question.trim()}\nOptimized standalone route:\n${routeContext}\nDistance: ${result.summary.totalDistance} miles. Duration: ${result.summary.totalDuration} minutes.`,
-        }),
+        body: JSON.stringify({ sessionId: sessionId.current, message: `${question.trim()}${routeContext}` }),
       })
       const body = await response.json().catch(() => ({}))
-      if (!response.ok) throw new Error(body.error || 'Route coaching is unavailable')
+      if (!response.ok) throw new Error(body.error || 'Benji is unavailable')
       setAnswer(body.response || 'No guidance returned.')
       setQuestion('')
     } catch (caught) {
-      setAnswer(caught instanceof Error ? caught.message : 'Route coaching is unavailable')
+      setAnswer(caught instanceof Error ? caught.message : 'Benji is unavailable')
     } finally {
       setLoading(false)
     }
   }
 
-  return <section className="border border-[#b9d8d4] bg-[#edf8f6] p-5">
-    <h2 className="font-semibold text-[#254947]">Ask Benji about this route</h2>
-    <div className="mt-3 flex gap-2"><input value={question} onChange={event => setQuestion(event.target.value)} onKeyDown={event => { if (event.key === 'Enter') void ask() }} placeholder="Traffic, fuel, timing, or route advice" className="h-10 min-w-0 flex-1 border border-[#b9cbc8] bg-white px-3 text-sm" /><button onClick={() => void ask()} disabled={loading || !question.trim()} className="h-10 bg-[#173f40] px-4 text-sm font-bold text-white disabled:opacity-40">{loading ? 'Asking...' : 'Ask'}</button></div>
-    {answer && <p className="mt-3 whitespace-pre-wrap border-t border-[#c7ddda] pt-3 text-sm leading-6 text-[#496764]">{answer}</p>}
+  return <section className="mt-5 border border-[#b9d8d4] bg-[#edf8f6]" aria-label="Benji, your route assistant">
+    <button type="button" onClick={toggle} aria-expanded={open} className="flex w-full items-center gap-3 px-4 py-3 text-left">
+      <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-[#173f40] text-sm font-bold text-white">B</span>
+      <span className="min-w-0 flex-1">
+        <span className="block text-sm font-semibold text-[#254947]">Benji, your route assistant{tips.length > 0 ? ` \u00b7 ${tips.length} tip${tips.length === 1 ? '' : 's'}` : ''}</span>
+        {!open && <span className="block truncate text-xs text-[#496764]">{tips[0] ?? 'Ask about traffic, fuel, timing or how to plan a tricky day.'}</span>}
+      </span>
+      <span className="text-xs font-semibold text-[#00756d]">{open ? 'Hide' : 'Show'}</span>
+    </button>
+    {open && <div className="border-t border-[#c7ddda] px-4 pb-4 pt-3">
+      {tips.length > 0 && <ul className="space-y-1 text-sm text-[#496764]">{tips.map(tip => <li key={tip}>- {tip}</li>)}</ul>}
+      <div className={`flex gap-2 ${tips.length > 0 ? 'mt-3' : ''}`}><input value={question} onChange={event => setQuestion(event.target.value)} onKeyDown={event => { if (event.key === 'Enter') void ask() }} placeholder={result ? 'Ask about this route: traffic, fuel, timing' : 'Ask Benji anything about planning your route'} aria-label="Ask Benji" className="h-10 min-w-0 flex-1 border border-[#b9cbc8] bg-white px-3 text-sm" /><button onClick={() => void ask()} disabled={loading || !question.trim()} className="h-10 bg-[#173f40] px-4 text-sm font-bold text-white disabled:opacity-40">{loading ? 'Asking...' : 'Ask'}</button></div>
+      {answer && <p className="mt-3 whitespace-pre-wrap border-t border-[#c7ddda] pt-3 text-sm leading-6 text-[#496764]">{answer}</p>}
+    </div>}
   </section>
 }
 

@@ -9,6 +9,24 @@ html.driving-lock body {
   overscroll-behavior: none;
 }
 
+/* Printing the route report prints only the report. */
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  #pod-report,
+  #pod-report * {
+    visibility: visible;
+  }
+  #pod-report {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    border: 0;
+  }
+}
+
 @layer base {
   :root {
     /* DriveDrop Brand Colors */

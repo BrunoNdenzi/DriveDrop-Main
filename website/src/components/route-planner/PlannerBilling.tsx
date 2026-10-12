@@ -1,7 +1,8 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { getSupabaseBrowserClient } from '@/lib/supabase-client'
+import { jumpTo } from '@/lib/scroll'
 import { CheckCircle, CreditCard } from '@/components/icons/streamline-lucide'
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api/v1'
@@ -57,6 +58,11 @@ export default function PlannerBilling() {
   const [billing, setBilling] = useState<BillingStatus | null>(null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
+  const errorRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (error) jumpTo(errorRef.current)
+  }, [error])
 
   const api = useCallback(async <T,>(path: string, init?: RequestInit): Promise<T> => {
     const { data: { session } } = await supabase.auth.getSession()
@@ -112,7 +118,7 @@ export default function PlannerBilling() {
 
   return (
     <div className="mt-5 space-y-5">
-      {error && <div role="alert" className="border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</div>}
+      {error && <div ref={errorRef} role="alert" className="border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</div>}
       {billing.isLocked && <div className="border border-red-300 bg-red-50 p-4 text-sm font-semibold text-red-800">Route changes are locked because payment failed. Open billing to update your payment method.</div>}
 
       <section className="border border-[#c6d4d2] bg-white p-5">
@@ -122,10 +128,10 @@ export default function PlannerBilling() {
         </div>
         <div className="mt-5 space-y-4">
           <div>
-            <div className="flex justify-between text-sm"><span>Route plans this month</span><strong>{billing.usage.routesLimit === null ? `${billing.usage.routesUsed} (unlimited)` : `${billing.usage.routesUsed} / ${billing.usage.routesLimit}`}</strong></div>
+            <div className="flex items-baseline justify-between gap-3 text-sm"><span>Route plans this month</span><strong>{billing.usage.routesLimit === null ? `${billing.usage.routesUsed} (unlimited)` : `${billing.usage.routesUsed} / ${billing.usage.routesLimit}`}</strong></div>
             {billing.usage.routesLimit !== null && <div className="mt-2 h-2 bg-[#e1e9e7]"><div className="h-full bg-[#008c82]" style={{ width: `${usagePercent}%` }} /></div>}
           </div>
-          <div className="flex justify-between text-sm"><span>Drivers on the road now</span><strong>{billing.usage.driversLimit === null ? `${billing.usage.activeRuns} (no limit)` : `${billing.usage.activeRuns} / ${billing.usage.driversLimit}`}</strong></div>
+          <div className="flex items-baseline justify-between gap-3 text-sm"><span>Drivers on the road now</span><strong>{billing.usage.driversLimit === null ? `${billing.usage.activeRuns} (no limit)` : `${billing.usage.activeRuns} / ${billing.usage.driversLimit}`}</strong></div>
           {billing.trialEndsAt && billing.status === 'trialing' && <p className="text-xs text-[#667b79]">{billing.plan.name} trial ends {new Date(billing.trialEndsAt).toLocaleDateString()}.</p>}
           {isLegacyPlan && <p className="text-xs text-[#667b79]">{billing.plan.name} is a legacy plan. It stays as it is while you are subscribed. New plans are Solo, Team and Business.</p>}
         </div>
@@ -133,22 +139,29 @@ export default function PlannerBilling() {
 
       <p className="text-sm text-[#667b79]">A route plan is one saved sequence of stops for one vehicle. Free includes 5 a month; paid plans have no limit, and re-optimizing, dispatching, or repeating a saved route never uses another one. A driver is one route running at the same time.</p>
 
-      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
-        {planOptions.map(plan => <article key={plan.key} className={`border bg-white p-5 ${billing.plan.key === plan.key ? 'border-[#008c82]' : 'border-[#c6d4d2]'}`}>
-          <div className="flex items-center justify-between"><h3 className="text-lg font-semibold">{plan.name}</h3>{billing.plan.key === plan.key && <span className="text-xs font-bold uppercase text-[#00756d]">Current</span>}</div>
-          <p className="mt-3 text-3xl font-semibold">{plan.price}<span className="text-sm font-normal text-[#667b79]"> / month</span></p>
-          <p className="mt-1 text-sm text-[#667b79]">{plan.detail}</p>
-          <div className="mt-4 space-y-2">{plan.features.map(feature => <p key={feature} className="flex items-center gap-2 text-sm"><CheckCircle className="h-4 w-4 text-[#008c82]" />{feature}</p>)}</div>
-          {plan.key !== 'free' && billing.plan.key !== plan.key && (hasSubscription
-            ? <button onClick={() => void redirect('/planner-billing/portal')} disabled={busy} className="mt-5 h-10 w-full border border-[#173f40] px-3 text-sm font-bold text-[#173f40] disabled:opacity-50">Change plan</button>
-            : <button onClick={() => void redirect('/planner-billing/checkout', { planKey: plan.key })} disabled={busy} className="mt-5 h-10 w-full bg-[#173f40] px-3 text-sm font-bold text-white disabled:opacity-50">Choose {plan.name}</button>)}
-        </article>)}
-        <article className="border border-[#c6d4d2] bg-white p-5">
-          <h3 className="text-lg font-semibold">Enterprise</h3>
-          <p className="mt-3 text-3xl font-semibold">Custom</p>
-          <p className="mt-1 text-sm text-[#667b79]">For more than 10 drivers</p>
-          <div className="mt-4 space-y-2">{['Driver and stop limits set for your fleet', 'Direct support from our team'].map(feature => <p key={feature} className="flex items-center gap-2 text-sm"><CheckCircle className="h-4 w-4 text-[#008c82]" />{feature}</p>)}</div>
-          <a href={enterpriseMail} className="mt-5 grid h-10 w-full place-items-center border border-[#173f40] px-3 text-sm font-bold text-[#173f40]">Contact us</a>
+      <section className="grid auto-rows-fr gap-4 sm:grid-cols-2 xl:grid-cols-5">
+        {planOptions.map(plan => {
+          const isCurrent = billing.plan.key === plan.key
+          return <article key={plan.key} className={`flex h-full flex-col border bg-white p-5 ${isCurrent ? 'border-2 border-[#008c82]' : 'border-[#c6d4d2]'}`}>
+            <div className="flex h-7 items-center justify-between gap-2"><h3 className="text-lg font-semibold">{plan.name}</h3>{isCurrent && <span className="text-xs font-bold uppercase text-[#00756d]">Current</span>}</div>
+            <p className="mt-3 text-3xl font-semibold leading-none">{plan.price}<span className="text-sm font-normal text-[#667b79]"> / month</span></p>
+            <p className="mt-2 min-h-5 text-sm text-[#667b79]">{plan.detail}</p>
+            <ul className="mt-4 flex-1 space-y-2">{plan.features.map(feature => <li key={feature} className="flex items-start gap-2 text-sm"><CheckCircle className="mt-0.5 h-4 w-4 shrink-0 text-[#008c82]" /><span>{feature}</span></li>)}</ul>
+            <div className="mt-5 h-10">
+              {plan.key === 'free' || isCurrent
+                ? <div className="grid h-10 w-full place-items-center border border-transparent text-sm font-semibold text-[#667b79]">{isCurrent ? 'Your current plan' : 'Included with every account'}</div>
+                : hasSubscription
+                  ? <button onClick={() => void redirect('/planner-billing/portal')} disabled={busy} className="h-10 w-full border border-[#173f40] px-3 text-sm font-bold text-[#173f40] disabled:opacity-50">Change plan</button>
+                  : <button onClick={() => void redirect('/planner-billing/checkout', { planKey: plan.key })} disabled={busy} className="h-10 w-full bg-[#173f40] px-3 text-sm font-bold text-white disabled:opacity-50">Choose {plan.name}</button>}
+            </div>
+          </article>
+        })}
+        <article className="flex h-full flex-col border border-[#c6d4d2] bg-white p-5">
+          <div className="flex h-7 items-center"><h3 className="text-lg font-semibold">Enterprise</h3></div>
+          <p className="mt-3 text-3xl font-semibold leading-none">Custom</p>
+          <p className="mt-2 min-h-5 text-sm text-[#667b79]">For more than 10 drivers</p>
+          <ul className="mt-4 flex-1 space-y-2">{['Driver and stop limits set for your fleet', 'Direct support from our team'].map(feature => <li key={feature} className="flex items-start gap-2 text-sm"><CheckCircle className="mt-0.5 h-4 w-4 shrink-0 text-[#008c82]" /><span>{feature}</span></li>)}</ul>
+          <div className="mt-5 h-10"><a href={enterpriseMail} className="grid h-10 w-full place-items-center border border-[#173f40] px-3 text-sm font-bold text-[#173f40]">Contact us</a></div>
         </article>
       </section>
 

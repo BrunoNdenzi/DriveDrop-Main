@@ -105,6 +105,10 @@ export interface PlannedStop {
   longitude?: number;
   timeWindow?: RouteStop['timeWindow'];
   priority?: RouteStop['priority'];
+  doFirst?: boolean;
+  customerName?: string;
+  customerPhone?: string;
+  customerEmail?: string;
   vehicleInfo?: string;
   isReturn?: boolean;
 }
@@ -131,6 +135,10 @@ export function plannedStopsFromSnapshot(snapshot: Record<string, unknown> | nul
       ...(typeof stop['longitude'] === 'number' ? { longitude: stop['longitude'] } : {}),
       ...(window && typeof window.earliest === 'string' && typeof window.latest === 'string' ? { timeWindow: window } : {}),
       ...(priority ? { priority } : {}),
+      ...(stop['doFirst'] === true ? { doFirst: true } : {}),
+      ...(typeof stop['customerName'] === 'string' ? { customerName: stop['customerName'] } : {}),
+      ...(typeof stop['customerPhone'] === 'string' ? { customerPhone: stop['customerPhone'] } : {}),
+      ...(typeof stop['customerEmail'] === 'string' ? { customerEmail: stop['customerEmail'] } : {}),
       ...(typeof stop['vehicleInfo'] === 'string' ? { vehicleInfo: stop['vehicleInfo'] } : {}),
       ...(stop['isReturn'] === true ? { isReturn: true } : {}),
     }];
@@ -144,6 +152,8 @@ export interface ReoptimizationInput {
   planned: PlannedStop[];
   currentLocation: { latitude: number; longitude: number; address?: string } | null;
   lastKnown: { latitude: number; longitude: number; recordedAt: string } | null;
+  // Stops the driver wants next, in this order, ahead of everything else still to do.
+  urgentStopIds?: string[];
   now?: Date;
 }
 
@@ -179,6 +189,8 @@ export function buildReoptimizationStops(input: ReoptimizationInput): {
   const departed = hasRealOrigin ? input.progress.filter(stop => !isFinished(stop) && isDepot(stop)) : [];
   const remaining = input.progress.filter(stop => !isFinished(stop) && !departed.includes(stop));
   const departedStopIds = departed.map(stop => stop.stopId);
+  const urgent = new Set(input.urgentStopIds ?? []);
+  const urgentOrder = new Map((input.urgentStopIds ?? []).map((id, position) => [id, position]));
 
   const remainingStops: RouteStop[] = remaining.map(stop => {
     const definition = planned.get(stop.stopId);
@@ -194,9 +206,15 @@ export function buildReoptimizationStops(input: ReoptimizationInput): {
       estimatedDuration: stop.plannedServiceMinutes,
       timeWindow: definition?.timeWindow,
       priority: definition?.priority,
+      ...(definition?.doFirst || urgent.has(stop.stopId) ? { doFirst: true } : {}),
+      ...(definition?.customerName ? { customerName: definition.customerName } : {}),
+      ...(definition?.customerPhone ? { customerPhone: definition.customerPhone } : {}),
+      ...(definition?.customerEmail ? { customerEmail: definition.customerEmail } : {}),
       ...(definition?.isReturn ? { isReturn: true, pinnedLast: true } : {}),
     };
   });
+  // Urgent stops lead, in the order the driver picked them; the optimizer keeps "do first" stops in list order.
+  remainingStops.sort((a, b) => (urgentOrder.get(a.id) ?? Number.MAX_SAFE_INTEGER) - (urgentOrder.get(b.id) ?? Number.MAX_SAFE_INTEGER));
 
   const origin = (latitude: number, longitude: number, address?: string): RouteStop => ({
     id: REOPTIMIZE_ORIGIN_ID,
@@ -468,6 +486,10 @@ export function buildAddedStops(input: {
       ...(stop.longitude !== undefined ? { longitude: stop.longitude } : {}),
       ...(stop.timeWindow ? { timeWindow: stop.timeWindow } : {}),
       ...(stop.priority ? { priority: stop.priority } : {}),
+      ...(stop.doFirst ? { doFirst: true } : {}),
+      ...(stop.customerName ? { customerName: stop.customerName } : {}),
+      ...(stop.customerPhone ? { customerPhone: stop.customerPhone } : {}),
+      ...(stop.customerEmail ? { customerEmail: stop.customerEmail } : {}),
       ...(stop.vehicleInfo ? { vehicleInfo: stop.vehicleInfo } : {}),
     })),
   };

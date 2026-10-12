@@ -8,6 +8,9 @@ import { supabaseAdmin } from '@lib/supabase';
 import { asyncHandler, createError } from '@utils/error';
 import { routeOptimizationService, RouteStop } from '../services/RouteOptimizationService';
 import { plannerBillingService } from '../services/plannerBilling.service';
+import { plannerProofRouter, plannerTrackingRouter } from './plannerStopProof.routes';
+import { plannerVoiceRouter } from './plannerVoice.routes';
+import type { StopProof } from '../services/plannerProof';
 import { pricingLiveEvidenceService } from '../services/pricingLiveEvidence.service';
 import {
   REOPTIMIZE_ORIGIN_ID,
@@ -50,6 +53,10 @@ interface PlannerStopInput {
   referenceId?: string;
   serviceMinutes?: number;
   priority?: RouteStop['priority'];
+  doFirst?: boolean;
+  customerName?: string;
+  customerPhone?: string;
+  customerEmail?: string;
   timeWindow?: RouteStop['timeWindow'];
 }
 
@@ -92,6 +99,7 @@ interface ExecutionStopProgress {
   arrival?: ArrivalRecord;
   gpsAccuracyMeters?: number;
   proofOfDeliveryUrls?: string[];
+  proof?: StopProof;
   notes?: string;
 }
 
@@ -272,13 +280,31 @@ export function normalizeStops(value: unknown): RouteStop[] {
       shipmentId: typeof input.referenceId === 'string' ? input.referenceId.trim() || undefined : undefined,
       vehicleInfo: typeof input.name === 'string' ? input.name.trim().slice(0, 160) || undefined : undefined,
       estimatedDuration: serviceMinutes,
-      priority: input.priority,
+      priority: normalizePriority(input.priority),
+      ...(input.doFirst === true && index > 0 ? { doFirst: true } : {}),
+      ...contactFields(input),
       timeWindow: input.timeWindow,
     };
   });
 }
 
 const MAX_ADDED_STOPS = 10;
+
+// Optional receiver details; anything that does not look like a phone number or email is dropped rather than stored.
+export function contactFields(input: { customerName?: unknown; customerPhone?: unknown; customerEmail?: unknown }) {
+  const name = typeof input.customerName === 'string' ? input.customerName.trim().slice(0, 120) : '';
+  const phone = typeof input.customerPhone === 'string' ? input.customerPhone.trim().slice(0, 32) : '';
+  const email = typeof input.customerEmail === 'string' ? input.customerEmail.trim().slice(0, 200) : '';
+  return {
+    ...(name ? { customerName: name } : {}),
+    ...(/^[+\d(][\d\s().-]{5,}$/.test(phone) ? { customerPhone: phone } : {}),
+    ...(/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ? { customerEmail: email } : {}),
+  };
+}
+
+function normalizePriority(value: unknown): RouteStop['priority'] {
+  return value === 'high' || value === 'low' ? value : undefined;
+}
 
 // Stops added during a run; unlike a new route, the first one is not a depot.
 export function normalizeAddedStops(value: unknown): RouteStop[] {
@@ -301,7 +327,9 @@ export function normalizeAddedStops(value: unknown): RouteStop[] {
       shipmentId: typeof input.referenceId === 'string' ? input.referenceId.trim() || undefined : undefined,
       vehicleInfo: typeof input.name === 'string' ? input.name.trim().slice(0, 160) || undefined : undefined,
       estimatedDuration: serviceMinutes,
-      priority: input.priority,
+      priority: normalizePriority(input.priority),
+      ...(input.doFirst === true ? { doFirst: true } : {}),
+      ...contactFields(input),
       timeWindow: input.timeWindow,
     };
   });
@@ -318,6 +346,10 @@ function normalizeStoredStops(value: unknown): PlannerStopInput[] {
     ...(stop.longitude !== undefined ? { longitude: stop.longitude } : {}),
     ...(stop.shipmentId ? { referenceId: stop.shipmentId } : {}),
     ...(stop.priority ? { priority: stop.priority } : {}),
+    ...(stop.doFirst ? { doFirst: true } : {}),
+    ...(stop.customerName ? { customerName: stop.customerName } : {}),
+    ...(stop.customerPhone ? { customerPhone: stop.customerPhone } : {}),
+    ...(stop.customerEmail ? { customerEmail: stop.customerEmail } : {}),
     ...(stop.timeWindow ? { timeWindow: stop.timeWindow } : {}),
   }));
 }
@@ -416,9 +448,39 @@ export async function parseImportRows(file: Express.Multer.File | undefined, csv
   return rows;
 }
 
+interface ImportedStop {
+  id: string;
+  name: string;
+  address: string;
+  type: string;
+  referenceId?: string;
+  serviceMinutes: number;
+  notes: string | undefined;
+  priority?: 'high';
+  doFirst?: true;
+  customerName?: string;
+  customerPhone?: string;
+  customerEmail?: string;
+}
+
 export function buildImportedStops(rows: Record<string, string>[]) {
   let shipmentCount = 0;
-  const stops = rows.flatMap((row, index) => {
+  // "first"/"urgent" makes a hard do-first rule (on a shipment, the delivery, which pulls its pickup in ahead of it); "high" is a softer preference.
+  const priorityOf = (row: Record<string, string>) => {
+    const value = (csvValue(row, ['priority', 'urgency']) ?? '').toLowerCase().replace(/[^a-z]/g, '');
+    if (['first', 'urgent', 'dofirst', 'critical', 'mustfirst'].includes(value)) return { level: 'first' as const };
+    if (value === 'high') return { level: 'high' as const };
+    return { level: 'normal' as const };
+  };
+  const stops = rows.flatMap((row, index): ImportedStop[] => {
+    const rank = priorityOf(row).level;
+    const softOnly = rank === 'normal' ? {} : { priority: 'high' as const };
+    const hard = rank === 'first' ? { doFirst: true as const } : {};
+    const contact = contactFields({
+      customerName: csvValue(row, ['customername', 'recipient', 'contactname', 'recipientname']),
+      customerPhone: csvValue(row, ['customerphone', 'phone', 'contactphone', 'recipientphone', 'deliveryphone']),
+      customerEmail: csvValue(row, ['customeremail', 'email', 'contactemail', 'recipientemail', 'deliveryemail']),
+    });
     const pickupAddress = csvValue(row, ['pickupaddress', 'pickup', 'origin']);
     const deliveryAddress = csvValue(row, ['deliveryaddress', 'delivery', 'dropoffaddress', 'dropoff']);
     if (pickupAddress || deliveryAddress) {
@@ -432,12 +494,12 @@ export function buildImportedStops(rows: Record<string, string>[]) {
       return [
         {
           id: `imported-${index + 1}-pickup`, name: `${label} pickup`, address: pickupAddress,
-          type: 'pickup', referenceId,
+          type: 'pickup', referenceId, ...softOnly,
           serviceMinutes: Number(csvValue(row, ['pickupserviceminutes', 'serviceminutes', 'duration']) ?? 15), notes,
         },
         {
           id: `imported-${index + 1}-delivery`, name: `${label} delivery`, address: deliveryAddress,
-          type: 'delivery', referenceId,
+          type: 'delivery', referenceId, ...softOnly, ...hard, ...contact,
           serviceMinutes: Number(csvValue(row, ['deliveryserviceminutes', 'serviceminutes', 'duration']) ?? 15), notes,
         },
       ];
@@ -455,6 +517,9 @@ export function buildImportedStops(rows: Record<string, string>[]) {
       type: csvValue(row, ['type', 'stoptype']) ?? 'stop',
       serviceMinutes: Number(csvValue(row, ['serviceminutes', 'duration', 'durationminutes']) ?? 10),
       notes: csvValue(row, ['notes', 'note', 'instructions']),
+      ...softOnly,
+      ...hard,
+      ...contact,
     }];
   });
   if (stops.length > MAX_STOPS - 1) {
@@ -487,7 +552,12 @@ router.get('/shared/:token', asyncHandler(async (req: Request, res: Response) =>
   res.json({ success: true, data: { route, permission: share.permission, execution } });
 }));
 
+// A customer's one-stop ETA page; it needs no account.
+router.use('/track', plannerTrackingRouter);
+
 router.use(authenticate);
+router.use(plannerProofRouter);
+router.use(plannerVoiceRouter);
 
 router.get('/profile', asyncHandler(async (req: Request, res: Response) => {
   const ownerId = userId(req);
@@ -1021,6 +1091,9 @@ router.post('/executions/:id/reoptimize', asyncHandler(async (req: Request, res:
     : null;
 
   const now = new Date();
+  const urgentIds = Array.isArray(req.body.urgentStopIds)
+    ? [...new Set(req.body.urgentStopIds.filter((id: unknown): id is string => typeof id === 'string' && id.length > 0 && id.length <= 200))].slice(0, 10) as string[]
+    : [];
   const planned = plannedStopsFromSnapshot(execution.planned_snapshot);
   // A shipment picked up on the road joins the unfinished stops before the plan is rebuilt, so one pass covers everything.
   const extra = req.body.addStops === undefined
@@ -1031,6 +1104,7 @@ router.post('/executions/:id/reoptimize', asyncHandler(async (req: Request, res:
     planned: [...planned, ...(extra?.planned ?? [])],
     currentLocation,
     lastKnown,
+    urgentStopIds: urgentIds,
     now,
   });
   const restartsFromDriver = built.originSource !== 'first_remaining';
