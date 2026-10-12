@@ -803,6 +803,47 @@ export default function StandaloneRoutePlannerPage() {
     setResult(null)
   }
 
+  const assistantContext = () => {
+    const evidence = result?.liveEvidence
+    const conditions = [
+      evidence?.traffic.status === 'available' && evidence.traffic.evidence ? `traffic adds ${evidence.traffic.evidence.delayPercent}% to drive time` : '',
+      evidence?.weather.status === 'available' && evidence.weather.evidence ? `weather ${evidence.weather.evidence.condition}, ${Math.round(evidence.weather.evidence.temperatureFahrenheit)}F, wind ${Math.round(evidence.weather.evidence.windSpeedMph)} mph` : '',
+      evidence?.tolls.status === 'available' && evidence.tolls.evidence ? `estimated tolls $${evidence.tolls.evidence.estimatedAmount.toFixed(2)}` : '',
+      evidence?.fuel.status === 'available' && evidence.fuel.evidence ? `fuel about $${evidence.fuel.evidence.pricePerGallon.toFixed(2)}/gal` : '',
+    ].filter(Boolean)
+    return {
+      routeName: routeName.trim(),
+      optimized: Boolean(result),
+      driving: drivingMode,
+      stops: result ? result.stops : stops,
+      options: {
+        vehicleType, vehicleSlots, departureTime, routingPreference, returnToOrigin, prioritizeFuel,
+        ...(maxHours ? { maxHours: Number(maxHours) } : {}),
+        ...(maxDetourMinutes ? { maxDetourMinutes: Number(maxDetourMinutes) } : {}),
+        commercialCheck: verifyCommercialRoute,
+      },
+      ...(result ? {
+        summary: {
+          totalDistanceMiles: result.summary.totalDistance,
+          totalDurationMinutes: result.summary.totalDuration,
+          fuelCost: result.summary.totalFuelCost,
+          efficiencyScore: result.summary.efficiencyScore,
+          estimatedEndTime: result.summary.estimatedEndTime,
+          distanceSavedMiles: result.savings.distanceSaved,
+          timeSavedMinutes: result.savings.timeSaved,
+        },
+        warnings: result.constraintWarnings,
+        insights: result.carolinaInsights.map(insight => `${insight.title}: ${insight.description}`),
+        conditions,
+      } : {}),
+    }
+  }
+
+  const askBenji = async (message: string, history: Array<{ role: 'user' | 'assistant'; content: string }>) => {
+    const data = await api<{ reply: string }>('/assistant', { method: 'POST', body: JSON.stringify({ message, history, context: assistantContext() }) })
+    return data.reply
+  }
+
   const routeOptions = (): RoutePlannerOptions => ({
     vehicleType,
     vehicleSlots,
@@ -1076,7 +1117,7 @@ export default function StandaloneRoutePlannerPage() {
 
         {(message || error) && <div ref={messageRef} role={error ? 'alert' : 'status'} className={`mt-4 border p-3 text-sm ${error ? 'border-red-200 bg-red-50 text-red-700' : 'border-emerald-200 bg-emerald-50 text-emerald-700'}`}>{error || message}</div>}
 
-        {tab === 'plan' && <BenjiPanel result={result} />}
+        {tab === 'plan' && <BenjiPanel result={result} ask={askBenji} />}
 
         {tab === 'plan' && (
           <div className="mt-5 grid gap-5 xl:grid-cols-[minmax(0,1.25fr)_minmax(380px,.75fr)]">
@@ -1205,14 +1246,18 @@ function IntelligenceMetric({ label, value }: { label: string; value: string }) 
   return <div className="border border-[#d6e1df] bg-[#f8fbfa] p-2"><p className="text-[#6b807e]">{label}</p><p className="mt-1 font-bold text-[#254947]">{value}</p></div>
 }
 
-function BenjiPanel({ result }: { result: OptimizedRoute | null }) {
-  const supabase = getSupabaseBrowserClient()
-  const sessionId = useRef(`standalone-route-${crypto.randomUUID()}`)
+interface BenjiTurn { role: 'user' | 'assistant'; content: string }
+
+function BenjiPanel({ result, ask: askAssistant }: { result: OptimizedRoute | null; ask: (message: string, history: BenjiTurn[]) => Promise<string> }) {
   const [open, setOpen] = useState(true)
   const [question, setQuestion] = useState('')
-  const [answer, setAnswer] = useState('')
+  const [turns, setTurns] = useState<BenjiTurn[]>([])
+  const [failure, setFailure] = useState('')
   const [loading, setLoading] = useState(false)
   const tips = result?.benjiTips ?? []
+  const suggestions = result
+    ? ['Why is the route in this order?', 'Anything I should watch out for today?', 'How can I save time on this route?']
+    : ['How do I add pickups and deliveries?', 'What does Do first do?', 'How do I import a spreadsheet?']
 
   useEffect(() => {
     try {
@@ -1228,26 +1273,17 @@ function BenjiPanel({ result }: { result: OptimizedRoute | null }) {
     return !current
   })
 
-  const ask = async () => {
-    if (!question.trim()) return
+  const ask = async (text = question) => {
+    const message = text.trim()
+    if (!message || loading) return
     setLoading(true)
+    setFailure('')
     try {
-      const { data: { session } } = await supabase.auth.getSession()
-      if (!session?.access_token) throw new Error('Your session expired. Sign in again.')
-      const routeContext = result
-        ? `\nOptimized standalone route:\n${result.stops.map(stop => `${stop.order}. ${stop.address}`).join('\n')}\nDistance: ${result.summary.totalDistance} miles. Duration: ${result.summary.totalDuration} minutes.`
-        : ''
-      const response = await fetch(`${API_BASE_URL}/benji-v3/chat`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
-        body: JSON.stringify({ sessionId: sessionId.current, message: `${question.trim()}${routeContext}` }),
-      })
-      const body = await response.json().catch(() => ({}))
-      if (!response.ok) throw new Error(body.error || 'Benji is unavailable')
-      setAnswer(body.response || 'No guidance returned.')
+      const reply = await askAssistant(message, turns)
+      setTurns(current => [...current, { role: 'user' as const, content: message }, { role: 'assistant' as const, content: reply }].slice(-12))
       setQuestion('')
     } catch (caught) {
-      setAnswer(caught instanceof Error ? caught.message : 'Benji is unavailable')
+      setFailure(caught instanceof Error ? caught.message : 'Benji is unavailable')
     } finally {
       setLoading(false)
     }
@@ -1264,8 +1300,13 @@ function BenjiPanel({ result }: { result: OptimizedRoute | null }) {
     </button>
     {open && <div className="border-t border-[#c7ddda] px-4 pb-4 pt-3">
       {tips.length > 0 && <ul className="space-y-1 text-sm text-[#496764]">{tips.map(tip => <li key={tip}>- {tip}</li>)}</ul>}
-      <div className={`flex gap-2 ${tips.length > 0 ? 'mt-3' : ''}`}><input value={question} onChange={event => setQuestion(event.target.value)} onKeyDown={event => { if (event.key === 'Enter') void ask() }} placeholder={result ? 'Ask about this route: traffic, fuel, timing' : 'Ask Benji anything about planning your route'} aria-label="Ask Benji" className="h-10 min-w-0 flex-1 border border-[#b9cbc8] bg-white px-3 text-sm" /><button onClick={() => void ask()} disabled={loading || !question.trim()} className="h-10 bg-[#173f40] px-4 text-sm font-bold text-white disabled:opacity-40">{loading ? 'Asking...' : 'Ask'}</button></div>
-      {answer && <p className="mt-3 whitespace-pre-wrap border-t border-[#c7ddda] pt-3 text-sm leading-6 text-[#496764]">{answer}</p>}
+      {turns.length > 0 && <div className={`space-y-2 text-sm leading-6 ${tips.length > 0 ? 'mt-3 border-t border-[#c7ddda] pt-3' : ''}`} aria-live="polite">{turns.map((turn, index) => turn.role === 'user'
+        ? <p key={index} className="font-semibold text-[#254947]">{turn.content}</p>
+        : <p key={index} className="whitespace-pre-wrap text-[#496764]">{turn.content}</p>)}</div>}
+      {turns.length === 0 && <div className={`flex flex-wrap gap-2 ${tips.length > 0 ? 'mt-3' : ''}`}>{suggestions.map(suggestion => <button key={suggestion} type="button" onClick={() => void ask(suggestion)} disabled={loading} className="border border-[#b9d8d4] bg-white px-2.5 py-1 text-xs font-semibold text-[#254947] hover:bg-[#f4fbfa] disabled:opacity-40">{suggestion}</button>)}</div>}
+      <div className="mt-3 flex gap-2"><input value={question} maxLength={600} onChange={event => setQuestion(event.target.value)} onKeyDown={event => { if (event.key === 'Enter') void ask() }} placeholder={result ? 'Ask about this route: order, timing, fuel, warnings' : 'Ask Benji anything about planning your route'} aria-label="Ask Benji" className="h-10 min-w-0 flex-1 border border-[#b9cbc8] bg-white px-3 text-sm" /><button onClick={() => void ask()} disabled={loading || !question.trim()} className="h-10 bg-[#173f40] px-4 text-sm font-bold text-white disabled:opacity-40">{loading ? 'Asking...' : 'Ask'}</button></div>
+      {failure && <p role="alert" className="mt-2 text-sm text-red-700">{failure}</p>}
+      {turns.length > 0 && <button type="button" onClick={() => setTurns([])} className="mt-2 text-xs font-semibold text-[#00756d] hover:underline">Start over</button>}
     </div>}
   </section>
 }

@@ -10,6 +10,7 @@ import { routeOptimizationService, RouteStop } from '../services/RouteOptimizati
 import { plannerBillingService } from '../services/plannerBilling.service';
 import { plannerProofRouter, plannerTrackingRouter } from './plannerStopProof.routes';
 import { plannerVoiceRouter } from './plannerVoice.routes';
+import { plannerAssistantRouter } from './plannerAssistant.routes';
 import type { StopProof } from '../services/plannerProof';
 import { pricingLiveEvidenceService } from '../services/pricingLiveEvidence.service';
 import {
@@ -558,6 +559,7 @@ router.use('/track', plannerTrackingRouter);
 router.use(authenticate);
 router.use(plannerProofRouter);
 router.use(plannerVoiceRouter);
+router.use(plannerAssistantRouter);
 
 router.get('/profile', asyncHandler(async (req: Request, res: Response) => {
   const ownerId = userId(req);
