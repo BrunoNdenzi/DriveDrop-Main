@@ -495,6 +495,23 @@ export default function DriverMapNavigation({
 
   const exitAction = onClose ?? (isFullscreen ? () => { setIsFullscreen(false); void exitFullscreen() } : undefined)
 
+  // The preview map's full screen is the map itself covering the page; the device goes full screen with it, and leaving that by a system gesture closes the cover too.
+  useEffect(() => {
+    if (onClose || !isFullscreen) return
+    document.documentElement.classList.add('driving-lock')
+    const sync = () => { if (!isDeviceFullscreen()) setIsFullscreen(false) }
+    document.addEventListener('fullscreenchange', sync)
+    document.addEventListener('webkitfullscreenchange', sync)
+    const resizeTimer = setTimeout(() => { if (mapRef.current) google.maps.event.trigger(mapRef.current, 'resize') }, 150)
+    return () => {
+      document.documentElement.classList.remove('driving-lock')
+      document.removeEventListener('fullscreenchange', sync)
+      document.removeEventListener('webkitfullscreenchange', sync)
+      clearTimeout(resizeTimer)
+      if (mapRef.current) google.maps.event.trigger(mapRef.current, 'resize')
+    }
+  }, [isFullscreen, onClose])
+
   // The browser's own fullscreen is separate from the on-page overlay, and the driver can leave it with a system gesture.
   const [fullscreenSupported, setFullscreenSupported] = useState(false)
   const [deviceFullscreen, setDeviceFullscreen] = useState(false)
@@ -1985,7 +2002,7 @@ export default function DriverMapNavigation({
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
   return (
-    <div className={`relative ${isFullscreen ? 'fixed inset-0 z-50' : ''}`}>
+    <div className={isFullscreen ? 'fixed inset-0 z-50 bg-white' : 'relative'}>
       {/* ── Map Container ───────────────────────────────────────── */}
       <div
         ref={mapContainerRef}
