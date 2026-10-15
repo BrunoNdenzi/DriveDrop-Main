@@ -9,6 +9,12 @@ export const plannerVoiceRouter = Router();
 const limiter = createRateLimiter(150, 5 * 60_000);
 const SYNTHESIS_TIMEOUT_MS = 6000;
 
+// Lets the app say whether the natural voice is set up instead of silently using the device voice.
+plannerVoiceRouter.get('/voice/status', asyncHandler(async (req: Request, res: Response) => {
+  if (!req.user?.id) throw createError('Authentication required', 401, 'UNAUTHORIZED');
+  res.json({ success: true, data: { natural: Boolean(config.googleTts.apiKey) } });
+}));
+
 // Natural-sounding turn-by-turn voice; the app falls back to the device voice whenever this is unavailable.
 plannerVoiceRouter.post('/voice', asyncHandler(async (req: Request, res: Response) => {
   const userId = req.user?.id;

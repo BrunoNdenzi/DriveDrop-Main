@@ -50,7 +50,8 @@ import StopStrip, { navStopDetails, navStopLabel } from './StopStrip'
 import AddShipmentSheet, { type AddedStopDraft } from '@/components/route-planner/AddShipmentSheet'
 import ProofSheet, { type ProofData } from '@/components/route-planner/ProofSheet'
 import VoiceSettingsSheet from './VoiceSettingsSheet'
-import { DEFAULT_VOICE_SETTINGS, createVoicePlayer, loadVoiceSettings, saveVoiceSettings, type VoiceSettings } from '@/lib/voice'
+import BenjiAvatar from './BenjiAvatar'
+import { DEFAULT_VOICE_SETTINGS, createVoicePlayer, loadVoiceSettings, saveVoiceSettings, type NaturalVoiceState, type VoiceSettings } from '@/lib/voice'
 import { canFullscreen, enterFullscreen, exitFullscreen, isFullscreen as isDeviceFullscreen, isIphoneBrowser } from '@/lib/fullscreen'
 import { toast } from '@/components/ui/toast'
 import {
@@ -164,6 +165,10 @@ interface DriverMapNavigationProps {
   onDeviation?: (event: DeviationEvent) => void
   trackingStatus?: { state: 'off' | 'pending' | 'on' | 'error'; label: string }
   onClose?: () => void
+  // Set on the small preview map: Start Navigation hands over to full-screen driving mode instead of starting in place.
+  onRequestDrive?: () => void
+  // Driving mode starts guidance as soon as the route is drawn.
+  autoStart?: boolean
   height?: string
   showOverlay?: boolean
   carolinaInsights?: Array<{
@@ -286,6 +291,8 @@ export default function DriverMapNavigation({
   onDeviation,
   trackingStatus,
   onClose,
+  onRequestDrive,
+  autoStart = false,
   height = 'h-[600px]',
   showOverlay = true,
   carolinaInsights = [],
@@ -315,18 +322,40 @@ export default function DriverMapNavigation({
   const voiceSettingsRef = useRef(voiceSettings)
   voiceSettingsRef.current = voiceSettings
   const voicePlayerRef = useRef<ReturnType<typeof createVoicePlayer> | null>(null)
+  const [speaking, setSpeaking] = useState(false)
+  const [caption, setCaption] = useState('')
+  const [naturalState, setNaturalState] = useState<NaturalVoiceState>('unknown')
+  const [insightDismissed, setInsightDismissed] = useState(false)
+  const captionTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => {
-    setVoiceSettings(loadVoiceSettings())
-    const player = createVoicePlayer(() => voiceSettingsRef.current)
+    const saved = loadVoiceSettings()
+    setVoiceSettings(saved)
+    setVoiceEnabled(!saved.muted)
+    const player = createVoicePlayer(() => voiceSettingsRef.current, {
+      onSpeaking: (isSpeaking, text) => {
+        if (captionTimerRef.current) clearTimeout(captionTimerRef.current)
+        setSpeaking(isSpeaking)
+        if (isSpeaking) setCaption(text)
+        else captionTimerRef.current = setTimeout(() => setCaption(''), 2200)
+      },
+      onNaturalState: setNaturalState,
+    })
     voicePlayerRef.current = player
-    return () => { player.stop() }
+    void player.checkNatural()
+    return () => {
+      player.stop()
+      if (captionTimerRef.current) clearTimeout(captionTimerRef.current)
+    }
   }, [])
 
   const changeVoiceSettings = (next: VoiceSettings) => {
     setVoiceSettings(next)
     saveVoiceSettings(next)
+    setVoiceEnabled(!next.muted)
+    if (next.muted) voicePlayerRef.current?.stop()
   }
+  const toggleVoice = () => changeVoiceSettings({ ...voiceSettingsRef.current, muted: voiceEnabled })
   const [showStopsList, setShowStopsList] = useState(false)
   const [showBenjiPanel, setShowBenjiPanel] = useState(false)
   const [currentDriverPos, setCurrentDriverPos] = useState(driverLocation || null)
@@ -464,7 +493,7 @@ export default function DriverMapNavigation({
     }, ms)
   }, [setFollow])
 
-  const exitAction = onClose ?? (isFullscreen ? () => setIsFullscreen(false) : undefined)
+  const exitAction = onClose ?? (isFullscreen ? () => { setIsFullscreen(false); void exitFullscreen() } : undefined)
 
   // The browser's own fullscreen is separate from the on-page overlay, and the driver can leave it with a system gesture.
   const [fullscreenSupported, setFullscreenSupported] = useState(false)
@@ -476,6 +505,9 @@ export default function DriverMapNavigation({
     sync()
     document.addEventListener('fullscreenchange', sync)
     document.addEventListener('webkitfullscreenchange', sync)
+    // Browsers refuse fullscreen that was not started by a tap, so if the first attempt was refused the next tap on the map retries it.
+    const retry = () => { if (!isDeviceFullscreen()) void enterFullscreen() }
+    window.addEventListener('pointerdown', retry, { once: true })
     if (isIphoneBrowser() && !sessionStorage.getItem('planner-iphone-tip')) {
       sessionStorage.setItem('planner-iphone-tip', '1')
       toast('For true full screen on iPhone: tap Share, Add to Home Screen, then open the planner from that icon.', 'info')
@@ -483,6 +515,7 @@ export default function DriverMapNavigation({
     return () => {
       document.removeEventListener('fullscreenchange', sync)
       document.removeEventListener('webkitfullscreenchange', sync)
+      window.removeEventListener('pointerdown', retry)
     }
   }, [onClose])
 
@@ -1370,8 +1403,26 @@ export default function DriverMapNavigation({
     startGPSTracking()
     Promise.resolve(onNavigationStart?.()).catch(() => {})
     toast('Navigation started — follow the route', 'success')
-    if (voiceEnabled) speak('Navigation started. Follow the amber route.')
+    if (voiceEnabled) speak("Let's go. I'll guide you to your first stop.")
   }
+
+  // The preview map hands over to full-screen driving mode, which starts guidance by itself.
+  const handleStart = () => {
+    if (!onClose && onRequestDrive) {
+      voicePlayerRef.current?.unlock()
+      onRequestDrive()
+      return
+    }
+    startNavigation()
+  }
+
+  const autoStartedRef = useRef(false)
+  useEffect(() => {
+    if (!autoStart || autoStartedRef.current || !routeLoaded || navState.isNavigating) return
+    autoStartedRef.current = true
+    startNavigation()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoStart, routeLoaded])
 
   const startSimulation = () => {
     const path = simPathRef.current
@@ -1975,30 +2026,32 @@ export default function DriverMapNavigation({
             >
               {/* Navigation Instruction Banner */}
               {navState.isNavigating && navState.nextInstruction && (
-                <div className="bg-gray-900 text-white rounded-lg px-3 py-3 mb-2 shadow-lg">
-                  <div className="flex items-center gap-3">
-                    <div className="grid h-14 w-14 shrink-0 place-items-center rounded-lg bg-white/10">
-                      <ManeuverIcon view={navState.maneuver} className="h-9 w-9 text-amber-400" />
+                <div className="mb-1.5 rounded-lg bg-gray-900 px-2.5 py-2 text-white shadow-lg sm:mb-2 sm:px-3 sm:py-3">
+                  <div className="flex items-center gap-2.5 sm:gap-3">
+                    <div className="grid h-11 w-11 shrink-0 place-items-center rounded-lg bg-white/10 sm:h-14 sm:w-14">
+                      <ManeuverIcon view={navState.maneuver} className="h-7 w-7 text-amber-400 sm:h-9 sm:w-9" />
                     </div>
                     <div className="min-w-0 flex-1">
-                      <p className="text-2xl font-bold leading-none tabular-nums">{navState.distanceRemaining}</p>
-                      <p className="mt-1 text-sm font-medium leading-snug">{navState.nextInstruction}</p>
-                      <p className="mt-1 text-xs text-gray-300">{navState.durationRemaining} to this stop</p>
+                      <p className="flex items-baseline gap-2">
+                        <span className="text-xl font-bold leading-none tabular-nums sm:text-2xl">{navState.distanceRemaining}</span>
+                        <span className="truncate text-[11px] text-gray-300">{navState.durationRemaining} to stop</span>
+                      </p>
+                      <p className="mt-0.5 line-clamp-2 text-[13px] font-medium leading-snug sm:mt-1 sm:text-sm">{navState.nextInstruction}</p>
                     </div>
                   </div>
                   {navState.thenInstruction && (
-                    <p className="mt-2 truncate border-t border-white/10 pt-2 text-xs text-gray-300">Then: {navState.thenInstruction}</p>
+                    <p className="mt-1 truncate text-[11px] text-gray-300">Then: {navState.thenInstruction}</p>
                   )}
                 </div>
               )}
 
               {/* Paused for a personal stop: no alerts, no rerouting, until the driver resumes or rejoins the route */}
               {navState.isNavigating && breakMode && (
-                <div className="mb-2 flex items-center gap-2 rounded-lg bg-slate-700 px-3 py-2.5 text-white shadow-lg">
+                <div className="mb-1.5 flex items-center gap-2 rounded-lg bg-slate-700 px-2.5 py-2 text-white shadow-lg">
                   <Coffee className="h-5 w-5 shrink-0" />
-                  <p className="min-w-0 flex-1 text-sm font-semibold">
-                    {breakKind === 'loop' ? 'Directions paused because you keep leaving the route.' : 'Guidance paused for your stop.'}
-                    {trackingStatus?.state === 'on' ? ' Your dispatcher can see this.' : ''}
+                  <p className="min-w-0 flex-1 text-[13px] font-semibold leading-snug sm:text-sm">
+                    {breakKind === 'loop' ? 'Directions paused: you keep leaving the route.' : 'Guidance paused for your stop.'}
+                    {trackingStatus?.state === 'on' ? ' Dispatcher can see this.' : ''}
                   </p>
                   {onReoptimize && !simulation && (
                     <button type="button" onClick={() => void replan()} disabled={replanning} className="h-9 shrink-0 rounded-md bg-white/20 px-3 text-xs font-bold disabled:opacity-50">Re-plan stops</button>
@@ -2009,23 +2062,23 @@ export default function DriverMapNavigation({
 
               {/* Off the optimized route: say so plainly, then let the driver say why instead of guessing */}
               {navState.isNavigating && !breakMode && deviation && (
-                <div role="alert" className={`mb-2 rounded-lg px-3 py-2.5 text-white shadow-lg ${rerouting || rerouteFailed ? 'bg-red-600' : 'bg-amber-600'}`}>
+                <div role="alert" className={`mb-1.5 rounded-lg px-2.5 py-2 text-white shadow-lg ${rerouting || rerouteFailed ? 'bg-red-600' : 'bg-amber-600'}`}>
                   <div className="flex items-start gap-2">
                     <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0" />
-                    <p className="min-w-0 flex-1 text-sm font-semibold">
+                    <p className="min-w-0 flex-1 text-[13px] font-semibold leading-snug sm:text-sm">
                       {rerouting
                         ? 'Recalculating your route...'
                         : rerouteFailed
-                          ? `Could not recalculate. You are ${describeDistance(deviation.distance)} off the optimized route.`
+                          ? `Could not recalculate. You are ${describeDistance(deviation.distance)} off route.`
                           : deviation.reason === 'road_blocked'
                             ? 'Closure noted. Looking for another way...'
-                            : `You are ${describeDistance(deviation.distance)} off the optimized route. A new route follows if you keep going.`}
+                            : `You are ${describeDistance(deviation.distance)} off route. A new route follows if you keep going.`}
                       {!rerouting && deviation.hint ? ` ${deviation.hint}` : ''}
-                      {!rerouting && trackingStatus?.state === 'on' ? ' Your dispatcher can see this.' : ''}
+                      {!rerouting && trackingStatus?.state === 'on' ? ' Dispatcher can see this.' : ''}
                     </p>
                   </div>
                   {!rerouting && (
-                    <div className="mt-2 flex flex-wrap gap-2">
+                    <div className="mt-1.5 flex flex-wrap gap-1.5">
                       <button type="button" onClick={() => recalculateNow()} className="h-9 rounded-md bg-white px-3 text-xs font-bold text-gray-900">{rerouteFailed ? 'Try again' : 'Recalculate now'}</button>
                       <button type="button" onClick={reportBlocked} className="h-9 rounded-md bg-white/20 px-3 text-xs font-bold">Road blocked</button>
                       <button type="button" onClick={() => startBreak('personal')} className="h-9 rounded-md bg-white/20 px-3 text-xs font-bold">Personal stop</button>
@@ -2038,76 +2091,78 @@ export default function DriverMapNavigation({
               )}
 
               {navState.isNavigating && !deviation && !breakMode && fasterRoute && (
-                <div className="mb-2 flex items-center gap-2 rounded-lg bg-emerald-600 px-3 py-2.5 text-white shadow-lg">
+                <div className="mb-1.5 flex items-center gap-2 rounded-lg bg-emerald-600 px-2.5 py-2 text-white shadow-lg">
                   <Zap className="h-5 w-5 shrink-0" />
-                  <p className="min-w-0 flex-1 text-sm font-semibold">Faster route found: saves about {fasterRoute.minutes} min</p>
+                  <p className="min-w-0 flex-1 text-[13px] font-semibold leading-snug sm:text-sm">Faster route: saves about {fasterRoute.minutes} min</p>
                   <button type="button" onClick={() => { setFasterRoute(null); recalculateNow('faster') }} className="h-9 shrink-0 rounded-md bg-white px-3 text-xs font-bold text-emerald-700">Switch</button>
                   <button type="button" onClick={() => setFasterRoute(null)} aria-label="Keep current route" className="grid h-9 w-9 shrink-0 place-items-center rounded-md bg-emerald-700"><X className="h-4 w-4" /></button>
                 </div>
               )}
 
               {/* Behind-schedule nudge */}
-              {navState.isNavigating && behindSchedule && !deviation && (
-                <div className="mb-2 flex items-center gap-2 rounded-lg bg-amber-500 px-3 py-2.5 text-gray-900 shadow-lg">
+              {navState.isNavigating && behindSchedule && !deviation && !breakMode && !fasterRoute && (
+                <div className="mb-1.5 flex items-center gap-2 rounded-lg bg-amber-500 px-2.5 py-2 text-gray-900 shadow-lg">
                   <Clock className="h-5 w-5 shrink-0" />
-                  <p className="min-w-0 flex-1 text-sm font-semibold">About {minutesBehind} min behind schedule for the next stop</p>
+                  <p className="min-w-0 flex-1 text-[13px] font-semibold leading-snug sm:text-sm">About {minutesBehind} min behind schedule</p>
                   <button type="button" onClick={() => void replan()} disabled={replanning} className="h-9 shrink-0 rounded-md bg-gray-900 px-3 text-xs font-bold text-white disabled:opacity-50">
                     {replanning ? 'Re-planning...' : 'Re-plan'}
                   </button>
                 </div>
               )}
 
-              {/* Route Summary Bar */}
-              <div className="bg-white/95 backdrop-blur rounded-lg px-4 py-2.5 shadow-md flex flex-wrap items-center justify-between gap-x-4 gap-y-1">
-                <div className="flex items-center gap-4">
-                  <div className="flex items-center gap-1.5 text-sm">
-                    <Route className="h-4 w-4 text-amber-500" />
-                    <span className="font-semibold text-gray-900">{navState.isNavigating && navState.totalDistanceRemaining ? navState.totalDistanceRemaining : totalDistance}</span>
-                  </div>
-                  <div className="flex items-center gap-1.5 text-sm">
-                    <Clock className="h-4 w-4 text-blue-500" />
-                    <span className="font-medium text-gray-700">{navState.isNavigating && navState.totalDurationRemaining ? navState.totalDurationRemaining : totalDuration}</span>
-                  </div>
+              {/* Route summary: one line; GPS and tracking only speak up when something needs attention */}
+              <div className="flex items-center justify-between gap-2 rounded-lg bg-white/95 px-2.5 py-1.5 shadow-md backdrop-blur sm:px-3">
+                <div className="flex min-w-0 items-center gap-2.5 text-xs sm:gap-4 sm:text-sm">
+                  <span className="flex items-center gap-1 font-semibold text-gray-900">
+                    <Route className="h-3.5 w-3.5 text-amber-500" />
+                    {navState.isNavigating && navState.totalDistanceRemaining ? navState.totalDistanceRemaining : totalDistance}
+                  </span>
+                  <span className="flex items-center gap-1 font-medium text-gray-700">
+                    <Clock className="h-3.5 w-3.5 text-blue-500" />
+                    {navState.isNavigating && navState.totalDurationRemaining ? navState.totalDurationRemaining : totalDuration}
+                  </span>
                   {navState.eta && (
-                    <div className="flex items-center gap-1.5 text-sm">
-                      <Target className="h-4 w-4 text-green-500" />
-                      <span className="font-medium text-gray-700">ETA {navState.eta}</span>
-                    </div>
+                    <span className="flex items-center gap-1 font-medium text-gray-700">
+                      <Target className="h-3.5 w-3.5 text-green-500" />
+                      ETA {navState.eta}
+                    </span>
                   )}
                 </div>
-                <div className="flex items-center gap-2">
-                  {navState.isNavigating && !simulation && !hasFix && (
-                    <span className="text-[11px] font-semibold text-amber-600">Finding GPS...</span>
-                  )}
+                <div className="flex shrink-0 items-center gap-2">
                   {navState.isNavigating && liveStats.speedMph !== null && (
                     <span className="text-xs font-bold tabular-nums text-gray-900">{liveStats.speedMph} mph</span>
                   )}
-                  {navState.isNavigating && !simulation && liveStats.accuracy !== null && (
-                    <span className={`text-[11px] font-semibold ${liveStats.accuracy <= 25 ? 'text-green-600' : liveStats.accuracy <= 75 ? 'text-amber-600' : 'text-red-600'}`}>
-                      GPS {liveStats.accuracy <= 25 ? 'good' : liveStats.accuracy <= 75 ? 'fair' : 'weak'}
+                  {(() => {
+                    if (simulation) return null
+                    if (navState.isNavigating) {
+                      if (!hasFix) return <span className="text-[11px] font-semibold text-amber-600">Finding GPS...</span>
+                      if (liveStats.accuracy !== null && liveStats.accuracy > 75) return <span className="text-[11px] font-semibold text-red-600">GPS weak</span>
+                      if (trackingStatus?.state === 'error') return <span className="text-[11px] font-semibold text-red-600">{trackingStatus.label}</span>
+                      if (trackingStatus?.state === 'pending') return <span className="text-[11px] font-semibold text-amber-600">{trackingStatus.label}</span>
+                      if (!wakeLockActive) return <span className="text-[11px] font-medium text-amber-600">Auto-lock can pause GPS</span>
+                      return trackingStatus?.state === 'on'
+                        ? <span title={trackingStatus.label} aria-label={trackingStatus.label} className="h-2 w-2 rounded-full bg-green-500" />
+                        : null
+                    }
+                    return trackingStatus ? <span className="text-[11px] font-semibold text-gray-500">{trackingStatus.label}</span> : null
+                  })()}
+                  {!navState.isNavigating && (
+                    <span className="text-xs text-gray-500">
+                      {stops.length} stop{stops.length !== 1 ? 's' : ''}
                     </span>
                   )}
-                  {trackingStatus && !simulation && (
-                    <span
-                      className={`text-[11px] font-semibold ${
-                        trackingStatus.state === 'on' ? 'text-green-600'
-                          : trackingStatus.state === 'error' ? 'text-red-600'
-                            : trackingStatus.state === 'pending' ? 'text-amber-600' : 'text-gray-500'
-                      }`}
-                    >
-                      {trackingStatus.label}
-                    </span>
-                  )}
-                  {navState.isNavigating && !simulation && (
-                    <span className={`text-[11px] font-medium ${wakeLockActive ? 'text-green-600' : 'text-amber-600'}`}>
-                      {wakeLockActive ? 'Screen stays on' : 'Auto-lock can pause GPS'}
-                    </span>
-                  )}
-                  <span className="text-xs text-gray-500">
-                    {stops.length} stop{stops.length !== 1 ? 's' : ''}
-                  </span>
                 </div>
               </div>
+            </div>
+          )}
+
+          {/* ── Benji: talks along with the spoken directions ───────── */}
+          {(navState.isNavigating || onClose) && (
+            <div
+              className="pointer-events-none absolute right-16 top-1/2 z-10 -translate-y-1/2"
+              style={{ left: 'calc(0.75rem + env(safe-area-inset-left))' }}
+            >
+              <BenjiAvatar speaking={speaking} muted={!voiceEnabled} caption={voiceEnabled ? caption : ''} onOpen={() => setShowVoiceSettings(open => !open)} />
             </div>
           )}
 
@@ -2136,15 +2191,19 @@ export default function DriverMapNavigation({
             />
             <MapControlButton
               icon={voiceEnabled ? <Volume2 className="h-4 w-4 text-amber-500" /> : <VolumeX className="h-4 w-4" />}
-              title="Voice Navigation"
-              onClick={() => setVoiceEnabled(p => !p)}
+              title={voiceEnabled ? 'Mute directions' : 'Turn on spoken directions'}
+              onClick={toggleVoice}
               active={voiceEnabled}
             />
             {!onClose && (
               <MapControlButton
                 icon={isFullscreen ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
                 title={isFullscreen ? 'Exit full screen' : 'Full screen'}
-                onClick={() => setIsFullscreen(p => !p)}
+                onClick={() => {
+                  const next = !isFullscreen
+                  setIsFullscreen(next)
+                  void (next ? enterFullscreen() : exitFullscreen())
+                }}
               />
             )}
             {onClose && fullscreenSupported && (
@@ -2164,7 +2223,7 @@ export default function DriverMapNavigation({
           >
             {/* Back to the car after looking around the map */}
             {navState.isNavigating && !following && (
-              <div className="mb-2 flex justify-end">
+              <div className="mb-1.5 flex justify-end">
                 <button type="button" onClick={recenterMap} className="flex h-11 items-center gap-2 rounded-full bg-gray-900 px-4 text-sm font-bold text-white shadow-lg ring-1 ring-white/30">
                   <Locate className="h-4 w-4 text-amber-400" />
                   Re-center
@@ -2174,29 +2233,32 @@ export default function DriverMapNavigation({
 
             {/* Benji Tip (floating) */}
             {showBenjiPanel && benjiTips.length > 0 && (
-              <div className="bg-amber-50/95 backdrop-blur border border-amber-200 rounded-lg p-3 mb-2 shadow-md">
+              <div className="mb-1.5 rounded-lg border border-amber-200 bg-amber-50/95 p-2 shadow-md backdrop-blur">
                 <div className="flex items-start gap-2">
-                  <Zap className="h-4 w-4 text-amber-500 shrink-0 mt-0.5" />
-                  <div className="flex-1">
-                    <p className="text-xs font-semibold text-amber-800 mb-1">Benji's Tip</p>
-                    <p className="text-xs text-amber-900">{benjiTips[0]}</p>
+                  <Zap className="mt-0.5 h-4 w-4 shrink-0 text-amber-500" />
+                  <div className="min-w-0 flex-1">
+                    <p className="text-xs font-semibold text-amber-800">Benji&apos;s tip</p>
+                    <p className="line-clamp-3 text-xs text-amber-900">{benjiTips[0]}</p>
                   </div>
-                  <button onClick={() => setShowBenjiPanel(false)} className="text-amber-400 hover:text-amber-600">
+                  <button onClick={() => setShowBenjiPanel(false)} aria-label="Close tip" className="text-amber-400 hover:text-amber-600">
                     <X className="h-3.5 w-3.5" />
                   </button>
                 </div>
               </div>
             )}
 
-            {/* Carolina Insight Alert */}
-            {carolinaInsights.length > 0 && carolinaInsights[0] && carolinaInsights[0].severity !== 'info' && (
-              <div className="bg-red-50/95 backdrop-blur border border-red-200 rounded-lg p-3 mb-2 shadow-md">
+            {/* Carolina Insight Alert: one tight line, dismissible so it does not sit on the map all drive */}
+            {carolinaInsights.length > 0 && carolinaInsights[0] && carolinaInsights[0].severity !== 'info' && !insightDismissed && (
+              <div className="mb-1.5 rounded-lg border border-red-200 bg-red-50/95 p-2 shadow-md backdrop-blur">
                 <div className="flex items-start gap-2">
-                  <AlertTriangle className="h-4 w-4 text-red-500 shrink-0 mt-0.5" />
-                  <div>
-                    <p className="text-xs font-semibold text-red-800">{carolinaInsights[0].title}</p>
-                    <p className="text-xs text-red-700">{carolinaInsights[0].description}</p>
+                  <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-red-500" />
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-xs font-semibold text-red-800">{carolinaInsights[0].title}</p>
+                    <p className="line-clamp-2 text-[11px] text-red-700">{carolinaInsights[0].description}</p>
                   </div>
+                  <button onClick={() => setInsightDismissed(true)} aria-label="Dismiss alert" className="text-red-400 hover:text-red-600">
+                    <X className="h-3.5 w-3.5" />
+                  </button>
                 </div>
               </div>
             )}
@@ -2304,8 +2366,9 @@ export default function DriverMapNavigation({
             {showVoiceSettings && (
               <VoiceSettingsSheet
                 settings={voiceSettings}
+                naturalState={naturalState}
                 onChange={changeVoiceSettings}
-                onTest={() => { voicePlayerRef.current?.unlock(); voicePlayerRef.current?.speak('In five hundred feet, turn left onto Main Street.') }}
+                onTest={() => { voicePlayerRef.current?.unlock(); voicePlayerRef.current?.speak("Hi, I'm Benji. I'll talk you through every turn.") }}
                 onClose={() => setShowVoiceSettings(false)}
               />
             )}
@@ -2464,7 +2527,7 @@ export default function DriverMapNavigation({
                 currentIndex={navState.isNavigating ? navState.currentStopIndex : null}
                 onSelect={focusStop}
               />
-              <div className="flex flex-wrap items-center gap-1 p-2">
+              <div className="flex flex-wrap items-center gap-1 p-1.5 sm:p-2">
                 {/* Toggle Stops List */}
                 <button
                   onClick={() => setShowStopsList(p => !p)}
@@ -2485,37 +2548,41 @@ export default function DriverMapNavigation({
                     }`}
                   >
                     <Zap className="h-3.5 w-3.5" />
-                    Benji
+                    <span className="hidden sm:inline">Benji</span>
                   </button>
                 )}
 
                 {/* Fuel Stops */}
                 {fuelStops.length > 0 && (
-                  <div className="flex items-center gap-1 px-3 py-2 text-xs text-green-600 font-medium">
+                  <div className="hidden items-center gap-1 px-3 py-2 text-xs text-green-600 font-medium sm:flex">
                     <Fuel className="h-3.5 w-3.5" />
                     {fuelStops.length} fuel
                   </div>
                 )}
 
-                {/* Voice settings */}
-                <button
-                  type="button"
-                  onClick={() => setShowVoiceSettings(open => !open)}
-                  className={`flex items-center gap-1.5 px-3 py-2 rounded-md text-xs font-medium transition-colors ${showVoiceSettings ? 'bg-amber-50 text-amber-700' : 'text-gray-600 hover:bg-gray-100'}`}
-                >
-                  <Volume2 className="h-3.5 w-3.5" />
-                  Voice
-                </button>
+                {/* Voice settings: once Benji is on the map he opens them, so this is only for the preview map */}
+                {!(navState.isNavigating || onClose) && (
+                  <button
+                    type="button"
+                    onClick={() => setShowVoiceSettings(open => !open)}
+                    className={`flex items-center gap-1.5 px-3 py-2 rounded-md text-xs font-medium transition-colors ${showVoiceSettings ? 'bg-amber-50 text-amber-700' : 'text-gray-600 hover:bg-gray-100'}`}
+                  >
+                    <Volume2 className="h-3.5 w-3.5" />
+                    Voice
+                  </button>
+                )}
 
                 {/* Hand off to Google Maps: keeps guiding when this page is backgrounded or the screen locks */}
                 {routeLoaded && (
                   <button
                     type="button"
                     onClick={openInGoogleMaps}
+                    title="Open in Google Maps"
+                    aria-label="Open in Google Maps"
                     className="flex items-center gap-1.5 px-3 py-2 rounded-md text-xs font-medium text-gray-600 hover:bg-gray-100 transition-colors"
                   >
                     <Navigation className="h-3.5 w-3.5" />
-                    Google Maps
+                    <span className="hidden sm:inline">Google Maps</span>
                   </button>
                 )}
 
@@ -2528,7 +2595,7 @@ export default function DriverMapNavigation({
                     className="flex items-center gap-1.5 px-3 py-2 rounded-md text-xs font-medium text-gray-600 hover:bg-gray-100 transition-colors disabled:opacity-50"
                   >
                     <Zap className="h-3.5 w-3.5" />
-                    {replanning ? 'Re-planning...' : 'Re-plan'}
+                    <span className="hidden sm:inline">{replanning ? 'Re-planning...' : 'Re-plan'}</span>
                   </button>
                 )}
 
@@ -2540,7 +2607,7 @@ export default function DriverMapNavigation({
                     className="flex items-center gap-1.5 px-3 py-2 rounded-md text-xs font-medium text-gray-600 hover:bg-gray-100 transition-colors"
                   >
                     <AlertTriangle className="h-3.5 w-3.5" />
-                    Road blocked
+                    <span className="hidden sm:inline">Road blocked</span>
                   </button>
                 )}
 
@@ -2548,10 +2615,12 @@ export default function DriverMapNavigation({
                   <button
                     type="button"
                     onClick={() => setAddingShipment(open => !open)}
+                    title="Add shipment"
+                    aria-label="Add shipment"
                     className={`flex items-center gap-1.5 px-3 py-2 rounded-md text-xs font-medium transition-colors ${addingShipment ? 'bg-amber-50 text-amber-700' : 'text-gray-600 hover:bg-gray-100'}`}
                   >
                     <Package className="h-3.5 w-3.5" />
-                    Add shipment
+                    <span className="hidden sm:inline">Add shipment</span>
                   </button>
                 )}
 
@@ -2572,7 +2641,7 @@ export default function DriverMapNavigation({
                 {/* Navigation Start/Stop */}
                 {!navState.isNavigating ? (
                   <Button
-                    onClick={startNavigation}
+                    onClick={handleStart}
                     disabled={!routeLoaded}
                     className="bg-amber-500 hover:bg-amber-600 text-white text-xs px-4 py-2 h-auto"
                   >
@@ -2601,7 +2670,7 @@ export default function DriverMapNavigation({
 
               {/* Progress Bar */}
               {navState.isNavigating && stops.length > 0 && (
-                <div className="px-2 pb-2">
+                <div className="px-2 pb-1.5">
                   <div className="flex items-center gap-2">
                     <div className="flex-1 bg-gray-200 rounded-full h-1.5">
                       <div

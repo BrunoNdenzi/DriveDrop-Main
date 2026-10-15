@@ -6,6 +6,7 @@ export interface VoiceSettings {
   deviceVoice: string
   rate: number
   volume: number
+  muted: boolean
 }
 
 export const NATURAL_VOICE_OPTIONS = [
@@ -15,7 +16,7 @@ export const NATURAL_VOICE_OPTIONS = [
   { id: 'en-US-Neural2-J', label: 'Male, calm' },
 ] as const
 
-export const DEFAULT_VOICE_SETTINGS: VoiceSettings = { engine: 'natural', voice: 'en-US-Neural2-F', deviceVoice: '', rate: 1, volume: 1 }
+export const DEFAULT_VOICE_SETTINGS: VoiceSettings = { engine: 'natural', voice: 'en-US-Neural2-F', deviceVoice: '', rate: 1, volume: 1, muted: false }
 
 const STORAGE_KEY = 'planner-voice-settings'
 const clamp = (value: unknown, min: number, max: number, fallback: number) => {
@@ -32,6 +33,7 @@ export function sanitizeVoiceSettings(raw: unknown): VoiceSettings {
     deviceVoice: typeof input['deviceVoice'] === 'string' ? input['deviceVoice'].slice(0, 120) : '',
     rate: clamp(input['rate'], 0.8, 1.3, 1),
     volume: clamp(input['volume'], 0.2, 1, 1),
+    muted: input['muted'] === true,
   }
 }
 
@@ -74,32 +76,97 @@ export function createClipCache<T>(max: number, onEvict?: (value: T) => void) {
   }
 }
 
+export type VoiceGender = 'female' | 'male' | 'unknown'
+
+const FEMALE_VOICES = new Set(['samantha', 'victoria', 'karen', 'moira', 'tessa', 'fiona', 'allison', 'ava', 'susan', 'zira', 'hazel', 'aria', 'jenny', 'emma', 'michelle', 'linda', 'heather', 'catherine', 'serena', 'kate', 'nicky', 'veena', 'joanna', 'salli', 'kendra', 'kimberly', 'ivy', 'female'])
+const MALE_VOICES = new Set(['alex', 'daniel', 'fred', 'tom', 'aaron', 'david', 'mark', 'guy', 'ryan', 'george', 'james', 'richard', 'oliver', 'arthur', 'rishi', 'gordon', 'eric', 'christopher', 'roger', 'brandon', 'joey', 'matthew', 'male'])
+
+// Devices do not say whether a voice is male or female, so this goes by the well-known voice names.
+export function guessVoiceGender(name: string): VoiceGender {
+  const words = name.toLowerCase().split(/[^a-z]+/).filter(Boolean)
+  if (words.includes('female') || words.some(word => FEMALE_VOICES.has(word))) return 'female'
+  if (words.includes('male') || words.some(word => MALE_VOICES.has(word))) return 'male'
+  // Android's default English voice has no name of its own and is a female voice.
+  return /google (us|uk) english$/i.test(name.trim()) ? 'female' : 'unknown'
+}
+
+export function pickDeviceVoice(voices: Array<{ name: string; lang: string }>, gender: Exclude<VoiceGender, 'unknown'>): string {
+  const matching = voices.filter(voice => guessVoiceGender(voice.name) === gender)
+  return (matching.find(voice => /^en-us/i.test(voice.lang)) ?? matching[0])?.name ?? ''
+}
+
+export type NaturalVoiceState = 'unknown' | 'ready' | 'unavailable'
+
+export interface VoiceEvents {
+  onSpeaking?: (speaking: boolean, text: string) => void
+  onNaturalState?: (state: NaturalVoiceState) => void
+}
+
 const SILENT_CLIP = 'data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAESsAACJWAAACABAAZGF0YQAAAAA='
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api/v1'
+
+// One speaker for the whole page: a phone only lets an audio element play after a tap on that same element.
+let sharedAudio: HTMLAudioElement | null = null
+const speaker = (): HTMLAudioElement => (sharedAudio ??= new Audio())
+
+// Runs inside a tap (Start navigation) so later announcements are allowed to make sound.
+export function unlockVoiceOutput(): void {
+  if (typeof window === 'undefined') return
+  const audio = speaker()
+  audio.src = SILENT_CLIP
+  void audio.play().catch(() => undefined)
+  const synth = window.speechSynthesis
+  if (synth) {
+    synth.getVoices()
+    // Phones also need a real (silent) utterance from a tap before the device voice will speak.
+    const warmUp = new SpeechSynthesisUtterance(' ')
+    warmUp.volume = 0
+    synth.speak(warmUp)
+  }
+}
 
 export function deviceVoices(): SpeechSynthesisVoice[] {
   if (typeof window === 'undefined' || !window.speechSynthesis) return []
   return window.speechSynthesis.getVoices().filter(voice => voice.lang.toLowerCase().startsWith('en'))
 }
 
-export function createVoicePlayer(getSettings: () => VoiceSettings) {
-  let audio: HTMLAudioElement | null = null
+export function createVoicePlayer(getSettings: () => VoiceSettings, events: VoiceEvents = {}) {
   let latest = 0
   let cloudOffUntil = 0
+  let naturalState: NaturalVoiceState = 'unknown'
   const clips = createClipCache<string>(60, url => URL.revokeObjectURL(url))
 
-  const speakOnDevice = (text: string, settings: VoiceSettings) => {
-    if (typeof window === 'undefined' || !window.speechSynthesis) return
+  const setNatural = (state: NaturalVoiceState) => {
+    if (state === naturalState) return
+    naturalState = state
+    events.onNaturalState?.(state)
+  }
+
+  const speakOnDevice = (text: string, settings: VoiceSettings, id: number) => {
+    const synth = typeof window === 'undefined' ? undefined : window.speechSynthesis
+    if (!synth) {
+      events.onSpeaking?.(false, text)
+      return
+    }
     const utterance = new SpeechSynthesisUtterance(text)
     const chosen = deviceVoices().find(voice => voice.name === settings.deviceVoice)
     if (chosen) utterance.voice = chosen
+    utterance.lang = chosen?.lang ?? 'en-US'
     utterance.rate = settings.rate
     utterance.volume = settings.volume
-    window.speechSynthesis.speak(utterance)
+    utterance.onstart = () => { if (id === latest) events.onSpeaking?.(true, text) }
+    utterance.onend = utterance.onerror = () => { if (id === latest) events.onSpeaking?.(false, text) }
+    synth.resume()
+    // Android Chrome drops speech queued in the same instant as a cancel.
+    window.setTimeout(() => { if (id === latest) synth.speak(utterance) }, 60)
   }
 
   const stopAll = () => {
-    audio?.pause()
+    if (sharedAudio) {
+      sharedAudio.onplaying = null
+      sharedAudio.onended = null
+      sharedAudio.pause()
+    }
     if (typeof window !== 'undefined') window.speechSynthesis?.cancel()
   }
 
@@ -122,8 +189,10 @@ export function createVoicePlayer(getSettings: () => VoiceSettings) {
       if (!response.ok) {
         // Not set up on the server: stop asking this session. Busy or failing: pause for a minute.
         cloudOffUntil = response.status === 503 ? Number.POSITIVE_INFINITY : Date.now() + 60_000
+        if (response.status === 503) setNatural('unavailable')
         throw new Error(`Voice ${response.status}`)
       }
+      setNatural('ready')
       const url = URL.createObjectURL(await response.blob())
       clips.set(key, url)
       return url
@@ -133,38 +202,57 @@ export function createVoicePlayer(getSettings: () => VoiceSettings) {
   }
 
   return {
-    // Browsers only allow sound after a tap, so this runs from "Start navigation" to open the speaker for later announcements.
-    unlock() {
-      audio ??= new Audio()
-      audio.src = SILENT_CLIP
-      void audio.play().catch(() => undefined)
-      window.speechSynthesis?.getVoices()
+    unlock: unlockVoiceOutput,
+    get naturalState() { return naturalState },
+    // Asks the server whether the natural voice is set up, so the settings can say so instead of silently falling back.
+    async checkNatural(): Promise<NaturalVoiceState> {
+      try {
+        const { data: { session } } = await getSupabaseBrowserClient().auth.getSession()
+        if (!session?.access_token) return naturalState
+        const response = await fetch(`${API_BASE_URL}/standalone-route-planner/voice/status`, { headers: { Authorization: `Bearer ${session.access_token}` } })
+        if (!response.ok) return naturalState
+        const body = await response.json() as { data?: { natural?: boolean } }
+        if (body.data?.natural) {
+          cloudOffUntil = 0
+          setNatural('ready')
+        } else {
+          cloudOffUntil = Number.POSITIVE_INFINITY
+          setNatural('unavailable')
+        }
+      } catch {
+        // Offline: leave the state as it was.
+      }
+      return naturalState
     },
     speak(text: string) {
       const settings = getSettings()
       const id = ++latest
       stopAll()
+      events.onSpeaking?.(false, text)
       if (settings.engine === 'device' || Date.now() < cloudOffUntil) {
-        speakOnDevice(text, settings)
+        speakOnDevice(text, settings, id)
         return
       }
       void (async () => {
         try {
           const url = await fetchClip(text, settings)
           if (id !== latest) return
-          audio ??= new Audio()
+          const audio = speaker()
+          audio.onplaying = () => { if (id === latest) events.onSpeaking?.(true, text) }
+          audio.onended = () => { if (id === latest) events.onSpeaking?.(false, text) }
           audio.src = url
           audio.volume = settings.volume
           await audio.play()
         } catch {
           // A slow or failed natural voice must never mean a missed turn: say it with the device voice instead.
-          if (id === latest) speakOnDevice(text, settings)
+          if (id === latest) speakOnDevice(text, settings, id)
         }
       })()
     },
     stop() {
       latest += 1
       stopAll()
+      events.onSpeaking?.(false, '')
     },
   }
 }

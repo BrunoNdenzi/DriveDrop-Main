@@ -9,6 +9,41 @@ html.driving-lock body {
   overscroll-behavior: none;
 }
 
+/* Benji's face on the driving map: blinks while idle, talks and glows while a direction is spoken. */
+@keyframes benji-blink {
+  0%, 92%, 100% { transform: scaleY(1); }
+  96% { transform: scaleY(0.1); }
+}
+@keyframes benji-talk {
+  from { transform: scaleY(0.4); }
+  to { transform: scaleY(2.3); }
+}
+@keyframes benji-glow {
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 1; }
+}
+.benji-eyes,
+.benji-mouth {
+  transform-box: fill-box;
+  transform-origin: center;
+}
+.benji-eyes {
+  animation: benji-blink 4.5s infinite;
+}
+.benji-talking .benji-mouth {
+  animation: benji-talk 0.22s ease-in-out infinite alternate;
+}
+.benji-talking .benji-antenna {
+  animation: benji-glow 0.6s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .benji-eyes,
+  .benji-talking .benji-mouth,
+  .benji-talking .benji-antenna {
+    animation: none;
+  }
+}
+
 /* Printing the route report prints only the report. */
 @media print {
   body * {

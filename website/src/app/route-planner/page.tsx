@@ -10,6 +10,7 @@ import DriverMapNavigation, { type ArrivalReport, type DeviationEvent, type Driv
 import { describeReplan } from '@/lib/replan-summary'
 import { geocodeUsAddress } from '@/lib/address-resolve'
 import { enterFullscreen, exitFullscreen } from '@/lib/fullscreen'
+import { unlockVoiceOutput } from '@/lib/voice'
 import { jumpTo } from '@/lib/scroll'
 import type { AddedStopDraft } from '@/components/route-planner/AddShipmentSheet'
 import type { ProofData } from '@/components/route-planner/ProofSheet'
@@ -231,8 +232,10 @@ export default function StandaloneRoutePlannerPage() {
   const stopsRef = useRef(stops)
   stopsRef.current = stops
   const startDriving = () => {
-    setDrivingMode(true)
+    // Both calls need to run inside the tap that started navigation.
+    unlockVoiceOutput()
     void enterFullscreen()
+    setDrivingMode(true)
   }
   const [routeName, setRouteName] = useState('')
   const [currentRouteId, setCurrentRouteId] = useState<string | null>(null)
@@ -1101,6 +1104,7 @@ export default function StandaloneRoutePlannerPage() {
         benjiTips={result.benjiTips}
         fuelStops={result.fuelStops}
         onClose={() => setDrivingMode(false)}
+        autoStart
         height="h-[100dvh]"
         {...trackingProps}
       /></div>}
@@ -1163,6 +1167,7 @@ export default function StandaloneRoutePlannerPage() {
                 carolinaInsights={result.carolinaInsights}
                 benjiTips={result.benjiTips}
                 fuelStops={result.fuelStops}
+                onRequestDrive={startDriving}
                 height="h-[460px]"
               /></div>}
             </section>

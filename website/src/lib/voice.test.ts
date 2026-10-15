@@ -1,20 +1,43 @@
 import { describe, expect, it } from 'vitest'
-import { DEFAULT_VOICE_SETTINGS, createClipCache, sanitizeVoiceSettings, voiceCacheKey } from './voice'
+import { DEFAULT_VOICE_SETTINGS, createClipCache, guessVoiceGender, pickDeviceVoice, sanitizeVoiceSettings, voiceCacheKey } from './voice'
 
 describe('sanitizeVoiceSettings', () => {
   it('falls back to the defaults for missing or hostile input', () => {
     expect(sanitizeVoiceSettings(null)).toEqual(DEFAULT_VOICE_SETTINGS)
-    expect(sanitizeVoiceSettings({ engine: 'robot', voice: 'x', rate: 'fast', volume: 99 })).toEqual({ ...DEFAULT_VOICE_SETTINGS, volume: 1 })
+    expect(sanitizeVoiceSettings({ engine: 'robot', voice: 'x', rate: 'fast', volume: 99, muted: 'yes' })).toEqual({ ...DEFAULT_VOICE_SETTINGS, volume: 1 })
   })
 
   it('keeps valid choices and clamps speed and volume', () => {
-    expect(sanitizeVoiceSettings({ engine: 'device', voice: 'en-US-Neural2-D', deviceVoice: 'Samantha', rate: 5, volume: 0 })).toEqual({
+    expect(sanitizeVoiceSettings({ engine: 'device', voice: 'en-US-Neural2-D', deviceVoice: 'Samantha', rate: 5, volume: 0, muted: true })).toEqual({
       engine: 'device',
       voice: 'en-US-Neural2-D',
       deviceVoice: 'Samantha',
       rate: 1.3,
       volume: 0.2,
+      muted: true,
     })
+  })
+})
+
+describe('device voice gender', () => {
+  it('recognises common male and female device voices', () => {
+    expect(guessVoiceGender('Samantha')).toBe('female')
+    expect(guessVoiceGender('Microsoft Zira - English (United States)')).toBe('female')
+    expect(guessVoiceGender('Google UK English Male')).toBe('male')
+    expect(guessVoiceGender('Microsoft David Desktop')).toBe('male')
+    expect(guessVoiceGender('Google US English')).toBe('female')
+    expect(guessVoiceGender('Unnamed')).toBe('unknown')
+  })
+
+  it('prefers a US English voice of the wanted gender', () => {
+    const voices = [
+      { name: 'Daniel', lang: 'en-GB' },
+      { name: 'Alex', lang: 'en-US' },
+      { name: 'Samantha', lang: 'en-US' },
+    ]
+    expect(pickDeviceVoice(voices, 'male')).toBe('Alex')
+    expect(pickDeviceVoice(voices, 'female')).toBe('Samantha')
+    expect(pickDeviceVoice([{ name: 'Unnamed', lang: 'en-US' }], 'male')).toBe('')
   })
 })
 
