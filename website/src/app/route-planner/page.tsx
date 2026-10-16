@@ -6,7 +6,8 @@ import { useRouter } from 'next/navigation'
 import { getSupabaseBrowserClient } from '@/lib/supabase-client'
 import RouteOperations from '@/components/route-planner/RouteOperations'
 import PlannerBilling from '@/components/route-planner/PlannerBilling'
-import DriverMapNavigation, { type ArrivalReport, type DeviationEvent, type DriverFix, type NavStop } from '@/components/driver/DriverMapNavigation'
+import InstallApp from '@/components/route-planner/InstallApp'
+import DriverMapNavigation, { type ArrivalReport, type BenjiLiveContext, type DeviationEvent, type DriverFix, type NavStop } from '@/components/driver/DriverMapNavigation'
 import { describeReplan } from '@/lib/replan-summary'
 import { geocodeUsAddress } from '@/lib/address-resolve'
 import { enterFullscreen, exitFullscreen } from '@/lib/fullscreen'
@@ -157,6 +158,24 @@ interface EvidenceSource<T> {
   freshUntil: string
   evidence?: T
   errorCode?: string
+}
+
+interface ActiveTrip {
+  executionId: string
+  route: SavedRoute
+  result: OptimizedRoute
+  completedStopIds: string[]
+  done: number
+  total: number
+  startedAt: string | null
+}
+
+interface ExecutionRun {
+  id: string
+  route_id: string
+  started_at: string | null
+  planned_snapshot: { optimizedResult?: OptimizedRoute | null } | null
+  stop_progress: Array<{ stopId: string; status: string }>
 }
 
 function withoutKey<T>(record: Record<string, T>, key: string): Record<string, T> {
@@ -322,6 +341,38 @@ export default function StandaloneRoutePlannerPage() {
     setLocations(locationData)
   }, [api])
 
+  // A trip that was started and never finished, so the driver can pick it up after an interruption or a fresh sign-in.
+  const [activeTrip, setActiveTrip] = useState<ActiveTrip | null>(null)
+  const [resumeFrom, setResumeFrom] = useState<string[] | null>(null)
+  const loadActiveTrip = useCallback(async () => {
+    try {
+      const [run] = await api<ExecutionRun[]>('/executions?status=in_progress')
+      if (!run) {
+        setActiveTrip(null)
+        return
+      }
+      const route = await api<SavedRoute>(`/routes/${run.route_id}`)
+      const optimized = run.planned_snapshot?.optimizedResult ?? route.last_optimized_result
+      if (!optimized || optimized.stops.length < 2) {
+        setActiveTrip(null)
+        return
+      }
+      const finished = new Set(run.stop_progress.filter(stop => stop.status === 'completed' || stop.status === 'skipped').map(stop => stop.stopId))
+      const ahead = optimized.stops.slice(1)
+      setActiveTrip({
+        executionId: run.id,
+        route,
+        result: optimized,
+        completedStopIds: [...finished],
+        done: ahead.filter(stop => finished.has(stop.id)).length,
+        total: ahead.length,
+        startedAt: run.started_at,
+      })
+    } catch {
+      // Resuming is a convenience; the planner works without it.
+    }
+  }, [api])
+
   useEffect(() => {
     setRecurrenceStart(current => current || localDateTime())
     const load = async () => {
@@ -339,6 +390,7 @@ export default function StandaloneRoutePlannerPage() {
           setOnboarded(profile.onboarding_completed)
         }
         await refreshLibrary()
+        void loadActiveTrip()
       } catch (loadError) {
         setError(loadError instanceof Error ? loadError.message : 'Unable to load planner')
       } finally {
@@ -346,7 +398,26 @@ export default function StandaloneRoutePlannerPage() {
       }
     }
     void load()
-  }, [api, refreshLibrary])
+  }, [api, refreshLibrary, loadActiveTrip])
+
+  // A phone that was asleep or in another app comes back with a stale login: renew it before the next request needs it.
+  useEffect(() => {
+    const renew = async () => {
+      if (document.visibilityState !== 'visible') return
+      try {
+        const { data: { session } } = await supabase.auth.getSession()
+        if (session?.expires_at && session.expires_at * 1000 - Date.now() < 10 * 60_000) await supabase.auth.refreshSession()
+      } catch {
+        // Offline: the next request will try again.
+      }
+    }
+    document.addEventListener('visibilitychange', renew)
+    window.addEventListener('online', renew)
+    return () => {
+      document.removeEventListener('visibilitychange', renew)
+      window.removeEventListener('online', renew)
+    }
+  }, [supabase])
 
   const flash = (text: string) => {
     setMessage(text)
@@ -606,6 +677,7 @@ export default function StandaloneRoutePlannerPage() {
     onCaptureProof: uploadProof,
     onShareStop: createStopLink,
     onAddShipment: (added: AddedStopDraft[]) => replanFromHere(added),
+    onAskBenji: (message: string, history: Array<{ role: 'user' | 'assistant'; content: string }>, live: BenjiLiveContext) => askBenjiVoice(message, history, live),
     trackingStatus: tracking ?? (currentRouteId
       ? { state: 'off' as const, label: 'Tracking starts with Start Navigation' }
       : { state: 'off' as const, label: 'Route not saved: progress is not recorded' }),
@@ -847,6 +919,15 @@ export default function StandaloneRoutePlannerPage() {
     return data.reply
   }
 
+  // Spoken to a driver mid-route: short answers, with the live position along the road.
+  const askBenjiVoice = async (message: string, history: Array<{ role: 'user' | 'assistant'; content: string }>, live: BenjiLiveContext) => {
+    const data = await api<{ reply: string; usage?: { costUsd: number } }>('/assistant', {
+      method: 'POST',
+      body: JSON.stringify({ message, history, mode: 'voice', context: { ...assistantContext(), driving: true, live } }),
+    })
+    return { reply: data.reply, ...(data.usage ? { costUsd: data.usage.costUsd } : {}) }
+  }
+
   const routeOptions = (): RoutePlannerOptions => ({
     vehicleType,
     vehicleSlots,
@@ -966,6 +1047,28 @@ export default function StandaloneRoutePlannerPage() {
     setResult(route.last_optimized_result)
     pendingJumpRef.current = { kind: 'stops' }
     setTab('plan')
+  }
+
+  const resumeTrip = () => {
+    if (!activeTrip) return
+    loadRoute(activeTrip.route)
+    setResult(activeTrip.result)
+    pendingJumpRef.current = null
+    setResumeFrom(activeTrip.completedStopIds)
+    setActiveTrip(null)
+    startDriving()
+  }
+
+  const endTrip = async () => {
+    if (!activeTrip || !window.confirm('End this trip? Stops you have not finished stay unfinished.')) return
+    try {
+      await api(`/executions/${activeTrip.executionId}/cancel`, { method: 'POST', body: '{}' })
+      setActiveTrip(null)
+      await refreshLibrary()
+      flash('Trip ended')
+    } catch (caught) {
+      fail(caught)
+    }
   }
 
   const deleteRoute = async (id: string) => {
@@ -1103,8 +1206,9 @@ export default function StandaloneRoutePlannerPage() {
         carolinaInsights={result.carolinaInsights}
         benjiTips={result.benjiTips}
         fuelStops={result.fuelStops}
-        onClose={() => setDrivingMode(false)}
+        onClose={() => { setDrivingMode(false); setResumeFrom(null); void loadActiveTrip() }}
         autoStart
+        {...(resumeFrom ? { resumeFrom: { completedStopIds: resumeFrom } } : {})}
         height="h-[100dvh]"
         {...trackingProps}
       /></div>}
@@ -1120,6 +1224,21 @@ export default function StandaloneRoutePlannerPage() {
         </div>
 
         {(message || error) && <div ref={messageRef} role={error ? 'alert' : 'status'} className={`mt-4 border p-3 text-sm ${error ? 'border-red-200 bg-red-50 text-red-700' : 'border-emerald-200 bg-emerald-50 text-emerald-700'}`}>{error || message}</div>}
+
+        <InstallApp showBanner={tab === 'plan' && !drivingMode} />
+
+        {tab === 'plan' && activeTrip && !drivingMode && (
+          <section role="status" aria-label="Trip in progress" className="mt-5 border border-[#e3b95a] bg-[#fff8e6] p-4">
+            <p className="text-sm font-bold text-[#6b4b00]">Trip in progress</p>
+            <p className="mt-1 text-sm text-[#5c4a1c]">
+              {activeTrip.route.name || 'Your route'}: {activeTrip.done} of {activeTrip.total} stops done{activeTrip.startedAt ? `, started ${new Date(activeTrip.startedAt).toLocaleString('en-US', { weekday: 'short', hour: 'numeric', minute: '2-digit' })}` : ''}.
+            </p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              <button onClick={resumeTrip} className="h-11 bg-[#173f40] px-5 text-sm font-bold text-white">Resume trip</button>
+              <button onClick={() => void endTrip()} className="h-11 border border-[#c9a959] px-4 text-sm font-semibold text-[#6b4b00]">End trip</button>
+            </div>
+          </section>
+        )}
 
         {tab === 'plan' && <BenjiPanel result={result} ask={askBenji} />}
 

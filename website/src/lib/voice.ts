@@ -99,6 +99,10 @@ export type NaturalVoiceState = 'unknown' | 'ready' | 'unavailable'
 
 export interface VoiceEvents {
   onSpeaking?: (speaking: boolean, text: string) => void
+  // A phrase finished (or failed) by itself; being cut off by a newer phrase does not count.
+  onEnd?: (text: string) => void
+  // Characters sent to the paid natural voice, for the cost meter.
+  onCloudChars?: (chars: number) => void
   onNaturalState?: (state: NaturalVoiceState) => void
 }
 
@@ -146,6 +150,7 @@ export function createVoicePlayer(getSettings: () => VoiceSettings, events: Voic
     const synth = typeof window === 'undefined' ? undefined : window.speechSynthesis
     if (!synth) {
       events.onSpeaking?.(false, text)
+      events.onEnd?.(text)
       return
     }
     const utterance = new SpeechSynthesisUtterance(text)
@@ -155,7 +160,11 @@ export function createVoicePlayer(getSettings: () => VoiceSettings, events: Voic
     utterance.rate = settings.rate
     utterance.volume = settings.volume
     utterance.onstart = () => { if (id === latest) events.onSpeaking?.(true, text) }
-    utterance.onend = utterance.onerror = () => { if (id === latest) events.onSpeaking?.(false, text) }
+    utterance.onend = utterance.onerror = () => {
+      if (id !== latest) return
+      events.onSpeaking?.(false, text)
+      events.onEnd?.(text)
+    }
     synth.resume()
     // Android Chrome drops speech queued in the same instant as a cancel.
     window.setTimeout(() => { if (id === latest) synth.speak(utterance) }, 60)
@@ -165,6 +174,7 @@ export function createVoicePlayer(getSettings: () => VoiceSettings, events: Voic
     if (sharedAudio) {
       sharedAudio.onplaying = null
       sharedAudio.onended = null
+      sharedAudio.onerror = null
       sharedAudio.pause()
     }
     if (typeof window !== 'undefined') window.speechSynthesis?.cancel()
@@ -193,6 +203,7 @@ export function createVoicePlayer(getSettings: () => VoiceSettings, events: Voic
         throw new Error(`Voice ${response.status}`)
       }
       setNatural('ready')
+      events.onCloudChars?.(text.length)
       const url = URL.createObjectURL(await response.blob())
       clips.set(key, url)
       return url
@@ -228,7 +239,6 @@ export function createVoicePlayer(getSettings: () => VoiceSettings, events: Voic
       const settings = getSettings()
       const id = ++latest
       stopAll()
-      events.onSpeaking?.(false, text)
       if (settings.engine === 'device' || Date.now() < cloudOffUntil) {
         speakOnDevice(text, settings, id)
         return
@@ -239,7 +249,11 @@ export function createVoicePlayer(getSettings: () => VoiceSettings, events: Voic
           if (id !== latest) return
           const audio = speaker()
           audio.onplaying = () => { if (id === latest) events.onSpeaking?.(true, text) }
-          audio.onended = () => { if (id === latest) events.onSpeaking?.(false, text) }
+          audio.onended = audio.onerror = () => {
+            if (id !== latest) return
+            events.onSpeaking?.(false, text)
+            events.onEnd?.(text)
+          }
           audio.src = url
           audio.volume = settings.volume
           await audio.play()

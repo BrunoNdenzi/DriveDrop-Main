@@ -152,6 +152,22 @@ function checkAssistant(): void {
   assert.ok(!/Pat|555-0100|pat@example\.com|drop me/.test(system), 'customer details and unknown fields stay out of the prompt');
   assert.equal(messages.at(-1)?.content, 'Why is stop 3 late?');
 
+  assert.equal(request.mode, 'text');
+  assert.ok(!/spoken aloud/.test(system), 'typed questions do not get the spoken-reply rules');
+
+  const spoken = parseAssistantRequest({
+    message: 'How long until my next stop?',
+    mode: 'voice',
+    context: { driving: true, live: { nextStop: '2 Oak Ave', timeToStop: '12 min', speedMph: 41, stopsDone: 2, stopsTotal: 6, secret: 'drop me' } },
+  });
+  assert.equal(spoken.mode, 'voice');
+  assert.deepEqual(Object.keys(spoken.context.live ?? {}).sort(), ['nextStop', 'speedMph', 'stopsDone', 'stopsTotal', 'timeToStop']);
+  const voiceSystem = buildAssistantMessages(spoken, null)[0]!.content;
+  assert.match(voiceSystem, /spoken aloud/);
+  assert.match(voiceSystem, /Right now on the road: .*nextStop=2 Oak Ave/);
+  assert.ok(!/drop me/.test(voiceSystem));
+  assert.equal(parseAssistantRequest({ message: 'hi', mode: 'shout' }).mode, 'text');
+
   const empty = buildAssistantMessages(parseAssistantRequest({ message: 'Where do I start?' }), null);
   assert.match(empty[0]!.content, /NOT optimized yet/);
   assert.match(empty[0]!.content, /Stops: none entered yet/);

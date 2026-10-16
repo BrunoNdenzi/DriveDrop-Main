@@ -853,6 +853,7 @@ router.get('/executions', asyncHandler(async (req: Request, res: Response) => {
     .eq('user_id', userId(req))
     .order('created_at', { ascending: false });
   if (typeof req.query['routeId'] === 'string') query = query.eq('route_id', req.query['routeId']);
+  if (typeof req.query['status'] === 'string') query = query.eq('status', req.query['status']);
   const { data, error } = await query;
   if (error) throw createError(error.message, 500, 'EXECUTION_LIST_FAILED');
   res.json({ success: true, data: data ?? [] });

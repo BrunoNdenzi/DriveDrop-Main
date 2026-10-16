@@ -47,6 +47,10 @@ export async function middleware(request: NextRequest) {
   }
 
   // ── Auth & Dashboard Protection ───────────────────────────────────
+  // Icons, the manifest and other files must not refresh the session: several requests spending the same
+  // refresh token at once is how a returning phone ends up signed out.
+  if (/\.[a-z0-9]+$/i.test(pathname)) return NextResponse.next()
+
   let response = NextResponse.next({
     request: {
       headers: request.headers,
@@ -85,6 +89,7 @@ export async function middleware(request: NextRequest) {
   // Validate the JWT with Supabase and refresh auth cookies when needed.
   const {
     data: { user },
+    error: authError,
   } = await supabase.auth.getUser()
 
   console.log('[MIDDLEWARE] Path:', pathname)
@@ -92,6 +97,10 @@ export async function middleware(request: NextRequest) {
   
   const isPublicPlannerPath = pathname === '/route-planner/signup' || pathname.startsWith('/route-planner/shared/') || pathname.startsWith('/route-planner/track/')
   const isPlannerWorkspace = (pathname === '/route-planner' || pathname.startsWith('/route-planner/')) && !isPublicPlannerPath
+
+  // The sign-in check could not reach Supabase (a phone waking up, a brief outage): that is not a sign-out, so let the page load and retry.
+  const authUnreachable = !user && Boolean(authError) && (authError?.name === 'AuthRetryableFetchError' || (typeof authError?.status === 'number' && authError.status >= 500))
+  if (isPlannerWorkspace && authUnreachable) return response
 
   // Protect dashboard routes and the standalone planner workspace
   if (pathname.startsWith('/dashboard') || isPlannerWorkspace) {

@@ -1,14 +1,18 @@
 {
+  "id": "/route-planner",
   "name": "DriveDrop Route Planner",
   "short_name": "Route Planner",
   "description": "Plan, drive and track multi-stop routes.",
   "start_url": "/route-planner",
-  "scope": "/route-planner",
+  "scope": "/",
   "display": "standalone",
+  "display_override": ["standalone", "minimal-ui"],
   "orientation": "any",
   "background_color": "#101d1e",
   "theme_color": "#123638",
   "icons": [
-    { "src": "/favicon.png", "sizes": "512x512", "type": "image/png", "purpose": "any" }
+    { "src": "/route-planner-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/route-planner-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/route-planner-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
   ]
 }

@@ -2,17 +2,19 @@
 
 import { useEffect, useState } from 'react'
 import { NATURAL_VOICE_OPTIONS, deviceVoices, guessVoiceGender, pickDeviceVoice, type NaturalVoiceState, type VoiceSettings } from '@/lib/voice'
+import { formatUsd, summarizeCost, type BenjiCost } from '@/lib/benji-cost'
 import { X } from '@/components/icons/streamline-lucide'
 
 interface Props {
   settings: VoiceSettings
   naturalState: NaturalVoiceState
+  cost?: BenjiCost
   onChange: (settings: VoiceSettings) => void
   onTest: () => void
   onClose: () => void
 }
 
-export default function VoiceSettingsSheet({ settings, naturalState, onChange, onTest, onClose }: Props) {
+export default function VoiceSettingsSheet({ settings, naturalState, cost, onChange, onTest, onClose }: Props) {
   const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([])
 
   useEffect(() => {
@@ -90,6 +92,14 @@ export default function VoiceSettingsSheet({ settings, naturalState, onChange, o
 
       <button type="button" onClick={onTest} className="mt-3 h-11 w-full rounded-md bg-gray-900 text-sm font-bold text-white">Hear Benji</button>
       <p className="mt-1 text-[11px] text-gray-500">No sound? Turn up your phone&apos;s media volume and take it off silent.</p>
+      {cost && (() => {
+        const summary = summarizeCost(cost)
+        return (
+          <p className="mt-2 rounded-md bg-gray-50 px-2.5 py-2 text-[11px] text-gray-600">
+            Benji today: {cost.questions} question{cost.questions === 1 ? '' : 's'}, about {formatUsd(summary.totalUsd)} (talking {formatUsd(summary.ttsUsd)}, thinking {formatUsd(summary.llmUsd)}). An estimate before Google&apos;s free monthly voice allowance. Listening to you is free.
+          </p>
+        )
+      })()}
     </div>
   )
 }

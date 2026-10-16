@@ -1,15 +1,22 @@
 import { Router, Request, Response } from 'express';
 import { asyncHandler, createError } from '@utils/error';
 import { logger } from '@utils/logger';
-import { createChatCompletion } from '../benji/ai/client/openai.client';
+import { createChatCompletion, AI_MODELS } from '../benji/ai/client/openai.client';
 import { plannerBillingService } from '../services/plannerBilling.service';
 import { buildAssistantMessages, parseAssistantRequest, type AssistantPlanFacts } from '../services/plannerAssistant';
 import { createRateLimiter } from '../services/plannerVoice';
 
 export const plannerAssistantRouter = Router();
 
-const limiter = createRateLimiter(40, 5 * 60_000);
+const limiter = createRateLimiter(60, 5 * 60_000);
 const ASSISTANT_MODEL = 'gpt-4o-mini';
+
+// Dollars for one reply, so the app can show what a conversation costs.
+function replyCostUsd(promptTokens: number, completionTokens: number): number {
+  const model = AI_MODELS[ASSISTANT_MODEL];
+  if (!model) return 0;
+  return (promptTokens / 1_000_000) * model.costPer1MInput + (completionTokens / 1_000_000) * model.costPer1MOutput;
+}
 
 async function planFacts(userId: string): Promise<AssistantPlanFacts | null> {
   try {
@@ -44,12 +51,14 @@ plannerAssistantRouter.post('/assistant', asyncHandler(async (req: Request, res:
   const messages = buildAssistantMessages(request, await planFacts(userId));
   try {
     const completion = await createChatCompletion(
-      { model: ASSISTANT_MODEL, messages, temperature: 0.3, max_tokens: 450 },
+      { model: ASSISTANT_MODEL, messages, temperature: 0.3, max_tokens: request.mode === 'voice' ? 140 : 450 },
       { serviceName: 'planner-assistant', userId, maxRetries: 1 },
     );
     const reply = completion.choices[0]?.message?.content?.trim();
     if (!reply) throw new Error('Empty assistant reply');
-    res.json({ success: true, data: { reply } });
+    const promptTokens = completion.usage?.prompt_tokens ?? 0;
+    const completionTokens = completion.usage?.completion_tokens ?? 0;
+    res.json({ success: true, data: { reply, usage: { promptTokens, completionTokens, costUsd: replyCostUsd(promptTokens, completionTokens) } } });
   } catch (error) {
     logger.warn('Planner assistant request failed', { error: error instanceof Error ? error.message : String(error) });
     throw createError('Benji is unavailable right now. Try again in a moment.', 502, 'ASSISTANT_UNAVAILABLE');

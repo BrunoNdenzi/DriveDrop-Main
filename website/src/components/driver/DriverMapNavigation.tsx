@@ -51,6 +51,9 @@ import AddShipmentSheet, { type AddedStopDraft } from '@/components/route-planne
 import ProofSheet, { type ProofData } from '@/components/route-planner/ProofSheet'
 import VoiceSettingsSheet from './VoiceSettingsSheet'
 import BenjiAvatar from './BenjiAvatar'
+import { useBenjiConversation, type BenjiTurn } from './useBenjiConversation'
+import { emptyCost, formatUsd, loadCost, saveCost, summarizeCost, today, type BenjiCost } from '@/lib/benji-cost'
+import { resumePosition } from '@/lib/trip-resume'
 import { DEFAULT_VOICE_SETTINGS, createVoicePlayer, loadVoiceSettings, saveVoiceSettings, type NaturalVoiceState, type VoiceSettings } from '@/lib/voice'
 import { canFullscreen, enterFullscreen, exitFullscreen, isFullscreen as isDeviceFullscreen, isIphoneBrowser } from '@/lib/fullscreen'
 import { toast } from '@/components/ui/toast'
@@ -146,6 +149,24 @@ export interface DriverFix {
   simulated: boolean
 }
 
+export interface BenjiLiveContext {
+  nextStop?: string
+  nextInstruction?: string
+  distanceToTurn?: string
+  timeToStop?: string
+  remainingDistance?: string
+  remainingTime?: string
+  eta?: string
+  speedMph?: number
+  stopsDone: number
+  stopsTotal: number
+}
+
+export interface BenjiReply {
+  reply: string
+  costUsd?: number
+}
+
 interface DriverMapNavigationProps {
   stops: NavStop[]
   plannedDistance?: number
@@ -162,6 +183,8 @@ interface DriverMapNavigationProps {
   onCaptureProof?: (stopIndex: number, data: ProofData) => Promise<void>
   onShareStop?: (stopIndex: number) => Promise<{ url: string; message: string }>
   onAddShipment?: (stops: AddedStopDraft[]) => Promise<string | void>
+  // Lets the driver talk with Benji; it receives what the driver said and what the road looks like right now.
+  onAskBenji?: (message: string, history: BenjiTurn[], live: BenjiLiveContext) => Promise<BenjiReply>
   onDeviation?: (event: DeviationEvent) => void
   trackingStatus?: { state: 'off' | 'pending' | 'on' | 'error'; label: string }
   onClose?: () => void
@@ -169,6 +192,8 @@ interface DriverMapNavigationProps {
   onRequestDrive?: () => void
   // Driving mode starts guidance as soon as the route is drawn.
   autoStart?: boolean
+  // A trip already under way: the stops listed here are done, so guidance picks up at the next one.
+  resumeFrom?: { completedStopIds: string[] }
   height?: string
   showOverlay?: boolean
   carolinaInsights?: Array<{
@@ -288,11 +313,13 @@ export default function DriverMapNavigation({
   onCaptureProof,
   onShareStop,
   onAddShipment,
+  onAskBenji,
   onDeviation,
   trackingStatus,
   onClose,
   onRequestDrive,
   autoStart = false,
+  resumeFrom,
   height = 'h-[600px]',
   showOverlay = true,
   carolinaInsights = [],
@@ -327,6 +354,17 @@ export default function DriverMapNavigation({
   const [naturalState, setNaturalState] = useState<NaturalVoiceState>('unknown')
   const [insightDismissed, setInsightDismissed] = useState(false)
   const captionTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const speechEndedRef = useRef<(text: string) => void>(() => {})
+  const costRef = useRef<BenjiCost>(emptyCost())
+  const [cost, setCost] = useState<BenjiCost>(costRef.current)
+  const bumpCostRef = useRef<(patch: { questions?: number; llmUsd?: number; ttsChars?: number }) => void>(() => {})
+  bumpCostRef.current = patch => {
+    const base = costRef.current.day === today() ? costRef.current : emptyCost()
+    const next = { ...base, questions: base.questions + (patch.questions ?? 0), llmUsd: base.llmUsd + (patch.llmUsd ?? 0), ttsChars: base.ttsChars + (patch.ttsChars ?? 0) }
+    costRef.current = next
+    saveCost(next)
+    setCost(next)
+  }
 
   useEffect(() => {
     const saved = loadVoiceSettings()
@@ -339,8 +377,12 @@ export default function DriverMapNavigation({
         if (isSpeaking) setCaption(text)
         else captionTimerRef.current = setTimeout(() => setCaption(''), 2200)
       },
+      onEnd: text => speechEndedRef.current(text),
+      onCloudChars: chars => bumpCostRef.current({ ttsChars: chars }),
       onNaturalState: setNaturalState,
     })
+    costRef.current = loadCost()
+    setCost(costRef.current)
     voicePlayerRef.current = player
     void player.checkNatural()
     return () => {
@@ -1405,12 +1447,21 @@ export default function DriverMapNavigation({
     setFollow(true)
     // Leg 0 runs stop 0 to stop 1, so the origin is already done and stop 1 is the first target.
     const hasOrigin = stops.length > 1
+    const resumed = resumeFrom ? resumePosition(stops.map(stop => stop.id), resumeFrom.completedStopIds, routeSegmentsRef.current.length) : null
+    const completedStops = resumed ? resumed.completedStops : hasOrigin ? [0] : []
+    const currentStopIndex = resumed ? resumed.currentStopIndex : hasOrigin ? 1 : 0
+    const currentLeg = resumed ? resumed.currentLeg : 0
+    if (resumeFrom && currentStopIndex > 1) {
+      // The planned road runs from the first stop, so the first GPS fix redraws it from where the driver is.
+      restorePendingRef.current = true
+      settleUntilRef.current = Date.now() + SETTLE_MS
+    }
     setNavState(prev => ({
       ...prev,
       isNavigating: true,
-      currentStopIndex: hasOrigin ? 1 : 0,
-      currentLeg: 0,
-      completedStops: hasOrigin ? [0] : [],
+      currentStopIndex,
+      currentLeg,
+      completedStops,
     }))
   }
 
@@ -1420,7 +1471,7 @@ export default function DriverMapNavigation({
     startGPSTracking()
     Promise.resolve(onNavigationStart?.()).catch(() => {})
     toast('Navigation started — follow the route', 'success')
-    if (voiceEnabled) speak("Let's go. I'll guide you to your first stop.")
+    if (voiceEnabled) speak(resumeFrom ? "Welcome back. Let's pick up where you left off." : "Let's go. I'll guide you to your first stop.")
   }
 
   // The preview map hands over to full-screen driving mode, which starts guidance by itself.
@@ -1434,12 +1485,23 @@ export default function DriverMapNavigation({
   }
 
   const autoStartedRef = useRef(false)
+  const restorePendingRef = useRef(false)
   useEffect(() => {
     if (!autoStart || autoStartedRef.current || !routeLoaded || navState.isNavigating) return
     autoStartedRef.current = true
     startNavigation()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [autoStart, routeLoaded])
+
+  // A resumed trip draws the road from the driver's real position as soon as there is a fix.
+  useEffect(() => {
+    if (!restorePendingRef.current || !navState.isNavigating || !hasFix || simulation) return
+    const fix = fixStateRef.current
+    if (!fix) return
+    restorePendingRef.current = false
+    void rerouteFromHere(fix.pos, 'restore', true)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hasFix, navState.isNavigating])
 
   const startSimulation = () => {
     const path = simPathRef.current
@@ -1740,7 +1802,7 @@ export default function DriverMapNavigation({
   }
 
   // Re-routing keeps the same stops in the same order and recalculates only the road from where the driver is now.
-  const rerouteFromHere = async (from: Point, reason: 'off_route' | 'faster' | 'blocked' | 'resume' = 'off_route', force = false) => {
+  const rerouteFromHere = async (from: Point, reason: 'off_route' | 'faster' | 'blocked' | 'resume' | 'restore' = 'off_route', force = false) => {
     if (rerouteBusyRef.current || !navStateRef.current.isNavigating) return
     const now = Date.now()
     const recent = recentReroutes(rerouteTimesRef.current, now)
@@ -1784,6 +1846,9 @@ export default function DriverMapNavigation({
       if (reason === 'faster') {
         speakRef.current('Switched to the faster route.')
         toast('Switched to the faster route', 'success')
+      } else if (reason === 'restore') {
+        const next = stopsRef.current[navStateRef.current.currentStopIndex]
+        speakRef.current(next?.address ? `Next stop: ${next.address}.` : 'Heading to your next stop.')
       } else {
         const lead = reason === 'blocked' ? 'Found a way around the closure' : 'New route found'
         speakRef.current(`${lead}. It ${detour.replace(/ min$/, ' minutes')}.`)
@@ -1970,9 +2035,65 @@ export default function DriverMapNavigation({
   // ── Voice ─────────────────────────────────────────────────────────
   const speak = (text: string) => {
     if (!voiceEnabled) return
+    rememberPrompt(text)
     voicePlayerRef.current?.speak(text)
   }
   speakRef.current = speak
+
+  // ── Talking with Benji ──────────────────────────────────────────────────
+  const liveStatsRef = useRef(liveStats)
+  liveStatsRef.current = liveStats
+  const lastPromptRef = useRef({ text: '', at: 0 })
+  const rememberPrompt = (text: string) => { lastPromptRef.current = { text, at: Date.now() } }
+
+  const liveContext = (): BenjiLiveContext => {
+    const nav = navStateRef.current
+    const stop = stops[nav.currentStopIndex]
+    const speed = liveStatsRef.current.speedMph
+    return {
+      ...(stop ? { nextStop: `${navStopLabel(stop, nav.currentStopIndex, stops)}${stop.address ? `, ${stop.address}` : ''}` } : {}),
+      ...(nav.nextInstruction ? { nextInstruction: nav.nextInstruction } : {}),
+      ...(nav.distanceRemaining ? { distanceToTurn: nav.distanceRemaining } : {}),
+      ...(nav.durationRemaining ? { timeToStop: nav.durationRemaining } : {}),
+      ...(nav.totalDistanceRemaining ? { remainingDistance: nav.totalDistanceRemaining } : {}),
+      ...(nav.totalDurationRemaining ? { remainingTime: nav.totalDurationRemaining } : {}),
+      ...(nav.eta ? { eta: nav.eta } : {}),
+      ...(speed !== null ? { speedMph: speed } : {}),
+      stopsDone: nav.completedStops.filter(index => index > 0).length,
+      stopsTotal: Math.max(0, stops.length - 1),
+    }
+  }
+
+  const convo = useBenjiConversation({
+    ask: async (message, history) => {
+      const answer = await onAskBenji!(message, history, liveContext())
+      bumpCostRef.current({ questions: 1, llmUsd: answer.costUsd ?? 0 })
+      return answer.reply
+    },
+    say: text => voicePlayerRef.current?.speak(text),
+    hush: () => voicePlayerRef.current?.stop(),
+    notify: message => toast(message, 'info'),
+    // The mic can pick up the phone's own turn prompt; that is not a question.
+    ignore: heard => {
+      const { text, at } = lastPromptRef.current
+      const squash = (value: string) => value.toLowerCase().replace(/[^a-z0-9]/g, '')
+      const said = squash(heard)
+      return Date.now() - at < 10_000 && said.length > 6 && squash(text).includes(said.slice(0, 25))
+    },
+    onFinished: () => toast(`Benji today: about ${formatUsd(summarizeCost(costRef.current).totalUsd)} so far`, 'info'),
+  })
+  speechEndedRef.current = convo.speechEnded
+
+  const toggleTalk = () => {
+    voicePlayerRef.current?.unlock()
+    if (convo.state === 'off' && !voiceEnabled) changeVoiceSettings({ ...voiceSettingsRef.current, muted: false })
+    convo.toggle()
+  }
+
+  useEffect(() => {
+    if (!navState.isNavigating && !onClose) convo.stop()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [navState.isNavigating, onClose])
 
   // ── Helpers ────────────────────────────────────────────────────────
   const stripHtml = (html: string) => {
@@ -2179,7 +2300,13 @@ export default function DriverMapNavigation({
               className="pointer-events-none absolute right-16 top-1/2 z-10 -translate-y-1/2"
               style={{ left: 'calc(0.75rem + env(safe-area-inset-left))' }}
             >
-              <BenjiAvatar speaking={speaking} muted={!voiceEnabled} caption={voiceEnabled ? caption : ''} onOpen={() => setShowVoiceSettings(open => !open)} />
+              <BenjiAvatar
+                speaking={speaking}
+                muted={!voiceEnabled && convo.state === 'off'}
+                caption={convo.state === 'listening' ? (convo.heard ? `“${convo.heard}”` : 'Listening...') : convo.state === 'thinking' ? 'Thinking...' : voiceEnabled || convo.state !== 'off' ? caption : ''}
+                onOpen={() => setShowVoiceSettings(open => !open)}
+                {...(onAskBenji && convo.supported ? { talk: { state: convo.state, onToggle: toggleTalk } } : {})}
+              />
             </div>
           )}
 
@@ -2384,6 +2511,7 @@ export default function DriverMapNavigation({
               <VoiceSettingsSheet
                 settings={voiceSettings}
                 naturalState={naturalState}
+                cost={cost}
                 onChange={changeVoiceSettings}
                 onTest={() => { voicePlayerRef.current?.unlock(); voicePlayerRef.current?.speak("Hi, I'm Benji. I'll talk you through every turn.") }}
                 onClose={() => setShowVoiceSettings(false)}
