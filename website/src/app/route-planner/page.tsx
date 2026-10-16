@@ -7,6 +7,7 @@ import { getSupabaseBrowserClient } from '@/lib/supabase-client'
 import RouteOperations from '@/components/route-planner/RouteOperations'
 import PlannerBilling from '@/components/route-planner/PlannerBilling'
 import InstallApp from '@/components/route-planner/InstallApp'
+import { isNativeApp, postToNative } from '@/lib/native-bridge'
 import DriverMapNavigation, { type ArrivalReport, type BenjiLiveContext, type DeviationEvent, type DriverFix, type NavStop } from '@/components/driver/DriverMapNavigation'
 import { describeReplan } from '@/lib/replan-summary'
 import { geocodeUsAddress } from '@/lib/address-resolve'
@@ -476,6 +477,17 @@ export default function StandaloneRoutePlannerPage() {
     return () => window.removeEventListener('online', flush)
   }, [api])
 
+  // Inside the Route Planner app a background service keeps reporting the position, with a token that is good for this run only.
+  const announceTripToNative = async (executionId: string) => {
+    if (!isNativeApp()) return
+    try {
+      const grant = await api<{ token: string; expiresAt: string }>(`/executions/${executionId}/tracking-token`, { method: 'POST', body: '{}' })
+      postToNative({ type: 'trip-start', executionId, trackingToken: grant.token, expiresAt: grant.expiresAt, apiBase: API_BASE_URL })
+    } catch {
+      // The page keeps tracking while it is open.
+    }
+  }
+
   const startTrackedRun = async () => {
     if (!currentRouteId) {
       setTracking({ state: 'off', label: 'Route not saved: progress is not recorded' })
@@ -496,6 +508,7 @@ export default function StandaloneRoutePlannerPage() {
       trackedExecutionRef.current = run.id
       pingGateRef.current.reset()
       travelRef.current = createTravelTracker()
+      void announceTripToNative(run.id)
 
       const originId = result?.stops[0]?.id
       const origin = run.stop_progress.find(stop => stop.stopId === originId)
@@ -546,6 +559,7 @@ export default function StandaloneRoutePlannerPage() {
   const finishTrackedRun = () => {
     const executionId = trackedExecutionRef.current
     if (!executionId) return
+    postToNative({ type: 'trip-stop' })
     const miles = Math.round(travelRef.current.miles * 10) / 10
     writeProgress(`/executions/${executionId}/complete`, 'POST', {
       completedAt: new Date().toISOString(),
@@ -1063,6 +1077,7 @@ export default function StandaloneRoutePlannerPage() {
     if (!activeTrip || !window.confirm('End this trip? Stops you have not finished stay unfinished.')) return
     try {
       await api(`/executions/${activeTrip.executionId}/cancel`, { method: 'POST', body: '{}' })
+      postToNative({ type: 'trip-stop' })
       setActiveTrip(null)
       await refreshLibrary()
       flash('Trip ended')

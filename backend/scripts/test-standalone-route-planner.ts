@@ -15,6 +15,7 @@ import { buildPriorityPrefix, describePriorityCost } from '../src/services/route
 import { detectImageType, estimateStopEta, mergeProof, safePathPart, stopsAhead } from '../src/services/plannerProof';
 import { DEFAULT_VOICE, buildSynthesisBody, createRateLimiter, parseVoiceRequest } from '../src/services/plannerVoice';
 import { buildAssistantMessages, parseAssistantRequest } from '../src/services/plannerAssistant';
+import { signTrackingToken, verifyTrackingToken } from '../src/services/plannerTracking';
 import {
   REOPTIMIZE_ORIGIN_ID,
   arrivalBlockMessage,
@@ -171,6 +172,25 @@ function checkAssistant(): void {
   const empty = buildAssistantMessages(parseAssistantRequest({ message: 'Where do I start?' }), null);
   assert.match(empty[0]!.content, /NOT optimized yet/);
   assert.match(empty[0]!.content, /Stops: none entered yet/);
+}
+
+function checkTrackingToken(): void {
+  const secret = 'test-secret-value';
+  const now = 1_800_000_000_000;
+  const { token, expiresAt } = signTrackingToken(secret, 'user-1', 'run-1', now, 60_000);
+  assert.equal(expiresAt, new Date(now + 60_000).toISOString());
+  assert.equal(verifyTrackingToken(secret, token, 'run-1', now + 1000), 'user-1');
+
+  assert.equal(verifyTrackingToken(secret, token, 'run-2', now + 1000), null, 'a token is only good for its own run');
+  assert.equal(verifyTrackingToken(secret, token, 'run-1', now + 60_000), null, 'an expired token is refused');
+  assert.equal(verifyTrackingToken('another-secret', token, 'run-1', now + 1000), null, 'a token signed with another secret is refused');
+
+  const [version, body, mac] = token.split('.');
+  const forged = Buffer.from('attacker|run-1|' + (now + 60_000)).toString('base64url');
+  assert.equal(verifyTrackingToken(secret, `${version}.${forged}.${mac}`, 'run-1', now + 1000), null, 'a changed payload is refused');
+  assert.equal(verifyTrackingToken(secret, `${version}.${body}`, 'run-1', now + 1000), null);
+  assert.equal(verifyTrackingToken(secret, 'not-a-token', 'run-1', now), null);
+  assert.equal(verifyTrackingToken(secret, '', 'run-1', now), null);
 }
 
 function checkVoice(): void {
@@ -547,6 +567,8 @@ async function main(): Promise<void> {
   console.log('Voice checks passed.');
   checkAssistant();
   console.log('Planner assistant checks passed.');
+  checkTrackingToken();
+  console.log('Tracking token checks passed.');
 }
 
 main().catch(error => {

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { isIphoneBrowser } from '@/lib/fullscreen'
+import { isNativeApp } from '@/lib/native-bridge'
 
 interface InstallPromptEvent extends Event {
   prompt: () => Promise<void>
@@ -31,6 +32,7 @@ export default function InstallApp({ showBanner }: { showBanner: boolean }) {
   const [hidden, setHidden] = useState(true)
 
   useEffect(() => {
+    if (isNativeApp()) return
     if ('serviceWorker' in navigator) {
       void navigator.serviceWorker.register('/route-planner-sw.js', { scope: '/route-planner' }).catch(() => undefined)
     }

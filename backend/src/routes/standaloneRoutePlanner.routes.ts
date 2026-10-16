@@ -4,6 +4,7 @@ import { parse } from 'csv-parse/sync';
 import ExcelJS from 'exceljs';
 import multer from 'multer';
 import { authenticate } from '@middlewares/auth.middleware';
+import config from '@config';
 import { supabaseAdmin } from '@lib/supabase';
 import { asyncHandler, createError } from '@utils/error';
 import { routeOptimizationService, RouteStop } from '../services/RouteOptimizationService';
@@ -11,6 +12,8 @@ import { plannerBillingService } from '../services/plannerBilling.service';
 import { plannerProofRouter, plannerTrackingRouter } from './plannerStopProof.routes';
 import { plannerVoiceRouter } from './plannerVoice.routes';
 import { plannerAssistantRouter } from './plannerAssistant.routes';
+import { signTrackingToken, verifyTrackingToken } from '../services/plannerTracking';
+import { createRateLimiter } from '../services/plannerVoice';
 import type { StopProof } from '../services/plannerProof';
 import { pricingLiveEvidenceService } from '../services/pricingLiveEvidence.service';
 import {
@@ -199,6 +202,43 @@ async function ownedExecution(executionId: string, ownerId: string): Promise<Pla
 const EXECUTION_SHARE_COLUMNS = 'id, status, planned_start_at, started_at, completed_at, planned_snapshot, stop_progress, updated_at';
 const EXECUTION_LOCATION_COLUMNS = ['last_latitude', 'last_longitude', 'last_heading', 'last_speed_mps', 'last_accuracy_meters', 'last_location_at', 'last_location_simulated'];
 const UNDEFINED_COLUMN_CODE = '42703';
+
+const nativeLocationLimiter = createRateLimiter(40, 60_000);
+
+function trackingSecret(): string {
+  const secret = config.auth.jwtSecret;
+  if (!secret || secret === 'your-jwt-secret-here') throw createError('Background tracking is not set up on this server', 503, 'TRACKING_UNAVAILABLE');
+  return secret;
+}
+
+async function storeLocation(execution: PlannerExecutionRecord, ownerId: string, body: unknown): Promise<{ stored: boolean }> {
+  if (execution.status !== 'in_progress' && execution.status !== 'dispatched') {
+    throw createError('Location can only be recorded on an active route', 409, 'INVALID_EXECUTION_STATUS');
+  }
+  const ping = parseLocationPing(body);
+
+  const { data, error } = await supabaseAdmin
+    .from('planner_route_executions')
+    .update({
+      last_latitude: ping.latitude,
+      last_longitude: ping.longitude,
+      last_heading: ping.heading,
+      last_speed_mps: ping.speedMps,
+      last_accuracy_meters: ping.accuracyMeters,
+      last_location_at: ping.recordedAt,
+      last_location_simulated: ping.simulated,
+      ...(ping.actualDistanceMiles !== null && !ping.simulated ? { actual_distance_miles: ping.actualDistanceMiles } : {}),
+    })
+    .eq('id', execution.id)
+    .eq('user_id', ownerId)
+    .or(`last_location_at.is.null,last_location_at.lt.${ping.recordedAt}`)
+    .select('id');
+  if (error?.code === UNDEFINED_COLUMN_CODE) throw createError('Live location is not enabled on this server yet', 503, 'LIVE_LOCATION_UNAVAILABLE');
+  if (error) throw createError(error.message, 500, 'LOCATION_SAVE_FAILED');
+
+  // An empty result means a newer fix is already stored, so this late one is dropped.
+  return { stored: (data ?? []).length > 0 };
+}
 
 async function readSharedExecution(routeId: string): Promise<Record<string, unknown> | null> {
   const latest = (columns: string) => supabaseAdmin
@@ -555,6 +595,17 @@ router.get('/shared/:token', asyncHandler(async (req: Request, res: Response) =>
 
 // A customer's one-stop ETA page; it needs no account.
 router.use('/track', plannerTrackingRouter);
+
+// The native app's background pings carry a run-scoped token instead of a login, so this sits before the login check.
+router.post('/executions/:id/native-location', asyncHandler(async (req: Request, res: Response) => {
+  const executionId = req.params['id']!;
+  const header = req.headers.authorization ?? '';
+  const ownerId = verifyTrackingToken(trackingSecret(), header.startsWith('Bearer ') ? header.slice(7) : '', executionId);
+  if (!ownerId) throw createError('This tracking link has expired. Open the planner to renew it.', 401, 'TRACKING_TOKEN_INVALID');
+  if (!nativeLocationLimiter.allow(executionId)) throw createError('Too many location updates', 429, 'RATE_LIMITED');
+  const execution = await ownedExecution(executionId, ownerId);
+  res.json({ success: true, data: await storeLocation(execution, ownerId, req.body) });
+}));
 
 router.use(authenticate);
 router.use(plannerProofRouter);
@@ -954,32 +1005,18 @@ router.patch('/executions/:id/stops/:stopId', asyncHandler(async (req: Request, 
 router.post('/executions/:id/location', asyncHandler(async (req: Request, res: Response) => {
   const ownerId = userId(req);
   const execution = await ownedExecution(req.params['id']!, ownerId);
+  res.json({ success: true, data: await storeLocation(execution, ownerId, req.body) });
+}));
+
+// The native app keeps tracking in the background, long after the login it started with has expired, so it holds a token for this run only.
+router.post('/executions/:id/tracking-token', asyncHandler(async (req: Request, res: Response) => {
+  const ownerId = userId(req);
+  const execution = await ownedExecution(req.params['id']!, ownerId);
   if (execution.status !== 'in_progress' && execution.status !== 'dispatched') {
-    throw createError('Location can only be recorded on an active route', 409, 'INVALID_EXECUTION_STATUS');
+    throw createError('Tracking can only be set up for an active route', 409, 'INVALID_EXECUTION_STATUS');
   }
-  const ping = parseLocationPing(req.body);
-
-  const { data, error } = await supabaseAdmin
-    .from('planner_route_executions')
-    .update({
-      last_latitude: ping.latitude,
-      last_longitude: ping.longitude,
-      last_heading: ping.heading,
-      last_speed_mps: ping.speedMps,
-      last_accuracy_meters: ping.accuracyMeters,
-      last_location_at: ping.recordedAt,
-      last_location_simulated: ping.simulated,
-      ...(ping.actualDistanceMiles !== null && !ping.simulated ? { actual_distance_miles: ping.actualDistanceMiles } : {}),
-    })
-    .eq('id', execution.id)
-    .eq('user_id', ownerId)
-    .or(`last_location_at.is.null,last_location_at.lt.${ping.recordedAt}`)
-    .select('id');
-  if (error?.code === UNDEFINED_COLUMN_CODE) throw createError('Live location is not enabled on this server yet', 503, 'LIVE_LOCATION_UNAVAILABLE');
-  if (error) throw createError(error.message, 500, 'LOCATION_SAVE_FAILED');
-
-  // An empty result means a newer fix is already stored, so this late one is dropped.
-  res.json({ success: true, data: { stored: (data ?? []).length > 0 } });
+  const secret = trackingSecret();
+  res.json({ success: true, data: signTrackingToken(secret, ownerId, execution.id) });
 }));
 
 // Idempotent by deviation id, so offline retries can replay it safely.

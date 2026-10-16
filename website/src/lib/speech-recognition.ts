@@ -1,3 +1,5 @@
+import { NATIVE_EVENT, nativeInfo, postToNative } from '@/lib/native-bridge'
+
 interface RecognitionResult { readonly isFinal: boolean; readonly 0: { readonly transcript: string } }
 interface RecognitionEvent { readonly resultIndex: number; readonly results: { readonly length: number; readonly [index: number]: RecognitionResult } }
 interface Recognition {
@@ -20,7 +22,7 @@ function constructor(): RecognitionConstructor | null {
   return scope.SpeechRecognition ?? scope.webkitSpeechRecognition ?? null
 }
 
-export const speechRecognitionSupported = (): boolean => constructor() !== null
+export const speechRecognitionSupported = (): boolean => Boolean(nativeInfo()?.speech) || constructor() !== null
 
 export type ListenEnd = 'silence' | 'denied' | 'error' | 'stopped'
 
@@ -30,8 +32,44 @@ export interface ListenerEvents {
   onEnd: (reason: ListenEnd) => void
 }
 
+// Inside the app the phone's own recognizer does the listening and reports back through the bridge.
+function createNativeListener(events: ListenerEvents) {
+  let handler: ((event: Event) => void) | null = null
+  const detach = () => {
+    if (handler) window.removeEventListener(NATIVE_EVENT, handler)
+    handler = null
+  }
+  return {
+    start() {
+      detach()
+      let heard = ''
+      handler = event => {
+        const detail = (event as CustomEvent<{ type?: string; text?: string; reason?: string }>).detail
+        if (detail?.type === 'stt-interim' && detail.text) {
+          heard = detail.text
+          events.onInterim?.(heard)
+        } else if (detail?.type === 'stt-final' && detail.text) {
+          heard = detail.text
+        } else if (detail?.type === 'stt-end') {
+          detach()
+          if (detail.reason === 'denied') events.onEnd('denied')
+          else if (heard) events.onFinal(heard)
+          else events.onEnd(detail.reason === 'error' ? 'error' : 'silence')
+        }
+      }
+      window.addEventListener(NATIVE_EVENT, handler)
+      postToNative({ type: 'stt-start' })
+    },
+    stop() {
+      detach()
+      postToNative({ type: 'stt-stop' })
+    },
+  }
+}
+
 // One question at a time: listens until the driver pauses, then hands back what was said. Phones are happiest with a fresh recognizer each turn.
 export function createListener(events: ListenerEvents) {
+  if (nativeInfo()?.speech) return createNativeListener(events)
   let active: Recognition | null = null
 
   return {
