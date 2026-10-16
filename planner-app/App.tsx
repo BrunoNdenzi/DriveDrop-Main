@@ -9,7 +9,13 @@ import { startTracking, stopTracking, type TripConfig } from './src/tracking'
 import { ensureTrackingPermission } from './src/permissions'
 
 const PLANNER_URL = process.env.EXPO_PUBLIC_PLANNER_URL ?? 'https://drivedrop.us.com/route-planner'
-const PLANNER_HOST = new URL(PLANNER_URL).hostname
+// React Native's built-in URL cannot read a host name, so pull it out by hand.
+function parseUrl(url: string): { protocol: string; host: string } | null {
+  const match = /^([a-z][a-z0-9+.-]*:)(?:\/\/([^/:?#]*))?/i.exec(url)
+  return match ? { protocol: match[1]!.toLowerCase(), host: (match[2] ?? '').toLowerCase() } : null
+}
+
+const PLANNER_HOST = parseUrl(PLANNER_URL)?.host ?? 'drivedrop.us.com'
 const KEEP_AWAKE_TAG = 'trip'
 
 // Tells the page it is running inside the app, and that the app can listen for Benji.
@@ -113,12 +119,10 @@ export default function App() {
 
   // The planner stays inside the app; phone numbers, mail and other sites open in their own apps.
   const allowNavigation = (url: string): boolean => {
-    try {
-      const target = new URL(url)
-      if (target.protocol === 'https:' && (target.hostname === PLANNER_HOST || target.hostname.endsWith(`.${PLANNER_HOST}`))) return true
+    const target = parseUrl(url)
+    if (target) {
+      if (target.protocol === 'https:' && (target.host === PLANNER_HOST || target.host.endsWith(`.${PLANNER_HOST}`))) return true
       if (target.protocol === 'about:' || target.protocol === 'blob:' || target.protocol === 'data:') return true
-    } catch {
-      return false
     }
     void Linking.openURL(url).catch(() => undefined)
     return false

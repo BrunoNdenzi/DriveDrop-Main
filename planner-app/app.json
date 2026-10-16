@@ -15,7 +15,11 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.drivedrop.routeplanner"
+      "bundleIdentifier": "com.drivedrop.routeplanner",
+      "infoPlist": {
+        "NSSpeechRecognitionUsageDescription": "Benji uses speech recognition to understand what you say.",
+        "NSMicrophoneUsageDescription": "Benji uses the microphone so you can talk to him while you drive."
+      }
     },
     "android": {
       "package": "com.drivedrop.routeplanner",
@@ -32,7 +36,13 @@
         "FOREGROUND_SERVICE_LOCATION",
         "RECORD_AUDIO",
         "POST_NOTIFICATIONS",
-        "WAKE_LOCK"
+        "WAKE_LOCK",
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.ACCESS_BACKGROUND_LOCATION",
+        "android.permission.FOREGROUND_SERVICE",
+        "android.permission.FOREGROUND_SERVICE_LOCATION",
+        "android.permission.RECORD_AUDIO"
       ]
     },
     "plugins": [
@@ -49,9 +59,17 @@
         {
           "microphonePermission": "Benji uses the microphone so you can talk to him while you drive.",
           "speechRecognitionPermission": "Benji uses speech recognition to understand what you say.",
-          "androidSpeechServicePackages": ["com.google.android.googlequicksearchbox"]
+          "androidSpeechServicePackages": [
+            "com.google.android.googlequicksearchbox"
+          ]
         }
       ]
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "98416827-2a43-4ecb-a05b-8e7966d5fddf"
+      }
+    },
+    "owner": "drivedrop"
   }
 }
