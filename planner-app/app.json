@@ -63,7 +63,9 @@
             "com.google.android.googlequicksearchbox"
           ]
         }
-      ]
+      ],
+      "expo-asset",
+      "expo-font"
     ],
     "extra": {
       "eas": {
