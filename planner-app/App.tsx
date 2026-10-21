@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { ActivityIndicator, BackHandler, Linking, Pressable, StyleSheet, Text, View } from 'react-native'
 import { StatusBar } from 'expo-status-bar'
+import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { WebView, type WebViewMessageEvent } from 'react-native-webview'
 import { activateKeepAwakeAsync, deactivateKeepAwake } from 'expo-keep-awake'
 import * as Location from 'expo-location'
@@ -52,6 +53,17 @@ function parseMessage(raw: string): PageMessage | null {
 }
 
 export default function App() {
+  return (
+    <SafeAreaProvider>
+      <Planner />
+    </SafeAreaProvider>
+  )
+}
+
+function Planner() {
+  // Android 16 draws apps behind the status and navigation bars, so the page is kept clear of them.
+  const insets = useSafeAreaInsets()
+  const edges = { paddingTop: insets.top, paddingBottom: insets.bottom, paddingLeft: insets.left, paddingRight: insets.right }
   const web = useRef<WebView>(null)
   const canGoBack = useRef(false)
   const heard = useRef(false)
@@ -148,7 +160,7 @@ export default function App() {
 
   if (failed) {
     return (
-      <View style={styles.center}>
+      <View style={[styles.center, edges]}>
         <StatusBar style="light" />
         <Text style={styles.title}>Can&apos;t reach the planner</Text>
         <Text style={styles.body}>Check your signal, then try again.</Text>
@@ -160,7 +172,7 @@ export default function App() {
   }
 
   return (
-    <View style={styles.root}>
+    <View style={[styles.root, edges]}>
       <StatusBar style="light" backgroundColor="#123638" />
       <WebView
         ref={web}
