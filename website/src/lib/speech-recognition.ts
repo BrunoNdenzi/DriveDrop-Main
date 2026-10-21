@@ -30,6 +30,8 @@ export interface ListenerEvents {
   onInterim?: (text: string) => void
   onFinal: (text: string) => void
   onEnd: (reason: ListenEnd) => void
+  // Names and places from the route; the app's recognizer listens for them first.
+  hints?: () => string[]
 }
 
 // Inside the app the phone's own recognizer does the listening and reports back through the bridge.
@@ -58,7 +60,7 @@ function createNativeListener(events: ListenerEvents) {
         }
       }
       window.addEventListener(NATIVE_EVENT, handler)
-      postToNative({ type: 'stt-start' })
+      postToNative({ type: 'stt-start', hints: events.hints?.() ?? [] })
     },
     stop() {
       detach()

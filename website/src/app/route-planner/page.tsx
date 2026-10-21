@@ -935,11 +935,11 @@ export default function StandaloneRoutePlannerPage() {
 
   // Spoken to a driver mid-route: short answers, with the live position along the road.
   const askBenjiVoice = async (message: string, history: Array<{ role: 'user' | 'assistant'; content: string }>, live: BenjiLiveContext) => {
-    const data = await api<{ reply: string; usage?: { costUsd: number } }>('/assistant', {
+    const data = await api<{ reply: string; action?: { type: string; confirm: boolean }; usage?: { costUsd: number } }>('/assistant', {
       method: 'POST',
       body: JSON.stringify({ message, history, mode: 'voice', context: { ...assistantContext(), driving: true, live } }),
     })
-    return { reply: data.reply, ...(data.usage ? { costUsd: data.usage.costUsd } : {}) }
+    return { reply: data.reply, ...(data.action ? { action: data.action } : {}), ...(data.usage ? { costUsd: data.usage.costUsd } : {}) }
   }
 
   const routeOptions = (): RoutePlannerOptions => ({

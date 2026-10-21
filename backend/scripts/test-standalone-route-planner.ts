@@ -14,7 +14,7 @@ import { routeOptimizationService, type RouteStop } from '../src/services/RouteO
 import { buildPriorityPrefix, describePriorityCost } from '../src/services/routePriority';
 import { detectImageType, estimateStopEta, mergeProof, safePathPart, stopsAhead } from '../src/services/plannerProof';
 import { DEFAULT_VOICE, buildSynthesisBody, createRateLimiter, parseVoiceRequest } from '../src/services/plannerVoice';
-import { buildAssistantMessages, parseAssistantRequest } from '../src/services/plannerAssistant';
+import { buildAssistantMessages, parseAssistantRequest, parseVoiceAction, VOICE_TOOLS } from '../src/services/plannerAssistant';
 import { signTrackingToken, verifyTrackingToken } from '../src/services/plannerTracking';
 import {
   REOPTIMIZE_ORIGIN_ID,
@@ -169,6 +169,17 @@ function checkAssistant(): void {
   assert.ok(!/drop me/.test(voiceSystem));
   assert.equal(parseAssistantRequest({ message: 'hi', mode: 'shout' }).mode, 'text');
 
+  assert.match(system, /bills of lading/, 'logistics work is in scope');
+
+  const replan = parseVoiceAction(JSON.stringify({ action: 'replan', say: 'Want me to re-plan the rest of the stops?' }));
+  assert.deepEqual(replan, { say: 'Want me to re-plan the rest of the stops?', action: { type: 'replan', confirm: true } });
+  assert.equal(parseVoiceAction(JSON.stringify({ action: 'mute_directions', say: 'Okay, quiet.' }))?.action.confirm, false);
+  assert.equal(parseVoiceAction(JSON.stringify({ action: 'delete_everything', say: 'ok' })), null, 'unknown actions are refused');
+  assert.equal(parseVoiceAction(JSON.stringify({ action: 'toString', say: 'ok' })), null, 'prototype names are not actions');
+  assert.equal(parseVoiceAction(JSON.stringify({ action: 'replan', say: '  ' })), null);
+  assert.equal(parseVoiceAction('not json'), null);
+  assert.deepEqual(VOICE_TOOLS[0]!.function.parameters.properties.action.enum, ['replan', 'arrived_here', 'road_blocked', 'repeat_instruction', 'mute_directions']);
+
   const empty = buildAssistantMessages(parseAssistantRequest({ message: 'Where do I start?' }), null);
   assert.match(empty[0]!.content, /NOT optimized yet/);
   assert.match(empty[0]!.content, /Stops: none entered yet/);
@@ -202,6 +213,7 @@ function checkVoice(): void {
   assert.throws(() => parseVoiceRequest({}), /required/);
   assert.throws(() => parseVoiceRequest({ text: 'x'.repeat(241) }), /240 characters/);
   assert.deepEqual(buildSynthesisBody({ text: 'Go', voice: DEFAULT_VOICE, rate: 1 }).voice, { languageCode: 'en-US', name: DEFAULT_VOICE });
+  assert.equal(buildSynthesisBody({ text: 'Turn <left> & go', voice: DEFAULT_VOICE, rate: 1 }).input.ssml, '<speak><break time="300ms"/>Turn &lt;left&gt; &amp; go</speak>');
 
   const limiter = createRateLimiter(2, 1000);
   assert.equal(limiter.allow('a', 0), true);

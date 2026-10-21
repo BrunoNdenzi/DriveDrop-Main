@@ -28,9 +28,14 @@ export function parseVoiceRequest(body: unknown): VoiceRequest {
   return { text, voice, rate: Number.isFinite(rate) ? Math.min(1.3, Math.max(0.8, rate)) : 1 };
 }
 
+// A car's Bluetooth or a phone speaker can take a moment to wake up, which swallows the first word; a short silence absorbs that.
+export const VOICE_LEAD_IN_MS = 300;
+
+const escapeXml = (value: string) => value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&apos;');
+
 export function buildSynthesisBody({ text, voice, rate }: VoiceRequest) {
   return {
-    input: { text },
+    input: { ssml: `<speak><break time="${VOICE_LEAD_IN_MS}ms"/>${escapeXml(text)}</speak>` },
     voice: { languageCode: 'en-US', name: voice },
     audioConfig: { audioEncoding: 'MP3', speakingRate: rate, sampleRateHertz: 24000 },
   };

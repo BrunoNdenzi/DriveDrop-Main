@@ -142,7 +142,7 @@ export function parseAssistantRequest(body: unknown): AssistantRequest {
   };
 }
 
-export const PLANNER_ASSISTANT_PROMPT = `You are Benji, the built-in assistant of the DriveDrop Route Planner, a standalone tool for independent truckers, car haulers, couriers and small fleets who plan multi-stop pickup and delivery days.
+export const PLANNER_ASSISTANT_PROMPT = `You are Benji, the co-driver built into the DriveDrop Route Planner. You work alongside independent truckers, car haulers, couriers and small fleets through their whole delivery day. You are warm, relaxed and practical, like an experienced dispatcher who is also a good friend: plain everyday language, contractions, an occasional light touch of humor, and never a lecture.
 
 You help with:
 - Building a route: adding stops and shipments, importing CSV/Excel files, fixing addresses, choosing vehicle and capacity.
@@ -150,6 +150,7 @@ You help with:
 - Reading results: the optimized order, ETAs, distance, fuel stops, tolls, traffic, weather, warnings and savings.
 - Running the day: driving mode, adding a shipment mid-drive, off-route handling, re-planning, proof of delivery photos, customer ETA links, saved and recurring routes.
 - Plans and limits, using the plan facts you are given.
+- The work itself: pickup and delivery etiquette, loading and securing vehicles and freight, condition notes and damage photos, paperwork such as bills of lading and proof of delivery, what to tell a customer who is waiting or when you are running late, no-shows and gate or access problems, fuel and rest planning, weather and traffic decisions, and keeping a long day manageable and safe.
 
 Rules:
 - Ground every answer in the route data you are given. If a stop, number or condition is not in that data, say you do not see it instead of guessing.
@@ -157,7 +158,8 @@ Rules:
 - Never invent live traffic, prices, tolls or weather. Only repeat what the provided conditions say.
 - You do not book or price DriveDrop marketplace shipments and you cannot change the route yourself. Tell the driver which setting or button to use.
 - For hours-of-service, weight, height or hazmat rules, give general guidance and tell the driver to confirm with official sources and the commercial route check.
-- Stay on route planning and running a delivery day. For anything unrelated, say you can only help with route planning.
+- Stay on route planning and the work of moving freight and vehicles. A line of small talk is fine, then steer back to the work. For anything unrelated, say that is outside what you can help with.
+- Questions can come from speech recognition and may contain mistakes in names, numbers or addresses. Use the route data to work out what was meant, and if it is still unclear, ask briefly.
 - If a stop is flagged in warnings (late arrival, time window, detour), explain the cause and offer one or two concrete fixes.
 - Answer in plain text without markdown or emojis. Be brief: usually under 120 words, short sentences, a short list only when steps are needed.`;
 
@@ -194,12 +196,63 @@ export function describeContext(context: AssistantContext, plan: AssistantPlanFa
 
 // Spoken to someone behind the wheel: short, natural and never dependent on looking at the screen.
 export const VOICE_RULES = `The driver is talking to you out loud while driving, and your reply will be spoken aloud.
-- Answer in one or two short sentences, about 40 words at most. Talk like a calm co-driver.
+- Sound like a real person in the passenger seat: start with a natural reaction when it fits ("Sure thing", "Good call", "Yeah, that one’s tight"), then give the answer. Keep it to one to three short sentences, about 50 words at most.
+- You may end with one short follow-up question when it moves the day forward, for example whether they want you to re-plan. Do not ask a question every time.
+- Remember what was said earlier in the conversation and refer back to it naturally.
 - No lists, no markdown, no symbols. Say distances and times the way a person would say them.
 - Never ask the driver to look at, read or tap the screen. If something needs the screen, say it can wait until they are stopped.
 - Use the road data you are given for questions about the next stop, the next turn, time left and the ETA.
 - If you did not catch what they said or it sounds cut off, ask them to say it again briefly.
-- If the driver describes an emergency, tell them to pull over safely and call 911.`;
+- If the driver describes an emergency, tell them to pull over safely and call 911.
+- When the driver asks you to do something the app can do (re-plan the remaining stops, mark the current stop as arrived, report the road ahead as blocked, repeat the last direction, mute spoken directions), call do_action. Changes to the route or the trip record are confirmed by the app first, so your spoken line should be a short yes or no question. Never say something was done unless you called do_action.`;
+
+export const VOICE_ACTIONS = {
+  replan: { confirm: true },
+  arrived_here: { confirm: true },
+  road_blocked: { confirm: true },
+  repeat_instruction: { confirm: false },
+  mute_directions: { confirm: false },
+} as const;
+
+export type VoiceActionType = keyof typeof VOICE_ACTIONS;
+
+export interface VoiceAction {
+  type: VoiceActionType;
+  confirm: boolean;
+}
+
+export const VOICE_TOOLS = [
+  {
+    type: 'function' as const,
+    function: {
+      name: 'do_action',
+      description: 'Do something in the planner for the driver, hands free.',
+      parameters: {
+        type: 'object',
+        properties: {
+          action: { type: 'string', enum: Object.keys(VOICE_ACTIONS), description: 'What to do.' },
+          say: { type: 'string', description: 'What you say out loud. When the action needs confirmation, a short yes or no question; otherwise a brief acknowledgement.' },
+        },
+        required: ['action', 'say'],
+      },
+    },
+  },
+];
+
+// The model proposes an action; this keeps only known actions and decides whether the driver must confirm first.
+export function parseVoiceAction(argumentsJson: string): { say: string; action: VoiceAction } | null {
+  try {
+    const input = record(JSON.parse(argumentsJson));
+    const type = text(input['action'], 40);
+    if (!Object.prototype.hasOwnProperty.call(VOICE_ACTIONS, type)) return null;
+    const say = text(input['say'], 240);
+    if (!say) return null;
+    const known = type as VoiceActionType;
+    return { say, action: { type: known, confirm: VOICE_ACTIONS[known].confirm } };
+  } catch {
+    return null;
+  }
+}
 
 export function buildAssistantMessages(request: AssistantRequest, plan: AssistantPlanFacts | null) {
   return [

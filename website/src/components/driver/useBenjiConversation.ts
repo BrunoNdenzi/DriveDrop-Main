@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { createListener, speechRecognitionSupported, type ListenEnd } from '@/lib/speech-recognition'
+import { isNo, isYes, normalizeHeard } from '@/lib/speech-text'
 
 export type BenjiTalkState = 'off' | 'listening' | 'thinking' | 'speaking'
 
@@ -10,11 +11,21 @@ export interface BenjiTurn {
   content: string
 }
 
+export interface BenjiAnswer {
+  reply: string
+  // Something Benji can do in the app; the driver is asked first when `confirm` is set.
+  action?: { type: string; confirm: boolean }
+}
+
 interface Options {
-  ask: (message: string, history: BenjiTurn[]) => Promise<string>
+  ask: (message: string, history: BenjiTurn[]) => Promise<BenjiAnswer>
   say: (text: string) => void
   hush: () => void
   notify: (message: string) => void
+  // Carries out an action and returns what Benji should say about it, or nothing to say his own line.
+  runAction: (type: string) => string | undefined
+  // Words from today's route that help the recognizer.
+  hints?: () => string[]
   // Lets the caller drop what the mic picked up from the phone's own speaker.
   ignore?: (heard: string) => boolean
   onFinished?: (summary: { turns: number }) => void
@@ -41,6 +52,7 @@ export function useBenjiConversation(options: Options) {
     let turns = 0
     let expected = ''
     let endAfterSpeech = false
+    let pendingAction: string | null = null
     let timer: ReturnType<typeof setTimeout> | null = null
 
     const set = (next: BenjiTalkState) => {
@@ -58,6 +70,7 @@ export function useBenjiConversation(options: Options) {
       onInterim: text => setHeard(text),
       onFinal: text => void handleHeard(text),
       onEnd: reason => handleListenEnd(reason),
+      hints: () => optionsRef.current.hints?.() ?? [],
     })
 
     function finish() {
@@ -65,6 +78,7 @@ export function useBenjiConversation(options: Options) {
       clearTimer()
       listener.stop()
       endAfterSpeech = false
+      pendingAction = null
       history = []
       turns = 0
       silentTurns = 0
@@ -100,25 +114,52 @@ export function useBenjiConversation(options: Options) {
       }, 350)
     }
 
-    async function handleHeard(text: string) {
+    async function handleHeard(raw: string) {
       if (current === 'off') return
-      if (optionsRef.current.ignore?.(text)) {
+      if (optionsRef.current.ignore?.(raw)) {
         listen()
         return
       }
       silentTurns = 0
-      setHeard(text)
-      if (GOODBYE.test(text.trim())) {
+      const text = normalizeHeard(raw)
+      setHeard(text || raw)
+      if (!text) {
+        speakReply("I'm here. What's up?", 'listen')
+        return
+      }
+
+      // A pending action waits for a yes or a no; anything else is a new question and drops it.
+      if (pendingAction) {
+        const action = pendingAction
+        pendingAction = null
+        if (isYes(text)) {
+          speakReply(optionsRef.current.runAction(action) ?? 'Done.', 'listen')
+          return
+        }
+        if (isNo(text)) {
+          speakReply("No problem, I'll leave it.", 'listen')
+          return
+        }
+      }
+      if (GOODBYE.test(text)) {
         speakReply("Okay, I'm here if you need me.", 'finish')
         return
       }
+
       set('thinking')
       try {
-        const reply = await optionsRef.current.ask(text, history)
+        const answer = await optionsRef.current.ask(text, history)
         if (isOff()) return
-        history = [...history, { role: 'user' as const, content: text }, { role: 'assistant' as const, content: reply }].slice(-HISTORY_TURNS)
+        history = [...history, { role: 'user' as const, content: text }, { role: 'assistant' as const, content: answer.reply }].slice(-HISTORY_TURNS)
         turns += 1
-        speakReply(reply, 'listen')
+        if (answer.action?.confirm) {
+          pendingAction = answer.action.type
+          speakReply(answer.reply, 'listen')
+        } else if (answer.action) {
+          speakReply(optionsRef.current.runAction(answer.action.type) ?? answer.reply, 'listen')
+        } else {
+          speakReply(answer.reply, 'listen')
+        }
       } catch {
         if (isOff()) return
         speakReply("Sorry, I couldn't work that out. Try again in a moment.", 'finish')
@@ -152,6 +193,7 @@ export function useBenjiConversation(options: Options) {
           history = []
           silentTurns = 0
           turns = 0
+          pendingAction = null
           current = 'listening'
           listen()
         } else if (current === 'speaking') {

@@ -188,7 +188,7 @@ export function createVoicePlayer(getSettings: () => VoiceSettings, events: Voic
     const { data: { session } } = await getSupabaseBrowserClient().auth.getSession()
     if (!session?.access_token) throw new Error('Signed out')
     const controller = new AbortController()
-    const timer = setTimeout(() => controller.abort(), 3500)
+    const timer = setTimeout(() => controller.abort(), 2500)
     try {
       const response = await fetch(`${API_BASE_URL}/standalone-route-planner/voice`, {
         method: 'POST',

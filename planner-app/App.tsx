@@ -24,13 +24,17 @@ const BEFORE_LOAD = `window.__DRIVEDROP_NATIVE__ = { platform: 'android', speech
 type PageMessage =
   | { type: 'trip-start'; executionId: string; trackingToken: string; expiresAt: string; apiBase: string }
   | { type: 'trip-stop' }
-  | { type: 'stt-start' }
+  | { type: 'stt-start'; hints: string[] }
   | { type: 'stt-stop' }
 
 function parseMessage(raw: string): PageMessage | null {
   try {
     const message = JSON.parse(raw) as Record<string, unknown>
-    if (message.type === 'trip-stop' || message.type === 'stt-start' || message.type === 'stt-stop') return { type: message.type }
+    if (message.type === 'trip-stop' || message.type === 'stt-stop') return { type: message.type }
+    if (message.type === 'stt-start') {
+      const hints = Array.isArray(message.hints) ? message.hints.filter((hint): hint is string => typeof hint === 'string' && hint.length <= 60).slice(0, 60) : []
+      return { type: 'stt-start', hints }
+    }
     if (
       message.type === 'trip-start'
       && typeof message.executionId === 'string'
@@ -98,14 +102,28 @@ export default function App() {
     deactivateKeepAwake(KEEP_AWAKE_TAG)
   }
 
-  const startListening = async () => {
+  const startListening = async (hints: string[]) => {
     const permission = await ExpoSpeechRecognitionModule.requestPermissionsAsync()
     if (!permission.granted) {
       tell({ type: 'stt-end', reason: 'denied' })
       return
     }
     heard.current = false
-    ExpoSpeechRecognitionModule.start({ lang: 'en-US', interimResults: true, continuous: false })
+    ExpoSpeechRecognitionModule.start({
+      lang: 'en-US',
+      interimResults: true,
+      continuous: false,
+      maxAlternatives: 1,
+      addsPunctuation: true,
+      // Names and streets from today's route are recognised first.
+      contextualStrings: hints,
+      // A driver pauses to think or to watch the road, so wait longer than the default before deciding they have finished.
+      androidIntentOptions: {
+        EXTRA_SPEECH_INPUT_COMPLETE_SILENCE_LENGTH_MILLIS: 1800,
+        EXTRA_SPEECH_INPUT_POSSIBLY_COMPLETE_SILENCE_LENGTH_MILLIS: 1800,
+        EXTRA_SPEECH_INPUT_MINIMUM_LENGTH_MILLIS: 2500,
+      },
+    })
   }
 
   const onMessage = (event: WebViewMessageEvent) => {
@@ -113,7 +131,7 @@ export default function App() {
     if (!message) return
     if (message.type === 'trip-start') void startTrip(message)
     else if (message.type === 'trip-stop') void stopTrip()
-    else if (message.type === 'stt-start') void startListening()
+    else if (message.type === 'stt-start') void startListening(message.hints)
     else ExpoSpeechRecognitionModule.abort()
   }
 

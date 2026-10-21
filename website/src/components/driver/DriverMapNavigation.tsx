@@ -15,6 +15,7 @@ import {
   type RoutePlan,
 } from '@/lib/route-geometry'
 import { createZoomGovernor, metersPerPixel, routeHeadingAt, stepCamera, type CameraState } from '@/lib/camera'
+import { ARRIVAL_APPROACH_METERS, HEADING_MIN_SPEED_MPS, coastedAlong, derivedSpeedMps } from '@/lib/gps-noise'
 import {
   BREAK_MAX_MS,
   CLOSURE_MS,
@@ -52,6 +53,7 @@ import ProofSheet, { type ProofData } from '@/components/route-planner/ProofShee
 import VoiceSettingsSheet from './VoiceSettingsSheet'
 import BenjiAvatar from './BenjiAvatar'
 import { useBenjiConversation, type BenjiTurn } from './useBenjiConversation'
+import { recognitionHints } from '@/lib/speech-text'
 import { emptyCost, formatUsd, loadCost, saveCost, summarizeCost, today, type BenjiCost } from '@/lib/benji-cost'
 import { resumePosition } from '@/lib/trip-resume'
 import { DEFAULT_VOICE_SETTINGS, createVoicePlayer, loadVoiceSettings, saveVoiceSettings, type NaturalVoiceState, type VoiceSettings } from '@/lib/voice'
@@ -165,6 +167,7 @@ export interface BenjiLiveContext {
 export interface BenjiReply {
   reply: string
   costUsd?: number
+  action?: { type: string; confirm: boolean }
 }
 
 interface DriverMapNavigationProps {
@@ -457,7 +460,7 @@ export default function DriverMapNavigation({
   const latestFixRef = useRef<DriverFix | null>(null)
   const lastRawRef = useRef<Point | null>(null)
   const lastFixTimeRef = useRef<{ pos: Point; at: number } | null>(null)
-  const fixStateRef = useRef<{ pos: Point; along: number | null; speed: number; heading: number | null; at: number; accuracy: number | null } | null>(null)
+  const fixStateRef = useRef<{ pos: Point; along: number | null; speed: number; heading: number | null; at: number; accuracy: number | null; nearStop: boolean } | null>(null)
   const viewRef = useRef<CameraState | null>(null)
   const flyingRef = useRef(true)
   const settleUntilRef = useRef(0)
@@ -1051,7 +1054,7 @@ export default function DriverMapNavigation({
     let speed = extra.speedMps ?? null
     const previousFix = lastFixTimeRef.current
     if (speed === null && previousFix && now - previousFix.at > 0 && now - previousFix.at < 10_000) {
-      speed = metersBetween(previousFix.pos, rawPos) / ((now - previousFix.at) / 1000)
+      speed = derivedSpeedMps(metersBetween(previousFix.pos, rawPos), (now - previousFix.at) / 1000, accuracy)
     }
     lastFixTimeRef.current = { pos: rawPos, at: now }
 
@@ -1059,6 +1062,9 @@ export default function DriverMapNavigation({
     if (!lastRawRef.current || moved !== null) lastRawRef.current = rawPos
 
     // Where the driver is on the planned route, so the marker sits on the road and progress is exact.
+    // Close to the stop the driver is turning into a lot or a drive, so the road line stops being a good guide to where the car is.
+    const approachTarget = nav.isNavigating ? resolvedStopsRef.current[nav.currentStopIndex] : undefined
+    const nearStop = isPoint(approachTarget) && metersBetween(rawPos, approachTarget) < ARRIVAL_APPROACH_METERS
     let pos = rawPos
     let along: number | null = null
     let distanceFromPath = 0
@@ -1068,7 +1074,7 @@ export default function DriverMapNavigation({
         projHintRef.current = projection.index
         along = projection.alongMeters
         distanceFromPath = projection.distanceFromPath
-        if (projection.distanceFromPath <= Math.max(30, accuracy ?? 0)) pos = projection.snapped
+        if (!nearStop && projection.distanceFromPath <= Math.max(30, accuracy ?? 0)) pos = projection.snapped
         if (projection.index !== traveledIndexRef.current) {
           traveledIndexRef.current = projection.index
           traveledLineRef.current?.setPath([...plan.points.slice(0, projection.index + 1), projection.snapped])
@@ -1080,7 +1086,7 @@ export default function DriverMapNavigation({
     // The camera loop animates the marker and the map; this only tells it where the car is and which way the road points.
     const speedValue = speed ?? 0
     const onRoute = along !== null && distanceFromPath <= Math.max(30, accuracy ?? 0)
-    if (speedValue > 1) {
+    if (speedValue > HEADING_MIN_SPEED_MPS) {
       const roadHeading = onRoute && plan && along !== null ? routeHeadingAt(plan, along) : null
       headingTargetRef.current = roadHeading ?? reportedHeading ?? moved ?? headingTargetRef.current
     } else if (headingTargetRef.current === null && onRoute && plan && along !== null) {
@@ -1088,7 +1094,7 @@ export default function DriverMapNavigation({
       headingTargetRef.current = routeHeadingAt(plan, along)
     }
     const heading = headingTargetRef.current
-    fixStateRef.current = { pos, along: onRoute ? along : null, speed: extra.simulated ? 0 : speedValue, heading, at: now, accuracy }
+    fixStateRef.current = { pos, along: onRoute ? along : null, speed: extra.simulated ? 0 : speedValue, heading, at: now, accuracy, nearStop }
     setHasFix(true)
 
     if (!driverMarkerRef.current && map) {
@@ -1196,9 +1202,10 @@ export default function DriverMapNavigation({
       // Between one-second GPS fixes, keep moving along the road at the last known speed.
       const plan = planRef.current
       let predicted: Point = fix.pos
-      if (fix.speed > 1) {
+      if (fix.speed > HEADING_MIN_SPEED_MPS && !fix.nearStop) {
         const ahead = (fix.speed * Math.min(Date.now() - fix.at, MAX_PREDICT_MS)) / 1000
-        const onPlan = fix.along !== null && plan ? positionAt(plan, fix.along + ahead) : null
+        const legEnd = plan?.legEnds[navStateRef.current.currentLeg]
+        const onPlan = fix.along !== null && plan ? positionAt(plan, coastedAlong(fix.along, ahead, legEnd)) : null
         predicted = onPlan ?? (fix.heading !== null ? offsetAhead(fix.pos, fix.heading, ahead) : fix.pos)
       }
 
@@ -2064,15 +2071,42 @@ export default function DriverMapNavigation({
     }
   }
 
+  // What Benji does once the driver agrees; the return value is what he says about it.
+  const runBenjiAction = (type: string): string | undefined => {
+    const nav = navStateRef.current
+    if (!nav.isNavigating && type !== 'mute_directions') return 'We are not navigating right now.'
+    switch (type) {
+      case 'replan':
+        if (!onReoptimize || simulation) return "I can't re-plan from here."
+        void replan()
+        return "On it. I'm re-planning from where you are."
+      case 'arrived_here':
+        requestStopCompletion(nav.currentStopIndex)
+        return "Okay, marking this stop. If it needs proof, we can do that once you're parked."
+      case 'road_blocked':
+        reportBlocked()
+        return "Got it. I'm looking for another way around."
+      case 'repeat_instruction':
+        return nav.nextInstruction ? `Next up: ${nav.nextInstruction}` : "There's nothing coming up right now."
+      case 'mute_directions':
+        changeVoiceSettings({ ...voiceSettingsRef.current, muted: true })
+        return undefined
+      default:
+        return undefined
+    }
+  }
+
   const convo = useBenjiConversation({
     ask: async (message, history) => {
       const answer = await onAskBenji!(message, history, liveContext())
       bumpCostRef.current({ questions: 1, llmUsd: answer.costUsd ?? 0 })
-      return answer.reply
+      return { reply: answer.reply, ...(answer.action ? { action: answer.action } : {}) }
     },
     say: text => voicePlayerRef.current?.speak(text),
     hush: () => voicePlayerRef.current?.stop(),
     notify: message => toast(message, 'info'),
+    hints: () => recognitionHints(stops),
+    runAction: type => runBenjiAction(type),
     // The mic can pick up the phone's own turn prompt; that is not a question.
     ignore: heard => {
       const { text, at } = lastPromptRef.current
