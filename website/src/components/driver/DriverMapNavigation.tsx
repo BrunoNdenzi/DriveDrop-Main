@@ -55,6 +55,8 @@ import BenjiAvatar from './BenjiAvatar'
 import { useBenjiConversation, type BenjiTurn } from './useBenjiConversation'
 import { recognitionHints } from '@/lib/speech-text'
 import { emptyCost, formatUsd, loadCost, saveCost, summarizeCost, today, type BenjiCost } from '@/lib/benji-cost'
+import { createEarcons } from '@/lib/earcons'
+import { emptyMetrics, loadMetrics, recordMetric, saveMetrics, type BenjiMetrics, type MetricEvent } from '@/lib/benji-metrics'
 import { resumePosition } from '@/lib/trip-resume'
 import { DEFAULT_VOICE_SETTINGS, createVoicePlayer, loadVoiceSettings, saveVoiceSettings, type NaturalVoiceState, type VoiceSettings } from '@/lib/voice'
 import { canFullscreen, enterFullscreen, exitFullscreen, isFullscreen as isDeviceFullscreen, isIphoneBrowser } from '@/lib/fullscreen'
@@ -168,6 +170,8 @@ export interface BenjiReply {
   reply: string
   costUsd?: number
   action?: { type: string; confirm: boolean }
+  // The reply was already passed sentence by sentence to the speaker.
+  streamed?: boolean
 }
 
 interface DriverMapNavigationProps {
@@ -187,7 +191,7 @@ interface DriverMapNavigationProps {
   onShareStop?: (stopIndex: number) => Promise<{ url: string; message: string }>
   onAddShipment?: (stops: AddedStopDraft[]) => Promise<string | void>
   // Lets the driver talk with Benji; it receives what the driver said and what the road looks like right now.
-  onAskBenji?: (message: string, history: BenjiTurn[], live: BenjiLiveContext) => Promise<BenjiReply>
+  onAskBenji?: (message: string, history: BenjiTurn[], live: BenjiLiveContext, onSentence: (sentence: string) => void) => Promise<BenjiReply>
   onDeviation?: (event: DeviationEvent) => void
   trackingStatus?: { state: 'off' | 'pending' | 'on' | 'error'; label: string }
   onClose?: () => void
@@ -358,6 +362,16 @@ export default function DriverMapNavigation({
   const [insightDismissed, setInsightDismissed] = useState(false)
   const captionTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const speechEndedRef = useRef<(text: string) => void>(() => {})
+  const speechStartedRef = useRef<(text: string) => void>(() => {})
+  const earconsRef = useRef<ReturnType<typeof createEarcons> | null>(null)
+  const metricsRef = useRef<BenjiMetrics>(emptyMetrics())
+  const [metrics, setMetrics] = useState<BenjiMetrics>(metricsRef.current)
+  const noteMetricRef = useRef<(event: MetricEvent) => void>(() => {})
+  noteMetricRef.current = event => {
+    metricsRef.current = recordMetric(metricsRef.current, event)
+    saveMetrics(metricsRef.current)
+    setMetrics(metricsRef.current)
+  }
   const costRef = useRef<BenjiCost>(emptyCost())
   const [cost, setCost] = useState<BenjiCost>(costRef.current)
   const bumpCostRef = useRef<(patch: { questions?: number; llmUsd?: number; ttsChars?: number }) => void>(() => {})
@@ -377,8 +391,10 @@ export default function DriverMapNavigation({
       onSpeaking: (isSpeaking, text) => {
         if (captionTimerRef.current) clearTimeout(captionTimerRef.current)
         setSpeaking(isSpeaking)
-        if (isSpeaking) setCaption(text)
-        else captionTimerRef.current = setTimeout(() => setCaption(''), 2200)
+        if (isSpeaking) {
+          setCaption(text)
+          speechStartedRef.current(text)
+        } else captionTimerRef.current = setTimeout(() => setCaption(''), 2200)
       },
       onEnd: text => speechEndedRef.current(text),
       onCloudChars: chars => bumpCostRef.current({ ttsChars: chars }),
@@ -386,6 +402,9 @@ export default function DriverMapNavigation({
     })
     costRef.current = loadCost()
     setCost(costRef.current)
+    metricsRef.current = loadMetrics()
+    setMetrics(metricsRef.current)
+    earconsRef.current = createEarcons(() => voiceSettingsRef.current.volume)
     voicePlayerRef.current = player
     void player.checkNatural()
     return () => {
@@ -2097,13 +2116,16 @@ export default function DriverMapNavigation({
   }
 
   const convo = useBenjiConversation({
-    ask: async (message, history) => {
-      const answer = await onAskBenji!(message, history, liveContext())
+    ask: async (message, history, onSentence) => {
+      const answer = await onAskBenji!(message, history, liveContext(), onSentence)
       bumpCostRef.current({ questions: 1, llmUsd: answer.costUsd ?? 0 })
-      return { reply: answer.reply, ...(answer.action ? { action: answer.action } : {}) }
+      return { reply: answer.reply, ...(answer.action ? { action: answer.action } : {}), ...(answer.streamed ? { streamed: true } : {}) }
     },
     say: text => voicePlayerRef.current?.speak(text),
     hush: () => voicePlayerRef.current?.stop(),
+    beginSpeech: () => voicePlayerRef.current!.speakSequence(),
+    chime: kind => earconsRef.current?.play(kind),
+    onMetric: event => noteMetricRef.current(event),
     notify: message => toast(message, 'info'),
     hints: () => recognitionHints(stops),
     runAction: type => runBenjiAction(type),
@@ -2117,9 +2139,11 @@ export default function DriverMapNavigation({
     onFinished: () => toast(`Benji today: about ${formatUsd(summarizeCost(costRef.current).totalUsd)} so far`, 'info'),
   })
   speechEndedRef.current = convo.speechEnded
+  speechStartedRef.current = convo.speechStarted
 
   const toggleTalk = () => {
     voicePlayerRef.current?.unlock()
+    earconsRef.current?.unlock()
     if (convo.state === 'off' && !voiceEnabled) changeVoiceSettings({ ...voiceSettingsRef.current, muted: false })
     convo.toggle()
   }
@@ -2546,6 +2570,7 @@ export default function DriverMapNavigation({
                 settings={voiceSettings}
                 naturalState={naturalState}
                 cost={cost}
+                metrics={metrics}
                 onChange={changeVoiceSettings}
                 onTest={() => { voicePlayerRef.current?.unlock(); voicePlayerRef.current?.speak("Hi, I'm Benji. I'll talk you through every turn.") }}
                 onClose={() => setShowVoiceSettings(false)}

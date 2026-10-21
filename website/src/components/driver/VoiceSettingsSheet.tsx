@@ -3,18 +3,20 @@
 import { useEffect, useState } from 'react'
 import { NATURAL_VOICE_OPTIONS, deviceVoices, guessVoiceGender, pickDeviceVoice, type NaturalVoiceState, type VoiceSettings } from '@/lib/voice'
 import { formatUsd, summarizeCost, type BenjiCost } from '@/lib/benji-cost'
+import { formatSeconds, summarizeMetrics, type BenjiMetrics } from '@/lib/benji-metrics'
 import { X } from '@/components/icons/streamline-lucide'
 
 interface Props {
   settings: VoiceSettings
   naturalState: NaturalVoiceState
   cost?: BenjiCost
+  metrics?: BenjiMetrics
   onChange: (settings: VoiceSettings) => void
   onTest: () => void
   onClose: () => void
 }
 
-export default function VoiceSettingsSheet({ settings, naturalState, cost, onChange, onTest, onClose }: Props) {
+export default function VoiceSettingsSheet({ settings, naturalState, cost, metrics, onChange, onTest, onClose }: Props) {
   const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([])
 
   useEffect(() => {
@@ -90,6 +92,15 @@ export default function VoiceSettingsSheet({ settings, naturalState, cost, onCha
         <input type="range" min={0.2} max={1} step={0.1} value={settings.volume} onChange={event => onChange({ ...settings, volume: Number(event.target.value) })} className="mt-1 w-full accent-amber-500" />
       </label>
 
+      {metrics && (() => {
+        const summary = summarizeMetrics(metrics)
+        return summary.replies === 0 && summary.silent === 0 && summary.errors === 0 ? null : (
+          <p className="mt-2 rounded-md bg-gray-50 px-2.5 py-2 text-[11px] text-gray-600">
+            Benji&apos;s speed, last {summary.replies} repl{summary.replies === 1 ? 'y' : 'ies'}: {formatSeconds(summary.avgFirstAudioMs)} on average from when you stop talking until he starts (thinking {formatSeconds(summary.avgThinkMs)}), slowest tenth {formatSeconds(summary.slowestTenthMs)}.
+            Didn&apos;t hear you {summary.silent}, failed {summary.errors}, actions you confirmed {summary.confirmed}, declined {summary.declined}.
+          </p>
+        )
+      })()}
       <button type="button" onClick={onTest} className="mt-3 h-11 w-full rounded-md bg-gray-900 text-sm font-bold text-white">Hear Benji</button>
       <p className="mt-1 text-[11px] text-gray-500">No sound? Turn up your phone&apos;s media volume and take it off silent.</p>
       {cost && (() => {

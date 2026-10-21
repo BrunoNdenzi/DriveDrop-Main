@@ -239,6 +239,24 @@ export const VOICE_TOOLS = [
   },
 ];
 
+// Splits streamed text into finished sentences, so each can be spoken while the rest is still being written.
+// A sentence ends at . ! or ? followed by a space; very short ones wait and join the next so the voice is not choppy.
+export function takeSentences(buffer: string, minChars = 14): { sentences: string[]; rest: string } {
+  const sentences: string[] = [];
+  const pattern = /[.!?]["')\]]?\s/g;
+  let consumed = 0;
+  let match: RegExpExecArray | null;
+  while ((match = pattern.exec(buffer)) !== null) {
+    const end = match.index + match[0].length;
+    const piece = buffer.slice(consumed, end).trim();
+    if (piece.length >= minChars) {
+      sentences.push(piece);
+      consumed = end;
+    }
+  }
+  return { sentences, rest: buffer.slice(consumed) };
+}
+
 // The model proposes an action; this keeps only known actions and decides whether the driver must confirm first.
 export function parseVoiceAction(argumentsJson: string): { say: string; action: VoiceAction } | null {
   try {

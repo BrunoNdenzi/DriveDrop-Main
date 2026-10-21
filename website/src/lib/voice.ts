@@ -97,6 +97,13 @@ export function pickDeviceVoice(voices: Array<{ name: string; lang: string }>, g
 
 export type NaturalVoiceState = 'unknown' | 'ready' | 'unavailable'
 
+// A reply that arrives a sentence at a time: add each as it is written, then finish with the text the end will be reported under.
+export interface SpeechSequence {
+  add: (text: string) => void
+  finish: (endText: string) => void
+  cancel: () => void
+}
+
 export interface VoiceEvents {
   onSpeaking?: (speaking: boolean, text: string) => void
   // A phrase finished (or failed) by itself; being cut off by a newer phrase does not count.
@@ -146,6 +153,16 @@ export function createVoicePlayer(getSettings: () => VoiceSettings, events: Voic
     events.onNaturalState?.(state)
   }
 
+  const buildUtterance = (text: string, settings: VoiceSettings) => {
+    const utterance = new SpeechSynthesisUtterance(text)
+    const chosen = deviceVoices().find(voice => voice.name === settings.deviceVoice)
+    if (chosen) utterance.voice = chosen
+    utterance.lang = chosen?.lang ?? 'en-US'
+    utterance.rate = settings.rate
+    utterance.volume = settings.volume
+    return utterance
+  }
+
   const speakOnDevice = (text: string, settings: VoiceSettings, id: number) => {
     const synth = typeof window === 'undefined' ? undefined : window.speechSynthesis
     if (!synth) {
@@ -153,12 +170,7 @@ export function createVoicePlayer(getSettings: () => VoiceSettings, events: Voic
       events.onEnd?.(text)
       return
     }
-    const utterance = new SpeechSynthesisUtterance(text)
-    const chosen = deviceVoices().find(voice => voice.name === settings.deviceVoice)
-    if (chosen) utterance.voice = chosen
-    utterance.lang = chosen?.lang ?? 'en-US'
-    utterance.rate = settings.rate
-    utterance.volume = settings.volume
+    const utterance = buildUtterance(text, settings)
     utterance.onstart = () => { if (id === latest) events.onSpeaking?.(true, text) }
     utterance.onend = utterance.onerror = () => {
       if (id !== latest) return
@@ -169,6 +181,32 @@ export function createVoicePlayer(getSettings: () => VoiceSettings, events: Voic
     // Android Chrome drops speech queued in the same instant as a cancel.
     window.setTimeout(() => { if (id === latest) synth.speak(utterance) }, 60)
   }
+
+  const playClip = (url: string, text: string, settings: VoiceSettings, id: number) => new Promise<void>((resolve, reject) => {
+    const audio = speaker()
+    audio.onplaying = () => { if (id === latest) events.onSpeaking?.(true, text) }
+    audio.onended = () => resolve()
+    audio.onerror = () => resolve()
+    audio.src = url
+    audio.volume = settings.volume
+    audio.play().catch(reject)
+  })
+
+  const speakOnDeviceAsync = (text: string, settings: VoiceSettings, id: number) => new Promise<void>(resolve => {
+    const synth = typeof window === 'undefined' ? undefined : window.speechSynthesis
+    if (!synth) {
+      resolve()
+      return
+    }
+    const utterance = buildUtterance(text, settings)
+    utterance.onstart = () => { if (id === latest) events.onSpeaking?.(true, text) }
+    utterance.onend = utterance.onerror = () => resolve()
+    synth.resume()
+    window.setTimeout(() => {
+      if (id === latest) synth.speak(utterance)
+      else resolve()
+    }, 60)
+  })
 
   const stopAll = () => {
     if (sharedAudio) {
@@ -262,6 +300,71 @@ export function createVoicePlayer(getSettings: () => VoiceSettings, events: Voic
           if (id === latest) speakOnDevice(text, settings, id)
         }
       })()
+    },
+    // A reply that arrives sentence by sentence: each is voiced as soon as it is ready, and the next is fetched while the current one plays.
+    speakSequence(): SpeechSequence {
+      const settings = getSettings()
+      const id = ++latest
+      stopAll()
+      const queue: string[] = []
+      const prepared = new Map<number, Promise<string | null>>()
+      let closed = false
+      let endText = ''
+      let wake: (() => void) | null = null
+      const useCloud = settings.engine !== 'device' && Date.now() >= cloudOffUntil
+      const prepare = (index: number) => {
+        if (index >= queue.length || prepared.has(index)) return
+        prepared.set(index, useCloud ? fetchClip(queue[index]!, settings).catch(() => null) : Promise.resolve(null))
+      }
+      const nudge = () => {
+        const resume = wake
+        wake = null
+        resume?.()
+      }
+
+      void (async () => {
+        let index = 0
+        while (id === latest) {
+          if (index >= queue.length) {
+            if (closed) break
+            await new Promise<void>(resolve => { wake = resolve })
+            continue
+          }
+          prepare(index)
+          prepare(index + 1)
+          const text = queue[index]!
+          const url = await prepared.get(index)!
+          if (id !== latest) return
+          // A sentence the natural voice could not deliver in time is said by the device voice, so nothing is skipped.
+          if (url) await playClip(url, text, settings, id).catch(() => speakOnDeviceAsync(text, settings, id))
+          else await speakOnDeviceAsync(text, settings, id)
+          index += 1
+        }
+        if (id === latest) {
+          events.onSpeaking?.(false, endText)
+          events.onEnd?.(endText)
+        }
+      })()
+
+      return {
+        add(text) {
+          queue.push(text)
+          prepare(queue.length - 1)
+          nudge()
+        },
+        finish(text) {
+          closed = true
+          endText = text
+          nudge()
+        },
+        cancel() {
+          if (id === latest) {
+            latest += 1
+            stopAll()
+          }
+          nudge()
+        },
+      }
     },
     stop() {
       latest += 1

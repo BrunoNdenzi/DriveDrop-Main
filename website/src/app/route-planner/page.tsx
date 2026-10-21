@@ -8,6 +8,7 @@ import RouteOperations from '@/components/route-planner/RouteOperations'
 import PlannerBilling from '@/components/route-planner/PlannerBilling'
 import InstallApp from '@/components/route-planner/InstallApp'
 import { isNativeApp, postToNative } from '@/lib/native-bridge'
+import { readReplyStream } from '@/lib/benji-stream'
 import DriverMapNavigation, { type ArrivalReport, type BenjiLiveContext, type DeviationEvent, type DriverFix, type NavStop } from '@/components/driver/DriverMapNavigation'
 import { describeReplan } from '@/lib/replan-summary'
 import { geocodeUsAddress } from '@/lib/address-resolve'
@@ -691,7 +692,7 @@ export default function StandaloneRoutePlannerPage() {
     onCaptureProof: uploadProof,
     onShareStop: createStopLink,
     onAddShipment: (added: AddedStopDraft[]) => replanFromHere(added),
-    onAskBenji: (message: string, history: Array<{ role: 'user' | 'assistant'; content: string }>, live: BenjiLiveContext) => askBenjiVoice(message, history, live),
+    onAskBenji: (message: string, history: Array<{ role: 'user' | 'assistant'; content: string }>, live: BenjiLiveContext, onSentence: (sentence: string) => void) => askBenjiVoice(message, history, live, onSentence),
     trackingStatus: tracking ?? (currentRouteId
       ? { state: 'off' as const, label: 'Tracking starts with Start Navigation' }
       : { state: 'off' as const, label: 'Route not saved: progress is not recorded' }),
@@ -933,12 +934,25 @@ export default function StandaloneRoutePlannerPage() {
     return data.reply
   }
 
-  // Spoken to a driver mid-route: short answers, with the live position along the road.
-  const askBenjiVoice = async (message: string, history: Array<{ role: 'user' | 'assistant'; content: string }>, live: BenjiLiveContext) => {
-    const data = await api<{ reply: string; action?: { type: string; confirm: boolean }; usage?: { costUsd: number } }>('/assistant', {
-      method: 'POST',
-      body: JSON.stringify({ message, history, mode: 'voice', context: { ...assistantContext(), driving: true, live } }),
-    })
+  // Spoken to a driver mid-route: short answers, with the live position along the road. Sentences are handed over as they are written.
+  const askBenjiVoice = async (message: string, history: Array<{ role: 'user' | 'assistant'; content: string }>, live: BenjiLiveContext, onSentence: (sentence: string) => void) => {
+    const body = JSON.stringify({ message, history, mode: 'voice', context: { ...assistantContext(), driving: true, live } })
+    let handed = false
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session?.access_token) throw new Error('Your session expired. Sign in again.')
+      const response = await fetch(`${API_BASE_URL}/standalone-route-planner/assistant/stream`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
+        body,
+      })
+      if (!response.ok || !response.body) throw new Error('Streaming is not available')
+      return await readReplyStream(response, sentence => { handed = true; onSentence(sentence) })
+    } catch (error) {
+      // Once part of a reply has been spoken, a second attempt would repeat it; otherwise ask for the whole reply instead.
+      if (handed) throw error
+    }
+    const data = await api<{ reply: string; action?: { type: string; confirm: boolean }; usage?: { costUsd: number } }>('/assistant', { method: 'POST', body })
     return { reply: data.reply, ...(data.action ? { action: data.action } : {}), ...(data.usage ? { costUsd: data.usage.costUsd } : {}) }
   }
 

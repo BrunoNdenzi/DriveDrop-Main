@@ -14,7 +14,7 @@ import { routeOptimizationService, type RouteStop } from '../src/services/RouteO
 import { buildPriorityPrefix, describePriorityCost } from '../src/services/routePriority';
 import { detectImageType, estimateStopEta, mergeProof, safePathPart, stopsAhead } from '../src/services/plannerProof';
 import { DEFAULT_VOICE, buildSynthesisBody, createRateLimiter, parseVoiceRequest } from '../src/services/plannerVoice';
-import { buildAssistantMessages, parseAssistantRequest, parseVoiceAction, VOICE_TOOLS } from '../src/services/plannerAssistant';
+import { buildAssistantMessages, parseAssistantRequest, parseVoiceAction, takeSentences, VOICE_TOOLS } from '../src/services/plannerAssistant';
 import { signTrackingToken, verifyTrackingToken } from '../src/services/plannerTracking';
 import {
   REOPTIMIZE_ORIGIN_ID,
@@ -170,6 +170,12 @@ function checkAssistant(): void {
   assert.equal(parseAssistantRequest({ message: 'hi', mode: 'shout' }).mode, 'text');
 
   assert.match(system, /bills of lading/, 'logistics work is in scope');
+
+  assert.deepEqual(takeSentences('Sure thing. I can do that. Want me to'), { sentences: ['Sure thing. I can do that.'], rest: 'Want me to' });
+  assert.deepEqual(takeSentences('Okay. Two miles to go. '), { sentences: ['Okay. Two miles to go.'], rest: '' });
+  assert.deepEqual(takeSentences('It is 3.5 miles away, so about ten minutes'), { sentences: [], rest: 'It is 3.5 miles away, so about ten minutes' });
+  assert.deepEqual(takeSentences('Is that right? Yes it is. '), { sentences: ['Is that right?'], rest: 'Yes it is. ' }, 'a short trailing sentence waits for more text');
+  assert.deepEqual(takeSentences('Hi. '), { sentences: [], rest: 'Hi. ' }, 'a very short sentence waits for the next one');
 
   const replan = parseVoiceAction(JSON.stringify({ action: 'replan', say: 'Want me to re-plan the rest of the stops?' }));
   assert.deepEqual(replan, { say: 'Want me to re-plan the rest of the stops?', action: { type: 'replan', confirm: true } });
