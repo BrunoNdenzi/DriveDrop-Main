@@ -69,6 +69,16 @@ export class CommercialRoutingService {
     };
   }
 
+  // Height, width and length go to HERE in centimetres, weight in kilograms.
+  applyVehicleProfile(url: URL, profile: CommercialVehicleProfile): void {
+    if (profile.heightFeet !== undefined) url.searchParams.set('vehicle[height]', String(Math.round(profile.heightFeet * 30.48)));
+    if (profile.widthFeet !== undefined) url.searchParams.set('vehicle[width]', String(Math.round(profile.widthFeet * 30.48)));
+    if (profile.lengthFeet !== undefined) url.searchParams.set('vehicle[length]', String(Math.round(profile.lengthFeet * 30.48)));
+    if (profile.grossWeightPounds !== undefined) url.searchParams.set('vehicle[grossWeight]', String(Math.round(profile.grossWeightPounds * 0.453592)));
+    if (profile.axleCount !== undefined) url.searchParams.set('vehicle[axleCount]', String(profile.axleCount));
+    if (profile.hazmatTypes?.length) url.searchParams.set('vehicle[shippedHazardousGoods]', profile.hazmatTypes.join(','));
+  }
+
   async getDirections(
     origin: { lat: number; lng: number },
     destination: { lat: number; lng: number },
@@ -87,12 +97,7 @@ export class CommercialRoutingService {
     url.searchParams.set('return', 'summary,polyline');
     url.searchParams.set('apikey', config.here.apiKey);
     if (avoidHighways) url.searchParams.set('avoid[features]', 'controlledAccessHighway');
-    if (profile.heightFeet !== undefined) url.searchParams.set('vehicle[height]', String(Math.round(profile.heightFeet * 30.48)));
-    if (profile.widthFeet !== undefined) url.searchParams.set('vehicle[width]', String(Math.round(profile.widthFeet * 30.48)));
-    if (profile.lengthFeet !== undefined) url.searchParams.set('vehicle[length]', String(Math.round(profile.lengthFeet * 30.48)));
-    if (profile.grossWeightPounds !== undefined) url.searchParams.set('vehicle[grossWeight]', String(Math.round(profile.grossWeightPounds * 0.453592)));
-    if (profile.axleCount !== undefined) url.searchParams.set('vehicle[axleCount]', String(profile.axleCount));
-    if (profile.hazmatTypes?.length) url.searchParams.set('vehicle[shippedHazardousGoods]', profile.hazmatTypes.join(','));
+    this.applyVehicleProfile(url, profile);
 
     const response = await fetch(url, { signal: AbortSignal.timeout(10_000) });
     const body = asRecord(await response.json());

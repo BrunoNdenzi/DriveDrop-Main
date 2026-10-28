@@ -17,6 +17,16 @@ import { DEFAULT_VOICE, buildSynthesisBody, createRateLimiter, parseVoiceRequest
 import { buildAssistantMessages, parseAssistantRequest, parseVoiceAction, takeSentences, VOICE_TOOLS } from '../src/services/plannerAssistant';
 import { signTrackingToken, verifyTrackingToken } from '../src/services/plannerTracking';
 import {
+  avoidAreas,
+  buildHereUrl,
+  cleanInstruction,
+  decodeFlexPolyline,
+  liveRouteBounds,
+  maneuverFor,
+  parseHereLiveRoute,
+  parseLiveRouteRequest,
+} from '../src/services/plannerTruckRoute';
+import {
   REOPTIMIZE_ORIGIN_ID,
   arrivalBlockMessage,
   buildAddedStops,
@@ -189,6 +199,116 @@ function checkAssistant(): void {
   const empty = buildAssistantMessages(parseAssistantRequest({ message: 'Where do I start?' }), null);
   assert.match(empty[0]!.content, /NOT optimized yet/);
   assert.match(empty[0]!.content, /Stops: none entered yet/);
+}
+
+function checkTruckRoute(): void {
+  const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_';
+  const unsigned = (value: number): string => {
+    let out = '';
+    let rest = value;
+    while (rest >= 32) {
+      out += alphabet[(rest % 32) + 32];
+      rest = Math.floor(rest / 32);
+    }
+    return out + alphabet[rest];
+  };
+  const encode = (points: Array<[number, number]>): string => {
+    let lat = 0;
+    let lng = 0;
+    let out = unsigned(1) + unsigned(5);
+    for (const [a, b] of points) {
+      const nextLat = Math.round(a * 1e5);
+      const nextLng = Math.round(b * 1e5);
+      for (const delta of [nextLat - lat, nextLng - lng]) out += unsigned(delta < 0 ? -delta * 2 - 1 : delta * 2);
+      lat = nextLat;
+      lng = nextLng;
+    }
+    return out;
+  };
+
+  // The published HERE example, then a round trip including negative longitudes.
+  assert.deepEqual(decodeFlexPolyline('BFoz5xJ67i1B1B7PzIhaxL7Y').map(p => [p.lat, p.lng]), [[50.10228, 8.69821], [50.10201, 8.69567], [50.10063, 8.69150], [50.09878, 8.68752]]);
+  const line: Array<[number, number]> = [[35.2271, -80.8431], [35.2301, -80.8402], [35.2355, -80.8371], [35.2301, -80.8402]];
+  assert.deepEqual(decodeFlexPolyline(encode(line)).map(p => [p.lat, p.lng]), line);
+  assert.throws(() => decodeFlexPolyline('B'), /Truncated/);
+  assert.throws(() => decodeFlexPolyline('BF!'), /Invalid/);
+
+  assert.equal(maneuverFor('turn', 'left', 'light'), 'turn-slight-left');
+  assert.equal(maneuverFor('turn', 'right', 'heavy'), 'turn-sharp-right');
+  assert.equal(maneuverFor('turn', 'right', 'quite'), 'turn-right');
+  assert.equal(maneuverFor('roundaboutEnter', undefined), 'roundabout-right');
+  assert.equal(maneuverFor('keep', 'left'), 'fork-left');
+  assert.equal(maneuverFor('exit', 'right'), 'ramp-right');
+  assert.equal(maneuverFor('continue'), undefined);
+  assert.equal(cleanInstruction('Turn left onto Main St. Go for 1.2 mi.'), 'Turn left onto Main St.');
+  assert.equal(cleanInstruction('Head north on I-85 S. Go for 500 ft.'), 'Head north on I-85 S.');
+
+  const area = avoidAreas([{ lat: 35.2, lng: -80.8 }]);
+  assert.match(area, /^bbox:-80\.80\d+,35\.199\d+,-80\.79\d+,35\.200\d+$/);
+  assert.equal(avoidAreas([{ lat: 35, lng: -80 }, { lat: 36, lng: -81 }]).split('|').length, 2);
+
+  const now = new Date('2026-10-28T12:00:00.000Z');
+  const body = {
+    from: { lat: 35.2, lng: -80.8 },
+    stops: [{ lat: 35.3, lng: -80.7 }, { lat: 35.4, lng: -80.6 }],
+    profile: { heightFeet: 13.5, widthFeet: 8.5, lengthFeet: 75, grossWeightPounds: 80000, axleCount: 5, hazmatTypes: ['flammable', 42] },
+    avoid: [{ lat: 35.25, lng: -80.75 }],
+    heading: -90,
+    departureTime: '2026-10-28T14:00:00.000Z',
+    avoidHighways: true,
+  };
+  const request = parseLiveRouteRequest(body, now);
+  assert.equal(request.heading, 270);
+  assert.deepEqual(request.profile.hazmatTypes, ['flammable']);
+  assert.equal(request.departureTime?.toISOString(), '2026-10-28T14:00:00.000Z');
+  assert.equal(parseLiveRouteRequest({ ...body, departureTime: '2020-01-01T00:00:00Z' }, now).departureTime?.toISOString(), now.toISOString(), 'a past departure means now');
+  assert.throws(() => parseLiveRouteRequest({ ...body, stops: [] }, now), /between 1 and 60/);
+  assert.throws(() => parseLiveRouteRequest({ ...body, from: { lat: 200, lng: 0 } }, now), /latitude/);
+  assert.throws(() => parseLiveRouteRequest({ ...body, profile: undefined }, now), /vehicle profile/);
+  assert.throws(() => parseLiveRouteRequest({ ...body, profile: { hazmatTypes: [] } }, now), /at least one dimension/);
+  assert.throws(() => parseLiveRouteRequest({ ...body, profile: { heightFeet: 99 } }, now), /no more than 20/);
+
+  const url = buildHereUrl({ origin: request.from, stops: request.stops, request, heading: request.heading, departure: now, apiKey: 'k', baseUrl: 'https://router.example/v8' });
+  assert.equal(url.pathname, '/v8/routes');
+  assert.equal(url.searchParams.get('transportMode'), 'truck');
+  assert.equal(url.searchParams.get('origin'), '35.2,-80.8;course=270');
+  assert.equal(url.searchParams.get('destination'), '35.4,-80.6');
+  assert.deepEqual(url.searchParams.getAll('via'), ['35.3,-80.7']);
+  assert.equal(url.searchParams.get('vehicle[height]'), '411');
+  assert.equal(url.searchParams.get('vehicle[grossWeight]'), '36287');
+  assert.equal(url.searchParams.get('vehicle[shippedHazardousGoods]'), 'flammable');
+  assert.equal(url.searchParams.get('avoid[features]'), 'controlledAccessHighway');
+  assert.match(url.searchParams.get('avoid[areas]') ?? '', /^bbox:/);
+  assert.equal(url.searchParams.get('departureTime'), '2026-10-28T12:00:00Z');
+
+  // Two stops give two legs; steps follow the action offsets and the closing arrive action adds no step.
+  const first: Array<[number, number]> = [[35.2, -80.8], [35.21, -80.79], [35.22, -80.78], [35.23, -80.77]];
+  const second: Array<[number, number]> = [[35.23, -80.77], [35.24, -80.76], [35.25, -80.75]];
+  const hereBody = {
+    routes: [{
+      sections: [
+        {
+          summary: { length: 3200, duration: 420, baseDuration: 380 },
+          polyline: encode(first),
+          actions: [
+            { action: 'depart', offset: 0, length: 1500, duration: 200, instruction: 'Head north on Main St. Go for 0.9 mi.' },
+            { action: 'turn', direction: 'left', severity: 'quite', offset: 2, length: 1700, duration: 220, instruction: 'Turn left onto Trade St. Go for 1.1 mi.' },
+            { action: 'arrive', offset: 3, instruction: 'Arrive at Trade St.' },
+          ],
+        },
+        { summary: { length: 1500, duration: 180 }, polyline: encode(second) },
+      ],
+    }],
+  };
+  const legs = parseHereLiveRoute(hereBody, 2)!;
+  assert.equal(legs.length, 2);
+  assert.equal(legs[0]!.durationSeconds, 420);
+  assert.deepEqual(legs[0]!.steps.map(step => [step.instruction, step.maneuver, step.path.length]), [['Head north on Main St.', undefined, 3], ['Turn left onto Trade St.', 'turn-left', 2]]);
+  assert.deepEqual(legs[0]!.steps[0]!.path.at(-1), legs[0]!.steps[1]!.path[0], 'steps join without a gap');
+  assert.equal(legs[1]!.steps.length, 1, 'a section without actions is one step');
+  assert.deepEqual(liveRouteBounds(legs), { north: 35.25, south: 35.2, east: -80.75, west: -80.8 });
+  assert.equal(parseHereLiveRoute({ routes: [] }, 1), null);
+  assert.throws(() => parseHereLiveRoute(hereBody, 3), /Expected 3 route sections/);
 }
 
 function checkTrackingToken(): void {
@@ -587,6 +707,8 @@ async function main(): Promise<void> {
   console.log('Planner assistant checks passed.');
   checkTrackingToken();
   console.log('Tracking token checks passed.');
+  checkTruckRoute();
+  console.log('Truck live route checks passed.');
 }
 
 main().catch(error => {

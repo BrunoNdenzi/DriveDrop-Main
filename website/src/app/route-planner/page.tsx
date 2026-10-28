@@ -9,6 +9,7 @@ import PlannerBilling from '@/components/route-planner/PlannerBilling'
 import InstallApp from '@/components/route-planner/InstallApp'
 import { isNativeApp, postToNative } from '@/lib/native-bridge'
 import { readReplyStream } from '@/lib/benji-stream'
+import type { TruckRoute, TruckRouteRequest, TruckRouting } from '@/lib/truck-route'
 import DriverMapNavigation, { type ArrivalReport, type BenjiLiveContext, type DeviationEvent, type DriverFix, type NavStop } from '@/components/driver/DriverMapNavigation'
 import { describeReplan } from '@/lib/replan-summary'
 import { geocodeUsAddress } from '@/lib/address-resolve'
@@ -978,6 +979,15 @@ export default function StandaloneRoutePlannerPage() {
     } : {}),
   })
 
+  // While driving, roads are chosen for the vehicle entered in the plan, so a re-route never sends a truck down a car-only road.
+  const truckRouting: TruckRouting | undefined = verifyCommercialRoute
+    ? {
+      profile: routeOptions().commercialVehicle!,
+      ...(routingPreference === 'avoidHighways' ? { avoidHighways: true } : {}),
+      request: async (request: TruckRouteRequest) => (await api<{ route: TruckRoute | null }>('/live-route', { method: 'POST', body: JSON.stringify(request) })).route,
+    }
+    : undefined
+
   const routePayload = () => ({
     name: routeName.trim(),
     stops: stopsRef.current,
@@ -1239,6 +1249,7 @@ export default function StandaloneRoutePlannerPage() {
         autoStart
         {...(resumeFrom ? { resumeFrom: { completedStopIds: resumeFrom } } : {})}
         height="h-[100dvh]"
+        {...(truckRouting ? { truck: truckRouting } : {})}
         {...trackingProps}
       /></div>}
 
@@ -1317,6 +1328,7 @@ export default function StandaloneRoutePlannerPage() {
                 fuelStops={result.fuelStops}
                 onRequestDrive={startDriving}
                 height="h-[460px]"
+                {...(truckRouting ? { truck: truckRouting } : {})}
               /></div>}
             </section>
 

@@ -12,6 +12,7 @@ import { plannerBillingService } from '../services/plannerBilling.service';
 import { plannerProofRouter, plannerTrackingRouter } from './plannerStopProof.routes';
 import { plannerVoiceRouter } from './plannerVoice.routes';
 import { plannerAssistantRouter } from './plannerAssistant.routes';
+import { plannerTruckRouteRouter } from './plannerTruckRoute.routes';
 import { signTrackingToken, verifyTrackingToken } from '../services/plannerTracking';
 import { createRateLimiter } from '../services/plannerVoice';
 import type { StopProof } from '../services/plannerProof';
@@ -611,6 +612,7 @@ router.use(authenticate);
 router.use(plannerProofRouter);
 router.use(plannerVoiceRouter);
 router.use(plannerAssistantRouter);
+router.use(plannerTruckRouteRouter);
 
 router.get('/profile', asyncHandler(async (req: Request, res: Response) => {
   const ownerId = userId(req);

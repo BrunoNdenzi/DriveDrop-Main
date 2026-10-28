@@ -58,6 +58,7 @@ import { emptyCost, formatUsd, loadCost, saveCost, summarizeCost, today, type Be
 import { createEarcons } from '@/lib/earcons'
 import { emptyMetrics, loadMetrics, recordMetric, saveMetrics, type BenjiMetrics, type MetricEvent } from '@/lib/benji-metrics'
 import { resumePosition } from '@/lib/trip-resume'
+import { toDirectionsResult, type TruckRouting } from '@/lib/truck-route'
 import { DEFAULT_VOICE_SETTINGS, createVoicePlayer, loadVoiceSettings, saveVoiceSettings, type NaturalVoiceState, type VoiceSettings } from '@/lib/voice'
 import { canFullscreen, enterFullscreen, exitFullscreen, isFullscreen as isDeviceFullscreen, isIphoneBrowser } from '@/lib/fullscreen'
 import { toast } from '@/components/ui/toast'
@@ -193,6 +194,8 @@ interface DriverMapNavigationProps {
   // Lets the driver talk with Benji; it receives what the driver said and what the road looks like right now.
   onAskBenji?: (message: string, history: BenjiTurn[], live: BenjiLiveContext, onSentence: (sentence: string) => void) => Promise<BenjiReply>
   onDeviation?: (event: DeviationEvent) => void
+  // When set, every route (first line, re-routes, traffic checks) is asked for with the vehicle's size and weight instead of car roads.
+  truck?: TruckRouting
   trackingStatus?: { state: 'off' | 'pending' | 'on' | 'error'; label: string }
   onClose?: () => void
   // Set on the small preview map: Start Navigation hands over to full-screen driving mode instead of starting in place.
@@ -322,6 +325,7 @@ export default function DriverMapNavigation({
   onAddShipment,
   onAskBenji,
   onDeviation,
+  truck,
   trackingStatus,
   onClose,
   onRequestDrive,
@@ -462,6 +466,8 @@ export default function DriverMapNavigation({
 
   // Latest values for callbacks that must not change identity (map init, GPS watch).
   const stopsRef = useRef(stops)
+  const truckRef = useRef(truck)
+  truckRef.current = truck
   const latestRef = useRef({ currentDriverPos, showTraffic })
   const navStateRef = useRef(navState)
   const routeSegmentsRef = useRef(routeSegments)
@@ -674,7 +680,60 @@ export default function DriverMapNavigation({
 
   // ── Build Route with Directions API ───────────────────────────────
   // With `from`, the route starts at the driver's position and runs through the stops not yet reached.
-  const requestRoute = async (from: Point | null, startIndex: number, avoid: Point[] = [], bias?: { heading: number }): Promise<BuiltRoute | null> => {
+  // Truck guidance: the server routes with the vehicle's size and weight. Undefined means it could not, so standard roads are used.
+  // A traffic check never falls back, because a car route must not be suggested to a truck.
+  const requestTruckRoute = async (
+    truck: TruckRouting,
+    from: Point | null,
+    startIndex: number,
+    targets: NavStop[],
+    valid: NavStop[],
+    departure: Date,
+    avoid: Point[],
+    bias: { heading: number } | undefined,
+    suggestion: boolean,
+  ): Promise<BuiltRoute | null | undefined> => {
+    try {
+      const points = targets.filter(isPoint)
+      if (points.length !== targets.length) throw new Error('A stop has no coordinates')
+      const origin: Point = from ?? points[0]!
+      const request = {
+        from: origin,
+        stops: (from ? points : points.slice(1)).map(({ lat, lng }) => ({ lat, lng })),
+        profile: truck.profile,
+        ...(truck.avoidHighways ? { avoidHighways: true } : {}),
+        ...(bias ? { heading: bias.heading } : {}),
+        departureTime: departure.toISOString(),
+      }
+      let route = await truck.request(avoid.length > 0 ? { ...request, avoid } : request)
+      let avoided: boolean | undefined = avoid.length > 0 ? true : undefined
+      if (!route && avoid.length > 0) {
+        // Nothing gets around the closure: show the plain route and let the caller say so.
+        route = await truck.request(request)
+        avoided = false
+      }
+      if (!route) {
+        if (from || suggestion) return null
+        throw new Error('No road found for this vehicle')
+      }
+      return {
+        result: toDirectionsResult(route, google.maps),
+        valid,
+        legBase: from ? startIndex : 1,
+        fromHere: Boolean(from),
+        ...(avoided !== undefined ? { avoided } : {}),
+        ...(from ? { origin: from } : {}),
+      }
+    } catch (error) {
+      console.error('Truck routing failed:', error)
+      if (suggestion) return null
+      toast('Could not check roads for your vehicle size. Watch for low clearances and weight limits.', 'warning')
+      speakRef.current('I could not check roads for your vehicle size. Watch for low clearances and weight limits.')
+      return undefined
+    }
+  }
+
+  const requestRoute = async (from: Point | null, startIndex: number, avoid: Point[] = [], bias?: { heading: number }, options: { suggestion?: boolean } = {}): Promise<BuiltRoute | null> => {
     if (!window.google) return null
     const valid = stopsRef.current.filter(s => s.address && s.address.trim().length > 0)
     const targets = from ? valid.slice(startIndex) : valid
@@ -684,6 +743,10 @@ export default function DriverMapNavigation({
       stop.lat && stop.lng ? { lat: stop.lat, lng: stop.lng } : stop.address
     const rest = from ? targets : targets.slice(1)
     const departure = !from && departureTime && new Date(departureTime).getTime() > Date.now() ? new Date(departureTime) : new Date()
+    if (truckRef.current) {
+      const built = await requestTruckRoute(truckRef.current, from, startIndex, targets, valid, departure, avoid, bias, options.suggestion === true)
+      if (built !== undefined) return built
+    }
     const service = new google.maps.DirectionsService()
     const drivingOptions = { departureTime: departure, trafficModel: google.maps.TrafficModel.BEST_GUESS }
 
@@ -1942,7 +2005,7 @@ export default function DriverMapNavigation({
     if (!nav.isNavigating || simRef.current || rerouteBusyRef.current || offRouteStateRef.current !== 'on' || document.hidden) return
     if (!latest || latest.simulated || Date.now() - latest.at > FIX_FRESH_MS) return
     try {
-      const built = await requestRoute({ lat: latest.lat, lng: latest.lng }, nav.currentStopIndex, activeClosures(closuresRef.current, Date.now()))
+      const built = await requestRoute({ lat: latest.lat, lng: latest.lng }, nav.currentStopIndex, activeClosures(closuresRef.current, Date.now()), undefined, { suggestion: true })
       const legs = built?.result.routes[0]?.legs ?? []
       if (!built || legs.length === 0 || !navStateRef.current.isNavigating) return
       const newSeconds = legs.reduce((sum, leg) => sum + legSeconds(leg), 0)
