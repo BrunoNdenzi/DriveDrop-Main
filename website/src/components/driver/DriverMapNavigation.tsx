@@ -58,6 +58,7 @@ import { emptyCost, formatUsd, loadCost, saveCost, summarizeCost, today, type Be
 import { createEarcons } from '@/lib/earcons'
 import { emptyMetrics, loadMetrics, recordMetric, saveMetrics, type BenjiMetrics, type MetricEvent } from '@/lib/benji-metrics'
 import { resumePosition } from '@/lib/trip-resume'
+import { isNativeApp } from '@/lib/native-bridge'
 import { toDirectionsResult, type TruckRouting } from '@/lib/truck-route'
 import { DEFAULT_VOICE_SETTINGS, createVoicePlayer, loadVoiceSettings, saveVoiceSettings, type NaturalVoiceState, type VoiceSettings } from '@/lib/voice'
 import { canFullscreen, enterFullscreen, exitFullscreen, isFullscreen as isDeviceFullscreen, isIphoneBrowser } from '@/lib/fullscreen'
@@ -2370,8 +2371,8 @@ export default function DriverMapNavigation({
               )}
 
               {/* Route summary: one line; GPS and tracking only speak up when something needs attention */}
-              <div className="flex items-center justify-between gap-2 rounded-lg bg-white/95 px-2.5 py-1.5 shadow-md backdrop-blur sm:px-3">
-                <div className="flex min-w-0 items-center gap-2.5 text-xs sm:gap-4 sm:text-sm">
+              <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-0.5 rounded-lg bg-white/95 px-2.5 py-1.5 shadow-md backdrop-blur sm:px-3">
+                <div className="flex min-w-0 flex-wrap items-center gap-x-2.5 gap-y-0.5 whitespace-nowrap text-xs sm:gap-x-4 sm:text-sm">
                   <span className="flex items-center gap-1 font-semibold text-gray-900">
                     <Route className="h-3.5 w-3.5 text-amber-500" />
                     {navState.isNavigating && navState.totalDistanceRemaining ? navState.totalDistanceRemaining : totalDistance}
@@ -2387,7 +2388,7 @@ export default function DriverMapNavigation({
                     </span>
                   )}
                 </div>
-                <div className="flex shrink-0 items-center gap-2">
+                <div className="flex shrink-0 items-center gap-2 whitespace-nowrap">
                   {navState.isNavigating && liveStats.speedMph !== null && (
                     <span className="text-xs font-bold tabular-nums text-gray-900">{liveStats.speedMph} mph</span>
                   )}
@@ -2398,7 +2399,7 @@ export default function DriverMapNavigation({
                       if (liveStats.accuracy !== null && liveStats.accuracy > 75) return <span className="text-[11px] font-semibold text-red-600">GPS weak</span>
                       if (trackingStatus?.state === 'error') return <span className="text-[11px] font-semibold text-red-600">{trackingStatus.label}</span>
                       if (trackingStatus?.state === 'pending') return <span className="text-[11px] font-semibold text-amber-600">{trackingStatus.label}</span>
-                      if (!wakeLockActive) return <span className="text-[11px] font-medium text-amber-600">Auto-lock can pause GPS</span>
+                      if (!wakeLockActive && !isNativeApp()) return <span className="text-[11px] font-medium text-amber-600">Auto-lock can pause GPS</span>
                       return trackingStatus?.state === 'on'
                         ? <span title={trackingStatus.label} aria-label={trackingStatus.label} className="h-2 w-2 rounded-full bg-green-500" />
                         : null
