@@ -34,7 +34,7 @@ export default function BenjiAvatar({ speaking, muted, caption, onOpen, talk }: 
           type="button"
           onClick={onOpen}
           aria-label={muted ? 'Benji is quiet. Open voice settings' : "Open Benji's voice settings"}
-          className={`pointer-events-auto relative h-12 w-12 shrink-0 rounded-full bg-white shadow-lg ring-2 transition-shadow ${speaking ? 'ring-amber-400' : 'ring-white'} ${muted ? 'opacity-70' : ''}`}
+          className={`pointer-events-auto relative h-10 w-10 shrink-0 rounded-full bg-white shadow-lg ring-2 transition-shadow sm:h-12 sm:w-12 ${speaking ? 'ring-amber-400' : 'ring-white'} ${muted ? 'opacity-70' : ''}`}
         >
           <svg viewBox="0 0 64 64" className={`h-full w-full ${speaking ? 'benji-talking' : ''}`} aria-hidden="true">
             <line x1="32" y1="9" x2="32" y2="16" stroke="#173f40" strokeWidth="2.5" strokeLinecap="round" />
@@ -76,7 +76,7 @@ export default function BenjiAvatar({ speaking, muted, caption, onOpen, talk }: 
           onClick={talk.onToggle}
           aria-label={TALK_LABEL[talk.state]}
           aria-pressed={talk.state !== 'off'}
-          className={`pointer-events-auto grid h-12 w-12 shrink-0 place-items-center rounded-full shadow-lg ring-2 ${TALK_STYLE[talk.state]}`}
+          className={`pointer-events-auto grid h-10 w-10 shrink-0 place-items-center rounded-full shadow-lg ring-2 sm:h-12 sm:w-12 ${TALK_STYLE[talk.state]}`}
         >
           <Mic className="h-5 w-5" />
         </button>

@@ -258,6 +258,8 @@ const REROUTE_COOLDOWN_MS = 10_000
 const SETTLE_MS = 15_000
 const TRAFFIC_REFRESH_MS = 240_000
 const FASTER_ROUTE_MIN_SECONDS = 180
+// A stop this late means the planned times are stale, not that the driver is hours behind.
+const MAX_BEHIND_MINUTES = 240
 const USER_ZOOM_HOLD_MS = 15_000
 const MAP_ID = process.env.NEXT_PUBLIC_GOOGLE_MAPS_MAP_ID
 
@@ -2268,11 +2270,11 @@ export default function DriverMapNavigation({
           type="button"
           onClick={exitAction}
           aria-label={onClose ? 'Exit driving mode' : 'Exit full screen'}
-          className="absolute right-3 z-20 flex h-12 items-center gap-1.5 rounded-lg bg-gray-900 px-3.5 text-sm font-semibold text-white shadow-lg ring-1 ring-white/30 active:bg-gray-700"
+          className="absolute right-3 z-20 flex h-10 w-10 items-center justify-center gap-1.5 rounded-lg bg-gray-900 text-sm font-semibold text-white shadow-lg ring-1 ring-white/30 active:bg-gray-700 sm:h-12 sm:w-auto sm:px-3.5"
           style={{ top: 'calc(0.75rem + env(safe-area-inset-top))' }}
         >
           <X className="h-5 w-5" />
-          Exit
+          <span className="hidden sm:inline">Exit</span>
         </button>
       )}
 
@@ -2281,15 +2283,15 @@ export default function DriverMapNavigation({
           {/* ── Top Bar: Route Summary ──────────────────────────── */}
           {routeLoaded && (
             <div
-              className={`absolute z-10 ${exitAction ? 'right-[5.5rem]' : 'right-3'}`}
+              className={`absolute z-10 ${exitAction ? 'right-[3.75rem] sm:right-[5.5rem]' : 'right-3'}`}
               style={{ top: 'calc(0.75rem + env(safe-area-inset-top))', left: 'calc(0.75rem + env(safe-area-inset-left))', ...(exitAction ? {} : { right: 'calc(0.75rem + env(safe-area-inset-right))' }) }}
             >
               {/* Navigation Instruction Banner */}
               {navState.isNavigating && navState.nextInstruction && (
-                <div className="mb-1.5 rounded-lg bg-gray-900 px-2.5 py-2 text-white shadow-lg sm:mb-2 sm:px-3 sm:py-3">
+                <div className="mb-1 rounded-lg bg-gray-900 px-2.5 py-1.5 text-white shadow-lg sm:mb-2 sm:px-3 sm:py-3">
                   <div className="flex items-center gap-2.5 sm:gap-3">
-                    <div className="grid h-11 w-11 shrink-0 place-items-center rounded-lg bg-white/10 sm:h-14 sm:w-14">
-                      <ManeuverIcon view={navState.maneuver} className="h-7 w-7 text-amber-400 sm:h-9 sm:w-9" />
+                    <div className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-white/10 sm:h-14 sm:w-14">
+                      <ManeuverIcon view={navState.maneuver} className="h-6 w-6 text-amber-400 sm:h-9 sm:w-9" />
                     </div>
                     <div className="min-w-0 flex-1">
                       <p className="flex items-baseline gap-2">
@@ -2361,29 +2363,29 @@ export default function DriverMapNavigation({
 
               {/* Behind-schedule nudge */}
               {navState.isNavigating && behindSchedule && !deviation && !breakMode && !fasterRoute && (
-                <div className="mb-1.5 flex items-center gap-2 rounded-lg bg-amber-500 px-2.5 py-2 text-gray-900 shadow-lg">
-                  <Clock className="h-5 w-5 shrink-0" />
-                  <p className="min-w-0 flex-1 text-[13px] font-semibold leading-snug sm:text-sm">About {minutesBehind} min behind schedule</p>
-                  <button type="button" onClick={() => void replan()} disabled={replanning} className="h-9 shrink-0 rounded-md bg-gray-900 px-3 text-xs font-bold text-white disabled:opacity-50">
+                <div className="mb-1 flex items-center gap-2 rounded-lg bg-amber-500 px-2.5 py-1.5 text-gray-900 shadow-lg sm:mb-1.5 sm:py-2">
+                  <Clock className="h-4 w-4 shrink-0 sm:h-5 sm:w-5" />
+                  <p className="min-w-0 flex-1 text-xs font-semibold leading-snug sm:text-sm">{minutesBehind > MAX_BEHIND_MINUTES ? 'Planned times are out of date' : `About ${formatDuration(minutesBehind * 60)} behind schedule`}</p>
+                  <button type="button" onClick={() => void replan()} disabled={replanning} className="h-8 shrink-0 rounded-md bg-gray-900 px-3 text-xs font-bold text-white disabled:opacity-50">
                     {replanning ? 'Re-planning...' : 'Re-plan'}
                   </button>
                 </div>
               )}
 
               {/* Route summary: one line; GPS and tracking only speak up when something needs attention */}
-              <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-0.5 rounded-lg bg-white/95 px-2.5 py-1.5 shadow-md backdrop-blur sm:px-3">
-                <div className="flex min-w-0 flex-wrap items-center gap-x-2.5 gap-y-0.5 whitespace-nowrap text-xs sm:gap-x-4 sm:text-sm">
+              <div className="flex items-center justify-between gap-2 overflow-hidden rounded-lg bg-white/95 px-2.5 py-1 shadow-md backdrop-blur sm:px-3 sm:py-1.5">
+                <div className="flex min-w-0 items-center gap-x-2.5 whitespace-nowrap text-xs sm:gap-x-4 sm:text-sm">
                   <span className="flex items-center gap-1 font-semibold text-gray-900">
-                    <Route className="h-3.5 w-3.5 text-amber-500" />
+                    <Route className="hidden h-3.5 w-3.5 text-amber-500 sm:block" />
                     {navState.isNavigating && navState.totalDistanceRemaining ? navState.totalDistanceRemaining : totalDistance}
                   </span>
                   <span className="flex items-center gap-1 font-medium text-gray-700">
-                    <Clock className="h-3.5 w-3.5 text-blue-500" />
+                    <Clock className="hidden h-3.5 w-3.5 text-blue-500 sm:block" />
                     {navState.isNavigating && navState.totalDurationRemaining ? navState.totalDurationRemaining : totalDuration}
                   </span>
                   {navState.eta && (
                     <span className="flex items-center gap-1 font-medium text-gray-700">
-                      <Target className="h-3.5 w-3.5 text-green-500" />
+                      <Target className="hidden h-3.5 w-3.5 text-green-500 sm:block" />
                       ETA {navState.eta}
                     </span>
                   )}
@@ -2433,13 +2435,15 @@ export default function DriverMapNavigation({
           )}
 
           {/* ── Right Controls ──────────────────────────────────── */}
-          <div className="absolute right-3 top-1/2 -translate-y-1/2 z-10 flex flex-col gap-2">
-            <MapControlButton
-              icon={<Locate className={`h-4 w-4 ${following ? 'text-amber-500' : ''}`} />}
-              title={following ? 'Following your location' : 'Recenter on my location'}
-              onClick={recenterMap}
-              active={following}
-            />
+          <div className="absolute right-3 top-1/2 -translate-y-1/2 z-10 flex flex-col gap-1.5 sm:gap-2">
+            {!navState.isNavigating && (
+              <MapControlButton
+                icon={<Locate className={`h-4 w-4 ${following ? 'text-amber-500' : ''}`} />}
+                title={following ? 'Following your location' : 'Recenter on my location'}
+                onClick={recenterMap}
+                active={following}
+              />
+            )}
             <MapControlButton
               icon={showTraffic ? <AlertTriangle className="h-4 w-4 text-amber-500" /> : <AlertTriangle className="h-4 w-4" />}
               title="Toggle Traffic"
@@ -2449,6 +2453,7 @@ export default function DriverMapNavigation({
             <MapControlButton
               icon={<Layers className="h-4 w-4" />}
               title="Map Style"
+              className={navState.isNavigating ? 'hidden sm:flex' : ''}
               onClick={() =>
                 setMapType(p =>
                   p === 'roadmap' ? 'satellite' : p === 'satellite' ? 'hybrid' : 'roadmap'
@@ -2472,7 +2477,7 @@ export default function DriverMapNavigation({
                 }}
               />
             )}
-            {onClose && fullscreenSupported && (
+            {onClose && fullscreenSupported && !isNativeApp() && (
               <MapControlButton
                 icon={deviceFullscreen ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
                 title={deviceFullscreen ? 'Leave full screen' : 'Hide the browser bars'}
@@ -2490,7 +2495,7 @@ export default function DriverMapNavigation({
             {/* Back to the car after looking around the map */}
             {navState.isNavigating && !following && (
               <div className="mb-1.5 flex justify-end">
-                <button type="button" onClick={recenterMap} className="flex h-11 items-center gap-2 rounded-full bg-gray-900 px-4 text-sm font-bold text-white shadow-lg ring-1 ring-white/30">
+                <button type="button" onClick={recenterMap} className="flex h-10 items-center gap-2 rounded-full bg-gray-900 px-3.5 text-sm font-bold text-white shadow-lg ring-1 ring-white/30">
                   <Locate className="h-4 w-4 text-amber-400" />
                   Re-center
                 </button>
@@ -2795,23 +2800,25 @@ export default function DriverMapNavigation({
                 currentIndex={navState.isNavigating ? navState.currentStopIndex : null}
                 onSelect={focusStop}
               />
-              <div className="flex flex-wrap items-center gap-1 p-1.5 sm:p-2">
+              <div className="flex flex-wrap items-center gap-0.5 p-1 sm:gap-1 sm:p-2">
                 {/* Toggle Stops List */}
                 <button
                   onClick={() => setShowStopsList(p => !p)}
-                  className={`flex items-center gap-1.5 px-3 py-2 rounded-md text-xs font-medium transition-colors ${
+                  title="Stops"
+                  aria-label="Stops"
+                  className={`flex items-center gap-1.5 px-2.5 py-2 sm:px-3 rounded-md text-xs font-medium transition-colors ${
                     showStopsList ? 'bg-amber-50 text-amber-700' : 'text-gray-600 hover:bg-gray-100'
                   }`}
                 >
                   {showStopsList ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronUp className="h-3.5 w-3.5" />}
-                  Stops
+                  <span className={navState.isNavigating ? 'hidden sm:inline' : ''}>Stops</span>
                 </button>
 
                 {/* Benji Toggle */}
                 {benjiTips.length > 0 && (
                   <button
                     onClick={() => setShowBenjiPanel(p => !p)}
-                    className={`flex items-center gap-1.5 px-3 py-2 rounded-md text-xs font-medium transition-colors ${
+                    className={`items-center gap-1.5 px-2.5 py-2 sm:px-3 rounded-md text-xs font-medium transition-colors ${navState.isNavigating ? 'hidden sm:flex' : 'flex'} ${
                       showBenjiPanel ? 'bg-amber-50 text-amber-700' : 'text-gray-600 hover:bg-gray-100'
                     }`}
                   >
@@ -2847,7 +2854,7 @@ export default function DriverMapNavigation({
                     onClick={openInGoogleMaps}
                     title="Open in Google Maps"
                     aria-label="Open in Google Maps"
-                    className="flex items-center gap-1.5 px-3 py-2 rounded-md text-xs font-medium text-gray-600 hover:bg-gray-100 transition-colors"
+                    className="flex items-center gap-1.5 px-2.5 py-2 sm:px-3 rounded-md text-xs font-medium text-gray-600 hover:bg-gray-100 transition-colors"
                   >
                     <Navigation className="h-3.5 w-3.5" />
                     <span className="hidden sm:inline">Google Maps</span>
@@ -2860,7 +2867,7 @@ export default function DriverMapNavigation({
                     onClick={() => void replan()}
                     disabled={replanning}
                     title="Re-plan: reorder the stops still ahead, starting from where you are now"
-                    className="flex items-center gap-1.5 px-3 py-2 rounded-md text-xs font-medium text-gray-600 hover:bg-gray-100 transition-colors disabled:opacity-50"
+                    className="flex items-center gap-1.5 px-2.5 py-2 sm:px-3 rounded-md text-xs font-medium text-gray-600 hover:bg-gray-100 transition-colors disabled:opacity-50"
                   >
                     <Zap className="h-3.5 w-3.5" />
                     <span className="hidden sm:inline">{replanning ? 'Re-planning...' : 'Re-plan'}</span>
@@ -2872,7 +2879,7 @@ export default function DriverMapNavigation({
                     type="button"
                     onClick={reportBlocked}
                     title="Report a closure ahead and find another way"
-                    className="flex items-center gap-1.5 px-3 py-2 rounded-md text-xs font-medium text-gray-600 hover:bg-gray-100 transition-colors"
+                    className="flex items-center gap-1.5 px-2.5 py-2 sm:px-3 rounded-md text-xs font-medium text-gray-600 hover:bg-gray-100 transition-colors"
                   >
                     <AlertTriangle className="h-3.5 w-3.5" />
                     <span className="hidden sm:inline">Road blocked</span>
@@ -2885,7 +2892,7 @@ export default function DriverMapNavigation({
                     onClick={() => setAddingShipment(open => !open)}
                     title="Add shipment"
                     aria-label="Add shipment"
-                    className={`flex items-center gap-1.5 px-3 py-2 rounded-md text-xs font-medium transition-colors ${addingShipment ? 'bg-amber-50 text-amber-700' : 'text-gray-600 hover:bg-gray-100'}`}
+                    className={`flex items-center gap-1.5 px-2.5 py-2 sm:px-3 rounded-md text-xs font-medium transition-colors ${addingShipment ? 'bg-amber-50 text-amber-700' : 'text-gray-600 hover:bg-gray-100'}`}
                   >
                     <Package className="h-3.5 w-3.5" />
                     <span className="hidden sm:inline">Add shipment</span>
@@ -2917,18 +2924,18 @@ export default function DriverMapNavigation({
                     Start Navigation
                   </Button>
                 ) : (
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-1.5 sm:gap-2">
                     {/* Mark current stop done */}
                     <Button
                       onClick={() => requestStopCompletion(navState.currentStopIndex)}
-                      className="bg-green-500 hover:bg-green-600 text-white text-xs px-3 py-2 h-auto"
+                      className="bg-green-500 hover:bg-green-600 text-white text-xs px-2.5 sm:px-3 py-2 h-auto"
                     >
                       Arrived
                     </Button>
                     <Button
                       onClick={stopNavigation}
                       variant="outline"
-                      className="text-xs px-3 py-2 h-auto border-red-300 text-red-600 hover:bg-red-50"
+                      className="text-xs px-2.5 sm:px-3 py-2 h-auto border-red-300 text-red-600 hover:bg-red-50"
                     >
                       Stop
                     </Button>
@@ -2998,11 +3005,13 @@ function MapControlButton({
   title,
   onClick,
   active,
+  className = '',
 }: {
   icon: React.ReactNode
   title: string
   onClick: () => void
   active?: boolean
+  className?: string
 }) {
   return (
     <button
@@ -3010,9 +3019,9 @@ function MapControlButton({
       onClick={onClick}
       title={title}
       aria-label={title}
-      className={`w-11 h-11 sm:w-9 sm:h-9 rounded-lg shadow-md flex items-center justify-center transition-colors ${
+      className={`w-10 h-10 sm:w-9 sm:h-9 rounded-lg shadow-md flex items-center justify-center transition-colors ${
         active ? 'bg-amber-50 border border-amber-300' : 'bg-white border border-gray-200 hover:bg-gray-50'
-      }`}
+      } ${className}`}
     >
       {icon}
     </button>
