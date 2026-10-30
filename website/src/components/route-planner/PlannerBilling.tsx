@@ -166,6 +166,12 @@ export default function PlannerBilling() {
       </section>
 
       {billing.stripeSubscriptionId && !billing.cancelAtPeriodEnd && <button onClick={() => void cancel()} disabled={busy} className="text-sm font-semibold text-[#9f4740] disabled:opacity-50">Cancel at period end</button>}
+
+      <section className="border border-[#c6d4d2] bg-white p-5">
+        <h2 className="font-semibold">Account</h2>
+        <p className="mt-1 text-sm text-[#667b79]">Delete your account and everything in it, including routes, locations, run history and delivery proof. Any subscription is cancelled.</p>
+        <a href="/route-planner/account-deletion" className="mt-3 inline-block text-sm font-semibold text-[#9f4740] hover:underline">Delete account</a>
+      </section>
     </div>
   )
 }

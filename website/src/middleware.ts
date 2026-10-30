@@ -95,7 +95,7 @@ export async function middleware(request: NextRequest) {
   console.log('[MIDDLEWARE] Path:', pathname)
   console.log('[MIDDLEWARE] Has user:', !!user)
   
-  const isPublicPlannerPath = pathname === '/route-planner/signup' || pathname.startsWith('/route-planner/shared/') || pathname.startsWith('/route-planner/track/')
+  const isPublicPlannerPath = pathname === '/route-planner/signup' || pathname === '/route-planner/account-deletion' || pathname.startsWith('/route-planner/shared/') || pathname.startsWith('/route-planner/track/')
   const isPlannerWorkspace = (pathname === '/route-planner' || pathname.startsWith('/route-planner/')) && !isPublicPlannerPath
 
   // The sign-in check could not reach Supabase (a phone waking up, a brief outage): that is not a sign-out, so let the page load and retry.

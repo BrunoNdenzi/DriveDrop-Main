@@ -4,7 +4,7 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import { Suspense, useState } from 'react'
-import { AlertCircle, ArrowRight, CheckCircle, Eye, EyeOff, LockKeyhole, Mail, ShieldCheck } from '@/components/icons/streamline-lucide'
+import { AlertCircle, ArrowRight, CheckCircle, Eye, EyeOff, LockKeyhole, Mail, Route, ShieldCheck } from '@/components/icons/streamline-lucide'
 
 type UserRole = 'client' | 'driver' | 'broker' | 'admin'
 
@@ -27,7 +27,7 @@ function AccessMetric({ label, value }: { label: string; value: string }) {
 function LoginForm() {
   const searchParams = useSearchParams()
   const redirectTo = searchParams.get('redirect')
-  const isRoutePlanner = redirectTo === '/route-planner'
+  const isRoutePlanner = redirectTo === '/route-planner' || (redirectTo?.startsWith('/route-planner/') ?? false)
   const isVerified = searchParams.get('verified') === 'true'
   const [activeRole, setActiveRole] = useState<UserRole>('client')
   const [email, setEmail] = useState('')
@@ -65,10 +65,14 @@ function LoginForm() {
     <main className="min-h-screen bg-[#f2f6f5] text-[#132c2d]">
       <header className="border-b border-[#ccd9d7] bg-white">
         <div className="mx-auto flex h-16 max-w-[1440px] items-center justify-between px-4 sm:px-6 lg:px-8">
-          <Link href="/" aria-label="DriveDrop home">
-            <Image src="/logo-primary.png" alt="DriveDrop" width={132} height={36} className="h-8 w-auto" priority />
-          </Link>
-          <Link href="/" className="text-sm font-semibold text-[#526c6b] transition-colors hover:text-[#007b72]">Back to site</Link>
+          {isRoutePlanner ? (
+            <p className="flex items-center gap-2 text-base font-semibold text-[#132c2d]"><Route className="h-5 w-5 text-[#008c82]" />DriveDrop Route Planner</p>
+          ) : (
+            <Link href="/" aria-label="DriveDrop home">
+              <Image src="/logo-primary.png" alt="DriveDrop" width={132} height={36} className="h-8 w-auto" priority />
+            </Link>
+          )}
+          {!isRoutePlanner && <Link href="/" className="text-sm font-semibold text-[#526c6b] transition-colors hover:text-[#007b72]">Back to site</Link>}
         </div>
       </header>
 
@@ -78,16 +82,26 @@ function LoginForm() {
           <div className="relative max-w-xl">
             <div className="mb-8 inline-flex items-center gap-2 border border-white/25 bg-white/10 px-3 py-2 text-xs font-semibold uppercase tracking-[0.12em] text-[#c7f3ed]">
               <ShieldCheck className="h-4 w-4" />
-              Verified vehicle logistics
+              {isRoutePlanner ? 'Route planning for independent drivers' : 'Verified vehicle logistics'}
             </div>
-            <h1 className="max-w-lg text-4xl font-semibold leading-[1.05] sm:text-5xl lg:text-6xl">Every move, accounted for.</h1>
-            <p className="mt-5 max-w-lg text-base leading-7 text-[#c8d9d8] sm:text-lg">One operational network for vehicle owners, drivers, and freight partners.</p>
+            <h1 className="max-w-lg text-4xl font-semibold leading-[1.05] sm:text-5xl lg:text-6xl">{isRoutePlanner ? 'Plan the day. Drive it.' : 'Every move, accounted for.'}</h1>
+            <p className="mt-5 max-w-lg text-base leading-7 text-[#c8d9d8] sm:text-lg">{isRoutePlanner ? 'Optimized multi-stop routes, voice guidance, and live ETAs for independent drivers and small fleets.' : 'One operational network for vehicle owners, drivers, and freight partners.'}</p>
           </div>
 
           <div className="relative mt-10 grid grid-cols-3 border-y border-white/20">
-            <AccessMetric label="Tracked" value="Real time" />
-            <AccessMetric label="Coverage" value="Nationwide" />
-            <AccessMetric label="Support" value="Human" />
+            {isRoutePlanner ? (
+              <>
+                <AccessMetric label="Routes" value="Optimized" />
+                <AccessMetric label="Guidance" value="Voice" />
+                <AccessMetric label="ETAs" value="Live" />
+              </>
+            ) : (
+              <>
+                <AccessMetric label="Tracked" value="Real time" />
+                <AccessMetric label="Coverage" value="Nationwide" />
+                <AccessMetric label="Support" value="Human" />
+              </>
+            )}
           </div>
         </div>
 

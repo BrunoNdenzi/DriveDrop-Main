@@ -1232,7 +1232,7 @@ export default function StandaloneRoutePlannerPage() {
       <header className="border-b border-[#bfd0cd] bg-[#123638] text-white">
         <div className="mx-auto flex min-h-16 max-w-[1500px] items-center justify-between gap-4 px-4 sm:px-6">
           <div className="flex items-center gap-3"><Route className="h-6 w-6 text-[#66d3c8]" /><div><p className="font-semibold">DriveDrop Route Planner</p><p className="text-xs text-[#a8c7c3]">{businessName || 'Personal workspace'}</p></div></div>
-          <div className="flex items-center gap-2"><Link href="/dashboard" className="hidden px-3 py-2 text-sm text-[#c6dbd8] hover:text-white sm:block">DriveDrop dashboard</Link><button onClick={signOut} title="Sign out" className="grid h-9 w-9 place-items-center border border-white/20 hover:bg-white/10"><LogOut className="h-4 w-4" /></button></div>
+          <div className="flex items-center gap-2"><button onClick={signOut} title="Sign out" className="grid h-9 w-9 place-items-center border border-white/20 hover:bg-white/10"><LogOut className="h-4 w-4" /></button></div>
         </div>
       </header>
 
@@ -1367,6 +1367,11 @@ export default function StandaloneRoutePlannerPage() {
 
         {tab === 'locations' && <div className="mt-5 grid gap-5 lg:grid-cols-[380px_1fr]"><section className="border border-[#c6d4d2] bg-white p-5"><h2 className="font-semibold">Save a location</h2><div className="mt-4 space-y-3"><input value={locationForm.name} onChange={event => setLocationForm(current => ({ ...current, name: event.target.value }))} placeholder="Location name" className="h-10 w-full border border-[#c6d4d2] px-3 text-sm" /><input ref={locationInputRef} value={locationForm.address} onChange={event => setLocationForm(current => { const { latitude: _lat, longitude: _lng, ...rest } = current; return { ...rest, address: event.target.value } })} placeholder="Full address" className="h-10 w-full border border-[#c6d4d2] px-3 text-sm" /><textarea value={locationForm.notes} onChange={event => setLocationForm(current => ({ ...current, notes: event.target.value }))} placeholder="Access notes (optional)" className="min-h-24 w-full border border-[#c6d4d2] p-3 text-sm" /><button onClick={saveLocation} disabled={!locationForm.name.trim() || !locationForm.address.trim()} className="flex h-10 items-center gap-2 bg-[#008c82] px-4 text-sm font-bold text-white disabled:opacity-40"><Save className="h-4 w-4" />Save location</button></div></section><section className="border border-[#c6d4d2] bg-white"><div className="border-b border-[#d8e2e0] px-5 py-4"><h2 className="font-semibold">Address book</h2></div>{locations.length === 0 ? <EmptyState icon={MapPin} text="No saved locations yet" /> : <div className="divide-y divide-[#e1e9e7]">{locations.map(location => <div key={location.id} className="flex items-center gap-4 px-5 py-4"><MapPin className="h-5 w-5 shrink-0 text-[#008c82]" /><div className="min-w-0 flex-1"><p className="font-semibold">{location.name}</p><p className="truncate text-sm text-[#667b79]">{location.address}</p></div><button onClick={() => addStop(location)} className="flex h-9 items-center gap-2 border border-[#aebfbc] px-3 text-sm font-semibold"><Plus className="h-4 w-4" />Add to route</button><button onClick={() => void deleteLocation(location.id)} title="Delete location" className="grid h-9 w-9 place-items-center text-[#9f4740] hover:bg-red-50"><Trash2 className="h-4 w-4" /></button></div>)}</div>}</section></div>}
       </div>
+      <footer className="mx-auto mt-6 max-w-[1500px] border-t border-[#bfd0cd] px-4 py-5 text-xs text-[#617775] sm:px-6">
+        <Link href="/route-planner/account-deletion" className="font-semibold hover:underline">Delete account</Link>
+        <span className="mx-2">·</span>
+        <Link href="/privacy" className="hover:underline">Privacy</Link>
+      </footer>
     </main>
   )
 }

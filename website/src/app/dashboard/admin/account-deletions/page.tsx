@@ -44,12 +44,13 @@ export default function AccountDeletionsPage() {
     setActionLoading(req.id)
     try {
       // 1. Delete the auth user (this cascades to profile via DB triggers)
+      const { data: { session } } = await supabase.auth.getSession()
       const res = await fetch('/api/admin/delete-user', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId: req.user_id, email: req.email }),
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session?.access_token ?? ''}` },
+        body: JSON.stringify({ userId: req.user_id }),
       })
-      if (!res.ok) throw new Error('Failed to delete user')
+      if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || 'Failed to delete user')
 
       // 2. Mark request as approved
       await supabase

@@ -93,6 +93,16 @@ export async function POST(request: Request) {
       )
     }
 
+    // An account waiting for deletion review cannot sign in; the column may not exist on older databases, so a failed read is ignored.
+    const { data: lock } = await supabase.from('profiles').select('status').eq('id', authData.user.id).maybeSingle()
+    if ((lock as { status?: string } | null)?.status === 'pending_delete_review') {
+      await supabase.auth.signOut()
+      return jsonResponse(
+        { error: 'This account has a deletion request under review. Email infos@drivedrop.us.com to cancel it.' },
+        { status: 403 }
+      )
+    }
+
     // Check if password change is required (for newly approved drivers)
     const forcePasswordChange = authData.user.user_metadata?.force_password_change === true
     
