@@ -4,7 +4,6 @@ import { StatusBar } from 'expo-status-bar'
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { WebView, type WebViewMessageEvent } from 'react-native-webview'
 import { activateKeepAwakeAsync, deactivateKeepAwake } from 'expo-keep-awake'
-import * as Location from 'expo-location'
 import { ExpoSpeechRecognitionModule, useSpeechRecognitionEvent } from 'expo-speech-recognition'
 import { startTracking, stopTracking, type TripConfig } from './src/tracking'
 import { ensureTrackingPermission } from './src/permissions'
@@ -20,9 +19,10 @@ const PLANNER_HOST = parseUrl(PLANNER_URL)?.host ?? 'drivedrop.us.com'
 const KEEP_AWAKE_TAG = 'trip'
 
 // Tells the page it is running inside the app, and that the app can listen for Benji.
-const BEFORE_LOAD = `window.__DRIVEDROP_NATIVE__ = { platform: 'android', speech: true }; true;`
+const BEFORE_LOAD = `window.__DRIVEDROP_NATIVE__ = { platform: 'android', speech: true, locationGate: true }; true;`
 
 type PageMessage =
+  | { type: 'location-need' }
   | { type: 'trip-start'; executionId: string; trackingToken: string; expiresAt: string; apiBase: string }
   | { type: 'trip-stop' }
   | { type: 'stt-start'; hints: string[] }
@@ -31,7 +31,7 @@ type PageMessage =
 function parseMessage(raw: string): PageMessage | null {
   try {
     const message = JSON.parse(raw) as Record<string, unknown>
-    if (message.type === 'trip-stop' || message.type === 'stt-stop') return { type: message.type }
+    if (message.type === 'trip-stop' || message.type === 'stt-stop' || message.type === 'location-need') return { type: message.type }
     if (message.type === 'stt-start') {
       const hints = Array.isArray(message.hints) ? message.hints.filter((hint): hint is string => typeof hint === 'string' && hint.length <= 60).slice(0, 60) : []
       return { type: 'stt-start', hints }
@@ -67,6 +67,7 @@ function Planner() {
   const web = useRef<WebView>(null)
   const canGoBack = useRef(false)
   const heard = useRef(false)
+  const locationDeclined = useRef(false)
   const [failed, setFailed] = useState(false)
 
   const tell = (detail: Record<string, unknown>) => {
@@ -99,7 +100,16 @@ function Planner() {
     return () => subscription.remove()
   }, [])
 
+  // The page asks before it uses the phone's location, so the explanation always comes before Android's own prompts.
+  const askLocation = async () => {
+    locationDeclined.current = false
+    const granted = await ensureTrackingPermission()
+    locationDeclined.current = !granted
+    tell({ type: 'location-ready', granted })
+  }
+
   const startTrip = async (trip: TripConfig) => {
+    if (locationDeclined.current) return
     if (!(await ensureTrackingPermission())) return
     try {
       await startTracking(trip)
@@ -141,7 +151,8 @@ function Planner() {
   const onMessage = (event: WebViewMessageEvent) => {
     const message = parseMessage(event.nativeEvent.data)
     if (!message) return
-    if (message.type === 'trip-start') void startTrip(message)
+    if (message.type === 'location-need') void askLocation()
+    else if (message.type === 'trip-start') void startTrip(message)
     else if (message.type === 'trip-stop') void stopTrip()
     else if (message.type === 'stt-start') void startListening(message.hints)
     else ExpoSpeechRecognitionModule.abort()
@@ -185,7 +196,6 @@ function Planner() {
         onNavigationStateChange={state => { canGoBack.current = state.canGoBack }}
         onError={() => setFailed(true)}
         onHttpError={event => { if (event.nativeEvent.statusCode >= 500) setFailed(true) }}
-        onLoadEnd={() => { void Location.requestForegroundPermissionsAsync() }}
         startInLoadingState
         renderLoading={() => <View style={styles.center}><ActivityIndicator color="#ffffff" /></View>}
         javaScriptEnabled

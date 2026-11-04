@@ -58,7 +58,7 @@ import { emptyCost, formatUsd, loadCost, saveCost, summarizeCost, today, type Be
 import { createEarcons } from '@/lib/earcons'
 import { emptyMetrics, loadMetrics, recordMetric, saveMetrics, type BenjiMetrics, type MetricEvent } from '@/lib/benji-metrics'
 import { resumePosition } from '@/lib/trip-resume'
-import { isNativeApp } from '@/lib/native-bridge'
+import { isNativeApp, hasLocationGate, requestNativeLocation } from '@/lib/native-bridge'
 import { toDirectionsResult, type TruckRouting } from '@/lib/truck-route'
 import { DEFAULT_VOICE_SETTINGS, createVoicePlayer, loadVoiceSettings, saveVoiceSettings, type NaturalVoiceState, type VoiceSettings } from '@/lib/voice'
 import { canFullscreen, enterFullscreen, exitFullscreen, isFullscreen as isDeviceFullscreen, isIphoneBrowser } from '@/lib/fullscreen'
@@ -1562,8 +1562,13 @@ export default function DriverMapNavigation({
   const startNavigation = () => {
     voicePlayerRef.current?.unlock()
     beginNavState()
-    startGPSTracking()
-    Promise.resolve(onNavigationStart?.()).catch(() => {})
+    const begin = () => {
+      startGPSTracking()
+      Promise.resolve(onNavigationStart?.()).catch(() => {})
+    }
+    // In the app, its location explanation has to come before the page asks the phone for a position.
+    if (hasLocationGate()) void requestNativeLocation().then(() => { if (navStateRef.current.isNavigating) begin() })
+    else begin()
     toast('Navigation started — follow the route', 'success')
     if (voiceEnabled) speak(resumeFrom ? "Welcome back. Let's pick up where you left off." : "Let's go. I'll guide you to your first stop.")
   }
