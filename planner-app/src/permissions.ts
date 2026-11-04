@@ -15,7 +15,7 @@ export async function ensureTrackingPermission(): Promise<boolean> {
   if (!(await disclosureAccepted())) {
     const agreed = await ask(
       'Share your position during trips',
-      'DriveDrop Route Planner collects your location while a trip is running, including when the app is closed or not in use, so your dispatcher and your customers\u2019 ETA links see where you are. It stops when the trip ends.',
+      'BenjiGo collects your location while a trip is running, including when the app is closed or not in use, so your dispatcher and your customers\u2019 ETA links see where you are. It stops when the trip ends.',
       'Continue',
     )
     if (!agreed) return false

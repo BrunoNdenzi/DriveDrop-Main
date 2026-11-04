@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "DriveDrop Route Planner",
+    "name": "BenjiGo",
     "slug": "drivedrop-route-planner",
     "version": "1.0.0",
     "orientation": "default",
@@ -11,14 +11,15 @@
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
-      "backgroundColor": "#101d1e"
+      "backgroundColor": "#0b1f44"
     },
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.drivedrop.routeplanner",
       "infoPlist": {
         "NSSpeechRecognitionUsageDescription": "Benji uses speech recognition to understand what you say.",
-        "NSMicrophoneUsageDescription": "Benji uses the microphone so you can talk to him while you drive."
+        "NSMicrophoneUsageDescription": "Benji uses the microphone so you can talk to him while you drive.",
+        "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
@@ -26,7 +27,8 @@
       "versionCode": 1,
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#123638"
+        "monochromeImage": "./assets/adaptive-monochrome.png",
+        "backgroundColor": "#0b1f44"
       },
       "permissions": [
         "ACCESS_COARSE_LOCATION",
@@ -49,7 +51,7 @@
       [
         "expo-location",
         {
-          "locationAlwaysAndWhenInUsePermission": "DriveDrop Route Planner shares your position with your dispatcher and your customers' ETA links while a trip is running, even when the app is in the background.",
+          "locationAlwaysAndWhenInUsePermission": "BenjiGo shares your position with your dispatcher and your customers' ETA links while a trip is running, even when the app is in the background.",
           "isAndroidBackgroundLocationEnabled": true,
           "isAndroidForegroundServiceEnabled": true
         }

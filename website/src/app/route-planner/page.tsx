@@ -7,6 +7,7 @@ import { getSupabaseBrowserClient } from '@/lib/supabase-client'
 import RouteOperations from '@/components/route-planner/RouteOperations'
 import PlannerBilling from '@/components/route-planner/PlannerBilling'
 import InstallApp from '@/components/route-planner/InstallApp'
+import BenjiGoLogo from '@/components/route-planner/BenjiGoLogo'
 import { isNativeApp, postToNative } from '@/lib/native-bridge'
 import { readReplyStream } from '@/lib/benji-stream'
 import type { TruckRoute, TruckRouteRequest, TruckRouting } from '@/lib/truck-route'
@@ -1229,9 +1230,9 @@ export default function StandaloneRoutePlannerPage() {
 
   return (
     <main className="min-h-screen bg-[#eef3f2] text-[#173435]">
-      <header className="border-b border-[#bfd0cd] bg-[#123638] text-white">
+      <header className="border-b border-[#16306a] bg-[#0b1f44] text-white">
         <div className="mx-auto flex min-h-16 max-w-[1500px] items-center justify-between gap-4 px-4 sm:px-6">
-          <div className="flex items-center gap-3"><Route className="h-6 w-6 text-[#66d3c8]" /><div><p className="font-semibold">DriveDrop Route Planner</p><p className="text-xs text-[#a8c7c3]">{businessName || 'Personal workspace'}</p></div></div>
+          <div className="flex min-w-0 items-center gap-4"><BenjiGoLogo /><p className="hidden min-w-0 truncate border-l border-white/20 pl-4 text-xs text-[#a9b9d6] sm:block">{businessName || 'Personal workspace'}</p></div>
           <div className="flex items-center gap-2"><button onClick={signOut} title="Sign out" className="grid h-9 w-9 place-items-center border border-white/20 hover:bg-white/10"><LogOut className="h-4 w-4" /></button></div>
         </div>
       </header>

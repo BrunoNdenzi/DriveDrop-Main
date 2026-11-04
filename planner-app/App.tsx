@@ -173,7 +173,7 @@ function Planner() {
 
   return (
     <View style={[styles.root, edges]}>
-      <StatusBar style="light" backgroundColor="#123638" />
+      <StatusBar style="light" backgroundColor="#0b1f44" />
       <WebView
         ref={web}
         source={{ uri: PLANNER_URL }}
@@ -206,11 +206,11 @@ function Planner() {
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: '#101d1e' },
-  web: { flex: 1, backgroundColor: '#101d1e' },
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#101d1e', padding: 24 },
+  root: { flex: 1, backgroundColor: '#0b1f44' },
+  web: { flex: 1, backgroundColor: '#0b1f44' },
+  center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#0b1f44', padding: 24 },
   title: { color: '#ffffff', fontSize: 20, fontWeight: '700' },
   body: { color: '#c6dbd8', marginTop: 8, fontSize: 15, textAlign: 'center' },
   button: { marginTop: 20, backgroundColor: '#ffffff', paddingHorizontal: 24, height: 48, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
-  buttonText: { color: '#123638', fontSize: 16, fontWeight: '700' },
+  buttonText: { color: '#0b1f44', fontSize: 16, fontWeight: '700' },
 })

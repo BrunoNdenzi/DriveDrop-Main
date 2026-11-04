@@ -4,7 +4,8 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import { Suspense, useState } from 'react'
-import { AlertCircle, ArrowRight, CheckCircle, Eye, EyeOff, LockKeyhole, Mail, Route, ShieldCheck } from '@/components/icons/streamline-lucide'
+import { AlertCircle, ArrowRight, CheckCircle, Eye, EyeOff, LockKeyhole, Mail, ShieldCheck } from '@/components/icons/streamline-lucide'
+import BenjiGoLogo from '@/components/route-planner/BenjiGoLogo'
 
 type UserRole = 'client' | 'driver' | 'broker' | 'admin'
 
@@ -66,7 +67,7 @@ function LoginForm() {
       <header className="border-b border-[#ccd9d7] bg-white">
         <div className="mx-auto flex h-16 max-w-[1440px] items-center justify-between px-4 sm:px-6 lg:px-8">
           {isRoutePlanner ? (
-            <p className="flex items-center gap-2 text-base font-semibold text-[#132c2d]"><Route className="h-5 w-5 text-[#008c82]" />DriveDrop Route Planner</p>
+            <BenjiGoLogo tone="dark" />
           ) : (
             <Link href="/" aria-label="DriveDrop home">
               <Image src="/logo-primary.png" alt="DriveDrop" width={132} height={36} className="h-8 w-auto" priority />
@@ -77,7 +78,7 @@ function LoginForm() {
       </header>
 
       <section className="mx-auto grid min-h-[calc(100vh-4rem)] max-w-[1440px] lg:grid-cols-[minmax(0,1.1fr)_minmax(420px,0.9fr)]">
-        <div className="relative flex min-h-[330px] flex-col justify-between overflow-hidden bg-[#123638] px-6 py-8 text-white sm:px-10 sm:py-12 lg:min-h-full lg:px-16 lg:py-16">
+        <div className={`relative flex min-h-[330px] flex-col justify-between overflow-hidden ${isRoutePlanner ? 'bg-[#0b1f44]' : 'bg-[#123638]'} px-6 py-8 text-white sm:px-10 sm:py-12 lg:min-h-full lg:px-16 lg:py-16`}>
           <div className="absolute inset-0 opacity-20 [background-image:linear-gradient(rgba(255,255,255,.14)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,.14)_1px,transparent_1px)] [background-size:48px_48px]" />
           <div className="relative max-w-xl">
             <div className="mb-8 inline-flex items-center gap-2 border border-white/25 bg-white/10 px-3 py-2 text-xs font-semibold uppercase tracking-[0.12em] text-[#c7f3ed]">

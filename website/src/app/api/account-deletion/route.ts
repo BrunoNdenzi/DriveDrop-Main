@@ -14,7 +14,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json().catch(() => ({})) as { reason?: unknown; product?: unknown }
     const reason = typeof body.reason === 'string' ? body.reason.trim().slice(0, 500) : ''
     const product = body.product === 'route-planner' ? 'route-planner' : null
-    const productName = product ? 'DriveDrop Route Planner' : 'DriveDrop'
+    const productName = product ? 'BenjiGo Route Planner' : 'DriveDrop'
     const { id: userId, email } = user
     const supabase = getServiceSupabase()
 

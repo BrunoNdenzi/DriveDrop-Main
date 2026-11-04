@@ -156,7 +156,7 @@ function checkAssistant(): void {
 
   const messages = buildAssistantMessages(request, { name: 'Free', maxStopsPerRoute: 10, maxDrivers: 1, monthlyRoutes: 5, routesUsed: 2, trialEndsAt: null });
   const system = messages[0]!.content;
-  assert.match(system, /DriveDrop Route Planner/);
+  assert.match(system, /BenjiGo Route Planner/);
   assert.match(system, /Plan: Free \(10 stops per route, 1 driver on the road at once, 2 of 5 routes used this month\)/);
   assert.match(system, /2\. \[pickup\] Pickup - 2 Oak Ave \(priority high, do first, window 09:00-11:00\)/);
   assert.match(system, /Stop 3 arrives after its window/);

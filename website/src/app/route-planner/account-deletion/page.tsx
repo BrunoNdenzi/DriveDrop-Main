@@ -3,7 +3,8 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { getSupabaseBrowserClient } from '@/lib/supabase-client'
-import { AlertTriangle, CheckCircle, Loader2, Route } from '@/components/icons/streamline-lucide'
+import { AlertTriangle, CheckCircle, Loader2 } from '@/components/icons/streamline-lucide'
+import BenjiGoLogo from '@/components/route-planner/BenjiGoLogo'
 
 const SUPPORT_EMAIL = 'infos@drivedrop.us.com'
 const CONFIRM_PHRASE = 'DELETE MY ACCOUNT'
@@ -50,10 +51,9 @@ export default function PlannerAccountDeletionPage() {
 
   return (
     <main className="min-h-screen bg-[#f2f6f5] text-[#132c2d]">
-      <header className="border-b border-[#bfd0cd] bg-[#123638] text-white">
-        <div className="mx-auto flex min-h-16 max-w-2xl items-center gap-3 px-4">
-          <Route className="h-6 w-6 text-[#66d3c8]" />
-          <p className="font-semibold">DriveDrop Route Planner</p>
+      <header className="border-b border-[#16306a] bg-[#0b1f44] text-white">
+        <div className="mx-auto flex min-h-16 max-w-2xl items-center px-4">
+          <BenjiGoLogo />
         </div>
       </header>
 

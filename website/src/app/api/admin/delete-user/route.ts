@@ -76,7 +76,7 @@ export async function POST(request: NextRequest) {
     if (error) throw error
 
     if (email) {
-      const productName = planner ? 'DriveDrop Route Planner' : 'DriveDrop'
+      const productName = planner ? 'BenjiGo Route Planner' : 'DriveDrop'
       sendEmail({
         to: email,
         subject: `Your ${productName} account has been deleted`,

@@ -627,7 +627,9 @@ export default function DriverMapNavigation({
       mapTypeControl: false,
       streetViewControl: false,
       fullscreenControl: false,
-      zoomControl: true,
+      // Phones zoom by pinching; Google's own zoom and camera buttons only crowd the lower right corner.
+      zoomControl: !isMobileBrowser(navigator.userAgent),
+      cameraControl: false,
       gestureHandling: 'greedy',
       // A Map ID unlocks heading-up rotation and tilt; styling then lives in the Cloud console, so no inline styles.
       ...(MAP_ID
