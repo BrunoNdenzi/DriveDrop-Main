@@ -1371,7 +1371,7 @@ export default function StandaloneRoutePlannerPage() {
       <footer className="mx-auto mt-6 max-w-[1500px] border-t border-[#bfd0cd] px-4 py-5 text-xs text-[#617775] sm:px-6">
         <Link href="/route-planner/account-deletion" className="font-semibold hover:underline">Delete account</Link>
         <span className="mx-2">·</span>
-        <Link href="/privacy" className="hover:underline">Privacy</Link>
+        <Link href="/route-planner/privacy" className="hover:underline">Privacy</Link>
       </footer>
     </main>
   )
