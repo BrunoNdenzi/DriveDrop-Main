@@ -1372,6 +1372,8 @@ export default function StandaloneRoutePlannerPage() {
         <Link href="/route-planner/account-deletion" className="font-semibold hover:underline">Delete account</Link>
         <span className="mx-2">·</span>
         <Link href="/route-planner/privacy" className="hover:underline">Privacy</Link>
+        <span className="mx-2">·</span>
+        <Link href="/route-planner/terms" className="hover:underline">Terms</Link>
       </footer>
     </main>
   )

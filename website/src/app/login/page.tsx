@@ -202,7 +202,7 @@ function LoginForm() {
             <div className="mt-7 border-t border-[#dce5e3] pt-5">
               <Link href={isRoutePlanner ? '/route-planner/signup' : currentRole.signupHref} className="text-sm font-semibold text-[#007b72] hover:underline">{isRoutePlanner ? 'Create a route planner account' : currentRole.signupLabel}</Link>
               <p className="mt-4 text-xs leading-5 text-[#718482]">
-                By signing in, you agree to our <Link href="/terms" className="hover:underline">Terms</Link> and <Link href={isRoutePlanner ? '/route-planner/privacy' : '/privacy'} className="hover:underline">Privacy Policy</Link>.
+                By signing in, you agree to our <Link href={isRoutePlanner ? '/route-planner/terms' : '/terms'} className="hover:underline">Terms</Link> and <Link href={isRoutePlanner ? '/route-planner/privacy' : '/privacy'} className="hover:underline">Privacy Policy</Link>.
               </p>
             </div>
           </div>
