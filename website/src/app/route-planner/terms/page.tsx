@@ -94,7 +94,7 @@ export default function BenjiGoTermsPage() {
         <Section title="7. Acceptable use">
           <p>You agree not to:</p>
           <List items={[
-            'misuse, probe, overload or try to break into the Service or other users&apos; accounts;',
+            'misuse, probe, overload or try to break into the Service or the accounts of other users;',
             'use automated tools to scrape or bulk-copy the Service;',
             'resell the Service, or use it to build a competing product;',
             'send customers misleading tracking links or use location data to harass or stalk anyone;',
