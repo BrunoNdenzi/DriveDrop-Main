@@ -41,6 +41,7 @@ import benjiV3Router from '../benji-v3/benji.router';
 
 // Lead Acquisition
 import leadsRoutes from './leads.routes';
+import sellbirdRoutes from './sellbird.routes';
 
 // Outreach
 import outreachRoutes from './outreach.routes';
@@ -97,6 +98,7 @@ router.get('/', (_req, res) => {
       driverRoutes: '/api/v1/driver-routes',
       standaloneRoutePlanner: '/api/v1/standalone-route-planner',
       leads: '/api/v1/leads',
+      sellbird: '/api/v1/integrations/sellbird',
       outreach: '/api/v1/outreach',
       // Email Campaign System
       campaigns: '/api/v1/campaigns',
@@ -146,6 +148,7 @@ router.use('/standalone-route-planner', standaloneRoutePlannerRoutes);
 
 // Lead Acquisition
 router.use('/leads', leadsRoutes);
+router.use('/integrations/sellbird', sellbirdRoutes);
 
 // Outreach
 router.use('/outreach', outreachRoutes);
